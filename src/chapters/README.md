@@ -5,7 +5,7 @@ more — otherwise it silently shows none. One library fixed what it could and s
 wrong and fixed nothing. Here the rule fixes what it can **and** says what it did.
 
 ```js
-import { youtubeChapters, readChapters, clockText } from 'footprint-narration';
+import { youtubeChapters, readChapters, clockText } from 'footprint-story';
 
 const list = youtubeChapters([{ at: 0, title: 'Open' }, { at: 4, title: 'Title' }, { at: 30, title: 'Middle' }, { at: 95, title: 'End' }], { length: 120 });
 list.lines;     // ['0:00 Title', '0:30 Middle', '1:35 End'] — an opening card under 10 s yields 0:00

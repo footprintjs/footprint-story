@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0 — footprint-narration is now footprint-story, and the motion words join it
+
+**Renamed.** The package is `footprint-story` from this version: what a film (footprint-storyreel) and a deck
+(StoryDeck) share, not only their narration. `footprint-narration` stays on npm at 0.2.0 and gets no new versions;
+there is no copy under the old name. To move: replace `footprint-narration` with `footprint-story` in your
+`package.json` and your imports — `footprint-story` and `footprint-story/voice` export exactly what the two old
+doors did. A voice batch's temporary folder is now named `footprint-story-voice-…`.
+
+- **motion** (`footprint-story/motion`, a third door, pure, loaded only when imported):
+  - **ease, spring, moves**, moved from footprint-storyreel 0.23.0: the ease table and CSS `cubic-bezier`, the
+    springs by feel, the named moves and their laws. What they give and how they refuse is unchanged — pinned by
+    property tests against copies of that code (`test/control/storyreel-0.23.0-*`).
+  - **transitions**: the editor's changes of picture (cut, fade, dip, wipe, split, clock, iris, push, slide, whip,
+    zoom, page, through, match) as data — family, seconds, ease, sound name, settings — with `readTransition`,
+    `checkTransition` and `extendTransitions` for a drawer's own. Nothing draws here.
+  - **settings**: the one settings reader, as StoryReel 0.23.0 had it.
+  - **pace**: `lesson` (StoryReel's slideshow numbers) and `promo` (a published launch film's checks), or your own.
+- The architecture test now checks three doors: the main door never loads motion, and the motion door reaches
+  nothing else.
+
+### Differences from the code it replaced
+
+- A point setting's default may be `'centre'`: the middle of the frame it is read for (`readSettings(…, { frame })`,
+  1600×900 unless given). The shared transitions use it for `iris` and `zoom`, so a deck's 1920×1080 slide gets its
+  own middle; on a 1600×900 film it is [800, 450], as before.
+- A box setting's refusal names the frame's own size (1600×900 unless given).
+
 ## 0.2.0
 
 Your own voice, recorded. A second adapter of the voice port voices a deck or a film from takes you read

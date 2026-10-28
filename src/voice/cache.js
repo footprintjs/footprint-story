@@ -83,7 +83,7 @@ export async function voiceClips(texts, { cache, profile, engine, only = null, b
   let voiced = 0;
   if (!keys.length) return { wanted, todo: 0, voiced };
   await engine?.preflight?.(keys.map((key) => ({ id: `k${key}`, text: todo.get(key) })), { work: work && path.resolve(work) });
-  const own = !work, dir = own ? mkdtempSync(path.join(tmpdir(), 'footprint-narration-voice-')) : path.resolve(work);
+  const own = !work, dir = own ? mkdtempSync(path.join(tmpdir(), 'footprint-story-voice-')) : path.resolve(work);
   try {
     for (let b = 0; b < keys.length; b += batch) {
       const part = keys.slice(b, b + batch).filter((key) => !existsSync(path.join(cache, `${key}.json`)));   // another run may have voiced it

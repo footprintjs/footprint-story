@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Recorded takes of KNOWN text, timed word by word (torchaudio MMS_FA forced alignment; local, offline).
 
-footprint-narration's recordedTakes (src/voice/recorded.js) runs it with a voice kit's Python (.venv-voice, which
+footprint-story's recordedTakes (src/voice/recorded.js) runs it with a voice kit's Python (.venv-voice, which
 has torch and torchaudio) after it has cut each take's silences. The aligner is the kit's own
 (scripts/voice/tts_chatterbox.py · align: MMS_FA, the same letters per word), so a recorded line is timed as a
 cloned line is; the word check is the kit's scripts/voice/check_words.py (a score per word, low under 0.3, and the
@@ -88,7 +88,7 @@ def take(parts, out, scene):
         return entry, {'scene': scene['id'], 'words': len(tokens), 'meanScore': None, 'lowWords': [], 'letterMatch': None, 'failed': why}
     entry['words'] = [{'text': t, 'start': round(a, 4), 'end': round(b, 4)} for t, (a, b, _) in zip(tokens, timed)]
     entry['alignment'] = {'status': 'available', 'method': 'forced-alignment-mms', 'precision': 'forced-aligned to the approved text', 'sampleRate': sr,
-        'note': 'A recording of the known text, its silences cut (footprint-narration recordedTakes); word boundaries from torchaudio MMS_FA forced alignment. Local only.'}
+        'note': 'A recording of the known text, its silences cut (footprint-story recordedTakes); word boundaries from torchaudio MMS_FA forced alignment. Local only.'}
     said = ''.join(norm(t) for t in tokens)
     check = {'scene': scene['id'], 'words': len(tokens), 'meanScore': round(float(np.mean([s for _, _, s in timed])), 3),
              'lowWords': [[t, round(s, 2)] for t, (_, _, s) in zip(tokens, timed) if s < LOW],

@@ -4,7 +4,7 @@
 All three must split the same text the same way, or a caption shows one sentence while the voice says the next.
 
 ```js
-import { sentences, saidSentences, sentenceStarts } from 'footprint-narration';
+import { sentences, saidSentences, sentenceStarts } from 'footprint-story';
 
 sentences('One. Two? Three! four');          // ['One.', 'Two?', 'Three!', 'four']
 saidSentences('Done. ... Next.');            // ['Done. ...', 'Next.'] — a lone "..." is never said: it joins

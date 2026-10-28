@@ -1,4 +1,4 @@
-// footprint-narration/voice — a narration in a voice: one clip per text, cached by its recipe. Node only.
+// footprint-story/voice — a narration in a voice: one clip per text, cached by its recipe. Node only.
 //
 //   const engine = chatterboxKit({ kit: '../voice-kit' });       // an adapter of the voice port: a local voice kit
 //   await voiceClips(texts, { cache, profile, engine });         // voices only the texts whose clip is not cached

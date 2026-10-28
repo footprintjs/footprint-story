@@ -1,19 +1,27 @@
 ---
-name: footprint-narration
-description: Say a narration with a voice and caption it as written, with footprint-narration — the shown↔spoken map (numbers, symbols and acronyms said in words, shown as written; hand slots and automatic rules), sentence and word captions in one SRT/WebVTT writer, YouTube chapters that are fixed and reported, and a voice clip cache keyed by exactly what is said. Use when turning text into what a TTS voice should say, captioning a narrated video or deck, writing chapters for YouTube, or voicing lines through a local voice kit.
+name: footprint-story
+description: What a film and a deck share (footprint-story, formerly footprint-narration). Say a narration with a voice and caption it as written — the shown↔spoken map (numbers, symbols and acronyms said in words, shown as written; hand slots and automatic rules), sentence and word captions in one SRT/WebVTT writer, YouTube chapters that are fixed and reported, and a voice clip cache keyed by exactly what is said. And name how things move, once for both tools: eases and springs, moves (slam, pop, soft-rise…), changes of picture as data (push, whip, zoom…), and pace (lesson, promo). Use when turning text into what a TTS voice should say, captioning a narrated video or deck, writing chapters for YouTube, voicing lines through a local voice kit, or picking a move, a transition or a pace for StoryReel or StoryDeck.
 ---
 
-# footprint-narration: what a voice says, and what a caption shows
+# footprint-story: what a film and a deck share
 
 A voice drops or garbles digits and a forced aligner knows only letters, so a narration is **said in words and
-shown as written**. Everything here rests on one map from the shown text to the spoken text. Two doors:
+shown as written**. Everything here rests on one map from the shown text to the spoken text. And a move, a change of
+picture and a pace are named here once, so a film and a deck move alike. Three doors:
 
 | You need | Import | Runs |
 |---|---|---|
-| the shown↔spoken map, sentences, captions, chapters | `footprint-narration` | anywhere (browser or Node), no dependencies |
-| a voice clip cache, the voice port, the Chatterbox kit adapter | `footprint-narration/voice` | **Node only** |
+| the shown↔spoken map, sentences, captions, chapters | `footprint-story` | anywhere (browser or Node), no dependencies |
+| a voice clip cache, the voice port, the Chatterbox kit adapter | `footprint-story/voice` | **Node only** |
+| eases, springs, moves, transitions as data, pace | `footprint-story/motion` | anywhere, no dependencies; nothing draws |
 
-Never import `footprint-narration/voice` into browser code.
+Never import `footprint-story/voice` into browser code. This package was `footprint-narration` until 0.3.0: replace
+the name in imports and `package.json`; the two old doors export exactly what they did.
+
+**Motion, in one breath.** `moveAt('slam', t)` gives a move's values at t; `movesBy({ feel: 'heavy', use: 'text' })`
+finds moves; `readTransition({ type: 'push', from: 'left' }, where, { frame: [1920, 1080] })` reads a change of
+picture (a point's default `'centre'` is that frame's middle); `readPace('lesson' | 'promo')` says how long a picture
+may sit still. Nothing here draws: StoryReel paints, StoryDeck animates the page.
 
 ## Recipes
 
@@ -22,7 +30,7 @@ lone `& + = × %` or Greek letter, say `< >` only before a number, and drop ever
 its sentence end moves onto the word before, else that word gets a comma).
 
 ```js
-import { spokenMap, autoRules, SPELL } from 'footprint-narration';
+import { spokenMap, autoRules, SPELL } from 'footprint-story';
 const rules = autoRules({ spell: { ...SPELL, 日本: 'Japan' } });   // build once, reuse
 spokenMap('Errors fell 90 % — then 3 more.', { rules }).spoken;   // 'Errors fell ninety percent, then three more.'
 ```
@@ -38,7 +46,7 @@ spokenMap('It took 1,250 ms.', { slots: [['1,250 ms', 'twelve hundred fifty mill
 timings), then `shownWords(map, words)` collapses each said run back into what is shown; chunk them on tracks.
 
 ```js
-import { shownWords, captionChunks, captionFile, FILE_CHUNKS } from 'footprint-narration';
+import { shownWords, captionChunks, captionFile, FILE_CHUNKS } from 'footprint-story';
 const tracks = scenes.map((s) => ({ offset: s.offset, duration: s.duration, words: shownWords(s.map, s.words) }));
 const srt = captionFile(captionChunks(tracks, FILE_CHUNKS), 'srt');   // numbered, two lines at most
 ```
@@ -51,7 +59,7 @@ A deck whose clips know only sentence starts uses `captionCues(steps)` instead; 
 **Voice lines through a local kit (Node):**
 
 ```js
-import { chatterboxKit, voiceClips, clipFor, pickSteps } from 'footprint-narration/voice';
+import { chatterboxKit, voiceClips, clipFor, pickSteps } from 'footprint-story/voice';
 const engine = chatterboxKit({ kit: '../voice-kit' });
 await voiceClips(spokenTexts, { cache: 'voice-cache', profile, engine, only: pickSteps(process.env.ONLY) });
 const clip = clipFor(spokenTexts[0], { cache: 'voice-cache', profile });   // { key, audio, duration, sentences, words }

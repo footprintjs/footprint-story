@@ -5,7 +5,7 @@ times (each clip's sentence starts); a film has word times (the aligner's words)
 file, written one way — or a fix to the escaping or the wrap lands in one library and not the other.
 
 ```js
-import { captionCues, captionChunks, captionFile, readCaptions, FILE_CHUNKS } from 'footprint-narration';
+import { captionCues, captionChunks, captionFile, readCaptions, FILE_CHUNKS } from 'footprint-story';
 
 const bySentence = captionCues([{ start: 10, lead: 0.5, written: 'In 2000. Done.', spoken: 'In two thousand. Done.',
   clip: { duration: 4, sentences: [0.2, 2.5] } }]);                  // [{ start: 10.7, end: 13, text: 'In 2000.' }, …]

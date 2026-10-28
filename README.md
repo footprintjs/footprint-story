@@ -1,32 +1,43 @@
-# footprint-narration
+# footprint-story
+
+**What a film and a deck share.** [StoryDeck](https://github.com/footprintjs/storydeck) (slide decks that narrate
+themselves) and [footprint-storyreel](https://github.com/footprintjs/storyreel) (drawn films) tell stories the same
+way: a voice says the words, captions show them, and things move on screen. Each used to keep its own copy of those
+rules, and the copies had started to disagree. This package holds them once. It was called `footprint-narration`
+until 0.3.0, when the motion words joined it.
 
 **What a voice says, and what a caption shows.** A voice drops or garbles digits and a forced aligner knows only
 letters, so a narration is *said* in words while its captions *show* it as written: "16.67 ms" is said "sixteen
-point six seven milliseconds", "UI" is said "U I", and a lone "—" is not said at all. This package owns that one
+point six seven milliseconds", "UI" is said "U I", and a lone "—" is not said at all. The main door owns that one
 law and everything that rests on it: the shown↔spoken map, sentences and word times, caption cues and caption
 files, YouTube chapters, and — for Node — a voice port with a clip cache keyed by exactly what is said.
 
-It is the common ground of two libraries that tell stories with a voice: [StoryDeck](https://github.com/footprintjs/storydeck)
-(slide decks that narrate themselves) and [footprint-storyreel](https://github.com/footprintjs/storyreel) (drawn
-films). Each used to keep its own copy of these rules; the copies had started to disagree.
+**How things move.** A curve, a spring, a move such as "slam", a change of picture such as "push" and how long a
+picture may sit still are words both tools use, so they are named here once. Nothing here draws: StoryReel paints
+them on a canvas, StoryDeck plays them in a page.
 
 ```sh
-npm install footprint-narration
+npm install footprint-story
 ```
 
-Two doors, nothing else:
+Three doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
-| `footprint-narration` | the shown↔spoken map, sentences, captions, chapters | anywhere — browser or Node; no dependencies |
-| `footprint-narration/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
+| `footprint-story` | the shown↔spoken map, sentences, captions, chapters | anywhere — browser or Node; no dependencies |
+| `footprint-story/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
+| `footprint-story/motion` | eases and springs, moves, transitions as data, pace | anywhere — browser or Node; no dependencies |
+
+What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
+new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency or a release
+pace of its own.
 
 ## One text, as shown and as spoken
 
 A **slot** says one exact place by hand; the **rules** say everything else. Use either or both.
 
 ```js
-import { spokenMap, autoRules } from 'footprint-narration';
+import { spokenMap, autoRules } from 'footprint-story';
 
 spokenMap('Keep latency < 10 ms — the UI waits.', { rules: autoRules() }).spoken;
 // 'Keep latency less than ten ms, the U I waits.'
@@ -50,7 +61,7 @@ the word before, else that word gets a comma. Bring your own lists — `autoRule
 into what the text shows, timed from its first word to its last, so captions show digits where the voice said words:
 
 ```js
-import { shownWords } from 'footprint-narration';
+import { shownWords } from 'footprint-story';
 
 shownWords(map, alignedWords).map((w) => w.text);   // ['One', 'frame', 'takes', '16.67 ms,', 'at', '60 Hz.']
 ```
@@ -65,7 +76,7 @@ Two producers — by sentence (a deck's clips know each sentence's start) and by
 word) — one cue shape, **one writer**, one reader.
 
 ```js
-import { captionCues, captionChunks, captionFile, readCaptions, FILE_CHUNKS } from 'footprint-narration';
+import { captionCues, captionChunks, captionFile, readCaptions, FILE_CHUNKS } from 'footprint-story';
 
 const cues = captionCues([{ start: 10, lead: 0.5, written: 'In 2000. Done.', spoken: 'In two thousand. Done.',
   clip: { duration: 4, sentences: [0.2, 2.5] } }]);                     // shows "In 2000." while the voice says it
@@ -84,7 +95,7 @@ YouTube shows chapters only when the first is at 0:00, there are at least three,
 `youtubeChapters` fixes what it can and says what it did.
 
 ```js
-import { youtubeChapters } from 'footprint-narration';
+import { youtubeChapters } from 'footprint-story';
 
 const list = youtubeChapters([{ at: 3, title: 'Card' }, { at: 6, title: 'Intro' }, { at: 40, title: 'One' },
   { at: 45, title: 'Aside' }, { at: 80, title: 'Two' }], { length: 205 });
@@ -95,7 +106,7 @@ list.changes;   // Card replaced by Intro · Intro moved to 0:00 · Aside merged
 ## A voice, cached by what it says (Node)
 
 ```js
-import { chatterboxKit, voiceClips, clipFor } from 'footprint-narration/voice';
+import { chatterboxKit, voiceClips, clipFor } from 'footprint-story/voice';
 
 const engine = chatterboxKit({ kit: '../voice-kit' });                 // a local voice kit; nothing is uploaded
 await voiceClips(texts, { cache: 'voice-cache', profile, engine });    // voices only what has no clip yet
@@ -115,7 +126,7 @@ known text by the same aligner, cached by the same key recipe. `recordedTakes` i
 port, so nothing downstream changes.
 
 ```js
-import { recordedTakes, voiceClips, clipFor } from 'footprint-narration/voice';
+import { recordedTakes, voiceClips, clipFor } from 'footprint-story/voice';
 
 const takes = recordedTakes({ kit: '../voice-kit', takes: 'takes' });          // your recordings + the kit's aligner
 await voiceClips(texts, { cache: 'voice-cache', profile: takes.profile, engine: takes, batch: 50 });
@@ -160,6 +171,27 @@ the takes folder, holds it or lies inside it, because a work folder is emptied b
 
 The voice is yours alone: never use this for anyone else's.
 
+## How things move (motion)
+
+**Why:** a move should look the same in a film and on a slide, and nobody should keep a second copy of a spring.
+Every value is a pure function of time, so frame 812 is drawn without drawing 0–811.
+
+```js
+import { easeNamed, moveAt, movesBy, readTransition, readPace } from 'footprint-story/motion';
+
+easeNamed('cubic-bezier(0.16, 1, 0.3, 1)')(0.5);   // the curve a browser draws for that text
+moveAt('slam', 0.1);                  // { opacity, x, y, scale: 1.106…, rotate, blur: 0.18…, clip, progress, mask }
+movesBy({ feel: 'heavy', use: 'text' });            // [slam]
+readTransition({ type: 'push', from: 'left' }, 'click 3');
+// { type: 'push', family: 'motion', seconds: 0.7, ease: 'inOut', sound: 'slide', p: { from: 'left' } }
+readTransition('iris', 'click 4', { frame: [1920, 1080] }).p.at;   // [960, 540]: the middle of this frame
+readPace('promo');   // { hold: 0.6, most: 0, still: 0.4, spare: 1 }: nothing still past 0.6 s, the end card spared
+```
+
+Moves keep their kind's law (an entrance ends at rest, an exit starts there, an ambient move loops from rest), and a
+move of your own is checked by the same laws. A drawer adds its own transitions with `extendTransitions`, checked the
+same way. More in [src/motion/README.md](src/motion/README.md).
+
 ## API
 
 | export | does |
@@ -175,8 +207,13 @@ The voice is yours alone: never use this for anyone else's.
 | `captionFile(cues, kind, opts)`, `readCaptions`, `stamp`, `FILE_CHUNKS` | the one writer, its reader, its clock |
 | `youtubeChapters(marks, { length, min })`, `readChapters`, `clockText` | chapters fixed and reported; read back; their clock |
 | `/voice` `clipKey`, `clipFor`, `voiceClips`, `pickSteps`, `chatterboxKit`, `recordedTakes` | the clip cache and the voice port's two adapters |
+| `/motion` `EASES`, `easeNamed`, `bezier`, `overshoots` | the ease table, any CSS cubic-bezier, which curves overshoot |
+| `/motion` `spring`, `FEELS`, `readFeel`, `settleTime`, `pop`, `track` | closed-form springs by feel |
+| `/motion` `MOVES`, `moveAt`, `readMove`, `movesBy`, `stagger` | named moves: their values at t, your own checked, a filter, delays |
+| `/motion` `TRANSITIONS`, `readTransition`, `checkTransition`, `extendTransitions`, `readSettings` | changes of picture as data, read and checked |
+| `/motion` `PACES`, `readPace` | how long a picture may sit still, by kind of film |
 
-Types ship with both doors (`index.d.ts`, `voice.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -185,7 +222,10 @@ Types ship with both doors (`index.d.ts`, `voice.d.ts`). Each `src/` folder has 
   against copies of that code, kept unedited in `test/control/`. The four clip-key goldens of a real deck stay.
 - **The pieces always join back** to both texts, and only text said as written is ever rewritten: what a slot or
   a rule says is final.
-- **The main door runs in a browser**: nothing it reaches imports a Node module (an architecture test).
+- **Every move and curve StoryReel 0.23.0 drew is drawn the same**: property tests compare thousands of generated
+  calls against copies of that code in `test/control/` — values and refusals alike.
+- **The main door and the motion door run in a browser**: nothing they reach imports a Node module, and the main door
+  never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).
 
