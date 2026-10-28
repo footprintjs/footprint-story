@@ -104,7 +104,7 @@ test('voicing: the picked steps only, by default in a temporary folder of its ow
   const spy = { name: 'spy', synthesize: (scenes, opts) => { works.push(opts.work); return engine.synthesize(scenes, opts); } };
   assert.deepEqual(await voiceClips(['A.', 'B.', 'C.'], { cache, profile: PROFILE, engine: spy, only: new Set([2]) }), { wanted: 3, todo: 1, voiced: 1 });
   assert.deepEqual(engine.calls, [['B.']]);
-  assert.ok(works[0].startsWith(tmpdir()) && path.basename(works[0]).startsWith('footprint-narration-voice-'));
+  assert.ok(works[0].startsWith(tmpdir()) && path.basename(works[0]).startsWith('footprint-story-voice-'));
   assert.equal(existsSync(works[0]), false, 'gone: never a folder beside the cache (a kit\'s reference recording lives there)');
   assert.deepEqual(await voiceClips(['B.'], { cache, profile: PROFILE, engine: spy }), { wanted: 1, todo: 0, voiced: 0 });
   assert.equal(works.length, 1, 'nothing to do: no folder at all');

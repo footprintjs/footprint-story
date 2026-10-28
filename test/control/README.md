@@ -10,6 +10,10 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.9.0-captions.mjs` | footprint-storyreel `src/captions.mjs` at `eab4858` | none |
 | `storyreel-0.9.0-youtube.mjs` | footprint-storyreel `src/targets/youtube.mjs` at `eab4858` | none |
 | `storyreel-0.9.0-readCaptions.mjs` | footprint-storyreel `src/finished.mjs` at `eab4858`, lines 268–277 (`readCaptions`) | none |
+| `storyreel-0.23.0-ease.mjs` | footprint-storyreel `src/ease.mjs` at `1f59978` (npm 0.23.0) | none |
+| `storyreel-0.23.0-motion.mjs` | footprint-storyreel `src/motion.mjs` at `1f59978` | none |
+| `storyreel-0.23.0-moves.mjs` | footprint-storyreel `src/moves.mjs` at `1f59978` | its two imports point at the two controls above |
+| `storyreel-0.23.0-settings.mjs` | footprint-storyreel `src/settings.mjs` at `1f59978` | its import of `isHex` from `colour.mjs` is replaced by that one line (`colour.mjs` line 9) |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these

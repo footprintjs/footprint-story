@@ -1,6 +1,7 @@
 /**
- * footprint-narration — what a voice says and what a caption shows. The pure door (index.js): runs anywhere,
- * browser or Node. The voice port and the clip cache are behind 'footprint-narration/voice' (Node only).
+ * footprint-story — what a film and a deck share. This door (index.js): what a voice says and what a caption shows;
+ * runs anywhere, browser or Node. The voice port and the clip cache are behind 'footprint-story/voice' (Node only); how
+ * things move is behind 'footprint-story/motion' (pure).
  */
 
 // ── spoken: one text as shown and as spoken ─────────────────────────────────────────────────────────────────

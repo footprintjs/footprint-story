@@ -5,7 +5,7 @@ profile's settings and the exact spoken text — so editing one line re-voices t
 said twice is voiced once, and an interrupted run keeps every batch it finished.
 
 ```js
-import { chatterboxKit, voiceClips, clipFor } from 'footprint-narration/voice';
+import { chatterboxKit, voiceClips, clipFor } from 'footprint-story/voice';
 
 const engine = chatterboxKit({ kit: '../voice-kit' });               // an adapter of the voice port
 await voiceClips(texts, { cache: 'voice-cache', profile, engine });  // only the texts with no clip yet
@@ -31,7 +31,7 @@ line does. `recordedTakes` is the second adapter of the same port, so the cache,
 plays a clip stay as they are.
 
 ```js
-import { recordedTakes, voiceClips } from 'footprint-narration/voice';
+import { recordedTakes, voiceClips } from 'footprint-story/voice';
 
 const takes = recordedTakes({ kit: '../voice-kit', takes: 'takes', log: console.log });
 await voiceClips(texts, { cache: 'voice-cache', profile: takes.profile, engine: takes, batch: 50 });

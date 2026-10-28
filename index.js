@@ -1,6 +1,6 @@
-// footprint-narration — what a voice says and what a caption shows. The pure door: runs anywhere (browser or
-// Node); nothing beneath it imports a Node module. The voice port and the clip cache are behind
-// 'footprint-narration/voice' (Node only).
+// footprint-story — what a film and a deck share. This door: what a voice says and what a caption shows. Pure: runs
+// anywhere (browser or Node); nothing beneath it imports a Node module. The voice port and the clip cache are behind
+// 'footprint-story/voice' (Node only); how things move is behind 'footprint-story/motion' (pure).
 
 // spoken — one text as shown and as spoken
 export { normSpeech } from './src/spoken/normSpeech.js';

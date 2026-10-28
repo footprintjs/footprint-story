@@ -1,5 +1,5 @@
 /**
- * footprint-narration/voice (voice.js) — a narration in a voice: one clip per text, cached by its recipe. Node only.
+ * footprint-story/voice (voice.js) — a narration in a voice: one clip per text, cached by its recipe. Node only.
  */
 import type { WordTiming } from './index.js';
 

@@ -6,7 +6,7 @@ on:
 
 # Least privilege: publish power (OIDC) only in the `publish` job, which takes the tarball packed and tested in
 # `build` and resolves no dependencies of its own. The first version goes up by hand (npm publish), then
-# npmjs.com → footprint-narration → Settings → Trusted publishing: GitHub Actions, footprintjs/footprint-narration, publish.yml.
+# npmjs.com → footprint-story → Settings → Trusted publishing: GitHub Actions, footprintjs/footprint-story, publish.yml.
 permissions:
   contents: read
 

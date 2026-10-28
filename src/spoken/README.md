@@ -6,7 +6,7 @@ from what a caption *shows*: "16.67 ms" is said "sixteen point six seven millise
 shown text became which spoken text. This folder owns that one law: **said in words, shown as written.**
 
 ```js
-import { spokenMap, autoRules, shownWords } from 'footprint-narration';
+import { spokenMap, autoRules, shownWords } from 'footprint-story';
 
 const map = spokenMap('It took 1,250 ms — then 3 more.', {
   slots: [['1,250 ms', 'twelve hundred fifty milliseconds']],   // said by hand, where it stands
