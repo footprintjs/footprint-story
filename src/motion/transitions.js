@@ -18,7 +18,7 @@
  *                                  a thing in the old picture becomes the same thing in the new one
  *
  * Nothing here draws. What draws is an adapter: StoryReel paints every one of these on a canvas (and adds its own
- * paper ones); css.mjs turns the ones a web page can do into keyframes (CSS_TRANSITIONS says which). A drawer adds its
+ * paper ones); a page (StoryDeck) plays the ones a browser can do as keyframes. A drawer adds its
  * own by `extendTransitions`, checked the same way. Points (`at`) are on the frame the change is drawn on; a point's
  * default 'centre' is that frame's middle, whatever its size.
  */

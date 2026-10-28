@@ -27,7 +27,7 @@
  * start values until the move starts, then the end (an ambient move: its rest).
  *
  * Pure functions of time, like every frame: moveAt(name, t) draws the same pixels whichever frames came before.
- * A move is drawn by an adapter: StoryReel applies the values to a canvas; css.mjs turns them into CSS for a page.
+ * A move is drawn by an adapter: StoryReel applies the values to a canvas; a page (StoryDeck) turns them into CSS.
  */
 import { easeNamed } from './ease.js';
 import { spring, readFeel, FEELS } from './spring.js';

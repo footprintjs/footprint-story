@@ -109,7 +109,7 @@ export type SettingSpec =
   | { readonly color: true; readonly default: string | null }
   | { readonly number: readonly [number, number]; readonly default: number }
   | { readonly box: true; readonly default: readonly [number, number, number, number] }
-  | { readonly name: true; readonly default?: null };
+  | { readonly name: true; readonly default?: string | null };
 /** A transition: what it is, never how it is drawn (a drawer adds its own keys, such as StoryReel's draw). */
 export interface Transition {
   readonly family: string;
