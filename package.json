@@ -1,7 +1,7 @@
 {
   "name": "footprint-story",
   "version": "0.3.0",
-  "description": "What a film and a deck share: what a voice says and what a caption shows (shown-vs-spoken text, sentences and word times, caption cues and files, YouTube chapters); a voice port and a clip cache behind /voice; how things move behind /motion (eases, springs, moves, transitions as data, pace).",
+  "description": "Shared JavaScript narration, shown/spoken text, captions and motion primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
   "type": "module",
   "license": "MIT",
   "author": "Sanjay Krishna Anbalagan",
