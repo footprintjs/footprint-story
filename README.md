@@ -1,5 +1,9 @@
 # footprint-story
 
+For developers building narration and animation tools, or integrating the shared rules used by StoryDeck and StoryReel.
+
+[Install and import paths](#install-and-import-paths) · [Text mapping](#one-text-as-shown-and-as-spoken) · [Captions](#captions) · [Motion](#how-things-move-motion) · [Guarantees and limits](#what-is-guaranteed)
+
 **What a film and a deck share.** [StoryDeck](https://github.com/footprintjs/storydeck) (slide decks that narrate
 themselves) and [footprint-storyreel](https://github.com/footprintjs/storyreel) (drawn films) tell stories the same
 way: a voice says the words, captions show them, and things move on screen. Each used to keep its own copy of those
@@ -15,6 +19,8 @@ files, YouTube chapters, and — for Node — a voice port with a clip cache key
 **How things move.** A curve, a spring, a move such as "slam", a change of picture such as "push" and how long a
 picture may sit still are words both tools use, so they are named here once. Nothing here draws: StoryReel paints
 them on a canvas, StoryDeck plays them in a page.
+
+## Install and import paths
 
 ```sh
 npm install footprint-story
