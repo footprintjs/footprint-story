@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **`storyboardFixBriefs`**, in `footprint-story/storyboard`: a refused storyboard no longer has to be written again to be
+  fixed. It takes the board and its problems, and gives one short brief per piece at fault: the problems, what the piece says
+  now, and the messages it cites. Every problem is still named at once. The instructions stay the same whatever the board or
+  the conversation says, the words come apart from them as data, and a huge board or message still gives a short answer.
+- **A brief no longer asks for the whole object again** after a refusal: it asks to fix every problem and leave the rest as it is.
 - **`narrate`**, in `footprint-story/voice`: the one narration step StoryDeck and StoryReel share. `narrationVoice({ cache, kit, takes })`
   picks the voice a person named, `narrate(lines, { cache, profile, engine })` voices what is missing, and with no engine only
   reads, and `narrationSummary(report)` says what is done and what to do next.

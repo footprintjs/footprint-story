@@ -53,6 +53,7 @@ function readMoment(f, value, i, order) {
 
 export const toldTwice = Object.freeze({
   name: 'told-twice',
+  lists: Object.freeze(['items', 'flow']),   // each entry can be fixed on its own
   about: 'A cast of people and everyday things acts a system out, each turns into the real thing where it stood, then the same story runs again for real. For explaining a system to people who do not work on it.',
   writing: Object.freeze([
     'Choose a cast of people and everyday things anyone knows, and one stand-in for each real thing.',

@@ -58,6 +58,27 @@ export interface StoryboardBrief {
 }
 /** A brief for this shape. Throws on a shape it does not have, or a conversation it cannot use. */
 export function storyboardBrief(shape: StoryShapeName, options?: StoryboardOptions): StoryboardBrief;
+/** What to send to fix one piece of a storyboard. */
+export interface StoryboardFixBrief {
+  /** Where it stands: an entry such as `checked[1]`, a whole list such as `checked` when the list itself is at fault, or `frame` for the top-level fields at fault. */
+  readonly piece: string;
+  /** Its problems, each one named. */
+  readonly problems: readonly StoryboardProblem[];
+  /** One JSON value per line: its problems, what it says now, the messages it cites. Send it as data, because it holds a model's and a conversation's own words. */
+  readonly material: string;
+  /** How many lines were left out to keep the brief short: what the piece says, or messages it cites. Its problems never are. */
+  readonly left: number;
+}
+/** One brief per piece at fault, and one set of instructions for them all. */
+export interface StoryboardFixBriefs {
+  /** The same words whatever the storyboard or the conversation says. Keep them apart from each brief's `material`. */
+  readonly instructions: string;
+  readonly briefs: readonly StoryboardFixBrief[];
+  /** Problems no one piece holds: the board's shape, text that is not JSON, or the note that more problems follow. */
+  readonly rest: readonly StoryboardProblem[];
+}
+/** The problems of a refused storyboard, grouped into one short brief per piece. Throws only on a conversation it cannot use, which is the app's own mistake. */
+export function storyboardFixBriefs(input: unknown, problems: readonly StoryboardProblem[], options?: StoryboardOptions): StoryboardFixBriefs;
 /** The shapes there are. */
 export function storyShapes(): readonly StoryShape[];
 /** Every problem in a storyboard (data or JSON text); empty when it can be drawn. Never throws on what it is given to read. */

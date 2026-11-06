@@ -62,6 +62,9 @@ export function readConversation(messages) {
   return out;
 }
 
+/** One message as a line of a brief's material: JSON, so its words stay one line of data whatever they say. */
+export const messageLine = ({ id, who, text }) => JSON.stringify({ id, ...(who === undefined ? {} : { who }), text });
+
 /**
  * Checks one claim against the messages it cites, keeping any problem on `fields`: every message it cites is there, and
  * every number it says is in one of them. `claim`: the words it says. With no conversation there is nothing to check
