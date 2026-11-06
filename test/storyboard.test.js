@@ -191,6 +191,18 @@ test('what a model writes must use plain digits: any disguise is refused, whatev
   }
 });
 
+test('a crafted run of hidden characters costs no more than its length', () => {
+  const longest = (run) => `4${run.repeat(950)}x`;
+  for (const run of ['‍', 'ㅤ', ' ', '\u0007', '‍ㅤ']) {
+    const started = performance.now();
+    storyboardProblems(found({ found: [{ headline: 'H', line: 'L', notes: longest(run).slice(0, 1000), sources: ['m1'] }] }), { conversation: CHAT });
+    assert.ok(performance.now() - started < 200, `${JSON.stringify(run)} took ${performance.now() - started} ms`);
+  }
+  const started = performance.now();
+  for (const unit of ['1,', '1 ', '².', '4‍']) numbersIn(unit.repeat(200000));
+  assert.ok(performance.now() - started < 1000, `numbersIn took ${performance.now() - started} ms`);
+});
+
 test('plain digits pass, in any script, and hidden characters away from a number are left alone', () => {
   const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
   const count = (line, text) => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;

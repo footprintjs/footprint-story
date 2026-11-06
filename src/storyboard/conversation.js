@@ -11,8 +11,12 @@ const FULLWIDTH = /[０-９]/g;
 /** Digits of any kind, kept with whatever joins them into one number, so a source's '10²' or '1 250' is not also a 10 or a 250. */
 const NUMBER = /[\p{Nd}\p{No}]+(?:[.,，．   ․﹐﹒][\p{Nd}\p{No}]+)*/gu;
 const BIDI = /[؜‎‏‪-‮⁦-⁩]/;
-/** Two digits with something between them that a reader cannot read as what it is: anything but a visible letter or printable ASCII. */
-const ODDLY_JOINED = /\p{Nd}(?:[^\p{L}\p{Nd}\x20-\x7E]|\p{Default_Ignorable_Code_Point})+\p{Nd}/u;
+/**
+ * Two digits with something between them that a reader cannot read as what it is: anything but a visible letter or printable
+ * ASCII. One class, with nothing that can match in two ways, so its cost stays linear; invisible letters are marked first.
+ */
+const ODDLY_JOINED = /\p{Nd}[^\p{L}\p{Nd}\x20-\x7E]+\p{Nd}/u;
+const INVISIBLE = /\p{Default_Ignorable_Code_Point}/gu;
 /** A control character other than a tab or a line break. */
 const CONTROL = /[^\P{Cc}\t\n\r]/u;
 const plainWidth = (text) => String(text).replace(FULLWIDTH, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 48));
@@ -36,7 +40,7 @@ export function numbersIn(text) {
 function disguisesNumber(text) {
   const plain = plainWidth(text);
   if (/\p{No}/u.test(plain) || digitCount(plain.normalize('NFKC')) !== digitCount(plain)) return true;
-  return digitCount(plain) > 0 && (BIDI.test(plain) || CONTROL.test(plain) || ODDLY_JOINED.test(plain));
+  return digitCount(plain) > 0 && (BIDI.test(plain) || CONTROL.test(plain) || ODDLY_JOINED.test(plain.replace(INVISIBLE, '​')));
 }
 const DISGUISED = 'writes a number in a form that cannot be checked: use plain digits, with no hidden or special characters near them';
 
