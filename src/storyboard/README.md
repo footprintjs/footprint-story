@@ -7,6 +7,8 @@ and its text is only ever text. Each tool draws the same board its own way.
 | file | holds |
 |---|---|
 | `read.js` | the door's rule: read a board, name every problem at once, give scenes |
+| `brief.js` | what a model needs to write a board: the instructions, and the conversation kept apart as data |
+| `shapes.js` | the shapes there are |
 | `toldTwice.js` | `told-twice`: a cast acts a system out, turns into it, and the story runs again for real |
 | `whatWeFound.js` | `what-we-found`: what was checked, what was found, what is not known, what is next |
 | `conversation.js` | a conversation as sources, and the rule that a claim's numbers are in the messages it cites |

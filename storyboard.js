@@ -3,8 +3,10 @@
 // its pieces and clicks from a board, StoryReel its scenes and recipe.
 //
 //   storyShapes()                                → [{ name, about, fills }]: the shapes there are, and a worked outline of each
+//   storyboardBrief(shape, { conversation })     → { instructions, material }: what a model needs to write one; it holds no model itself
 //   storyboardProblems(input, { conversation })  → [{ at, message }]: everything to fix, all at once
 //   readStoryboard(input, { conversation })      → the board: checked and frozen, with its scenes
 
 export { storyShapes, storyboardProblems, readStoryboard } from './src/storyboard/read.js';
+export { storyboardBrief } from './src/storyboard/brief.js';
 export { numbersIn } from './src/storyboard/conversation.js';

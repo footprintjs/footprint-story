@@ -47,6 +47,17 @@ export interface Storyboard {
   readonly analogy?: string;
 }
 
+/**
+ * What a model needs to write a storyboard. Keep the two apart when you send them: `instructions` from you, and `material`
+ * as data, because it holds a conversation's own words. The library holds no model.
+ */
+export interface StoryboardBrief {
+  readonly instructions: string;
+  /** The conversation as one JSON message per line; null when none was given. */
+  readonly material: string | null;
+}
+/** A brief for this shape. Throws on a shape it does not have, or a conversation it cannot use. */
+export function storyboardBrief(shape: StoryShapeName, options?: StoryboardOptions): StoryboardBrief;
 /** The shapes there are. */
 export function storyShapes(): readonly StoryShape[];
 /** Every problem in a storyboard (data or JSON text); empty when it can be drawn. Never throws on what it is given to read. */

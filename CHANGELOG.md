@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 — what a model needs to write a storyboard
+
+- **`storyboardBrief`**: what a model needs to write a storyboard, for any model, from a template and a conversation. The
+  instructions and the conversation come back apart, so the conversation's own words can be sent as data. The library
+  holds no model.
+
 ## 0.4.0 — a story written as data
 
 - **storyboard** (`footprint-story/storyboard`, a fourth door, pure, loaded only when imported): a story written as plain

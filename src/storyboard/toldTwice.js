@@ -54,6 +54,12 @@ function readMoment(f, value, i, order) {
 export const toldTwice = Object.freeze({
   name: 'told-twice',
   about: 'A cast of people and everyday things acts a system out, each turns into the real thing where it stood, then the same story runs again for real. For explaining a system to people who do not work on it.',
+  writing: Object.freeze([
+    'Choose a cast of people and everyday things anyone knows, and one stand-in for each real thing.',
+    'Items stand in one row, in the order written, and a hop goes between neighbours only.',
+    'Every item acts in the flow. Each moment says the same step twice: once in the cast\'s words, once for real.',
+    'Each callout says both names, the stand-in and the real thing.',
+  ]),
   fills: deepFreeze({
     shape: 'told-twice', title: 'One picture, told twice', subtitle: '(optional)', analogy: 'a café stands in for a web service', intro: 'what is said on the title',
     items: [{ id: 'customer', cast: { name: 'Customer', line: 'wants a coffee', icon: 'person-asking' }, real: { name: 'Browser', line: 'asks for a page', icon: 'window' },
