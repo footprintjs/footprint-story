@@ -163,19 +163,35 @@ test('numbersIn reads numbers as written, taking commas only from real thousands
   assert.deepEqual(numbersIn('\uFF14\uFF12 and \u0664\u0662'), ['42', '\u0664\u0662']);
 });
 
-test('numbersIn reads a number as a reader sees it', () => {
-  assert.deepEqual(numbersIn('4\u200D2 and 1\u2060000'), ['42', '1000']);
-  assert.deepEqual(numbersIn('10\u00B2, \u00BD and \u2460'), ['10\u00B2', '\u00BD', '\u2460']);
-  assert.deepEqual(numbersIn('1\u00A0250 and 1\uFF0C250'), ['1\u00A0250', '1\uFF0C250']);
+test('numbersIn reads digits in any script, fullwidth as plain, and ignores hidden characters', () => {
+  assert.deepEqual(numbersIn('4‍2 and 1⁠000'), ['42', '1000']);
+  assert.deepEqual(numbersIn('４２ and ٤٢'), ['42', '٤٢']);
+  assert.deepEqual(numbersIn('10²'), ['10']);
 });
 
-test('what looks like one number cannot pass as two, or as another', () => {
+test('what a model writes must use plain digits: any disguise is refused, whatever it reads as', () => {
   const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
-  const refused = (line, text) => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;
-  assert.equal(refused('It took 4\u200D2 nights', '4 people, 2 nights'), 1);
-  assert.equal(refused('It took 10\u00B2 nights', 'it took 102 nights'), 1);
-  assert.equal(refused('Rows: 1\u00A0250', '1 table, 250 rows'), 1);
-  assert.equal(refused('It took 42 nights', 'it took 4\u200D2 nights'), 0);
+  const problems = (line, text = 'it took 42 nights, 4 people, 2 rooms, 1 table, 250 rows, 10 and 102 and 24') => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]');
+  for (const line of ['It took 4‍2 nights', 'It took 4͏2 nights', 'It took 4́2 nights', 'It took 10² nights', 'A ½ of it', 'Step ①', 'On ㏳', 'In ㋉', 'At ㍢',
+    'Rows: 1 250', 'Rows: 1 250', 'Rows: 1․250', 'Rows: 1﹐250', 'Rows: 1，250', 'It took ‮24 nights', 'It took 24‏ nights']) {
+    const found = problems(line);
+    assert.equal(found.length, 1, line);
+    assert.match(found[0].message, /writes a number in a form that cannot be checked/, line);
+  }
+});
+
+test('plain digits pass, in any script, and hidden characters away from a number are left alone', () => {
+  const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
+  const count = (line, text) => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;
+  assert.equal(count('It took 42 nights', 'it took 4‍2 nights'), 0);
+  assert.equal(count('It took ４２ nights', 'it took 42 nights'), 0);
+  assert.equal(count('It took ٤٢ nights', 'took ٤٢'), 0);
+  assert.equal(count('The \u{1F9D1}‍\u{1F4BB} took 42 nights', 'it took 42 nights'), 0);
+  assert.equal(count('ב‏ words and no number', 'x'), 0);
+});
+
+test('text that cites nothing is held to plain digits too', () => {
+  assert.match(storyboardProblems(found({ closing: 'Down to 4‍1' }), { conversation: CHAT })[0].message, /cannot be checked/);
 });
 
 test('a label a model wrote is number checked like any other words, and the default ones never trip it', () => {
