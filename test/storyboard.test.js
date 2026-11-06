@@ -168,7 +168,7 @@ test('numbersIn reads digits in any script, fullwidth as plain, and ignores hidd
   assert.deepEqual(numbersIn('４２ and ٤٢'), ['42', '٤٢']);
 });
 
-test('numbersIn keeps a source's number whole, so a part of it is not also a number', () => {
+test('numbersIn keeps a number in a source whole, so a part of it is not also a number', () => {
   assert.deepEqual(numbersIn('10²'), ['10²']);
   assert.deepEqual(numbersIn('1 250 and 2 500 and 12 34'), ['1250', '2500', '12 34']);
   assert.deepEqual(numbersIn('1，250'), ['1，250']);
