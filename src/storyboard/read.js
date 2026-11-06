@@ -6,10 +6,8 @@
 import { fieldReader, deepFreeze } from './fields.js';
 import { MOST } from './words.js';
 import { readConversation } from './conversation.js';
-import { toldTwice } from './toldTwice.js';
-import { whatWeFound } from './whatWeFound.js';
+import { SHAPES } from './shapes.js';
 
-const SHAPES = Object.freeze({ [toldTwice.name]: toldTwice, [whatWeFound.name]: whatWeFound });
 const MOST_PROBLEMS = 40;
 const SHARED = ['shape', 'title', 'subtitle', 'lang'];
 const OWN = { 'told-twice': ['analogy', 'intro', 'items', 'flow', 'together', 'remember', 'closing', 'labels'], 'what-we-found': ['intro', 'checked', 'found', 'unsure', 'next', 'closing', 'labels'] };

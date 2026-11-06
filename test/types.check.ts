@@ -4,8 +4,8 @@ import { spokenMap, autoRules, shownWords, spokenOffset, unsaidDigits, checkSlot
 import type { SpokenMap, Piece, Rules, Slot, WordTiming, Track, WordCue, Chapters, ChapterChange } from 'footprint-story';
 import { clipKey, clipFor, voiceClips, pickSteps, chatterboxKit, recordedTakes } from 'footprint-story/voice';
 import type { VoiceEngine, Clip, VoiceProfile, TakeRecord, TrimSettings, Scene } from 'footprint-story/voice';
-import { readStoryboard, storyboardProblems, storyShapes, numbersIn } from 'footprint-story/storyboard';
-import type { Storyboard, StoryScene, StoryBeat, StoryboardProblem, StoryShape, StoryMessage } from 'footprint-story/storyboard';
+import { readStoryboard, storyboardBrief, storyboardProblems, storyShapes, numbersIn } from 'footprint-story/storyboard';
+import type { Storyboard, StoryboardBrief, StoryScene, StoryBeat, StoryboardProblem, StoryShape, StoryMessage } from 'footprint-story/storyboard';
 
 const slots: Slot[] = [['16.67 ms', 'sixteen point six seven milliseconds']];
 const map: SpokenMap = spokenMap('One frame takes 16.67 ms.', { slots: checkSlots('One frame takes 16.67 ms.', slots), rules: autoRules({ spell: { ...SPELL, UI: 'U I' }, say: SAY }) });
@@ -73,3 +73,5 @@ const firstScene: StoryScene = board.scenes[0];
 const beat: StoryBeat = firstScene.beat;
 const cardTone: 'ok' | 'warn' | null = beat.kind === 'card' ? beat.tone : null;
 const said: readonly string[] = numbersIn(firstScene.narration);
+const brief: StoryboardBrief = storyboardBrief('what-we-found', { conversation: chat });
+const briefText: string = brief.instructions + (brief.material ?? '');

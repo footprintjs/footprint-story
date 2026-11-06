@@ -48,10 +48,15 @@ mistake is named at once, so it fixes them in one pass. Whoever draws the board 
 import { storyShapes, storyboardProblems, readStoryboard } from 'footprint-story/storyboard';
 
 storyShapes();                   // [{ name, about, fills }]: the shapes, and a worked outline of each
+storyboardBrief('what-we-found', { conversation });   // { instructions, material }: what a model needs to write one
 storyboardProblems(fromAgent);   // [{ at: 'items[1].turn.callout', message: 'must say both names, …' }]
 const board = readStoryboard(fromAgent, { conversation: [{ id: 'm7', text: 'it waited 41 minutes' }] });
 board.scenes[1];                 // { id, part, look, title, narration, beat }
 ```
+
+A conversation becomes a story in three steps, and only the first needs a model: `storyboardBrief` gives the instructions
+and the conversation for whichever model you use, `storyboardProblems` names what to fix in its answer, and a tool draws
+the board. Send `instructions` as your own and `material` as data, because it holds a conversation's own words.
 
 | shape | what it tells |
 |---|---|

@@ -17,6 +17,12 @@ export const whatWeFound = Object.freeze({
   name: 'what-we-found',
   checksClaims: true,
   about: 'What a piece of work or a conversation came to: what was checked, what was found, what is still not known, what happens next. Claims name their sources, and a number must be in a source.',
+  writing: Object.freeze([
+    'Say only what the conversation holds, and add no facts of your own.',
+    'Each checked and found entry names the ids of the messages it rests on in sources.',
+    'Use only numbers found in those messages, in plain digits. Anything that cites nothing uses only numbers found somewhere in the conversation.',
+    'Say what is still not known in unsure, and write [] only when nothing is: a story must not sound surer than the work was.',
+  ]),
   fills: deepFreeze({
     shape: 'what-we-found', title: 'Why the nightly job slowed down', subtitle: '(optional)', intro: 'what is said on the title',
     checked: [{ what: 'Disk space', found: '40% full, so not the cause', notes: '(optional) what is said', sources: ['m3'] }],
