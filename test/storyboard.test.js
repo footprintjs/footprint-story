@@ -151,6 +151,7 @@ test('a conversation it cannot use is the app\'s mistake, and throws', () => {
   assert.throws(() => storyboardProblems(found(), { conversation: 'text' }), /a list of messages/);
   assert.throws(() => storyboardProblems(found(), { conversation: [{ text: 'x' }] }), /message 0: id/);
   assert.throws(() => storyboardProblems(found(), { conversation: [{ id: 'a' }] }), /message 0 \("a"\): text/);
+  assert.throws(() => storyboardProblems(found(), { conversation: [{ id: 'a', who: {}, text: '' }] }), /message 0 \("a"\): who must be text/);
   assert.throws(() => storyboardProblems(found(), { conversation: [{ id: 'a', text: '' }, { id: 'a', text: '' }] }), /two messages have the id "a"/);
   assert.throws(() => storyboardProblems(found(), { conversation: Array.from({ length: 5001 }, (_, i) => ({ id: `${i}`, text: '' })) }), /too long/);
 });

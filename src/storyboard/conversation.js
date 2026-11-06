@@ -55,6 +55,7 @@ export function readConversation(messages) {
   messages.forEach((m, i) => {
     if (m === null || typeof m !== 'object' || typeof m.id !== 'string' || !m.id.trim()) throw new TypeError(`message ${i}: id must be text with something in it`);
     if (typeof m.text !== 'string') throw new TypeError(`message ${i} ("${m.id}"): text must be text`);
+    if (m.who !== undefined && typeof m.who !== 'string') throw new TypeError(`message ${i} ("${m.id}"): who must be text, when it is given`);
     if (out.has(m.id)) throw new TypeError(`message ${i}: two messages have the id "${m.id}"`);
     out.set(m.id, m.text);
   });

@@ -45,7 +45,7 @@ An agent telling a story should not have to write a deck's HTML or a film's reci
 mistake is named at once, so it fixes them in one pass. Whoever draws the board treats its words as text, never as code.
 
 ```js
-import { storyShapes, storyboardProblems, readStoryboard } from 'footprint-story/storyboard';
+import { storyShapes, storyboardBrief, storyboardProblems, readStoryboard } from 'footprint-story/storyboard';
 
 storyShapes();                   // [{ name, about, fills }]: the shapes, and a worked outline of each
 storyboardBrief('what-we-found', { conversation });   // { instructions, material }: what a model needs to write one
