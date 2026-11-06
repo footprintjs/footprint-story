@@ -36,7 +36,7 @@ export interface Storyboard {
   readonly title: string;
   readonly subtitle: string | null;
   readonly lang: string | null;
-  /** Whether its claims were checked against a conversation. */
+  /** Whether its claims really were checked against a conversation: never for told-twice, which makes none. */
   readonly verified: boolean;
   /** Each part's label, by part. */
   readonly labels: Readonly<Record<string, string>>;

@@ -58,9 +58,10 @@ board.scenes[1];                 // { id, part, look, title, narration, beat }
 | `told-twice` | a cast of people and everyday things acts a system out, each turns into the real thing where it stood, then the same story runs again for real |
 | `what-we-found` | what was checked, what was found, what is still not known (which must be written, even empty), and what happens next |
 
-Given a conversation, a claim must name the messages it rests on, and every number in it must be in one of them. That
-catches a wrong number. It does not catch a claim that is wrong in words, or a number spelled out, and with no
-conversation given nothing is checked, so the board says `verified: false`.
+Given a conversation, a `what-we-found` claim must name the messages it rests on, and every number in it must be in one of
+them; anything that cites none, such as its title, must use numbers from somewhere in the conversation. That catches a
+wrong number. It does not catch a claim that is wrong in words, a number spelled out, or a sign (`-41` reads as 41). `verified` is true only when claims
+really were checked: `told-twice` makes none, and with no conversation nothing is checked.
 
 ## One text, as shown and as spoken
 

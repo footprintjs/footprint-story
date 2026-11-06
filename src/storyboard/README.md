@@ -20,5 +20,7 @@ const board = readStoryboard(fromAnAgent, { conversation: [{ id: 'm7', text: 'it
 board.scenes[1];   // { id, part, look, title, narration, beat }: title and narration are a film's scene as they are
 ```
 
-The number rule catches a number that is not in its sources. It does not catch a claim that is wrong in words, or a number
-spelled out, and with no conversation given there is nothing to check against, so the board says `verified: false`.
+The number rule covers every word a `what-we-found` says or shows: a claim against the messages it cites, and anything that
+cites none against the whole conversation. A number it cannot compare fails rather than passes. It does not catch a claim that
+is wrong in words, a number spelled out, or a sign (`-41` reads as 41). `verified` is true only when a shape's claims really were checked: `told-twice`
+makes none, and with no conversation given nothing is checked.

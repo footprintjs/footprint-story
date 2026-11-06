@@ -5,8 +5,13 @@
  */
 const MOST_MESSAGES = 5000;
 
-/** Every number in a text, as written with any thousands commas taken out and no trailing point: '1,250.5' → '1250.5'. */
-export const numbersIn = (text) => [...new Set((String(text).match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replaceAll(',', '')))];
+const THOUSANDS = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
+/**
+ * Every number in a text, in any script's digits. Commas go only from real thousands grouping ('1,250.5' → '1250.5'), and
+ * anything else stays as written, so '3,5' is not 35 and must be found as it is. Fullwidth digits read as plain ones
+ * (NFKC); another script's digits must be found as written. So a number it cannot compare fails the check, never passes.
+ */
+export const numbersIn = (text) => [...new Set((String(text).normalize('NFKC').match(/\p{Nd}+(?:[.,]\p{Nd}+)*/gu) ?? []).map((n) => (THOUSANDS.test(n) ? n.replaceAll(',', '') : n)))];
 
 /**
  * [{id, who?, text}] read and checked: a Map of id → text. Throws, naming the place, on anything it cannot use, as what
@@ -40,4 +45,11 @@ export function checkClaim(fields, conversation, at, claim, cited) {
   for (const n of numbersIn(claim)) {
     if (!said.has(n)) fields.say(at, `says ${n}, which none of its sources (${cited.join(', ')}) says: fix the number, cite the message that says it, or move it to what you are not sure about`);
   }
+}
+
+/** Words that cite no message (a title, what is said at the end, what happens next): any number in them must be somewhere in the conversation. */
+export function checkAnywhere(fields, conversation, at, text) {
+  if (!conversation) return;
+  const said = new Set([...conversation.values()].flatMap((message) => numbersIn(message)));
+  for (const n of numbersIn(text)) if (!said.has(n)) fields.say(at, `says ${n}, which the conversation never says: fix the number, or take it out`);
 }

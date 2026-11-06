@@ -19,6 +19,7 @@ const found = (over = {}) => ({
   unsure: [{ what: 'Whether Tuesday is the same', why: 'no logs from then' }],
   next: ['Fix the lock'], ...over,
 });
+const found_ = found;
 const CHAT = [{ id: 'm1', text: 'disk at 40 percent' }, { id: 'm2', who: 'agent', text: 'waited 41 minutes on 1,250 rows' }];
 const ats = (input, options) => storyboardProblems(input, options).map((p) => p.at);
 
@@ -106,6 +107,7 @@ test('told-twice: a hop is between neighbours, a call per hop, and every item ac
 test('a part\'s labels can be its own; a story in another language must give them', () => {
   assert.equal(readStoryboard(told({ labels: { story: 'The café' } })).labels.story, 'The café');
   assert.equal(readStoryboard(told({ lang: 'en-GB' })).labels.story, 'The story');
+  assert.equal(readStoryboard(told({ lang: 'en_US' })).labels.story, 'The story');
   const asked = storyboardProblems(told({ lang: 'fr', labels: { story: 'Le café' } }));
   assert.deepEqual(asked.map((p) => p.at), ['labels.turn', 'labels.real', 'labels.remember']);
   assert.match(asked[0].message, /this story is in "fr", and the label is "The turn" in English/);
@@ -153,9 +155,103 @@ test('a conversation it cannot use is the app\'s mistake, and throws', () => {
   assert.throws(() => storyboardProblems(found(), { conversation: Array.from({ length: 5001 }, (_, i) => ({ id: `${i}`, text: '' })) }), /too long/);
 });
 
-test('numbersIn reads numbers as written, without thousands commas', () => {
+test('numbersIn reads numbers as written, taking commas only from real thousands grouping', () => {
   assert.deepEqual(numbersIn('1,250.5 ms, 90%, EC2, 3.5 and 3.5'), ['1250.5', '90', '2', '3.5']);
   assert.deepEqual(numbersIn('none'), []);
+  assert.deepEqual(numbersIn('1,250,000'), ['1250000']);
+  assert.deepEqual(numbersIn('3,5 and 1,2,3 and 12,34,567'), ['3,5', '1,2,3', '12,34,567']);
+  assert.deepEqual(numbersIn('\uFF14\uFF12 and \u0664\u0662'), ['42', '\u0664\u0662']);
+});
+
+test('a number it cannot compare fails the check, and never slips through', () => {
+  const check = (board, text) => storyboardProblems(board, { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;
+  const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
+  assert.equal(check(claim('It took 3,5 hours'), 'it took 35 hours'), 1);
+  assert.equal(check(claim('It took 35 hours'), 'it took 3,5 hours'), 1);
+  assert.equal(check(claim('It took \u0664\u0662 hours'), 'it took 7 hours'), 1);
+  assert.equal(check(claim('It took \uFF14\uFF12 hours'), 'it took 42 hours'), 0);
+});
+
+test('verified means its claims were checked: told-twice makes none, and says so even when given a conversation', () => {
+  assert.equal(readStoryboard(told(), { conversation: CHAT }).verified, false);
+  assert.equal(readStoryboard(found(), { conversation: CHAT }).verified, true);
+});
+
+test('with a conversation, what is said is checked as much as what is shown', () => {
+  const problem = (over) => storyboardProblems(found(over), { conversation: CHAT });
+  assert.deepEqual(problem({ found: [{ headline: 'Lock', line: 'a', notes: 'It took 99 minutes', sources: ['m2'] }] }).map((p) => p.at), ['found[0]']);
+  assert.deepEqual(problem({ checked: [{ what: 'Disk', found: 'fine', notes: 'Used 99 of it', sources: ['m1'] }] }).map((p) => p.at), ['checked[0]']);
+  for (const [field, value, at] of [['title', 'Down 99', 'title'], ['subtitle', '99 nights', 'subtitle'], ['intro', '99 of them', 'intro'], ['closing', '99 more', 'closing'], ['next', ['Fix 99'], 'next[0]']]) {
+    const [p] = problem({ [field]: value });
+    assert.equal(p.at, at);
+    assert.match(p.message, /says 99, which the conversation never says/);
+  }
+  assert.equal(problem({ unsure: [{ what: 'Tuesday', why: 'only 99 logs' }] })[0].at, 'unsure[0]');
+  assert.equal(problem({ intro: 'From 41 minutes down', title: 'At 40 percent' }).length, 0);
+});
+
+test('a path that names something other than an item is a problem, whatever it is', () => {
+  const moment = { story: { headline: 'a', notes: 'b' }, real: { headline: 'a', notes: 'b' } };
+  for (const id of [1n, Symbol('x'), {}, null, 7]) {
+    const [p] = storyboardProblems(told({ flow: [{ path: ['customer', id, 'cashier'], ...moment }] }));
+    assert.equal(p.at, 'flow[0].path[1]');
+    assert.match(p.message, /is not an item/);
+  }
+});
+
+test('reading leaves what it was given alone, and hands out nothing shared with it', () => {
+  const input = told(), board = readStoryboard(input);
+  assert.ok(!Object.isFrozen(input.flow[0].path));
+  assert.notEqual(board.scenes[1].beat.path, input.flow[0].path);
+  input.flow[0].path.push('x');
+  assert.deepEqual(board.scenes[1].beat.path, ['customer', 'cashier']);
+});
+
+test('the outlines cannot be edited by whoever reads them', () => {
+  assert.throws(() => storyShapes()[0].fills.items.push('x'), TypeError);
+  assert.throws(() => storyShapes()[1].fills.checked.push('x'), TypeError);
+});
+
+test('a script with no spaces says a name as it writes it; a spaced one needs the whole word', () => {
+  const items = told().items;
+  const cjk = told({ items: [{ ...items[0], cast: { name: '客', line: 'x' }, real: { name: 'ブラウザ', line: 'y' }, turn: { ...items[0].turn, callout: '客はブラウザです' } }, items[1]] });
+  assert.deepEqual(storyboardProblems(cjk), []);
+  const thai = told({ items: [{ ...items[0], cast: { name: 'ลูกค้า', line: 'x' }, real: { name: 'Browser', line: 'y' }, turn: { ...items[0].turn, callout: 'ลูกค้าคือ Browser' } }, items[1]] });
+  assert.deepEqual(storyboardProblems(thai), []);
+  assert.match(storyboardProblems(told({ items: [{ ...items[0], turn: { ...items[0].turn, callout: 'Customers are the browser' } }, items[1]] }))[0].message, /does not say "Customer"/);
+});
+
+test('nothing inherited counts as written', () => {
+  const input = Object.assign(Object.create({ labels: { story: 5 } }), told());
+  assert.deepEqual(storyboardProblems(input), []);
+  const item = Object.assign(Object.create({ cast: { name: 'Inherited', line: 'x' } }), { id: 'a', real: { name: 'B', line: 'y' }, turn: told().items[0].turn });
+  assert.ok(ats(told({ items: [item, told().items[1]] })).includes('items[0].cast'));
+});
+
+test('one mistake is reported once, and messages stay sensible', () => {
+  const moment = { story: { headline: 'a', notes: 'b' }, real: { headline: 'a', notes: 'b' } };
+  const bad = storyboardProblems(told({ items: [{ ...told().items[0], id: 'A B' }, told().items[1]], flow: [{ path: ['cashier'], ...moment }] }));
+  assert.deepEqual(bad.map((p) => p.at), ['items[0].id']);
+  assert.ok(!ats(told({ flow: [{ calls: ['a'], ...moment }] })).includes('flow[0].calls'));
+  assert.match(storyboardProblems(told({ flow: [{ path: ['customer', 'customer', 'cashier'], ...moment }] }))[0].message, /goes from "customer" to itself/);
+  assert.equal(storyboardProblems(told({ flow: [{ path: ['x'.repeat(100000)], ...moment }] }))[0].message.length < 200, true);
+});
+
+test('what comes back stays short, however much is wrong', () => {
+  const noisy = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`k${i}`, 1]));
+  const problems = storyboardProblems({ ...told(), ...noisy });
+  assert.equal(problems.length, 41);
+  assert.equal(problems[40].message, 'and 60 more: fix these first');
+  assert.equal(storyboardProblems({ ...told(), ['y'.repeat(5000)]: 1 })[0].at.length, 41);
+});
+
+test('what is not plain data is a problem, never an exception', () => {
+  const hostile = { ...told(), get title() { throw new Error('boom'); } };
+  assert.deepEqual(storyboardProblems(hostile), [{ at: 'storyboard', message: 'could not be read: it must be plain data' }]);
+  const list = Object.assign([], { shape: 'told-twice' });
+  assert.equal(storyboardProblems(list)[0].at, '');
+  assert.match(storyboardProblems(list)[0].message, /must be an object/);
+  assert.throws(() => readStoryboard(hostile), /could not be read/);
 });
 
 test('the shapes say what they are for and how to fill them, and each outline names only fields the shape takes', () => {
