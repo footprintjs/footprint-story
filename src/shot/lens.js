@@ -3,10 +3,6 @@
  * distance, a point's place on the frame is its side and up offsets scaled by (focal × height) / depth, and `shift` slides
  * the whole picture by a share of the frame, right and up. y on the frame grows downward. No checks here: readers come first.
  */
-const NEAR = 1e-9;
-/** Nearer than this along the view, a depth counts as at the camera. */
-export const AT_CAMERA = NEAR;
-
 export const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 export const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 export const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
@@ -23,13 +19,16 @@ export function aim(camera, [w, h]) {
   return { eye: add(target, mul(back, distance)), right, up: cross(right, forward), forward, k: focal * h, cx: w / 2 + w * shift[0], cy: h / 2 - h * shift[1], w, h };
 }
 
+/** What rounding can leave of a distance from the camera to `p`, so a smaller one means none: it scales with the numbers in play, never a fixed size that a small scene falls under. */
+export const nearLimit = (lens, p, r = 0) => 1e-12 * Math.max(r, ...lens.eye.map(Math.abs), ...p.map(Math.abs));
+
 /** A point in the camera's axes: side, up, depth. */
 export const inCamera = (lens, p) => { const d = sub(p, lens.eye); return [dot(d, lens.right), dot(d, lens.up), dot(d, lens.forward) + 0]; };
 
 /** Where a point lands: {x, y, depth}. At or behind the camera it lands nowhere, and x and y are null. */
 export function landing(lens, p) {
   const [x, y, depth] = inCamera(lens, p);
-  if (depth <= NEAR) return { x: null, y: null, depth };
+  if (depth <= nearLimit(lens, p)) return { x: null, y: null, depth };
   return { x: lens.cx + x * lens.k / depth, y: lens.cy - y * lens.k / depth, depth };
 }
 

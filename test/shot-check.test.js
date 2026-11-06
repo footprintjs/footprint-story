@@ -87,6 +87,7 @@ test('a thing beside the subject blocks nothing, though their boxes touch', () =
 
 test('a big thing holding the subject blocks it from outside; a small thing inside the subject does not', () => {
   assert.equal(check([ball('a', 0, 0, 0, 0.5), ball('shell', 0, 0, 0, 2)]).blockers[0].share, 1);
+  assert.deepEqual([...check([ball('a', 0, 0, 0, 0.5), ball('shell', 0, 0, 0, 20)]).blockers], [], 'the camera is inside it too, and meets the subject first');
   assert.deepEqual(kinds(check([ball('a', 0, 0, 0), ball('core', 0, 0, 0, 0.1)])), []);
   assert.deepEqual(kinds(check([ball('a', 0, 0, 0), ball('twin', 0, 0, 0)])), [], 'two in one place: neither is nearer');
 });
@@ -133,8 +134,9 @@ test('soft: off the focus plane by more than half a pixel', () => {
   assert.deepEqual(kinds(r), ['soft']);
   assert.ok(Math.abs(r.blur - 0.05 * 900 * (1 / 5 - 1 / 10)) < 1e-3);
   assert.deepEqual(kinds(check(things, look({ aperture: 0, focus: 5 }))), []);
-  assert.deepEqual(kinds(check(things, look({ distance: 0.0, aperture: 0.05 }))), ['inside']);
-  assert.ok(Number.isFinite(check([ball('a', 0, 0, -1, 0)], look({ distance: 5e-324, aperture: 0.03 })).blur), 'a focus plane on the lens has no blur to give');
+  assert.throws(() => check(things, look({ distance: 0, aperture: 5 })), /camera.distance is 0, which leaves a lens with no plane to focus on/);
+  assert.deepEqual(kinds(check([ball('a', 0, 0, -5)], look({ distance: 0, aperture: 5, focus: 2 }))), ['soft']);
+  assert.throws(() => check(things, look({ distance: 5e-324 })), /too small to work with: use larger units/);
 });
 
 test('a group: the worst is named, one hides another, one lost does not lose the rest', () => {
@@ -144,6 +146,39 @@ test('a group: the worst is named, one hides another, one lost does not lose the
   assert.equal(r.blockers[0].of, 'b');
   assert.equal(r.inFrame, 0);
   assert.equal(shotLine(r), 'shot "a", "b", "c" and 1 more from front level (11.7, lens normal): "d" behind the camera, off frame right ("c"), 25% of height (wide), "a" covers 100% of "b", sharp — move the view or lift it; aim at it; turn the camera to it');
+});
+
+test('cut off by a few pixels at any edge is cut off, never 100% and fine', () => {
+  const px = 1 / 90;   // a pixel, at this depth
+  for (const [at, side] of [[[-640 - 3 + 200, 0], 'left'], [[640 + 3 - 200, 0], 'right'], [[0, 360 + 3 - 100], 'top'], [[0, -360 - 3 + 100], 'bottom']]) {
+    const r = check([{ name: 'a', at: [at[0] * px, at[1] * px, 0], size: [400 * px, 200 * px] }]);
+    assert.deepEqual(kinds(r), ['cut-off'], side);
+    assert.ok(r.inFrame > 0.97 && r.inFrame < 1, String(r.inFrame));
+    assert.deepEqual([...r.rows[0].sides], [side]);
+    assert.match(shotLine(r), new RegExp(`in frame 9\\d%, cut off ${side}`));
+  }
+  const slide = check([{ name: 'a', at: [0, 0, 0], size: [1360 / 90, 765 / 90] }]);
+  assert.deepEqual(kinds(slide), ['cut-off']);
+  assert.ok(Math.abs(slide.inFrame - 1280 * 720 / (1360 * 765)) < 1e-3);
+  const hair = check([{ name: 'a', at: [(640 + 1e-6 - 200) * px, 0, 0], size: [400 * px, 200 * px] }]);
+  assert.deepEqual(kinds(hair), ['cut-off'], 'past by any amount is past');
+  assert.ok(hair.inFrame < 1);
+  const tinyIn = check([{ name: 'a', at: [(640 + 200 - 1e-3) * px, 0, 0], size: [400 * px, 200 * px] }]);
+  assert.ok(tinyIn.inFrame > 0, 'a sliver in frame never rounds to none');
+});
+
+test('a card seen exactly edge-on has no area, and keeps its place', () => {
+  const r = check([{ name: 'a', at: [0, 0, 0], size: [4, 3], normal: [1, 0, 0], back: true }]);
+  assert.equal(r.inFrame, 1);
+  assert.ok(kinds(r).includes('edge-on'));
+  const past = check([{ name: 'a', at: [-7, 0, 0], size: [2, 2], normal: [0, 1, 0], back: true }], look({ elevation: 0 }));
+  assert.equal(past.rows[0].state, 'seen');
+  assert.deepEqual([...check([{ name: 'a', at: [0, 0, 0], size: [4, 3], normal: [1, 0, 0], back: true }, ball('b', 0, 0, 5)]).blockers], [], 'it fills nothing, so nothing covers it');
+});
+
+test('a thing that never reaches the frame covers nothing there', () => {
+  const r = check([ball('a', 0, 0, 0), { name: 'wing', at: [12, 0, 9.5], size: [2, 2], normal: [1, 0, 0] }, ball('crossing', 9, 0, 10, 2)]);
+  assert.deepEqual([...r.blockers], []);
 });
 
 test('what it refuses, it refuses all at once', () => {
@@ -166,8 +201,8 @@ test('same input, same bytes; a read shot serves as its own subject', () => {
 
 test('property: nothing a scene can say makes a report that is not finite', () => {
   const coord = fc.double({ min: -30, max: 30, noNaN: true });
-  const thing = fc.oneof(fc.record({ at: fc.tuple(coord, coord, coord), r: fc.double({ min: 0, max: 20, noNaN: true }) }), fc.record({ at: fc.tuple(coord, coord, coord), size: fc.tuple(fc.double({ min: 0.01, max: 20, noNaN: true }), fc.double({ min: 0.01, max: 20, noNaN: true })) }));
-  fc.assert(fc.property(fc.array(thing, { minLength: 1, maxLength: 6 }), fc.double({ min: -7, max: 7, noNaN: true }), fc.double({ min: -1.57, max: 1.57, noNaN: true }), fc.double({ min: 0, max: 40, noNaN: true }), (list, azimuth, elevation, distance) => {
+  const thing = fc.oneof(fc.record({ at: fc.tuple(coord, coord, coord), r: fc.oneof(fc.constant(0), fc.double({ min: 1e-6, max: 20, noNaN: true })) }), fc.record({ at: fc.tuple(coord, coord, coord), size: fc.tuple(fc.double({ min: 0.01, max: 20, noNaN: true }), fc.double({ min: 0.01, max: 20, noNaN: true })) }));
+  fc.assert(fc.property(fc.array(thing, { minLength: 1, maxLength: 6 }), fc.double({ min: -7, max: 7, noNaN: true }), fc.double({ min: -1.57, max: 1.57, noNaN: true }), fc.double({ min: 0.001, max: 40, noNaN: true }), (list, azimuth, elevation, distance) => {
     const things = list.map((t, i) => ({ name: `t${i}`, ...t })), r = check(things, look({ azimuth, elevation, distance, aperture: 0.03 }), 't0');
     const seen = JSON.stringify(r, (k, v) => { if (typeof v === 'number') assert.ok(Number.isFinite(v), k); return v; });
     assert.ok(r.inFrame >= 0 && r.inFrame <= 1 && seen.length > 0);

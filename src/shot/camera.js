@@ -17,10 +17,11 @@ export function cameraFrom(raw, f, at = 'camera') {
   if (!own) return null;
   const before = f.problems.length, angle = { least: -TURNS, most: TURNS }, lens = { least: 0, above: true };
   const camera = { target: pointOf(f, own.target, `${at}.target`), azimuth: f.number(own.azimuth, `${at}.azimuth`, angle), elevation: f.number(own.elevation, `${at}.elevation`, angle),
-    distance: f.number(own.distance, `${at}.distance`, { least: 0 }), focal: f.number(own.focal, `${at}.focal`, { least: 0, most: MOST_FOCAL, above: true }),
+    distance: f.length(own.distance, `${at}.distance`, { least: 0 }), focal: f.number(own.focal, `${at}.focal`, { least: 0, most: MOST_FOCAL, above: true }),
     aperture: own.aperture === undefined ? 0 : f.number(own.aperture, `${at}.aperture`, { least: 0 }),
     shift: own.shift === undefined ? [0, 0] : f.numbers(own.shift, `${at}.shift`, 2, { least: -MOST_SHIFT, most: MOST_SHIFT }, 'two numbers [right, up], shares of the frame') };
-  camera.focus = own.focus === undefined ? camera.distance : f.number(own.focus, `${at}.focus`, lens);
+  camera.focus = own.focus === undefined ? camera.distance : f.length(own.focus, `${at}.focus`, lens);
+  if (camera.aperture > 0 && camera.focus === 0) f.say(`${at}.distance`, 'is 0, which leaves a lens with no plane to focus on: give a focus, or an aperture of 0');
   return f.problems.length > before ? null : camera;
 }
 

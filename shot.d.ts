@@ -105,7 +105,7 @@ export type ShotFaultKind = 'behind' | 'inside' | 'crosses' | 'off-frame' | 'cut
 /** What is wrong and what to do. `on` is the subject it is about, or null when it is about all of them together. */
 export interface ShotFault { readonly kind: ShotFaultKind; readonly on: string | null; readonly fix: string }
 export interface ShotBlocker { readonly name: string; readonly share: number }
-/** One subject as the camera sees it. Shares run 0..1, sampled by rays: good to a few percent, exact when whole. */
+/** One subject as the camera sees it. Shares run 0..1, as areas on the frame; a share above 0 or below 1 never rounds to 0 or 1. */
 export interface ShotRow {
   readonly name: string;
   readonly state: ThingBox['state'];
@@ -115,6 +115,7 @@ export interface ShotRow {
   /** The sides of the frame its box goes past. */
   readonly sides: readonly ('left' | 'right' | 'top' | 'bottom')[];
   readonly blockers: readonly ShotBlocker[];
+  readonly through: readonly string[];
   /** How far it spreads under the aperture, a radius in pixels. */
   readonly blur: number;
   readonly facing: 'face' | 'edge-on' | 'back' | null;
@@ -131,12 +132,16 @@ export interface ShotReport {
   readonly depth: number | null;
   readonly unit: string;
   readonly lens: ShotLens | number;
-  /** The smallest share in frame among what is seen. */
+  /** How many things the scene holds besides the subject: what a clear view was tested against. */
+  readonly others: number;
+  /** The smallest share in frame among what is seen. Exactly 1 only when nothing goes past the frame. */
   readonly inFrame: number;
   /** The whole subject's height, as a share of the frame's. */
   readonly height: number;
   readonly size: ShotSize | null;
   readonly blockers: readonly (ShotBlocker & { readonly of: string })[];
+  /** Things that pass through a subject with no ray finding them in front: a small cover could still be there, so the line says so. */
+  readonly through: readonly string[];
   readonly blur: number;
   readonly rows: readonly ShotRow[];
   readonly faults: readonly ShotFault[];
@@ -144,5 +149,5 @@ export interface ShotReport {
 }
 /** What `camera` sees of what `shot` is on, from numbers alone. `shot` is a read shot or just {on}. Throws, listing every problem at once. */
 export function checkShot(scene: unknown, camera: unknown, frame: unknown, shot: { readonly on: string | readonly string[] }): ShotReport;
-/** The report as one line of text a model reads, with a fix for each fault. `about` before a view means the camera stands near it. `label` leads the line. */
+/** The report as one line of text a model reads, with a fix for each fault. `about` before a view means the camera stands near it. `label` leads the line in quotes. Throws on anything but a report. */
 export function shotLine(report: ShotReport, options?: { readonly label?: string }): string;

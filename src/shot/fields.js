@@ -3,16 +3,20 @@
  * fix. Names reach text a model reads, so hidden characters never survive reading them. Own properties only; a key it does
  * not know is a problem, so a misspelt word is never silently ignored.
  */
-const HIDDEN = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}\p{Noncharacter_Code_Point}\p{Variation_Selector}]/gu;
-const MOST_NAME = 64, MOST_RAW = 1024, MOST_KEY = 40, MOST_PROBLEMS = 40;
+const HIDDEN = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}\p{Noncharacter_Code_Point}\p{Variation_Selector}\u2800]/gu;
+const QUOTES = /[\p{Pi}\p{Pf}"\uFF02\u201A\u201E\u301D-\u301F]/gu, SEEN = /[\p{L}\p{N}\p{S}\p{P}]/u, UNIT = /^[\p{L}\p{M}]+$/u;
+const MOST_NAME = 64, MOST_RAW = 1024, MOST_KEY = 40, MOST_PROBLEMS = 40, LEAST_LENGTH = 1e-30;
 
 /** How far from the origin anything may stand: past this, squares lose the digits the maths needs. */
 export const FAR = 1e9;
 /** The most things a scene or a shot may hold. */
 export const MOST_THINGS = 256;
 
-/** A name as a model may read it: no hidden characters, one space at a time, no double quote to close the quote around it. */
-export const cleanName = (text) => text.replace(/\s+/gu, ' ').replace(HIDDEN, '').normalize('NFC').replace(/"/g, "'").replace(/ +/g, ' ').trim();
+/** A name as a model may read it: no hidden characters, one space at a time, no quote of any kind to close the quote around it. */
+export const cleanName = (text) => text.replace(/\s+/gu, ' ').replace(HIDDEN, '').normalize('NFC').replace(QUOTES, "'").replace(/ +/g, ' ').trim();
+
+/** The first `most` characters whole: an emoji is never cut in two. */
+export const cutName = (text, most) => [...text].slice(0, most).join('');
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const join = (at, key) => (at ? `${at}.${key}` : key);
@@ -36,7 +40,7 @@ export function fieldReader() {
       const own = Object.create(null);
       for (const key of Object.keys(value)) {
         if (keys.includes(key)) own[key] = value[key];
-        else say(join(at, cleanName(key.slice(0, MOST_RAW)).slice(0, MOST_KEY)), `is not a field here (the fields are ${keys.join(', ')})`);
+        else say(join(at, cutName(cleanName(key.slice(0, MOST_RAW)), MOST_KEY)), `is not a field here (the fields are ${keys.join(', ')})`);
       }
       return own;
     },
@@ -45,8 +49,18 @@ export function fieldReader() {
       if (typeof v !== 'string') return say(at, 'must be a name, as text');
       if (v.length > MOST_RAW) return say(at, `is ${v.length} characters: a name is at most ${most}`);
       const clean = cleanName(v);
-      if (!clean) return say(at, 'must have something in it besides hidden characters');
+      if (!SEEN.test(clean)) return say(at, 'must have something in it that can be seen');
       return clean.length > most ? say(at, `is ${clean.length} characters: a name is at most ${most}`) : clean;
+    },
+    /** A length that may be 0: smaller than this and its square is lost, so it must be written in larger units. */
+    length(v, at, range) {
+      const n = number(v, at, range);
+      return n !== null && n !== 0 && n < LEAST_LENGTH ? say(at, `is ${n}, too small to work with: use larger units`) : n;
+    },
+    /** A unit is letters only: it stands in a line a model reads, so it must not be able to write that line. */
+    unit(v, at, most) {
+      const clean = this.name(v, at, { most });
+      return clean && !UNIT.test(clean) ? say(at, 'must be letters only, such as m or cm') : clean;
     },
     /** A list of `length` numbers; null with a problem when it is not one, or holds a bad number. */
     numbers(v, at, length, range, shape) {

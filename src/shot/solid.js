@@ -2,14 +2,16 @@
  * A thing as the camera meets it: the box it fills on the frame and where a ray first reaches it. A ball's box is exact, by
  * its tangent lines (it stretches away from the frame's centre, as a real lens draws it), and a card's is its corners'.
  */
-import { AT_CAMERA, cross, dot, inCamera, landing, mul, sub } from './lens.js';
+import { cross, dot, inCamera, landing, mul, nearLimit, sub } from './lens.js';
 
 /** A thing with its card axes worked out, once. */
 export function solidOf(thing) {
   if (!thing.size) return { thing, r: thing.r ?? 0 };
-  const n = thing.normal ?? [0, 0, 1], side = cross([0, 1, 0], n), length = Math.hypot(...side);
+  const n = thing.normal ? mul(thing.normal, 1 / Math.hypot(...thing.normal)) : [0, 0, 1], side = cross([0, 1, 0], n), length = Math.hypot(...side);
   const right = length > 1e-12 ? mul(side, 1 / length) : [1, 0, 0];
-  return { thing, n, right, up: cross(n, right), w: thing.size[0] / 2, h: thing.size[1] / 2 };
+  const u = cross(n, right), w = thing.size[0] / 2, h = thing.size[1] / 2;
+  const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => [0, 1, 2].map((i) => thing.at[i] + a * w * right[i] + b * h * u[i]));
+  return { thing, n, right, up: u, w, h, corners };
 }
 
 const nowhere = (state, depth) => ({ state, x0: null, y0: null, x1: null, y1: null, depth });
@@ -22,18 +24,18 @@ const tangents = (along, depth, r) => {
 
 function ballBox(lens, { thing, r }) {
   const [x, y, depth] = inCamera(lens, thing.at), far = Math.hypot(x, y, depth);
-  if (far <= r + AT_CAMERA) return nowhere('inside', depth);
-  if (depth + r <= AT_CAMERA) return nowhere('behind', depth);
-  if (depth - r <= AT_CAMERA) return nowhere('crosses', depth);
+  const near = nearLimit(lens, thing.at, r);
+  if (far <= r + near) return nowhere('inside', depth);
+  if (depth + r <= near) return nowhere('behind', depth);
+  if (depth - r <= near) return nowhere('crosses', depth);
   const [left, right] = tangents(x, depth, r), [low, high] = tangents(y, depth, r);
   return { state: 'seen', x0: lens.cx + left * lens.k, y0: lens.cy - high * lens.k, x1: lens.cx + right * lens.k, y1: lens.cy - low * lens.k, depth };
 }
 
 function cardBox(lens, solid) {
-  const { thing: { at }, right, up, w, h } = solid, [x, y, depth] = inCamera(lens, at);
-  if (Math.hypot(x, y, depth) <= AT_CAMERA) return nowhere('inside', depth);
-  const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => landing(lens, [0, 1, 2].map((i) => at[i] + a * w * right[i] + b * h * up[i])));
-  const landed = corners.filter((c) => c.x !== null);
+  const { thing: { at }, corners } = solid, [x, y, depth] = inCamera(lens, at);
+  if (Math.hypot(x, y, depth) <= nearLimit(lens, at)) return nowhere('inside', depth);
+  const landed = corners.map((c) => landing(lens, c)).filter((c) => c.x !== null);
   if (!landed.length) return nowhere('behind', depth);
   if (landed.length < 4) return nowhere('crosses', depth);
   const xs = landed.map((c) => c.x), ys = landed.map((c) => c.y);

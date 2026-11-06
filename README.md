@@ -264,7 +264,7 @@ const scene = {
 const shot = readShot({ on: 'database', from: 'front-left high', size: 'medium' }, scene);
 const camera = frameOf(shot, scene);    // { target, azimuth, elevation, distance, focal, aperture }
 shotLine(checkShot(scene, camera, [1280, 720], shot));
-// shot "database" from front-left high (6.33 m, lens normal): in frame 100%, 40% of height (medium), "cache" covers 42% of it, sharp — move the view or lift it
+// shot "database" from front-left high (6.33 m, lens normal): in frame 100%, 40% of height (medium), "cache" covers 43% of it, sharp — move the view or lift it
 ```
 
 `from` is a named view: `front`, `front-left`, `left`, `back-left`, `back`, `back-right`, `right` or `front-right`, then `high`,
@@ -273,11 +273,16 @@ from a film's own numbers: `checkShot(scene, camera, frame, { on })` reads any c
 near a named view rather than on it. The check reports a subject behind the camera, off frame, cut off, too small, covered by
 something nearer, edge-on, showing its back or out of focus, and a camera on top of its subject.
 
-The maths is exact for where things land and for each thing's box. Shares (how much is in frame, how much is covered) are
-sampled by rays, so they are good to a few percent. **The check knows only the scene it is given:** a flat layer over the
-picture, a caption or a bond is not there unless you add it as a thing, and every thing with a size is solid. Two things in
-one shot's `on` can hide each other, and that is reported: name a tight cluster as one ball. The sizes, the lenses and "too small" are starting
-choices, not measurements. Nothing here draws, and no tool reads a shot yet. More in [src/shot/README.md](src/shot/README.md).
+Where things land, each thing's box and whether it is cut off are exact. Shares are areas on the frame, cut from the outlines
+things really fill, so a thin card counts as surely as a wide one. On 600 random scenes, a third with thin cards as the subject,
+against a separate dense oracle: worst error 0.2 points for in frame and 0.4 for covered, and 1.9 where a ball passes through
+something, the one case that is sampled. There a clear result says so: `"rod" passes through it`. An overlap under about a third
+of a pixel is not counted.
+
+**The check knows only the scene it is given,** and the line says how many other things it was tested against: `none of the 3
+other things in front`, or `no other things given`. A flat layer over the picture, a caption or a bond is not there unless you
+add it as a thing, and every thing with a size is solid. Two things in one shot's `on` can hide each other, and that is reported:
+name a tight cluster as one ball. The sizes, the lenses and "too small" are starting choices, not measurements. Nothing here draws, and no tool reads a shot yet. More in [src/shot/README.md](src/shot/README.md).
 
 ## API
 

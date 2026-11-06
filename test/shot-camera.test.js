@@ -79,6 +79,14 @@ test('property: a ball stays inside its box, and its edge reaches each side', ()
   }), { numRuns: 60 });
 });
 
+test('how near counts as on the camera scales with the scene: a very small scene is still a scene', () => {
+  const small = { target: [0, 0, 0], azimuth: 0, elevation: 0, distance: 5e-10, focal: 1 };
+  assert.equal(boxOf({ name: 'x', at: [0, 0, 0], r: 1e-10 }, small, frame).state, 'seen');
+  assert.ok(project([0, 0, 0], small, frame).x === 640);
+  const big = { target: [1e6, 0, 0], azimuth: 0, elevation: 0, distance: 5, focal: 1 };
+  assert.equal(boxOf({ name: 'x', at: [1e6, 0, 5] }, big, frame).state, 'inside');
+});
+
 test('a box says why it is not a box: behind, inside, reaching past', () => {
   const c = { target: [0, 0, 0], azimuth: 0, elevation: 0, distance: 5, focal: 1 };
   assert.equal(boxOf({ name: 'x', at: [0, 0, 9], r: 1 }, c, frame).state, 'behind');

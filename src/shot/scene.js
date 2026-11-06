@@ -6,14 +6,19 @@ import { FAR, MOST_THINGS, deepFreeze, orRefuse, pointOf, readAll } from './fiel
 
 const SCENE = ['unit', 'up', 'things'], THING = ['name', 'at', 'r', 'size', 'normal', 'back'], MOST_UNIT = 8, MOST_NAMED = 8;
 
+const cardSize = (f, v, at) => {
+  const size = f.numbers(v, at, 2, { least: 0, above: true }, 'two numbers [width, height], above 0');
+  return size && size.map((n, i) => f.length(n, `${at}[${i}]`, { least: 0 })).includes(null) ? null : size;
+};
+
 /** Reads one thing into `f`; null when it has a problem. */
 export function thingFrom(raw, f, at) {
   const own = f.object(raw, at, THING);
   if (!own) return null;
   const name = f.name(own.name, `${at}.name`), place = pointOf(f, own.at, `${at}.at`), thing = { name, at: place };
   if (own.r !== undefined && own.size !== undefined) f.say(at, 'must have an r (a ball) or a size (a card), not both');
-  if (own.r !== undefined) thing.r = f.number(own.r, `${at}.r`, { least: 0 });
-  if (own.size !== undefined) thing.size = f.numbers(own.size, `${at}.size`, 2, { least: 0, above: true }, 'two numbers [width, height], above 0');
+  if (own.r !== undefined) thing.r = f.length(own.r, `${at}.r`, { least: 0 });
+  if (own.size !== undefined) thing.size = cardSize(f, own.size, `${at}.size`);
   if (own.normal !== undefined || own.back !== undefined) {
     if (own.size === undefined) f.say(at, 'has a normal or a back, and only a card (a size) has those');
     if (own.normal !== undefined) {
@@ -31,7 +36,7 @@ export function thingFrom(raw, f, at) {
 export function sceneFrom(raw, f, at = '') {
   const here = (key) => (at ? `${at}.${key}` : key), own = f.object(raw, at, SCENE);
   if (!own) return null;
-  const unit = own.unit === undefined || own.unit === '' ? '' : f.name(own.unit, here('unit'), { most: MOST_UNIT });
+  const unit = own.unit === undefined || own.unit === '' ? '' : f.unit(own.unit, here('unit'), MOST_UNIT);
   if (own.up !== undefined && own.up !== 'y') f.say(here('up'), "must be 'y': it is the only up there is for now");
   if (!Array.isArray(own.things)) return f.say(here('things'), 'must be a list of things, each {name, at} with an r or a size');
   if (own.things.length > MOST_THINGS) return f.say(here('things'), `has ${own.things.length}, and ${MOST_THINGS} is the most: leave out what the camera need not know`);

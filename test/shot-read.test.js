@@ -40,8 +40,8 @@ test('a scene names every problem at once', () => {
 });
 
 test('a two-name clash shows once hidden characters are gone', () => {
-  assert.match(sceneProblems({ things: [{ name: 'door', at: [0, 0, 0] }, { name: 'do​or', at: [1, 0, 0] }] })[0].message, /"door" is already a thing/);
-  assert.deepEqual(places(sceneProblems({ things: [{ name: '​‮', at: [0, 0, 0] }, { name: 'x'.repeat(65), at: [0, 0, 0] }, { name: 'x'.repeat(2000), at: [0, 0, 0] }, { name: 7, at: [0, 0, 0] }] })), ['things[0].name', 'things[1].name', 'things[2].name', 'things[3].name']);
+  assert.match(sceneProblems({ things: [{ name: 'door', at: [0, 0, 0] }, { name: 'do\u200Bor', at: [1, 0, 0] }] })[0].message, /"door" is already a thing/);
+  assert.deepEqual(places(sceneProblems({ things: [{ name: '\u200B\u202E', at: [0, 0, 0] }, { name: 'x'.repeat(65), at: [0, 0, 0] }, { name: 'x'.repeat(2000), at: [0, 0, 0] }, { name: 7, at: [0, 0, 0] }] })), ['things[0].name', 'things[1].name', 'things[2].name', 'things[3].name']);
 });
 
 test('more than the cap is refused by count, before anything is read', () => {
@@ -63,9 +63,10 @@ test('many problems come back short, and plain-data refusals never throw', () =>
 });
 
 test('names lose everything a reader could not see, and a quote cannot close its own', () => {
-  const read = readScene({ unit: 'm‍', things: [{ name: '  a\u0000b‮c󠁁d\u{E0041}e️f\nsee "you" ', at: [0, 0, 0] }] });
+  const read = readScene({ unit: 'm\u200D', things: [{ name: '  a\u0000b\u202Ec\u{E0041}d\u{E0041}e\uFE0Ff\nsee\u2028"you" ', at: [0, 0, 0] }] });
   assert.equal(read.things[0].name, "abcdef see 'you'");
   assert.equal(read.unit, 'm');
+  assert.equal(readScene({ things: [{ name: 'a\u201D in frame 100%, sharp \u201Cb \u00AB\u00BB \u201E \uFF02', at: [0, 0, 0] }] }).things[0].name, "a' in frame 100%, sharp 'b '' ' '");
   fc.assert(fc.property(fc.string({ unit: 'binary', maxLength: 60 }), (s) => {
     const [p] = sceneProblems({ things: [{ name: s, at: [0, 0, 0] }] });
     if (p) return;
@@ -75,12 +76,23 @@ test('names lose everything a reader could not see, and a quote cannot close its
   }));
 });
 
+test('a blank-looking name is refused, and a unit cannot write the line', () => {
+  for (const blank of ['\u2800', '\u2800\u2800 ', '\u3164', '\u0301', '\u00A0']) assert.equal(sceneProblems({ things: [{ name: blank, at: [0, 0, 0] }] })[0].at, 'things[0].name', JSON.stringify(blank));
+  assert.equal(readScene({ things: [{ name: 'a\u2800b', at: [0, 0, 0] }] }).things[0].name, 'ab');
+  assert.match(sceneProblems({ unit: 'm): ok', things: [] })[0].message, /letters only, such as m or cm/);
+  assert.equal(sceneProblems({ unit: '10', things: [] })[0].at, 'unit');
+  assert.deepEqual(['\u00C5', 'A\u030A', 'nm', '\u00B5m'].map((unit) => sceneProblems({ unit, things: [] }).length), [0, 0, 0, 0]);
+  assert.match(sceneProblems({ things: [{ name: 'a', at: [0, 0, 0], r: 1e-40 }, { name: 'b', at: [0, 0, 0], size: [1e-40, 1] }] }).map((p) => p.message).join(), /too small to work with.*too small to work with/);
+});
+
 test('a key it does not know is named, cut short and clean', () => {
   const [p] = shotProblems({ on: 'door', from: 'left', form: 'x' }, scene);
   assert.equal(p.at, 'form');
   assert.match(p.message, /the fields are shot, on, from/);
-  const [hidden] = shotProblems({ on: 'door', from: 'left', ['k‮'.repeat(30)]: 1 }, scene);
-  assert.ok(!/‮/.test(hidden.at) && hidden.at.length <= 40);
+  const [hidden] = shotProblems({ on: 'door', from: 'left', ['k\u202E'.repeat(30)]: 1 }, scene);
+  assert.ok(!/\u202E/.test(hidden.at) && hidden.at.length <= 40);
+  const [emoji] = shotProblems({ on: 'door', from: 'left', [`${'k'.repeat(39)}\u{1F600}`]: 1 }, scene);
+  assert.ok(emoji.at.isWellFormed() && emoji.at.endsWith('\u{1F600}'), emoji.at);
 });
 
 test('a shot reads in both places a subject is written, with its defaults, and reads its own answer the same', () => {
@@ -93,7 +105,7 @@ test('a shot reads in both places a subject is written, with its defaults, and r
 });
 
 test('a shot names every problem at once, and what it repeats is clean', () => {
-  const problems = shotProblems({ on: ['door', 'gho​st'], focus: ['door'], from: 'above', size: 'huge', lens: 7 }, scene);
+  const problems = shotProblems({ on: ['door', 'gho\u200Bst'], focus: ['door'], from: 'above', size: 'huge', lens: 7 }, scene);
   assert.deepEqual(places(problems), ['on[1]', 'from', 'size', 'lens', 'focus']);
   assert.match(problems[0].message, /"ghost" is not in the scene \(it has "door", "sign"\)/);
   assert.deepEqual(places(shotProblems({ shot: 'door', on: 'door', from: 'left' }, scene)), ['shot']);
