@@ -4,6 +4,8 @@ import { spokenMap, autoRules, shownWords, spokenOffset, unsaidDigits, checkSlot
 import type { SpokenMap, Piece, Rules, Slot, WordTiming, Track, WordCue, Chapters, ChapterChange } from 'footprint-story';
 import { clipKey, clipFor, voiceClips, pickSteps, chatterboxKit, recordedTakes } from 'footprint-story/voice';
 import type { VoiceEngine, Clip, VoiceProfile, TakeRecord, TrimSettings, Scene } from 'footprint-story/voice';
+import { readStoryboard, storyboardProblems, storyShapes, numbersIn } from 'footprint-story/storyboard';
+import type { Storyboard, StoryScene, StoryBeat, StoryboardProblem, StoryShape, StoryMessage } from 'footprint-story/storyboard';
 
 const slots: Slot[] = [['16.67 ms', 'sixteen point six seven milliseconds']];
 const map: SpokenMap = spokenMap('One frame takes 16.67 ms.', { slots: checkSlots('One frame takes 16.67 ms.', slots), rules: autoRules({ spell: { ...SPELL, UI: 'U I' }, say: SAY }) });
@@ -62,3 +64,12 @@ const checked = checkTransition(swirl, 'swirl', { extra: ['draw'] });
 const p = readSettings({ at: { point: true, default: 'centre' } }, {}, 'x', { frame: [10, 20] });
 const pace: Pace = readPace({ hold: 1.5, most: 0.2, still: 0.6 });
 const motionMisc: unknown[] = [eased, springs, mask, mine, named, delays, push.p, all, checked.params, p, isColor('#fff'), SECONDS[0], PACES.promo.hold, pace.spare];
+
+const chat: StoryMessage[] = [{ id: 'm1', who: 'agent', text: 'it waited 41 minutes' }];
+const shapes: readonly StoryShape[] = storyShapes();
+const boardProblems: readonly StoryboardProblem[] = storyboardProblems({ shape: shapes[0].name }, { conversation: chat });
+const board: Storyboard = readStoryboard('{}');
+const firstScene: StoryScene = board.scenes[0];
+const beat: StoryBeat = firstScene.beat;
+const cardTone: 'ok' | 'warn' | null = beat.kind === 'card' ? beat.tone : null;
+const said: readonly string[] = numbersIn(firstScene.narration);

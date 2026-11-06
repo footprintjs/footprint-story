@@ -27,6 +27,7 @@
     "easing",
     "spring",
     "transitions",
+    "storyboard",
     "storyreel",
     "storydeck",
     "footprintjs"
@@ -49,6 +50,10 @@
       "types": "./motion.d.ts",
       "default": "./motion.js"
     },
+    "./storyboard": {
+      "types": "./storyboard.d.ts",
+      "default": "./storyboard.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -58,6 +63,8 @@
     "voice.d.ts",
     "motion.js",
     "motion.d.ts",
+    "storyboard.js",
+    "storyboard.d.ts",
     "src",
     "plugin",
     "README.md",
@@ -65,7 +72,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
   },
   "devDependencies": {
     "fast-check": "^4.10.2"
