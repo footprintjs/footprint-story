@@ -21,6 +21,7 @@ board.scenes[1];   // { id, part, look, title, narration, beat }: title and narr
 ```
 
 The number rule covers every word a `what-we-found` says or shows: a claim against the messages it cites, and anything that
-cites none against the whole conversation. A number it cannot compare fails rather than passes. It does not catch a claim that
+cites none against the whole conversation. What a model writes must use plain digits: a disguised number (hidden characters,
+superscripts, odd separators, direction controls) is refused rather than read. It does not catch a claim that
 is wrong in words, a number spelled out, or a sign (`-41` reads as 41). `verified` is true only when a shape's claims really were checked: `told-twice`
 makes none, and with no conversation given nothing is checked.

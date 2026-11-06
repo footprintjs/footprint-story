@@ -1,13 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — a story written as data
 
 - **storyboard** (`footprint-story/storyboard`, a fourth door, pure, loaded only when imported): a story written as plain
   data on a named shape, for a film and a deck to draw the same way. `storyShapes` lists the shapes with a worked outline,
   `storyboardProblems` names every mistake at once, and `readStoryboard` gives frozen scenes, each usable as a scene of a
   film's storyboard as it is. Two shapes: `told-twice` and `what-we-found`. Given a conversation, a claim must cite the
-  messages it rests on, and its numbers must be in them. Numbers are read as a reader sees them, and one it cannot compare
-  fails. Nothing here draws.
+  messages it rests on, and its numbers must be in them. What a model writes must use plain digits: a disguised number is
+  refused. Nothing here draws.
 - The architecture test now checks four doors.
 
 ## 0.3.0 — footprint-narration is now footprint-story, and the motion words join it

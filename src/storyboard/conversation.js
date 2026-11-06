@@ -5,21 +5,40 @@
  */
 const MOST_MESSAGES = 5000;
 
-const THOUSANDS = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
-const FULLWIDTH = /[\uFF10-\uFF19]/g;
-/** Digits of any kind, and what may join them into one number: a point, a comma, or a space that does not break, in any width. */
-const NUMBER = /[\p{Nd}\p{No}]+(?:[.,\uFF0C\uFF0E\u00A0\u2009\u202F][\p{Nd}\p{No}]+)*/gu;
+const THOUSANDS = /^\d{1,3}(?:[,   ]\d{3})+(?:\.\d+)?$/;
+const GROUPING = /[,   ]/g;
+const FULLWIDTH = /[０-９]/g;
+/** Digits of any kind, kept with whatever joins them into one number, so a source's '10²' or '1 250' is not also a 10 or a 250. */
+const NUMBER = /[\p{Nd}\p{No}]+(?:[.,，．   ․﹐﹒][\p{Nd}\p{No}]+)*/gu;
+const BIDI = /[؜‎‏‪-‮⁦-⁩]/;
+/** Two digits with something between them that a reader cannot read as what it is: anything but a visible letter or printable ASCII. */
+const ODDLY_JOINED = /\p{Nd}(?:[^\p{L}\p{Nd}\x20-\x7E]|\p{Default_Ignorable_Code_Point})+\p{Nd}/u;
+/** A control character other than a tab or a line break. */
+const CONTROL = /[^\P{Cc}\t\n\r]/u;
+const plainWidth = (text) => String(text).replace(FULLWIDTH, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 48));
+const digitCount = (text) => (text.match(/\p{Nd}/gu) ?? []).length;
 
 /**
- * Every number in a text, as a reader sees it. Invisible characters go first, so '4\u200D2' is the 42 it shows, not a 4 and
- * a 2. Fullwidth digits read as plain ones. Commas go only from real thousands grouping ('1,250.5' → '1250.5'). Anything
- * else stays as written and must be found as it is: '3,5' is not 35, '10²' is not 102, and another script's digits are
- * their own. So a number it cannot compare fails the check, never passes.
+ * Every number in a text: digits in any script, fullwidth ones read as plain, hidden characters ignored. Grouping goes only
+ * when it is real thousands ('1,250.5' → '1250.5', and with a thin space too); anything else stays as written, so '3,5' is
+ * not 35 and '10²' is not 10.
  */
 export function numbersIn(text) {
-  const seen = String(text).replace(/\p{Cf}/gu, '').replace(FULLWIDTH, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 48));
-  return [...new Set((seen.match(NUMBER) ?? []).map((n) => (THOUSANDS.test(n) ? n.replaceAll(',', '') : n)))];
+  const seen = plainWidth(text).replace(/[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu, '');
+  return [...new Set((seen.match(NUMBER) ?? []).map((n) => (THOUSANDS.test(n) ? n.replace(GROUPING, '') : n)))];
 }
+
+/**
+ * Whether words write a number in a form that may not show what it reads as: a compatibility digit (10², ½, ①, ㏳), digits
+ * joined by anything odd, or direction controls that reorder what is shown. What a model writes must use plain digits, so
+ * these are refused rather than read: the rule allows one form instead of chasing each disguise.
+ */
+function disguisesNumber(text) {
+  const plain = plainWidth(text);
+  if (/\p{No}/u.test(plain) || digitCount(plain.normalize('NFKC')) !== digitCount(plain)) return true;
+  return digitCount(plain) > 0 && (BIDI.test(plain) || CONTROL.test(plain) || ODDLY_JOINED.test(plain));
+}
+const DISGUISED = 'writes a number in a form that cannot be checked: use plain digits, with no hidden or special characters near them';
 
 /**
  * [{id, who?, text}] read and checked: a Map of id → text. Throws, naming the place, on anything it cannot use, as what
@@ -49,6 +68,7 @@ export function checkClaim(fields, conversation, at, claim, cited) {
   const missing = cited.filter((id) => !conversation.has(id));
   for (const id of missing) fields.say(`${at}.sources`, `names "${id}", which the conversation does not have`);
   if (missing.length) return;
+  if (disguisesNumber(claim)) { fields.say(at, DISGUISED); return; }
   const said = new Set(cited.flatMap((id) => numbersIn(conversation.get(id))));
   for (const n of numbersIn(claim)) {
     if (!said.has(n)) fields.say(at, `says ${n}, which none of its sources (${cited.join(', ')}) says: fix the number, cite the message that says it, or move it to what you are not sure about`);
@@ -58,6 +78,7 @@ export function checkClaim(fields, conversation, at, claim, cited) {
 /** Words that cite no message (a title, what is said at the end, what happens next): any number in them must be somewhere in the conversation. */
 export function checkAnywhere(fields, conversation, at, text) {
   if (!conversation) return;
+  if (disguisesNumber(text)) { fields.say(at, DISGUISED); return; }
   const said = new Set([...conversation.values()].flatMap((message) => numbersIn(message)));
   for (const n of numbersIn(text)) if (!said.has(n)) fields.say(at, `says ${n}, which the conversation never says: fix the number, or take it out`);
 }
