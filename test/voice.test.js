@@ -273,6 +273,30 @@ test('a recording session\'s clips and a voice\'s stay apart, and a refused voic
   rmSync(cache, { recursive: true, force: true });
 });
 
+test('a voice that fails before its first clip hides nothing voiced before it', async () => {
+  const cache = folder();
+  await narrate(LINES, { cache, profile: { id: 'first' }, engine: lineEngine() });
+  const broken = { name: 'broken', synthesize() { throw new Error('the kit failed'); } };
+  await assert.rejects(narrate(LINES, { cache, profile: { id: 'second' }, engine: broken }), /the kit failed/);
+  const { profile } = narrationVoice({ cache });
+  assert.equal(profile.id, 'first');
+  assert.equal(narrationState(LINES, { cache, profile }).voiced, 2);
+  rmSync(cache, { recursive: true, force: true });
+});
+
+test('voice settings are kept once a clip stands, so a run stopped later still finds its batches', async () => {
+  const cache = folder(), engine = lineEngine(), voice = { name: 'partial', synthesize(scenes, o) {
+    if (n++) throw new Error('stopped');
+    return engine.synthesize(scenes, o);
+  } };
+  let n = 0;
+  await assert.rejects(narrate(LINES, { cache, profile: { id: 'mine' }, engine: voice, batch: 1 }), /stopped/);
+  const { profile } = narrationVoice({ cache });
+  assert.equal(profile.id, 'mine');
+  assert.equal(narrationState(LINES, { cache, profile }).voiced, 1);
+  rmSync(cache, { recursive: true, force: true });
+});
+
 test('a cache from someone\'s folder: a link is never read or written through, and a torn or foreign record is voiced again', async () => {
   const cache = folder(), outside = folder(), secret = path.join(outside, 'secret'), profile = { id: 'p' }, text = 'The first line', key = clipKey(text, profile);
   writeFileSync(secret, '{"duration":1,"sentences":[0]}');

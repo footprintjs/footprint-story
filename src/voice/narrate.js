@@ -34,8 +34,8 @@ function keptRecipe(cache) {
 function keepRecipe(cache, profile) {
   const file = path.join(path.resolve(cache), RECIPE);
   mkdirSync(path.dirname(file), { recursive: true });
-  rmSync(file, { force: true });   // a new file: nothing at its name, a link included, is written through
-  writeFileSync(file, `${JSON.stringify(recipeOf(profile))}\n`);
+  rmSync(file, { force: true });   // a new file: nothing at its name, a link included, is written through, even one planted after the rm
+  writeFileSync(file, `${JSON.stringify(recipeOf(profile))}\n`, { flag: 'wx' });
 }
 
 /**
@@ -71,8 +71,12 @@ export async function narrate(lines, { cache, profile, engine = null, only, batc
   if (engine) {
     const steps = pickSteps(only);   // what can be refused is refused before anything is kept
     refuseCrossedVoices(engine, profile);
-    keepRecipe(cache, profile);   // before the voicing: an interrupted run keeps every batch it finished, and they must be found
-    ({ voiced: ran } = await voiceClips(lines.map((l) => l.text), { cache, profile, engine, only: steps, batch, work, log }));
+    // kept once a clip of this voice stands: an interrupted run's batches are found, and a voice that fails first hides nothing voiced before it
+    const keep = () => keepRecipe(cache, profile);
+    ({ voiced: ran } = await voiceClips(lines.map((l) => l.text), { cache, profile, engine, only: steps, batch, work, log, onClips: keep }));
+    const state = narrationState(lines, { cache, profile });
+    if (state.voiced) keep();
+    return { ...state, ran };
   }
   return { ...narrationState(lines, { cache, profile }), ran };
 }

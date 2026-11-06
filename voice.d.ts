@@ -60,6 +60,8 @@ export function pickSteps(spec?: string | number | null): Set<number> | null;
  */
 export function voiceClips(texts: readonly string[], options: {
   cache: string; profile: VoiceProfile; engine?: VoiceEngine; only?: ReadonlySet<number> | null; batch?: number; work?: string; log?: (line: string) => void;
+  /** Called after each batch that kept a clip. */
+  onClips?: () => void;
 }): Promise<{ wanted: number; todo: number; voiced: number }>;
 /** The adapter for a local voice kit (Chatterbox, aligned; nothing is uploaded). */
 export function chatterboxKit(options: { kit: string; python?: string; script?: string; profile?: string; device?: string; env?: Record<string, string | undefined>; run?: Run }): VoiceEngine;

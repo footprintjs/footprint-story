@@ -1,6 +1,6 @@
 // The clip cache — one clip per text, kept by its key (key.js), voiced only when its words or the voice change.
 // Moved from StoryDeck 0.2.0 (voice.js · clipFor, voiceClips, pickSteps); a clip now keeps its timed words too.
-import { existsSync, lstatSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
+import { constants, existsSync, lstatSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { sentenceStarts } from '../sentences/starts.js';
@@ -77,9 +77,10 @@ const keptWords = (words) => words.map((w) => ({ text: w.text, start: w.start, e
  * 1-based steps, pickSteps) narrows it. An engine with a `preflight` is handed every scene to voice (and `work`)
  * before the first batch, to refuse them all at once (recorded takes: every line not recorded yet). The engine works in
  * `work` — a folder of its own, emptied before each batch (by default a new temporary folder, removed afterwards).
+ * `onClips` is called after each batch that kept a clip.
  * Returns { wanted, todo, voiced }.
  */
-export async function voiceClips(texts, { cache, profile, engine, only = null, batch = 4, work, log = () => {} }) {
+export async function voiceClips(texts, { cache, profile, engine, only = null, batch = 4, work, log = () => {}, onClips = () => {} }) {
   if (!Number.isInteger(batch) || batch < 1) throw new RangeError(`batch must be a whole number of clips, 1 or more (got ${batch})`);
   refuseCrossedVoices(engine, profile);
   cache = path.resolve(cache);
@@ -104,13 +105,14 @@ export async function voiceClips(texts, { cache, profile, engine, only = null, b
       const results = await engine.synthesize(part.map((key) => ({ id: `k${key}`, text: todo.get(key) })), { work: dir });
       for (const r of results) {
         const key = r.id.slice(1), text = todo.get(key);
-        // each a new file, so nothing at its name, a link included, is written through; the .m4a too: a page's copy of the old take would carry the new timings
+        // each a new file, so nothing at its name, a link included, is written through, even one planted after the rm; the .m4a too: a page's copy of the old take would carry the new timings
         for (const ext of ['wav', 'm4a', 'json']) rmSync(path.join(cache, `${key}.${ext}`), { force: true });
-        copyFileSync(r.audio, path.join(cache, `${key}.wav`));
+        copyFileSync(r.audio, path.join(cache, `${key}.wav`), constants.COPYFILE_EXCL);
         writeFileSync(path.join(cache, `${key}.json`), JSON.stringify({ text, duration: r.duration, sentences: sentenceStarts(text, r.words ?? []),
-          ...(Array.isArray(r.words) && { words: keptWords(r.words) }), ...(r.take && { take: r.take }) }));
+          ...(Array.isArray(r.words) && { words: keptWords(r.words) }), ...(r.take && { take: r.take }) }), { flag: 'wx' });
       }
       voiced += results.length;
+      if (results.length) onClips();
       log(`clips cached: ${voiced}/${keys.length}`);
     }
   } finally {
