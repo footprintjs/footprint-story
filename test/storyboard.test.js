@@ -166,14 +166,25 @@ test('numbersIn reads numbers as written, taking commas only from real thousands
 test('numbersIn reads digits in any script, fullwidth as plain, and ignores hidden characters', () => {
   assert.deepEqual(numbersIn('4‍2 and 1⁠000'), ['42', '1000']);
   assert.deepEqual(numbersIn('４２ and ٤٢'), ['42', '٤٢']);
-  assert.deepEqual(numbersIn('10²'), ['10']);
+});
+
+test('numbersIn keeps a source's number whole, so a part of it is not also a number', () => {
+  assert.deepEqual(numbersIn('10²'), ['10²']);
+  assert.deepEqual(numbersIn('1 250 and 2 500 and 12 34'), ['1250', '2500', '12 34']);
+  assert.deepEqual(numbersIn('1，250'), ['1，250']);
+  const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
+  const at = (line, text) => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;
+  assert.equal(at('It took 250 nights', 'it took 1 250 nights'), 1);
+  assert.equal(at('It took 1250 nights', 'it took 1 250 nights'), 0);
+  assert.equal(at('It took 10 nights', 'it took 10² nights'), 1);
 });
 
 test('what a model writes must use plain digits: any disguise is refused, whatever it reads as', () => {
   const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
   const problems = (line, text = 'it took 42 nights, 4 people, 2 rooms, 1 table, 250 rows, 10 and 102 and 24') => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]');
   for (const line of ['It took 4‍2 nights', 'It took 4͏2 nights', 'It took 4́2 nights', 'It took 10² nights', 'A ½ of it', 'Step ①', 'On ㏳', 'In ㋉', 'At ㍢',
-    'Rows: 1 250', 'Rows: 1 250', 'Rows: 1․250', 'Rows: 1﹐250', 'Rows: 1，250', 'It took ‮24 nights', 'It took 24‏ nights']) {
+    'Rows: 1 250', 'Rows: 1 250', 'Rows: 1․250', 'Rows: 1﹐250', 'Rows: 1，250', 'It took ‮24 nights', 'It took 24‏ nights',
+    'It took 4ㅤ2 nights', 'It took 4ᅟ2 nights', 'It took 4ᅠ2 nights', 'It took 4ﾠ2 nights', 'It took 4\u00072 nights', 'It took 42\u0007 nights']) {
     const found = problems(line);
     assert.equal(found.length, 1, line);
     assert.match(found[0].message, /writes a number in a form that cannot be checked/, line);

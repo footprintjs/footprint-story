@@ -5,22 +5,27 @@
  */
 const MOST_MESSAGES = 5000;
 
-const THOUSANDS = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
+const THOUSANDS = /^\d{1,3}(?:[,   ]\d{3})+(?:\.\d+)?$/;
+const GROUPING = /[,   ]/g;
 const FULLWIDTH = /[０-９]/g;
-const NUMBER = /\p{Nd}+(?:[.,]\p{Nd}+)*/gu;
+/** Digits of any kind, kept with whatever joins them into one number, so a source's '10²' or '1 250' is not also a 10 or a 250. */
+const NUMBER = /[\p{Nd}\p{No}]+(?:[.,，．   ․﹐﹒][\p{Nd}\p{No}]+)*/gu;
 const BIDI = /[؜‎‏‪-‮⁦-⁩]/;
-/** Two digits with something between them that is not a letter or plain ASCII: a hidden character, a mark, an odd space or point. */
-const ODDLY_JOINED = /\p{Nd}[^\p{L}\p{Nd}\x00-\x7F]+\p{Nd}/u;
+/** Two digits with something between them that a reader cannot read as what it is: anything but a visible letter or printable ASCII. */
+const ODDLY_JOINED = /\p{Nd}(?:[^\p{L}\p{Nd}\x20-\x7E]|\p{Default_Ignorable_Code_Point})+\p{Nd}/u;
+/** A control character other than a tab or a line break. */
+const CONTROL = /[^\P{Cc}\t\n\r]/u;
 const plainWidth = (text) => String(text).replace(FULLWIDTH, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 48));
 const digitCount = (text) => (text.match(/\p{Nd}/gu) ?? []).length;
 
 /**
- * Every number in a text: digits in any script, fullwidth ones read as plain, hidden characters ignored. Commas go only from
- * real thousands grouping ('1,250.5' → '1250.5'); anything else stays as written, so '3,5' is not 35.
+ * Every number in a text: digits in any script, fullwidth ones read as plain, hidden characters ignored. Grouping goes only
+ * when it is real thousands ('1,250.5' → '1250.5', and with a thin space too); anything else stays as written, so '3,5' is
+ * not 35 and '10²' is not 10.
  */
 export function numbersIn(text) {
   const seen = plainWidth(text).replace(/[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu, '');
-  return [...new Set((seen.match(NUMBER) ?? []).map((n) => (THOUSANDS.test(n) ? n.replaceAll(',', '') : n)))];
+  return [...new Set((seen.match(NUMBER) ?? []).map((n) => (THOUSANDS.test(n) ? n.replace(GROUPING, '') : n)))];
 }
 
 /**
@@ -31,7 +36,7 @@ export function numbersIn(text) {
 function disguisesNumber(text) {
   const plain = plainWidth(text);
   if (/\p{No}/u.test(plain) || digitCount(plain.normalize('NFKC')) !== digitCount(plain)) return true;
-  return digitCount(plain) > 0 && (BIDI.test(plain) || ODDLY_JOINED.test(plain));
+  return digitCount(plain) > 0 && (BIDI.test(plain) || CONTROL.test(plain) || ODDLY_JOINED.test(plain));
 }
 const DISGUISED = 'writes a number in a form that cannot be checked: use plain digits, with no hidden or special characters near them';
 
