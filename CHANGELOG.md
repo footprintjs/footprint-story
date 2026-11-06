@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — one narration step for a film and a deck
 
 - **`narrate`**, in `footprint-story/voice`: the one narration step StoryDeck and StoryReel share. `narrationVoice({ cache, kit, takes })`
   picks the voice a person named, `narrate(lines, { cache, profile, engine })` voices what is missing, and with no engine only
