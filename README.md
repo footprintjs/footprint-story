@@ -26,17 +26,41 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Three doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Four doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
 | `footprint-story` | the shown↔spoken map, sentences, captions, chapters | anywhere — browser or Node; no dependencies |
 | `footprint-story/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
 | `footprint-story/motion` | eases and springs, moves, transitions as data, pace | anywhere — browser or Node; no dependencies |
+| `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
 new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency or a release
 pace of its own.
+
+## A story written as data
+
+An agent telling a story should not have to write a deck's HTML or a film's recipe. It fills in a **shape**, and every
+mistake is named at once, so it fixes them in one pass. Whoever draws the board treats its words as text, never as code.
+
+```js
+import { storyShapes, storyboardProblems, readStoryboard } from 'footprint-story/storyboard';
+
+storyShapes();                   // [{ name, about, fills }]: the shapes, and a worked outline of each
+storyboardProblems(fromAgent);   // [{ at: 'items[1].turn.callout', message: 'must say both names, …' }]
+const board = readStoryboard(fromAgent, { conversation: [{ id: 'm7', text: 'it waited 41 minutes' }] });
+board.scenes[1];                 // { id, part, look, title, narration, beat }
+```
+
+| shape | what it tells |
+|---|---|
+| `told-twice` | a cast of people and everyday things acts a system out, each turns into the real thing where it stood, then the same story runs again for real |
+| `what-we-found` | what was checked, what was found, what is still not known (which must be written, even empty), and what happens next |
+
+Given a conversation, a claim must name the messages it rests on, and every number in it must be in one of them. That
+catches a wrong number. It does not catch a claim that is wrong in words, or a number spelled out, and with no
+conversation given nothing is checked, so the board says `verified: false`.
 
 ## One text, as shown and as spoken
 
