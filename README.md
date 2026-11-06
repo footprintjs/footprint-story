@@ -68,6 +68,22 @@ them; anything that cites none, such as its title, must use numbers from somewhe
 wrong number. It does not catch a claim that is wrong in words, a number spelled out, or a sign (`-41` reads as 41). `verified` is true only when claims
 really were checked: `told-twice` makes none, and with no conversation nothing is checked.
 
+## A narration: one step for a film and a deck
+
+Each tool says what its lines are, and this owns the rest. With no voice, `narrate` only reads, so asking costs nothing.
+
+```js
+import { narrate, narrationSummary, narrationVoice } from 'footprint-story/voice';
+
+const cache = 'voice/cache';
+const { engine, profile } = narrationVoice({ cache, kit: '../voice-kit' });   // or { cache, kit, takes } for your own recordings, or { cache } to only read
+const report = await narrate(lines, { cache, profile, engine });
+console.log(narrationSummary(report));   // 12 of 15 lines voiced · 3 to voice · 2 silent · 48.2 s so far …
+```
+
+A voice kit runs Python on your machine, so take its folder only from your own command or a server's start, never from a
+project's files. StoryDeck and StoryReel each have a `narrate` command built on this.
+
 ## One text, as shown and as spoken
 
 A **slot** says one exact place by hand; the **rules** say everything else. Use either or both.

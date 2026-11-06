@@ -9,3 +9,6 @@ export const lastLine = (done) => {
   const line = String(done?.stderr ?? '').trim().split('\n').at(-1);
   return line ? `: ${line}` : '';
 };
+
+/** A tool's stdio when the voice door runs it: its progress goes to stderr, so a command's answer on stdout stays its answer. */
+export const QUIET_STDOUT = Object.freeze(['ignore', 2, 2]);

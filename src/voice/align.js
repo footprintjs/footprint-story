@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { failure } from './spawn.js';
+import { failure, QUIET_STDOUT } from './spawn.js';
 import { wordsOf } from './takes.js';
 
 /** The aligner this package ships (align_take.py, beside this file). */
@@ -28,7 +28,7 @@ export function refuseUnalignable(scenes) {
 export function alignTakes(cut, { dir, kit, python, env, run, profile }) {
   const board = path.join(dir, 'scenes.json');
   writeFileSync(board, JSON.stringify({ voiceProfile: profile.id, scenes: cut.map((t) => ({ id: t.id, text: t.text, audio: t.audio })) }, null, 1));
-  const done = run(path.resolve(kit, python), [ALIGNER, '--scenes', board, '--out', dir], { cwd: kit, stdio: 'inherit', env: { ...env, HF_HUB_OFFLINE: env.HF_HUB_OFFLINE ?? '1' } });
+  const done = run(path.resolve(kit, python), [ALIGNER, '--scenes', board, '--out', dir], { cwd: kit, stdio: QUIET_STDOUT, env: { ...env, HF_HUB_OFFLINE: env.HF_HUB_OFFLINE ?? '1' } });
   const why = failure(done);
   if (why) throw new Error(`the take aligner failed (${why}) with ${path.resolve(kit, python)}: it needs the kit's voice Python, with torch and torchaudio (the kit's setup-voice.sh), and the MMS_FA model on disk`);
   const read = (name) => JSON.parse(readFileSync(path.join(dir, name), 'utf8')).scenes;

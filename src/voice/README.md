@@ -12,6 +12,10 @@ await voiceClips(texts, { cache: 'voice-cache', profile, engine });  // only the
 clipFor(texts[0], { cache: 'voice-cache', profile });               // { key, audio, duration, sentences, words, take }
 ```
 
+- `narrate.js` — `narrate`, `narrationState`, `narrationSummary`, `narrationVoice`: the one narration step StoryDeck's and
+  StoryReel's `narrate` commands share. It says what each line needs, voices what is missing, and says so in words. With no
+  engine it only reads, finding the clips by the settings kept beside them. A kit runs Python on this machine, so its folder
+  comes from the person's command or a server's start, never from a project's files.
 - `key.js` — `clipKey`: sha1 (12 hex) of `JSON.stringify({ id, exaggeration, cfgWeight, seed, gap, takes, text })`,
   in that order. **Byte-stable forever**: every clip a deck already has is found by this exact spelling.
 - `cache.js` — `clipFor`, `voiceClips` (batches; a clip's `.json` keeps `{ text, duration, sentences }`, `words`
