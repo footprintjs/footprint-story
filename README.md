@@ -58,7 +58,8 @@ board.scenes[1];                 // { id, part, look, title, narration, beat }
 A conversation becomes a story in three steps, and only the first needs a model: `storyboardBrief` gives the instructions
 and the conversation for whichever model you use, `storyboardProblems` names what to fix in its answer, and a tool draws
 the board. Send `instructions` as your own and `material` as data, because it holds a conversation's own words.
-When a board is refused, `storyboardFixBriefs` lets you send back only the pieces at fault, instead of the whole brief again.
+When a board is refused, `storyboardFixBriefs` gives a short brief for each piece at fault. It takes no answer itself, so say what
+form you accept: a host that keeps its board can change just those pieces.
 
 | shape | what it tells |
 |---|---|

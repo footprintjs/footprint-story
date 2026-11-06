@@ -71,14 +71,20 @@ export interface StoryboardFixBrief {
 }
 /** One brief per piece at fault, and one set of instructions for them all. */
 export interface StoryboardFixBriefs {
-  /** The same words whatever the storyboard or the conversation says. Keep them apart from each brief's `material`. */
+  /** What to fix, not what form to answer in: whoever hosts this says that, as only it knows what it accepts. The same words whatever the storyboard or the conversation says. Keep them apart from each brief's `material`. */
   readonly instructions: string;
   readonly briefs: readonly StoryboardFixBrief[];
   /** Problems no one piece holds: the board's shape, text that is not JSON, or the note that more problems follow. */
   readonly rest: readonly StoryboardProblem[];
 }
-/** The problems of a refused storyboard, grouped into one short brief per piece. Throws only on a conversation it cannot use, which is the app's own mistake. */
+/**
+ * The problems of a refused storyboard, grouped into one short brief per piece. Never throws on the board it is given to read.
+ * Throws on `problems` that are not a list of {at, message}, and, when there is a piece to fix, on a conversation it cannot use:
+ * both are the app's own mistake.
+ */
 export function storyboardFixBriefs(input: unknown, problems: readonly StoryboardProblem[], options?: StoryboardOptions): StoryboardFixBriefs;
+/** One value as one line of JSON. Line ends, tag characters and direction controls are written as \uXXXX, so it parses back exactly and nothing in it can start a line or hide words. */
+export function dataLine(value: unknown): string;
 /** The shapes there are. */
 export function storyShapes(): readonly StoryShape[];
 /** Every problem in a storyboard (data or JSON text); empty when it can be drawn. Never throws on what it is given to read. */

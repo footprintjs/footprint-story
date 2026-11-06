@@ -4,7 +4,7 @@ import { spokenMap, autoRules, shownWords, spokenOffset, unsaidDigits, checkSlot
 import type { SpokenMap, Piece, Rules, Slot, WordTiming, Track, WordCue, Chapters, ChapterChange } from 'footprint-story';
 import { clipKey, clipFor, voiceClips, pickSteps, chatterboxKit, recordedTakes, narrate, narrationState, narrationSummary, narrationVoice } from 'footprint-story/voice';
 import type { VoiceEngine, Clip, VoiceProfile, TakeRecord, TrimSettings, Scene } from 'footprint-story/voice';
-import { readStoryboard, storyboardBrief, storyboardFixBriefs, storyboardProblems, storyShapes, numbersIn } from 'footprint-story/storyboard';
+import { dataLine, readStoryboard, storyboardBrief, storyboardFixBriefs, storyboardProblems, storyShapes, numbersIn } from 'footprint-story/storyboard';
 import type { Storyboard, StoryboardBrief, StoryboardFixBrief, StoryboardFixBriefs, StoryScene, StoryBeat, StoryboardProblem, StoryShape, StoryMessage } from 'footprint-story/storyboard';
 
 const slots: Slot[] = [['16.67 ms', 'sixteen point six seven milliseconds']];
@@ -77,7 +77,7 @@ const brief: StoryboardBrief = storyboardBrief('what-we-found', { conversation: 
 const briefText: string = brief.instructions + (brief.material ?? '');
 const fixes: StoryboardFixBriefs = storyboardFixBriefs({ shape: shapes[0].name }, boardProblems, { conversation: chat });
 const firstFix: StoryboardFixBrief | undefined = fixes.briefs[0];
-const fixText: string = fixes.instructions + (firstFix ? `${firstFix.piece} ${firstFix.left} ${firstFix.material}${firstFix.problems[0]?.at}` : '') + fixes.rest.length;
+const fixText: string = fixes.instructions + (firstFix ? `${firstFix.piece} ${firstFix.left} ${firstFix.material}${firstFix.problems[0]?.at}` : '') + fixes.rest.length + dataLine({ problem: 'x' });
 const narrationLines = [{ id: 'one', text: 'A line' }];
 const { engine: narrationEngine, profile: narrationProfile } = narrationVoice({ cache: 'c', kit: 'kit' });
 const narrationRead: string = narrationSummary(narrationState(narrationLines, { cache: 'c', profile: narrationProfile }), { noun: 'clicks' });
