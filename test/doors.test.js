@@ -1,5 +1,5 @@
-// The four doors. The pure door ('footprint-story'), the motion door ('footprint-story/motion') and the storyboard door
-// ('footprint-story/storyboard') run in a browser: nothing they reach may import a Node module, or every React project
+// The five doors. The pure door ('footprint-story'), the motion door ('footprint-story/motion'), the storyboard door
+// ('footprint-story/storyboard') and the shot door ('footprint-story/shot') run in a browser: nothing they reach may import a Node module, or every React project
 // that bundles them breaks. The voice door
 // ('footprint-story/voice') is Node only. The motion door is its own: the pure door never loads it, so a page that
 // only captions never pays for motion. Every public symbol has ONE door, and the hand-kept types declare every symbol
@@ -31,8 +31,8 @@ function reach(door) {
 const NODE = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
 const relative = (file) => path.relative(root, file);
 
-test('the pure door, the motion door and the storyboard door reach no Node module and no package: they run in a browser', () => {
-  for (const [file, specs] of [...reach('index.js'), ...reach('motion.js'), ...reach('storyboard.js')]) {
+test('the pure door, the motion door, the storyboard door and the shot door reach no Node module and no package: they run in a browser', () => {
+  for (const [file, specs] of [...reach('index.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js')]) {
     for (const s of specs) {
       assert.ok(!NODE.has(s) && !s.startsWith('node:'), `${relative(file)} imports ${s}: the pure door must run in a browser`);
       assert.ok(s.startsWith('.'), `${relative(file)} imports the package ${s}: footprint-story has no dependencies`);
@@ -41,19 +41,21 @@ test('the pure door, the motion door and the storyboard door reach no Node modul
 });
 
 test('every source file is behind exactly one door, only the voice door reaches src/voice, only the motion door src/motion', () => {
-  const pure = [...reach('index.js').keys()].map(relative), voice = [...reach('voice.js').keys()].map(relative), motion = [...reach('motion.js').keys()].map(relative), board = [...reach('storyboard.js').keys()].map(relative);
+  const pure = [...reach('index.js').keys()].map(relative), voice = [...reach('voice.js').keys()].map(relative), motion = [...reach('motion.js').keys()].map(relative), board = [...reach('storyboard.js').keys()].map(relative), shot = [...reach('shot.js').keys()].map(relative);
   assert.ok(pure.every((f) => !f.startsWith('src/voice/')), 'src/voice is Node only');
   assert.ok([...pure, ...voice].every((f) => !f.startsWith('src/motion/')), 'src/motion loads only through its own door');
   assert.ok(motion.every((f) => f === 'motion.js' || f.startsWith('src/motion/')), 'the motion door reaches nothing else');
   assert.ok([...pure, ...voice, ...motion].every((f) => !f.startsWith('src/storyboard/')), 'src/storyboard loads only through its own door');
   assert.ok(board.every((f) => f === 'storyboard.js' || f.startsWith('src/storyboard/')), 'the storyboard door reaches nothing else');
-  const files = ['spoken', 'sentences', 'captions', 'chapters', 'voice', 'motion', 'storyboard'].flatMap((d) => readdirSync(path.join(root, 'src', d)).filter((f) => f.endsWith('.js')).map((f) => `src/${d}/${f}`));
-  for (const f of files) assert.ok(pure.includes(f) || voice.includes(f) || motion.includes(f) || board.includes(f), `${f} is behind no door`);
+  assert.ok([...pure, ...voice, ...motion, ...board].every((f) => !f.startsWith('src/shot/')), 'src/shot loads only through its own door');
+  assert.ok(shot.every((f) => f === 'shot.js' || f.startsWith('src/shot/')), 'the shot door reaches nothing else');
+  const files = ['spoken', 'sentences', 'captions', 'chapters', 'voice', 'motion', 'storyboard', 'shot'].flatMap((d) => readdirSync(path.join(root, 'src', d)).filter((f) => f.endsWith('.js')).map((f) => `src/${d}/${f}`));
+  for (const f of files) assert.ok(pure.includes(f) || voice.includes(f) || motion.includes(f) || board.includes(f) || shot.includes(f), `${f} is behind no door`);
   for (const f of voice.filter((v) => v.startsWith('src/') && !v.startsWith('src/voice/'))) assert.ok(pure.includes(f), `${f}: a pure file the voice door uses is pure, behind the pure door too`);
 });
 
 test('every public symbol has one door, and its types declare it', async () => {
-  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')) };
+  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')) };
   const all = Object.values(doors).flat();
   assert.deepEqual(all.filter((name, i) => all.indexOf(name) !== i), [], 'a symbol with two doors');
   for (const [door, names] of Object.entries(doors)) {

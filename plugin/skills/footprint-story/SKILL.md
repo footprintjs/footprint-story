@@ -7,13 +7,14 @@ description: What a film and a deck share (footprint-story, formerly footprint-n
 
 A voice drops or garbles digits and a forced aligner knows only letters, so a narration is **said in words and
 shown as written**. Everything here rests on one map from the shown text to the spoken text. And a move, a change of
-picture and a pace are named here once, so a film and a deck move alike. Four doors:
+picture and a pace are named here once, so a film and a deck move alike. Five doors:
 
 | You need | Import | Runs |
 |---|---|---|
 | the shown↔spoken map, sentences, captions, chapters | `footprint-story` | anywhere (browser or Node), no dependencies |
 | a voice clip cache, the voice port, the Chatterbox kit adapter | `footprint-story/voice` | **Node only** |
 | eases, springs, moves, transitions as data, pace | `footprint-story/motion` | anywhere, no dependencies; nothing draws |
+| a camera in 3D as data, projection, a check of what it sees in one line of text | `footprint-story/shot` | anywhere, no dependencies; nothing draws |
 | a story as data on a named shape, read and checked | `footprint-story/storyboard` | anywhere, no dependencies; nothing draws |
 
 Never import `footprint-story/voice` into browser code. This package was `footprint-narration` until 0.3.0: replace

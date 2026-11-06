@@ -79,3 +79,20 @@ const narrationLines = [{ id: 'one', text: 'A line' }];
 const { engine: narrationEngine, profile: narrationProfile } = narrationVoice({ cache: 'c', kit: 'kit' });
 const narrationRead: string = narrationSummary(narrationState(narrationLines, { cache: 'c', profile: narrationProfile }), { noun: 'clicks' });
 const narrationDone: Promise<{ ran: number; toVoice: number }> = narrate(narrationLines, { cache: 'c', profile: narrationProfile, engine: narrationEngine, only: '1-2' });
+
+import { ROUNDS, HEIGHTS, SIZES, LENSES, MOST_THINGS, readView, readScene, sceneProblems, readShot, shotProblems, readCamera, frameOf, distanceFor, apertureFor, project, unproject, boxOf, checkShot, shotLine } from 'footprint-story/shot';
+import type { Scene as ShotScene, Shot, Camera, Frame, ShotReport, ShotProblem, ThingBox, ReadShot, ViewName } from 'footprint-story/shot';
+
+const set: ShotScene = { unit: 'm', things: [{ name: 'door', at: [0, 0, 0], r: 1 }, { name: 'sign', at: [1, 0, 0], size: [1.6, 0.9], normal: [0, 0, 1], back: true }] };
+const viewName: ViewName = 'front-left high';
+const written: Shot = { on: 'door', from: viewName, size: 'medium', lens: 'long', focus: 'sign', at: ['leak', 'the door'], seconds: 2 };
+const asked: ReadShot = readShot(written, set);
+const lensCamera: Camera = frameOf(asked, set);
+const frame: Frame = [1280, 720];
+const landed: number | null = project([0, 0, 0], lensCamera, frame).x;
+const box: ThingBox = boxOf(set.things[0], lensCamera, frame);
+const report: ShotReport = checkShot(readScene(set), readCamera(lensCamera), frame, asked);
+const shotText: string = shotLine(checkShot(set, lensCamera, frame, { on: ['door', 'sign'] }), { label: 'camera[2]' });
+const shotIssues: readonly ShotProblem[] = [...sceneProblems(set), ...shotProblems(written, set)];
+const shotMisc: unknown[] = [ROUNDS.front, HEIGHTS.high, SIZES.wide, LENSES.normal, MOST_THINGS, readView('low').azimuth, distanceFor(1, 0.4, 1.25), apertureFor(2), unproject(1, 2, 3, lensCamera, frame)[0], landed, box.state, report.faults[0]?.kind, shotText, shotIssues];
+export { shotMisc };
