@@ -49,6 +49,7 @@ test('the key changes with the words and with the voice settings, not with field
 test('the cache finds a clip (its .wav, else its .m4a) and nothing for a text not voiced or empty; a clip from before keeps no words', () => {
   const key = clipKey('Hi.', PROFILE);
   writeFileSync(path.join(dir, `${key}.json`), JSON.stringify({ text: 'Hi.', duration: 1.5, sentences: [0.1] }));
+  writeFileSync(path.join(dir, `${key}.m4a`), 'm4a');
   assert.deepEqual(clipFor('Hi.', { cache: dir, profile: PROFILE }), { key, audio: path.join(dir, `${key}.m4a`), duration: 1.5, sentences: [0.1], words: null, take: null });
   writeFileSync(path.join(dir, `${key}.wav`), 'wav');
   assert.equal(clipFor('Hi.', { cache: dir, profile: PROFILE }).audio, path.join(dir, `${key}.wav`));
@@ -132,7 +133,7 @@ test('voicing: a page\'s copy of the old take goes when a clip is voiced again; 
   const engine = fakeEngine();
   let n = 0;
   const racing = { name: 'race', synthesize(scenes, opts) {   // while voicing the first batch, another run caches the second
-    if (n++ === 0) writeFileSync(path.join(cache, `${clipKey('D.', PROFILE)}.json`), JSON.stringify({ text: 'D.', duration: 1, sentences: [0] }));
+    if (n++ === 0) { writeFileSync(path.join(cache, `${clipKey('D.', PROFILE)}.json`), JSON.stringify({ text: 'D.', duration: 1, sentences: [0] })); writeFileSync(path.join(cache, `${clipKey('D.', PROFILE)}.wav`), 'wav'); }
     return engine.synthesize(scenes, opts);
   } };
   const done = await voiceClips(['B.', 'C.', 'D.'], { cache, profile: PROFILE, engine: racing, batch: 2, work: path.join(dir, 'w') });
@@ -192,4 +193,105 @@ test('voicing with an engine that aligns no words: the clip keeps none, and says
   const clip = clipFor('A. B.', { cache, profile: PROFILE });
   assert.equal(clip.words, null);
   assert.deepEqual(clip.sentences, [0, 0], 'no word times: every sentence starts at 0');
+});
+
+// ── narrate: the one narration step ─────────────────────────────────────────────────────────────────────────────────
+import { symlinkSync, lstatSync } from 'node:fs';
+import { narrate, narrationState, narrationSummary, narrationVoice } from '../voice.js';
+
+const lineEngine = (calls = []) => ({
+  name: 'fake',
+  synthesize(scenes, { work }) {
+    calls.push(scenes.map((s) => s.text));
+    return scenes.map((s) => {
+      const audio = path.join(work, `${s.id}.wav`);
+      writeFileSync(audio, 'not really audio');
+      return { id: s.id, audio, duration: 1.5, words: s.text.split(' ').map((text, i) => ({ text, start: i * .3, end: i * .3 + .2 })) };
+    });
+  },
+});
+const LINES = [{ id: 'one', text: 'The first line' }, { id: 'quiet', text: '' }, { id: 'two', text: 'The second line' }];
+const folder = () => mkdtempSync(path.join(tmpdir(), 'narrate-'));
+
+test('narrate with no engine only reads, and says what is left, costing nothing', async () => {
+  const cache = folder();
+  const report = await narrate(LINES, { cache, profile: { id: 'p' } });
+  assert.deepEqual([report.voiced, report.toVoice, report.silent, report.seconds, report.ran], [0, 2, 1, 0, 0]);
+  assert.deepEqual(report.lines.map((l) => l.state), ['to voice', 'silent', 'to voice']);
+  const text = narrationSummary(report, { noun: 'clicks', hint: 'name a kit' });
+  assert.match(text, /^0 of 2 clicks voiced · 2 to voice · 1 silent · 0 s so far\n {2}1 {2}one: The first line\n {2}3 {2}two: The second line\nnext: name a kit$/);
+  rmSync(cache, { recursive: true, force: true });
+});
+
+test('narrate voices only what is missing, by line number when asked, and keeps the words', async () => {
+  const cache = folder(), calls = [], profile = { id: 'p' };
+  const first = await narrate(LINES, { cache, profile, engine: lineEngine(calls), only: '1' });
+  assert.deepEqual([first.ran, first.voiced, first.toVoice], [1, 1, 1]);
+  assert.deepEqual(calls, [['The first line']]);
+  const second = await narrate(LINES, { cache, profile, engine: lineEngine(calls) });
+  assert.deepEqual([second.ran, second.voiced, second.toVoice, second.seconds], [1, 2, 0, 3]);
+  assert.equal(second.lines[0].clip.words.length, 3);
+  assert.match(narrationSummary(second), /^2 of 2 lines voiced · 0 to voice · 1 silent · 3 s so far\nvoiced 1 just now$/);
+  const third = await narrate(LINES, { cache, profile, engine: lineEngine(calls) });
+  assert.equal(third.ran, 0);
+  assert.equal(calls.length, 2);
+  assert.equal(narrationState(LINES, { cache, profile: { id: 'another' } }).toVoice, 2);
+  rmSync(cache, { recursive: true, force: true });
+});
+
+test('narrationSummary stays short however long the script is', () => {
+  const lines = Array.from({ length: 30 }, (_, i) => ({ n: i + 1, id: `l${i}`, text: 'x'.repeat(200), state: 'to voice', seconds: 0, clip: null }));
+  const text = narrationSummary({ lines, voiced: 0, toVoice: 30, silent: 0, seconds: 0 });
+  assert.equal(text.split('\n').length, 13);
+  assert.match(text, /… and 20 more/);
+  assert.ok(text.length < 1200);
+});
+
+test('narrationVoice: a kit\'s own settings, the recipe only; recordings need a kit; none finds what was voiced', async () => {
+  const kit = folder(), cache = path.join(kit, 'cache');
+  assert.throws(() => narrationVoice({ cache, takes: 'takes' }), /recordings need the voice kit too/);
+  assert.throws(() => narrationVoice({ cache, kit }), /no voice settings at .*me\.voice\.json/);
+  assert.deepEqual(narrationVoice({ cache }), { engine: null, profile: { id: 'default' } });
+  mkdirSync(path.join(kit, 'voices'));
+  writeFileSync(path.join(kit, 'voices', 'me.voice.json'), JSON.stringify({ id: 'me', seed: 7, consent: 'a private note', reference: 'me.wav' }));
+  const { engine, profile } = narrationVoice({ cache, kit });
+  assert.equal(engine.name, 'chatterbox');
+  assert.deepEqual(JSON.parse(JSON.stringify(profile)), { id: 'me', seed: 7 });
+  await narrate(LINES, { cache, profile, engine: lineEngine() });
+  assert.deepEqual(JSON.parse(readFileSync(path.join(cache, 'recipe.json'), 'utf8')), { id: 'me', seed: 7 }, 'what the key is made of, and no private note');
+  const later = narrationVoice({ cache });
+  assert.equal(later.engine, null);
+  assert.equal(narrationState(LINES, { cache, profile: later.profile }).voiced, 2, 'asked later with no voice named, the clips are found');
+  rmSync(kit, { recursive: true, force: true });
+});
+
+test('a recording session\'s clips and a voice\'s stay apart, and a refused voice leaves the settings as they were', async () => {
+  const cache = folder();
+  await narrate(LINES, { cache, profile: { id: 'first' }, engine: lineEngine() });
+  await assert.rejects(narrate(LINES, { cache, profile: { id: 'x', engine: 'recorded' }, engine: lineEngine() }), /recorded session/);
+  assert.equal(narrationVoice({ cache }).profile.id, 'first');
+  rmSync(cache, { recursive: true, force: true });
+});
+
+test('a cache from someone\'s folder: a link is never read or written through, and a torn or foreign record is voiced again', async () => {
+  const cache = folder(), outside = folder(), secret = path.join(outside, 'secret'), profile = { id: 'p' }, text = 'The first line', key = clipKey(text, profile);
+  writeFileSync(secret, '{"duration":1,"sentences":[0]}');
+  const at = (ext) => path.join(cache, `${key}.${ext}`);
+  for (const ext of ['json', 'wav']) symlinkSync(secret, at(ext));
+  symlinkSync(secret, path.join(cache, 'recipe.json'));
+  assert.equal(clipFor(text, { cache, profile }), null, 'a link is no clip');
+  assert.deepEqual(narrationVoice({ cache }).profile, { id: 'default' }, 'nor are a link\'s settings read');
+  await narrate([{ id: 'one', text }], { cache, profile, engine: lineEngine() });
+  assert.equal(readFileSync(secret, 'utf8'), '{"duration":1,"sentences":[0]}', 'voicing replaces the links, and what they point at is untouched');
+  for (const ext of ['json', 'wav']) assert.equal(lstatSync(at(ext)).isSymbolicLink(), false);
+  assert.equal(lstatSync(path.join(cache, 'recipe.json')).isSymbolicLink(), false);
+  assert.equal(clipFor(text, { cache, profile }).duration, 1.5);
+  for (const torn of ['{"duration":', '{"duration":"long","sentences":[0]}', '{"duration":1,"sentences":["x"]}', '{"duration":1,"sentences":[0],"words":[{"text":1}]}', 'null']) {
+    writeFileSync(at('json'), torn);
+    assert.equal(clipFor(text, { cache, profile }), null, torn);
+  }
+  writeFileSync(at('json'), '{"duration":1,"sentences":[0]}');
+  rmSync(at('wav'));
+  assert.equal(clipFor(text, { cache, profile }), null, 'no sound beside it');
+  rmSync(cache, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true });
 });

@@ -1,10 +1,28 @@
 // The clip cache — one clip per text, kept by its key (key.js), voiced only when its words or the voice change.
 // Moved from StoryDeck 0.2.0 (voice.js · clipFor, voiceClips, pickSteps); a clip now keeps its timed words too.
-import { existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { sentenceStarts } from '../sentences/starts.js';
 import { clipKey } from './key.js';
+
+/** A plain file: a cache may have come with someone's folder, and a link there is never a clip, read or written through. */
+const isPlainFile = (file) => lstatSync(file, { throwIfNoEntry: false })?.isFile() === true;
+const seconds = (n) => Number.isFinite(n) && n >= 0;
+const timedWord = (w) => typeof w?.text === 'string' && seconds(w.start) && seconds(w.end);
+const clipShaped = (m) => seconds(m?.duration) && Array.isArray(m.sentences) && m.sentences.every(seconds)
+  && (m.words === undefined || m.words === null || (Array.isArray(m.words) && m.words.every(timedWord)));
+
+/** The clip kept under a key, or null: its record whole and its sound there. A torn or foreign record is no clip, and is voiced again. */
+function clipAt(cache, key) {
+  const file = path.join(cache, `${key}.json`), [wav, m4a] = ['wav', 'm4a'].map((ext) => path.join(cache, `${key}.${ext}`));
+  if (!isPlainFile(file)) return null;
+  let meta;
+  try { meta = JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+  const audio = isPlainFile(wav) ? wav : isPlainFile(m4a) ? m4a : null;
+  if (!audio || !clipShaped(meta)) return null;
+  return { key, audio, duration: meta.duration, sentences: meta.sentences, words: meta.words ?? null, take: meta.take ?? null };
+}
 
 /**
  * The cached clip for a text, or null: { key, audio (its .wav, else its .m4a), duration, sentences (each one's
@@ -13,13 +31,7 @@ import { clipKey } from './key.js';
  * recorded take it was cut from — recorded.js; null for a clip a voice made) }.
  */
 export function clipFor(text, { cache, profile }) {
-  if (!text) return null;
-  cache = path.resolve(cache);
-  const key = clipKey(text, profile), meta = path.join(cache, `${key}.json`);
-  if (!existsSync(meta)) return null;
-  const wav = path.join(cache, `${key}.wav`);
-  const { duration, sentences, words, take } = JSON.parse(readFileSync(meta, 'utf8'));
-  return { key, audio: existsSync(wav) ? wav : path.join(cache, `${key}.m4a`), duration, sentences, words: words ?? null, take: take ?? null };
+  return text ? clipAt(path.resolve(cache), clipKey(text, profile)) : null;
 }
 
 /** Two profiles make the same clips when their recipes agree: the key of no text tells (key.js · clipKey). */
@@ -31,7 +43,7 @@ const sameRecipe = (a, b) => clipKey('', a) === clipKey('', b);
  * engine only. Any other engine and profile are left as they were (an engine's own `profile` field is its business),
  * and so is a call with no engine (it can only read what is cached).
  */
-function refuseCrossedVoices(engine, profile) {
+export function refuseCrossedVoices(engine, profile) {
   const bound = engine?.profile?.engine === 'recorded' ? engine.profile : null;
   if (bound && !sameRecipe(bound, profile)) {
     throw new Error(`the ${engine.name} engine makes clips for its own profile ("${bound.id}") only, not "${profile.id}": pass profile: engine.profile`);
@@ -76,7 +88,7 @@ export async function voiceClips(texts, { cache, profile, engine, only = null, b
   texts.forEach((text, i) => {
     if (!text || (only && !only.has(i + 1))) return;
     const key = clipKey(text, profile);
-    if (!existsSync(path.join(cache, `${key}.json`))) todo.set(key, text);
+    if (!clipAt(cache, key)) todo.set(key, text);
   });
   const wanted = texts.filter(Boolean).length, keys = [...todo.keys()];
   log(`${wanted} clips wanted · ${todo.size} to voice · the rest are cached`);
@@ -86,14 +98,15 @@ export async function voiceClips(texts, { cache, profile, engine, only = null, b
   const own = !work, dir = own ? mkdtempSync(path.join(tmpdir(), 'footprint-story-voice-')) : path.resolve(work);
   try {
     for (let b = 0; b < keys.length; b += batch) {
-      const part = keys.slice(b, b + batch).filter((key) => !existsSync(path.join(cache, `${key}.json`)));   // another run may have voiced it
+      const part = keys.slice(b, b + batch).filter((key) => !clipAt(cache, key));   // another run may have voiced it
       if (!part.length) continue;
       rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
       const results = await engine.synthesize(part.map((key) => ({ id: `k${key}`, text: todo.get(key) })), { work: dir });
       for (const r of results) {
         const key = r.id.slice(1), text = todo.get(key);
+        // each a new file, so nothing at its name, a link included, is written through; the .m4a too: a page's copy of the old take would carry the new timings
+        for (const ext of ['wav', 'm4a', 'json']) rmSync(path.join(cache, `${key}.${ext}`), { force: true });
         copyFileSync(r.audio, path.join(cache, `${key}.wav`));
-        rmSync(path.join(cache, `${key}.m4a`), { force: true });   // a page's copy of the old take would carry the new timings
         writeFileSync(path.join(cache, `${key}.json`), JSON.stringify({ text, duration: r.duration, sentences: sentenceStarts(text, r.words ?? []),
           ...(Array.isArray(r.words) && { words: keptWords(r.words) }), ...(r.take && { take: r.take }) }));
       }

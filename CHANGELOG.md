@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **`narrate`**, in `footprint-story/voice`: the one narration step StoryDeck and StoryReel share. `narrationVoice({ cache, kit, takes })`
+  picks the voice a person named, `narrate(lines, { cache, profile, engine })` voices what is missing, and with no engine only
+  reads, and `narrationSummary(report)` says what is done and what to do next.
+- **A clip cache may have come with someone's folder.** A link at a clip's name is no clip: it is never read, and voicing replaces
+  it instead of writing through it. A torn or foreign record, or one with no sound beside it, counts as not voiced, so it is
+  voiced again where it used to throw or to hand back a sound that was not there.
+- **A voice kit's own output goes to stderr**, so a command's answer on stdout stays its answer.
+
 ## 0.5.0 — what a model needs to write a storyboard
 
 - **`storyboardBrief`**: what a model needs to write a storyboard, for any model, from a template and a conversation. The
@@ -74,7 +84,7 @@ one package both use.
 
 - **spoken** — `spokenMap(text, { slots, rules })`: one text as shown and as spoken, piece by piece, with its
   letters-and-digits map. Slots (`checkSlots`, `findSlot`) come from footprint-storyreel's `say`; the automatic
-  rules (`autoRules`, `SPELL`, `SAY`, `numberWords`) from StoryDeck's `narrationText`. `shownWords`,
+  rules (`autoRules`, `SPELL`, `SAY`, `numberWords`) from StoryDeck's `narrationSummary`. `shownWords`,
   `spokenOffset`, `unsaidDigits` and `normSpeech` work on either.
 - **sentences** — `sentences`, `saidSentences`, `sentenceStarts` (StoryDeck).
 - **captions** — `captionCues` (StoryDeck), `captionChunks` / `captionAt` / `FILE_CHUNKS` (footprint-storyreel, now on

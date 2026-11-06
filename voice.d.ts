@@ -72,3 +72,22 @@ export function recordedTakes(options: {
   kit: string; takes: string; manifest?: string; python?: string; ffmpeg?: string; trim?: TrimSettings;
   env?: Record<string, string | undefined>; run?: Run; log?: (line: string) => void;
 }): VoiceEngine & { profile: VoiceProfile; preflight(scenes: Scene[], options?: { work?: string }): void };
+
+/** One line to say: '' says nothing. */
+export interface NarrationLine { readonly id: string; readonly text: string }
+/** A narration's state, line by line. */
+export interface NarrationState {
+  readonly lines: readonly { readonly n: number; readonly id: string; readonly text: string; readonly state: 'voiced' | 'to voice' | 'silent'; readonly seconds: number; readonly clip: Clip | null }[];
+  readonly voiced: number;
+  readonly toVoice: number;
+  readonly silent: number;
+  readonly seconds: number;
+}
+/** The voice a person named, and the settings its clips are kept under. `kit` runs Python on this machine: take it only from the person's command or a server's start, never from a project's files. */
+export function narrationVoice(options?: { cache?: string; kit?: string; takes?: string; log?: (line: string) => void }): { readonly engine: VoiceEngine | null; readonly profile: VoiceProfile };
+/** Each line's state, reading only what is cached. */
+export function narrationState(lines: readonly NarrationLine[], options: { cache: string; profile: VoiceProfile }): NarrationState;
+/** Voices what is missing when given an engine (`only`: "1-3,7", by line number); with none, only reads. `ran`: clips voiced by this call. */
+export function narrate(lines: readonly NarrationLine[], options: { cache: string; profile: VoiceProfile; engine?: VoiceEngine | null; only?: string; batch?: number; work?: string; log?: (line: string) => void }): Promise<NarrationState & { readonly ran: number }>;
+/** A narration's state in words, short whatever the script's length: what is done, and what to do next. */
+export function narrationSummary(report: NarrationState & { readonly ran?: number }, options?: { noun?: string; hint?: string }): string;

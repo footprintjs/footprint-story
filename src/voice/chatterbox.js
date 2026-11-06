@@ -3,7 +3,10 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { failure } from './spawn.js';
+import { failure, QUIET_STDOUT } from './spawn.js';
+
+/** Where a kit keeps its voice's settings. */
+export const KIT_PROFILE = 'voices/me.voice.json';
 
 /**
  * The adapter for a local voice kit (a StoryReel-style folder): its Python environment runs Chatterbox on a
@@ -11,7 +14,7 @@ import { failure } from './spawn.js';
  * uploaded. `kit` holds .venv-voice/, scripts/voice/tts_chatterbox.py, voices/<profile>.voice.json and the
  * profile's reference recording.
  */
-export function chatterboxKit({ kit, python = '.venv-voice/bin/python', script = 'scripts/voice/tts_chatterbox.py', profile = 'voices/me.voice.json', device = 'mps', env = process.env, run = spawnSync }) {
+export function chatterboxKit({ kit, python = '.venv-voice/bin/python', script = 'scripts/voice/tts_chatterbox.py', profile = KIT_PROFILE, device = 'mps', env = process.env, run = spawnSync }) {
   kit = path.resolve(kit);   // the kit runs in its own folder: every path it is handed is absolute
   return {
     name: 'chatterbox',
@@ -19,7 +22,7 @@ export function chatterboxKit({ kit, python = '.venv-voice/bin/python', script =
       const dir = path.resolve(work), board = path.join(dir, 'storyboard.json');
       writeFileSync(board, JSON.stringify({ scenes: scenes.map((s) => ({ id: s.id, narration: s.text })) }, null, 1));
       const done = run(path.resolve(kit, python), [script, '--storyboard', board, '--profile', profile, '--device', device, '--out', dir],
-        { cwd: kit, stdio: 'inherit', env: { ...env, HF_HUB_OFFLINE: env.HF_HUB_OFFLINE ?? '1' } });
+        { cwd: kit, stdio: QUIET_STDOUT, env: { ...env, HF_HUB_OFFLINE: env.HF_HUB_OFFLINE ?? '1' } });
       const why = failure(done);
       if (why) throw new Error(`the voice kit failed (${why}) in ${kit}`);
       const timings = JSON.parse(readFileSync(path.join(dir, 'timings.json'), 'utf8'));
