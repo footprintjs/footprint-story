@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — a story written as data
 
 - **storyboard** (`footprint-story/storyboard`, a fourth door, pure, loaded only when imported): a story written as plain
   data on a named shape, for a film and a deck to draw the same way. `storyShapes` lists the shapes with a worked outline,
