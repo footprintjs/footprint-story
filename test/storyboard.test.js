@@ -163,6 +163,28 @@ test('numbersIn reads numbers as written, taking commas only from real thousands
   assert.deepEqual(numbersIn('\uFF14\uFF12 and \u0664\u0662'), ['42', '\u0664\u0662']);
 });
 
+test('numbersIn reads a number as a reader sees it', () => {
+  assert.deepEqual(numbersIn('4\u200D2 and 1\u2060000'), ['42', '1000']);
+  assert.deepEqual(numbersIn('10\u00B2, \u00BD and \u2460'), ['10\u00B2', '\u00BD', '\u2460']);
+  assert.deepEqual(numbersIn('1\u00A0250 and 1\uFF0C250'), ['1\u00A0250', '1\uFF0C250']);
+});
+
+test('what looks like one number cannot pass as two, or as another', () => {
+  const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });
+  const refused = (line, text) => storyboardProblems(claim(line), { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;
+  assert.equal(refused('It took 4\u200D2 nights', '4 people, 2 nights'), 1);
+  assert.equal(refused('It took 10\u00B2 nights', 'it took 102 nights'), 1);
+  assert.equal(refused('Rows: 1\u00A0250', '1 table, 250 rows'), 1);
+  assert.equal(refused('It took 42 nights', 'it took 4\u200D2 nights'), 0);
+});
+
+test('a label a model wrote is number checked like any other words, and the default ones never trip it', () => {
+  const [p] = storyboardProblems(found({ labels: { found: 'We lost 300 orders' } }), { conversation: CHAT });
+  assert.equal(p.at, 'labels.found');
+  assert.match(p.message, /says 300, which the conversation never says/);
+  assert.deepEqual(storyboardProblems(found(), { conversation: CHAT }), []);
+});
+
 test('a number it cannot compare fails the check, and never slips through', () => {
   const check = (board, text) => storyboardProblems(board, { conversation: [{ id: 'm1', text }] }).filter((p) => p.at === 'found[0]').length;
   const claim = (line) => ({ ...found_(), found: [{ headline: 'H', line, notes: 'n', sources: ['m1'] }] });

@@ -6,12 +6,20 @@
 const MOST_MESSAGES = 5000;
 
 const THOUSANDS = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
+const FULLWIDTH = /[\uFF10-\uFF19]/g;
+/** Digits of any kind, and what may join them into one number: a point, a comma, or a space that does not break, in any width. */
+const NUMBER = /[\p{Nd}\p{No}]+(?:[.,\uFF0C\uFF0E\u00A0\u2009\u202F][\p{Nd}\p{No}]+)*/gu;
+
 /**
- * Every number in a text, in any script's digits. Commas go only from real thousands grouping ('1,250.5' → '1250.5'), and
- * anything else stays as written, so '3,5' is not 35 and must be found as it is. Fullwidth digits read as plain ones
- * (NFKC); another script's digits must be found as written. So a number it cannot compare fails the check, never passes.
+ * Every number in a text, as a reader sees it. Invisible characters go first, so '4\u200D2' is the 42 it shows, not a 4 and
+ * a 2. Fullwidth digits read as plain ones. Commas go only from real thousands grouping ('1,250.5' → '1250.5'). Anything
+ * else stays as written and must be found as it is: '3,5' is not 35, '10²' is not 102, and another script's digits are
+ * their own. So a number it cannot compare fails the check, never passes.
  */
-export const numbersIn = (text) => [...new Set((String(text).normalize('NFKC').match(/\p{Nd}+(?:[.,]\p{Nd}+)*/gu) ?? []).map((n) => (THOUSANDS.test(n) ? n.replaceAll(',', '') : n)))];
+export function numbersIn(text) {
+  const seen = String(text).replace(/\p{Cf}/gu, '').replace(FULLWIDTH, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 48));
+  return [...new Set((seen.match(NUMBER) ?? []).map((n) => (THOUSANDS.test(n) ? n.replaceAll(',', '') : n)))];
+}
 
 /**
  * [{id, who?, text}] read and checked: a Map of id → text. Throws, naming the place, on anything it cannot use, as what

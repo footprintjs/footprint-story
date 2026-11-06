@@ -51,7 +51,7 @@ export const whatWeFound = Object.freeze({
     });
     const points = f.list(input, 'next', '', { least: 1, most: 4 }).map((_, i, all) => f.text(all, i, 'next', { most: MOST.point }));
     const intro = f.text(input, 'intro', '', { most: MOST.notes }), closing = f.text(input, 'closing', '', { most: MOST.notes });
-    for (const [at, text] of [['title', base.title], ['subtitle', base.subtitle], ['intro', intro], ['closing', closing], ...points.map((p, i) => [`next[${i}]`, p])]) if (text) checkAnywhere(f, conversation, at, text);
+    for (const [at, text] of [['title', base.title], ['subtitle', base.subtitle], ['intro', intro], ['closing', closing], ...points.map((p, i) => [`next[${i}]`, p]), ...Object.entries(labels).map(([key, word]) => [`labels.${key}`, word])]) if (text) checkAnywhere(f, conversation, at, text);
     return {
       labels,
       scenes: [
