@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 — what to fix in a refused board, and a camera checked in words
 
 - **Shots**, in a new door, `footprint-story/shot`: a camera in 3D as plain data, in the words a film and a deck already use.
   `readShot({ on, from: 'front-left high', size })` reads a shot, `frameOf` turns it into a camera, `project` and `boxOf` say where
