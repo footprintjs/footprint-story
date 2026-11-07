@@ -76,6 +76,15 @@ really were checked: `told-twice` makes none, and with no conversation nothing i
 
 Each tool says what its lines are, and this owns the rest. With no voice, `narrate` only reads, so asking costs nothing.
 
+```mermaid
+flowchart LR
+  lines[A tool's lines] --> named{A voice named?}
+  named -- no --> read[Read the clips and say what is left]
+  named -- yes --> voice[Voice what is missing and keep each clip]
+  voice --> read
+  read --> answer[What is done and what to do next, in words]
+```
+
 ```js
 import { narrate, narrationSummary, narrationVoice } from 'footprint-story/voice';
 
