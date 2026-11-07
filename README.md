@@ -2,7 +2,7 @@
 
 For developers building narration and animation tools, or integrating the shared rules used by StoryDeck and StoryReel.
 
-[Install and import paths](#install-and-import-paths) · [Text mapping](#one-text-as-shown-and-as-spoken) · [Captions](#captions) · [Motion](#how-things-move-motion) · [Guarantees and limits](#what-is-guaranteed)
+[Install and import paths](#install-and-import-paths) · [Text mapping](#one-text-as-shown-and-as-spoken) · [Captions](#captions) · [Motion](#how-things-move-motion) · [Shots](#a-camera-in-3d-shots) · [Guarantees and limits](#what-is-guaranteed)
 
 **What a film and a deck share.** [StoryDeck](https://github.com/footprintjs/storydeck) (slide decks that narrate
 themselves) and [footprint-storyreel](https://github.com/footprintjs/storyreel) (drawn films) tell stories the same
@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Four doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Five doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -34,6 +34,7 @@ Four doors, nothing else. A door loads only when you import it, so a page that o
 | `footprint-story/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
 | `footprint-story/motion` | eases and springs, moves, transitions as data, pace | anywhere — browser or Node; no dependencies |
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
+| `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
 new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency or a release
@@ -247,6 +248,45 @@ Moves keep their kind's law (an entrance ends at rest, an exit starts there, an 
 move of your own is checked by the same laws. A drawer adds its own transitions with `extendTransitions`, checked the
 same way. More in [src/motion/README.md](src/motion/README.md).
 
+## A camera in 3D (shots)
+
+**Why:** a film and a deck should say a shot in the same words, and whoever writes one should learn what the camera really
+sees without reading a picture. A scene is plain data, a shot names where the camera stands, and the check answers in one line.
+
+```js
+import { readShot, frameOf, checkShot, shotLine } from 'footprint-story/shot';
+
+const scene = {
+  unit: 'm',
+  things: [
+    { name: 'database', at: [0, 0, 0], r: 1 },          // a ball; a point has no r, and a card has a size: [w, h]
+    { name: 'cache', at: [-2, 1.2, 2.2], r: 0.5 },
+    { name: 'proxy', at: [3, 0, -6], r: 1 },
+  ],
+};
+const shot = readShot({ on: 'database', from: 'front-left high', size: 'medium' }, scene);
+const camera = frameOf(shot, scene);    // { target, azimuth, elevation, distance, focal, aperture }
+shotLine(checkShot(scene, camera, [1280, 720], shot));
+// shot "database" from front-left high (6.33 m, lens normal): in frame 100%, 40% of height (medium), "cache" covers 43% of it, sharp — move the view or lift it
+```
+
+`from` is a named view: `front`, `front-left`, `left`, `back-left`, `back`, `back-right`, `right` or `front-right`, then `high`,
+`level` or `low`. `size` is `wide`, `medium`, `close` or `insert`, and `lens` is `wide`, `normal` or `long`. A camera may also come
+from a film's own numbers: `checkShot(scene, camera, frame, { on })` reads any camera, and the line says `about` when it stands
+near a named view rather than on it. The check reports a subject behind the camera, off frame, cut off, too small, covered by
+something nearer, edge-on, showing its back or out of focus, and a camera on top of its subject.
+
+Where things land, each thing's box and whether it is cut off are exact. Shares are areas on the frame, cut from the outlines
+things really fill, so a thin card counts as surely as a wide one. On 600 random scenes, a third with thin cards as the subject,
+against a separate dense oracle: worst error 0.2 points for in frame and 0.4 for covered, and 1.9 where a ball passes through
+something, the one case that is sampled. There a clear result says so: `"rod" passes through it`. An overlap under about a third
+of a pixel is not counted.
+
+**The check knows only the scene it is given,** and the line says how many other things it was tested against: `none of the 3
+other things in front`, or `no other things given`. A flat layer over the picture, a caption or a bond is not there unless you
+add it as a thing, and every thing with a size is solid. Two things in one shot's `on` can hide each other, and that is reported:
+name a tight cluster as one ball. The sizes, the lenses and "too small" are starting choices, not measurements. Nothing here draws, and no tool reads a shot yet. More in [src/shot/README.md](src/shot/README.md).
+
 ## API
 
 | export | does |
@@ -267,8 +307,13 @@ same way. More in [src/motion/README.md](src/motion/README.md).
 | `/motion` `MOVES`, `moveAt`, `readMove`, `movesBy`, `stagger` | named moves: their values at t, your own checked, a filter, delays |
 | `/motion` `TRANSITIONS`, `readTransition`, `checkTransition`, `extendTransitions`, `readSettings` | changes of picture as data, read and checked |
 | `/motion` `PACES`, `readPace` | how long a picture may sit still, by kind of film |
+| `/shot` `readView`, `readScene`, `sceneProblems`, `readShot`, `shotProblems` | named views, scenes and shots, read and refused in words |
+| `/shot` `readCamera`, `frameOf`, `distanceFor`, `apertureFor` | a camera's numbers; the camera a shot asks for |
+| `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
+| `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
+| `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -279,8 +324,8 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`). Each `sr
   a rule says is final.
 - **Every move and curve StoryReel 0.23.0 drew is drawn the same**: property tests compare thousands of generated
   calls against copies of that code in `test/control/` — values and refusals alike.
-- **The main door and the motion door run in a browser**: nothing they reach imports a Node module, and the main door
-  never loads motion (an architecture test).
+- **The main, motion, storyboard and shot doors run in a browser**: nothing they reach imports a Node module, and the main
+  door never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).
 

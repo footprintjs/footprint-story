@@ -28,6 +28,7 @@
     "spring",
     "transitions",
     "storyboard",
+    "camera",
     "storyreel",
     "storydeck",
     "footprintjs"
@@ -54,6 +55,10 @@
       "types": "./storyboard.d.ts",
       "default": "./storyboard.js"
     },
+    "./shot": {
+      "types": "./shot.d.ts",
+      "default": "./shot.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -65,6 +70,8 @@
     "motion.d.ts",
     "storyboard.js",
     "storyboard.d.ts",
+    "shot.js",
+    "shot.d.ts",
     "src",
     "plugin",
     "README.md",
@@ -72,7 +79,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
   },
   "devDependencies": {
     "fast-check": "^4.10.2"
