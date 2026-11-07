@@ -7,6 +7,17 @@
   things land, and `shotLine(checkShot(scene, camera, frame, shot))` says in one line what the camera sees: how much is in frame,
   how big, what covers it and how many other things it was tested against, whether it is sharp, and what to do about any of that. It works without a picture and reads any
   camera, including a film's own numbers. It knows only the things it is given. Nothing here draws, and no tool reads a shot yet.
+- **`storyboardFixBriefs`**, in `footprint-story/storyboard`: what to fix in a refused storyboard, piece by piece. It takes the
+  board and its problems, and gives one short brief per piece at fault: the problems, what the piece says now, and the messages it
+  cites. Every problem is still named at once. A host that keeps its board can change just those pieces. Nothing here takes a
+  piece as an answer, so the host says what form to answer in. The instructions stay the same whatever the board or the
+  conversation says, the words come apart from them as data, and a huge board or message still gives a short answer.
+- **`dataLine`**, in `footprint-story/storyboard`: one value as one line of JSON. Line ends, tag characters and direction controls
+  are escaped, so words in it can't start a line or hide text, and it parses back exactly. The material of `storyboardBrief` uses it.
+- **`storyboardBrief` no longer asks for the whole object again** after a refusal: it asks to fix every problem and leave the
+  rest as it is, and says the refusal gives the form to answer in.
+- **A problem lists at most three of a claim's sources**, then how many more, and a long number or id is shortened, so the words
+  that say what to do are never lost.
 
 ## 0.6.0 — one narration step for a film and a deck
 

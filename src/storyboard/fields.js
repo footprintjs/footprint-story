@@ -3,9 +3,12 @@
  * answer can name everything to fix. Reads own properties only. A key it does not know is a problem, naming the keys
  * there are, so a misspelt name is never silently ignored.
  */
-const MOST_NAME = 40;   // of an unknown key, as a problem repeats it: what comes back to a model is short
+const MOST_NAME = 40;   // of an unknown key or an id, as a problem repeats it: what comes back to a model is short
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const join = (at, key) => (typeof key === 'number' ? `${at}[${key}]` : at ? `${at}.${key}` : key);
+
+/** A name as a problem repeats it. */
+export const shownName = (name) => (name.length > MOST_NAME ? `${name.slice(0, MOST_NAME)}…` : name);
 
 /** A reader with its own list of problems, each {at, message}: `at` is the place in the data, as it is written. */
 export function fieldReader() {
@@ -20,7 +23,7 @@ export function fieldReader() {
       const own = Object.create(null);
       for (const key of Object.keys(value)) {
         if (keys.includes(key)) own[key] = value[key];
-        else say(join(at, key.length > MOST_NAME ? `${key.slice(0, MOST_NAME)}…` : key), `is not a field here (the fields are ${keys.join(', ')})`);
+        else say(join(at, shownName(key)), `is not a field here (the fields are ${keys.join(', ')})`);
       }
       return own;
     },

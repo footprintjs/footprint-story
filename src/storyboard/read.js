@@ -19,15 +19,22 @@ export const storyShapes = () => Object.values(SHAPES).map(({ name, about, fills
 /** No more problems than whoever wrote this can use in one pass: what comes back to a model stays short. */
 const shortList = (problems) => (problems.length > MOST_PROBLEMS ? [...problems.slice(0, MOST_PROBLEMS), { at: '', message: `and ${problems.length - MOST_PROBLEMS} more: fix these first` }] : problems);
 
+/** A storyboard as data, from data or JSON text. Throws on text that is not JSON. */
+export const boardData = (raw) => (typeof raw === 'string' ? JSON.parse(raw) : raw);
+
+/** The shape this data says it is: its name when there is one by that name, else null. */
+export function shapeNameOf(data) {
+  const name = data !== null && typeof data === 'object' && Object.hasOwn(data, 'shape') ? data.shape : undefined;
+  return typeof name === 'string' && Object.hasOwn(SHAPES, name) ? name : null;
+}
+
 /** What reading finds: {board, problems}. `board` only when there are no problems. */
 function readAll(raw, { conversation } = {}) {
   const f = fieldReader();
-  let parsed = raw;
-  if (typeof raw === 'string') {
-    try { parsed = JSON.parse(raw); } catch (e) { return { board: null, problems: [{ at: 'storyboard', message: `is not valid JSON: ${e.message}` }] }; }
-  }
-  const known = Object.keys(SHAPES), name = parsed !== null && typeof parsed === 'object' && Object.hasOwn(parsed, 'shape') ? parsed.shape : undefined;
-  if (typeof name !== 'string' || !Object.hasOwn(SHAPES, name)) return { board: null, problems: [{ at: 'shape', message: `must be one of ${known.join(', ')}` }] };
+  let parsed;
+  try { parsed = boardData(raw); } catch (e) { return { board: null, problems: [{ at: 'storyboard', message: `is not valid JSON: ${e.message}` }] }; }
+  const name = shapeNameOf(parsed);
+  if (!name) return { board: null, problems: [{ at: 'shape', message: `must be one of ${Object.keys(SHAPES).join(', ')}` }] };
   const sources = conversation ? readConversation(conversation) : null;   // the app's own input: a mistake here is the app's, and throws
   try {
     const input = f.object(parsed, '', [...SHARED, ...OWN[name]]);

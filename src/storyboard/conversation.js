@@ -3,7 +3,11 @@
  * library's own: an app maps its history onto it. Whoever writes the storyboard may get things wrong, so a claim says which
  * messages it rests on, and every number in it must be in one of them.
  */
+import { dataLine } from './dataLine.js';
+import { shownName } from './fields.js';
+
 const MOST_MESSAGES = 5000;
+const MOST_IDS_SHOWN = 3;   // as a problem lists them: the sentence that says what to do comes after them, and must not be lost
 
 const THOUSANDS = /^\d{1,3}(?:[,   ]\d{3})+(?:\.\d+)?$/;
 const GROUPING = /[,   ]/g;
@@ -62,6 +66,15 @@ export function readConversation(messages) {
   return out;
 }
 
+/** One message as a line of a brief's material: JSON, so its words stay one line of data whatever they say. */
+export const messageLine = ({ id, who, text }) => dataLine({ id, ...(who === undefined ? {} : { who }), text });
+
+/** A few ids, then how many more: a claim may cite many long ones, and the message goes on to say what to do. */
+function idsShown(ids) {
+  const shown = ids.slice(0, MOST_IDS_SHOWN).map(shownName).join(', ');
+  return ids.length > MOST_IDS_SHOWN ? `${shown} and ${ids.length - MOST_IDS_SHOWN} more` : shown;
+}
+
 /**
  * Checks one claim against the messages it cites, keeping any problem on `fields`: every message it cites is there, and
  * every number it says is in one of them. `claim`: the words it says. With no conversation there is nothing to check
@@ -76,7 +89,7 @@ export function checkClaim(fields, conversation, at, claim, cited) {
   if (disguisesNumber(claim)) { fields.say(at, DISGUISED); return; }
   const said = new Set(cited.flatMap((id) => numbersIn(conversation.get(id))));
   for (const n of numbersIn(claim)) {
-    if (!said.has(n)) fields.say(at, `says ${n}, which none of its sources (${cited.join(', ')}) says: fix the number, cite the message that says it, or move it to what you are not sure about`);
+    if (!said.has(n)) fields.say(at, `says ${shownName(n)}, which none of its sources (${idsShown(cited)}) says: fix the number, cite the message that says it, or move it to what you are not sure about`);
   }
 }
 
@@ -85,5 +98,5 @@ export function checkAnywhere(fields, conversation, at, text) {
   if (!conversation) return;
   if (disguisesNumber(text)) { fields.say(at, DISGUISED); return; }
   const said = new Set([...conversation.values()].flatMap((message) => numbersIn(message)));
-  for (const n of numbersIn(text)) if (!said.has(n)) fields.say(at, `says ${n}, which the conversation never says: fix the number, or take it out`);
+  for (const n of numbersIn(text)) if (!said.has(n)) fields.say(at, `says ${shownName(n)}, which the conversation never says: fix the number, or take it out`);
 }
