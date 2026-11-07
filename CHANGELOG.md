@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 — one narration step for a film and a deck
+## Unreleased
 
 - **`storyboardFixBriefs`**, in `footprint-story/storyboard`: what to fix in a refused storyboard, piece by piece. It takes the
   board and its problems, and gives one short brief per piece at fault: the problems, what the piece says now, and the messages it
@@ -13,6 +13,9 @@
   rest as it is, and says the refusal gives the form to answer in.
 - **A problem lists at most three of a claim's sources**, then how many more, and a long number or id is shortened, so the words
   that say what to do are never lost.
+
+## 0.6.0 — one narration step for a film and a deck
+
 - **`narrate`**, in `footprint-story/voice`: the one narration step StoryDeck and StoryReel share. `narrationVoice({ cache, kit, takes })`
   picks the voice a person named, `narrate(lines, { cache, profile, engine })` voices what is missing, and with no engine only
   reads, and `narrationSummary(report)` says what is done and what to do next.
