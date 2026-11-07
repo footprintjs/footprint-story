@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — one narration step for a film and a deck
 
 - **`storyboardFixBriefs`**, in `footprint-story/storyboard`: what to fix in a refused storyboard, piece by piece. It takes the
   board and its problems, and gives one short brief per piece at fault: the problems, what the piece says now, and the messages it
