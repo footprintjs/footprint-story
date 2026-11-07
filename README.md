@@ -45,11 +45,12 @@ An agent telling a story should not have to write a deck's HTML or a film's reci
 mistake is named at once, so it fixes them in one pass. Whoever draws the board treats its words as text, never as code.
 
 ```js
-import { storyShapes, storyboardBrief, storyboardProblems, readStoryboard } from 'footprint-story/storyboard';
+import { storyShapes, storyboardBrief, storyboardProblems, storyboardFixBriefs, readStoryboard } from 'footprint-story/storyboard';
 
 storyShapes();                   // [{ name, about, fills }]: the shapes, and a worked outline of each
 storyboardBrief('what-we-found', { conversation });   // { instructions, material }: what a model needs to write one
 storyboardProblems(fromAgent);   // [{ at: 'items[1].turn.callout', message: 'must say both names, …' }]
+storyboardFixBriefs(fromAgent, problems, { conversation });   // { instructions, briefs, rest }: one short brief per piece at fault
 const board = readStoryboard(fromAgent, { conversation: [{ id: 'm7', text: 'it waited 41 minutes' }] });
 board.scenes[1];                 // { id, part, look, title, narration, beat }
 ```
@@ -57,6 +58,8 @@ board.scenes[1];                 // { id, part, look, title, narration, beat }
 A conversation becomes a story in three steps, and only the first needs a model: `storyboardBrief` gives the instructions
 and the conversation for whichever model you use, `storyboardProblems` names what to fix in its answer, and a tool draws
 the board. Send `instructions` as your own and `material` as data, because it holds a conversation's own words.
+When a board is refused, `storyboardFixBriefs` gives a short brief for each piece at fault. It takes no answer itself, so say what
+form you accept: a host that keeps its board can change just those pieces.
 
 | shape | what it tells |
 |---|---|

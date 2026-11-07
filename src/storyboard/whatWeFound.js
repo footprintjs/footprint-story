@@ -16,6 +16,7 @@ function readSources(f, value, at) {
 export const whatWeFound = Object.freeze({
   name: 'what-we-found',
   checksClaims: true,
+  lists: Object.freeze(['checked', 'found', 'unsure']),   // each entry can be fixed on its own
   about: 'What a piece of work or a conversation came to: what was checked, what was found, what is still not known, what happens next. Claims name their sources, and a number must be in a source.',
   writing: Object.freeze([
     'Say only what the conversation holds, and add no facts of your own.',
