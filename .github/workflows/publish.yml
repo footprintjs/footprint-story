@@ -12,14 +12,15 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg   # the recorded-take tests cut with the real ffmpeg (they fail without it on CI)
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg   # the recorded-take tests cut with the real ffmpeg (they fail without it on CI)   # a release restores no cache: packages come from the signed repository
+        timeout-minutes: 30
       - run: npm test
       - run: npx --yes -p typescript@5.9.3 tsc -p tsconfig.check.json
       - run: npx --yes publint@0.3.25 --strict
@@ -36,7 +37,7 @@ jobs:
 
   publish:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write # OIDC trusted publishing — this job only
