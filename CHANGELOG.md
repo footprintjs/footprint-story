@@ -1,12 +1,15 @@
 # Changelog
 
-## 0.6.0 — one narration step for a film and a deck
+## Unreleased
 
 - **Shots**, in a new door, `footprint-story/shot`: a camera in 3D as plain data, in the words a film and a deck already use.
   `readShot({ on, from: 'front-left high', size })` reads a shot, `frameOf` turns it into a camera, `project` and `boxOf` say where
   things land, and `shotLine(checkShot(scene, camera, frame, shot))` says in one line what the camera sees: how much is in frame,
   how big, what covers it and how many other things it was tested against, whether it is sharp, and what to do about any of that. It works without a picture and reads any
   camera, including a film's own numbers. It knows only the things it is given. Nothing here draws, and no tool reads a shot yet.
+
+## 0.6.0 — one narration step for a film and a deck
+
 - **`narrate`**, in `footprint-story/voice`: the one narration step StoryDeck and StoryReel share. `narrationVoice({ cache, kit, takes })`
   picks the voice a person named, `narrate(lines, { cache, profile, engine })` voices what is missing, and with no engine only
   reads, and `narrationSummary(report)` says what is done and what to do next.
