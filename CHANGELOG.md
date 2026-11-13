@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 — a chatbot session read as a conversation
 
 - **`sessionReader()` and `readSession(text)`**, in `footprint-story/storyboard`: a chatbot session file read as a conversation
   a storyboard can cite. It keeps what the person said and what the assistant answered, one turn per message with a short id,
