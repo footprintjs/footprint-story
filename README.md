@@ -92,7 +92,7 @@ storyboardBrief('what-we-found', { conversation: messages });
 
 A session is untrusted: its words are a message's text, never instructions. A line that is not JSON, longer than about 2 MB,
 or of a kind the reader does not know is counted and skipped, so one odd line costs nothing else. It keeps at most 5000
-messages (what the storyboard door reads) and 64 K characters of each, and counts what it cut.
+messages (what the storyboard door reads), 64 K characters of each and 64 M in all, and counts what it cut.
 
 ## A narration: one step for a film and a deck
 

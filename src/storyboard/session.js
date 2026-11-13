@@ -18,6 +18,11 @@ export const MOST_LINE = 1 << 21;
 export const MOST_MESSAGES = 5000;
 /** The most text one message keeps, in UTF-16 units: past it, its text is cut and the cut counted. */
 export const MOST_TEXT = 1 << 16;
+/**
+ * The most text kept in all, in UTF-16 units (64 M, about 128 MB): past it, what is said is counted, not kept. Many long
+ * messages could otherwise hold gigabytes before anything downstream says the conversation is too long.
+ */
+export const MOST_KEPT = 1 << 26;
 
 const NOTE_OPEN = '<system-reminder>';
 const NOTE_CLOSE = '</system-reminder>';
@@ -78,14 +83,21 @@ export function sessionReader() {
     count(kind);
   };
   let open = null;   // the message the last record added to, while the same speaker goes on
+  let kept = 0;      // the text kept so far, in UTF-16 units
 
   const keep = (who, text) => {
     if (open && open.who === who) {
-      open.text = cut(`${open.text}\n\n${text}`);
+      const before = open.text.length, joined = cut(`${open.text}\n\n${text}`);
+      if (kept - before + joined.length > MOST_KEPT) { count('over-most-kept'); return; }
+      kept += joined.length - before;
+      open.text = joined;
       return;
     }
     if (messages.length >= MOST_MESSAGES) { count('over-most-messages'); open = null; return; }
-    open = { id: `m${messages.length + 1}`, who, text: cut(text) };
+    const words = cut(text);
+    if (kept + words.length > MOST_KEPT) { count('over-most-kept'); open = null; return; }
+    kept += words.length;
+    open = { id: `m${messages.length + 1}`, who, text: words };
     messages.push(open);
   };
   const cut = (text) => {

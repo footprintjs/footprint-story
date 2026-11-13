@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readSession, sessionReader, storyboardBrief } from '../storyboard.js';
-import { MOST_KINDS, MOST_LINE, MOST_MESSAGES, MOST_TEXT } from '../src/storyboard/session.js';
+import { MOST_KEPT, MOST_KINDS, MOST_LINE, MOST_MESSAGES, MOST_TEXT } from '../src/storyboard/session.js';
 
 const line = (record) => JSON.stringify(record);
 const person = (content, extra = {}) => line({ type: 'user', message: { role: 'user', content }, ...extra });
@@ -105,4 +105,14 @@ test('host notes come out in one pass: an open tag with no close keeps the rest,
   const started = Date.now();
   readSession(person(many));
   assert.ok(Date.now() - started < 1000, 'linear in the text');
+});
+
+test('past MOST_KEPT in all, what is said is counted, not kept', () => {
+  const reader = sessionReader();
+  const long = 'z'.repeat(MOST_TEXT);
+  const turns = Math.floor(MOST_KEPT / MOST_TEXT) + 3;
+  for (let n = 0; n < turns; n++) reader.add(n % 2 ? assistant([text(long)]) : person(long));
+  const { messages, left } = reader.result();
+  assert.equal(messages.length, MOST_KEPT / MOST_TEXT);
+  assert.equal(left['over-most-kept'], 3);
 });
