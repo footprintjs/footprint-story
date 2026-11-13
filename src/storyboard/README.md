@@ -16,6 +16,7 @@ and its text is only ever text. Each tool draws the same board its own way.
 | `toldTwice.js` | `told-twice`: a cast acts a system out, turns into it, and the story runs again for real |
 | `whatWeFound.js` | `what-we-found`: what was checked, what was found, what is not known, what is next |
 | `conversation.js` | a conversation as sources, and the rule that a claim's numbers are in the messages it cites |
+| `session.js` | a chatbot session file (one JSON record per line), read a line at a time as a conversation: the person's and the assistant's words kept, everything else counted |
 | `fields.js` | reading data while keeping every problem |
 | `words.js` | the limits on each kind of text, and a part's labels |
 

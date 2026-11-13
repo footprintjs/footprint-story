@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **`sessionReader()` and `readSession(text)`**, in `footprint-story/storyboard`: a chatbot session file read as a conversation
+  a storyboard can cite. It keeps what the person said and what the assistant answered, one turn per message with a short id,
+  and counts what it left out by kind: tool calls and results, private thinking, the host's own notes, odd lines. It reads no
+  file: a host hands it lines as it reads them, so a session bigger than memory works (a 795 MB Claude Code session reads in a
+  few seconds). A line that is not JSON, too long, or of an unknown kind is counted and skipped, never thrown on.
+
 ## 0.7.0 — what to fix in a refused board, and a camera checked in words
 
 - **Shots**, in a new door, `footprint-story/shot`: a camera in 3D as plain data, in the words a film and a deck already use.
