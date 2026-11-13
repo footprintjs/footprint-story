@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readSession, sessionReader, storyboardBrief } from '../storyboard.js';
-import { MOST_LINE, MOST_MESSAGES, MOST_TEXT } from '../src/storyboard/session.js';
+import { MOST_KINDS, MOST_LINE, MOST_MESSAGES, MOST_TEXT } from '../src/storyboard/session.js';
 
 const line = (record) => JSON.stringify(record);
 const person = (content, extra = {}) => line({ type: 'user', message: { role: 'user', content }, ...extra });
@@ -88,4 +88,21 @@ test('what it reads is a conversation the storyboard door takes', () => {
 test('the result is frozen', () => {
   const result = readSession(person('hi'));
   assert.ok(Object.isFrozen(result) && Object.isFrozen(result.messages) && Object.isFrozen(result.messages[0]) && Object.isFrozen(result.left));
+});
+
+test('many record kinds are counted by name only up to MOST_KINDS, then as record:other', () => {
+  const reader = sessionReader();
+  for (let n = 0; n < MOST_KINDS + 5; n++) reader.add(line({ type: `kind${n}` }));
+  const { left } = reader.result();
+  assert.equal(Object.keys(left).filter((k) => k.startsWith('record:kind')).length, MOST_KINDS);
+  assert.equal(left['record:other'], 5);
+});
+
+test('host notes come out in one pass: an open tag with no close keeps the rest, and many open tags stay fast', () => {
+  assert.equal(readSession(person('a<system-reminder>x</system-reminder>b<system-reminder>y</system-reminder>c')).messages[0].text, 'abc');
+  assert.equal(readSession(person('keep <system-reminder> no close')).messages[0].text, 'keep <system-reminder> no close');
+  const many = '<system-reminder>'.repeat(60_000);
+  const started = Date.now();
+  readSession(person(many));
+  assert.ok(Date.now() - started < 1000, 'linear in the text');
 });

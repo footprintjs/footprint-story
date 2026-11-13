@@ -19,7 +19,26 @@ export const MOST_MESSAGES = 5000;
 /** The most text one message keeps, in UTF-16 units: past it, its text is cut and the cut counted. */
 export const MOST_TEXT = 1 << 16;
 
-const HOST_NOTE = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
+const NOTE_OPEN = '<system-reminder>';
+const NOTE_CLOSE = '</system-reminder>';
+/** The most kinds of record counted by name: past it, a new kind counts as `record:other`, so odd input cannot grow `left`. */
+export const MOST_KINDS = 32;
+
+/**
+ * Text with its host notes taken out, in one pass: each `<system-reminder>` up to its close goes; an open tag with no close
+ * leaves the rest of the text as it is. A scan, not a regex, so many open tags cost one pass, never one per tag.
+ */
+function withoutHostNotes(text) {
+  let out = '', at = 0;
+  for (;;) {
+    const open = text.indexOf(NOTE_OPEN, at);
+    if (open < 0) return out + text.slice(at);
+    const close = text.indexOf(NOTE_CLOSE, open + NOTE_OPEN.length);
+    if (close < 0) return out + text.slice(at);
+    out += text.slice(at, open);
+    at = close + NOTE_CLOSE.length;
+  }
+}
 const COMMAND_ONLY = /^\s*<(command-name|command-message|command-args|local-command-stdout|local-command-caveat)>[\s\S]*$/;
 /** A user record the host wrote, not the person: a background task's notice, an artifact's relayed content, browser or editor context. */
 const HOST_LEAD = /^\s*<(task-notification|artifact-content-authored-by-others|browser[a-z_-]*|ide_[a-z_]+)[\s/>]/;
@@ -49,6 +68,15 @@ export function sessionReader() {
   const messages = [];
   const left = {};
   const count = (kind) => { left[kind] = (left[kind] ?? 0) + 1; };
+  let kinds = 0;
+  /** A record kind named by the file: counted by name only while there are few of them. */
+  const countKind = (kind) => {
+    if (!Object.hasOwn(left, kind)) {
+      if (kinds >= MOST_KINDS) { count('record:other'); return; }
+      kinds++;
+    }
+    count(kind);
+  };
   let open = null;   // the message the last record added to, while the same speaker goes on
 
   const keep = (who, text) => {
@@ -74,13 +102,13 @@ export function sessionReader() {
     try { record = JSON.parse(line); } catch { count('not-json'); return; }
     if (!isRecord(record)) { count('not-a-record'); return; }
     const type = own(record, 'type');
-    if (type !== 'user' && type !== 'assistant') { count(typeof type === 'string' ? `record:${type}`.slice(0, 64) : 'record:unnamed'); return; }
+    if (type !== 'user' && type !== 'assistant') { countKind(typeof type === 'string' ? `record:${type}`.slice(0, 64) : 'record:unnamed'); return; }
     if (own(record, 'isMeta') === true || own(record, 'isSidechain') === true || own(record, 'isCompactSummary') === true) { count('host-note'); return; }
     const message = own(record, 'message');
     if (!isRecord(message)) { count('no-message'); return; }
     const content = own(message, 'content');
     if (type === 'user' && hasToolResult(content)) { count('tool-result'); return; }
-    const text = wordsOf(content).replace(HOST_NOTE, '').trim();
+    const text = withoutHostNotes(wordsOf(content)).trim();
     if (!text) { count(type === 'assistant' ? 'assistant-no-words' : 'user-no-words'); return; }
     if (type === 'user' && COMMAND_ONLY.test(text)) { count('command'); return; }
     if (type === 'user' && HOST_LEAD.test(text)) { count('host-note'); return; }
