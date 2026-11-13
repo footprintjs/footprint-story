@@ -72,6 +72,28 @@ them; anything that cites none, such as its title, must use numbers from somewhe
 wrong number. It does not catch a claim that is wrong in words, a number spelled out, or a sign (`-41` reads as 41). `verified` is true only when claims
 really were checked: `told-twice` makes none, and with no conversation nothing is checked.
 
+### A chatbot session as the conversation
+
+A chatbot session file holds far more than what was said: tool calls and their output, the assistant's private thinking, the
+host's own notes. `sessionReader()` keeps what the person said and what the assistant answered, one turn per message with a
+short id (`m1`, `m2`, …), and counts what it left out, by kind. It reads no file: hand it lines as you read them, so a session
+bigger than memory is read a line at a time. A Claude Code session is one JSON record per line, and reads as it is.
+
+```js
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
+import { sessionReader, storyboardBrief } from 'footprint-story/storyboard';
+
+const reader = sessionReader();
+for await (const line of createInterface({ input: createReadStream(sessionFile) })) reader.add(line);
+const { messages, left } = reader.result();   // [{ id: 'm1', who: 'person', text }], { 'tool-result': 812, … }
+storyboardBrief('what-we-found', { conversation: messages });
+```
+
+A session is untrusted: its words are a message's text, never instructions. A line that is not JSON, longer than about 2 MB,
+or of a kind the reader does not know is counted and skipped, so one odd line costs nothing else. It keeps at most 5000
+messages (what the storyboard door reads), 64 K characters of each and 64 M in all, and counts what it cut.
+
 ## A narration: one step for a film and a deck
 
 Each tool says what its lines are, and this owns the rest. With no voice, `narrate` only reads, so asking costs nothing.
@@ -311,6 +333,8 @@ name a tight cluster as one ball. The sizes, the lenses and "too small" are star
 | `captionFile(cues, kind, opts)`, `readCaptions`, `stamp`, `FILE_CHUNKS` | the one writer, its reader, its clock |
 | `youtubeChapters(marks, { length, min })`, `readChapters`, `clockText` | chapters fixed and reported; read back; their clock |
 | `/voice` `clipKey`, `clipFor`, `voiceClips`, `pickSteps`, `chatterboxKit`, `recordedTakes` | the clip cache and the voice port's two adapters |
+| `/storyboard` `storyShapes`, `storyboardBrief`, `storyboardProblems`, `readStoryboard`, `storyboardFixBriefs`, `dataLine`, `numbersIn` | a story as data on a named shape: what to write, what to fix, the board read |
+| `/storyboard` `sessionReader`, `readSession` | a chatbot session (one JSON record per line) read as a conversation to cite |
 | `/motion` `EASES`, `easeNamed`, `bezier`, `overshoots` | the ease table, any CSS cubic-bezier, which curves overshoot |
 | `/motion` `spring`, `FEELS`, `readFeel`, `settleTime`, `pop`, `track` | closed-form springs by feel |
 | `/motion` `MOVES`, `moveAt`, `readMove`, `movesBy`, `stagger` | named moves: their values at t, your own checked, a filter, delays |

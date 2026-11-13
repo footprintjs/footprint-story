@@ -93,3 +93,20 @@ export function storyboardProblems(input: unknown, options?: StoryboardOptions):
 export function readStoryboard(input: unknown, options?: StoryboardOptions): Storyboard;
 /** Every number in a text, with any thousands commas taken out: '1,250.5' → '1250.5'. */
 export function numbersIn(text: string): readonly string[];
+
+/** A chatbot session read as a conversation: messages in order, and what was left out, counted by kind. */
+export interface SessionRead {
+  /** One turn of one speaker each: `who` is `'person'` or `'assistant'`; ids are `m1`, `m2`, … in order. */
+  readonly messages: readonly (StoryMessage & { readonly who: 'person' | 'assistant' })[];
+  /** What was left out (tool calls and results, thinking, the host's notes, odd lines), by kind: counts only, never words. */
+  readonly left: Readonly<Record<string, number>>;
+}
+/** A session reader you hand lines to in file order, so a file bigger than memory is read a line at a time. */
+export interface SessionReader {
+  add(line: string): void;
+  result(): SessionRead;
+}
+/** A reader for a session file of one JSON record per line (a Claude Code session is one). Reads no file itself. */
+export function sessionReader(): SessionReader;
+/** A whole session's text at once: the same as handing each line to `sessionReader()`. */
+export function readSession(text: string): SessionRead;

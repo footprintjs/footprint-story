@@ -8,9 +8,11 @@
 //   readStoryboard(input, { conversation })      → the board: checked and frozen, with its scenes
 //   storyboardFixBriefs(input, problems, { conversation }) → { instructions, briefs, rest }: one short brief per piece at fault
 //   dataLine(value)                              → one line of JSON that nothing in it can break or hide words in
+//   sessionReader() / readSession(text)          → a chatbot session (one JSON record per line) read as a conversation to cite
 
 export { storyShapes, storyboardProblems, readStoryboard } from './src/storyboard/read.js';
 export { storyboardBrief } from './src/storyboard/brief.js';
 export { storyboardFixBriefs } from './src/storyboard/fixBrief.js';
 export { dataLine } from './src/storyboard/dataLine.js';
 export { numbersIn } from './src/storyboard/conversation.js';
+export { readSession, sessionReader } from './src/storyboard/session.js';
