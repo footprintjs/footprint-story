@@ -1,6 +1,6 @@
 {
   "name": "footprint-story",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Shared JavaScript narration, shown/spoken text, captions and motion primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
   "type": "module",
   "license": "MIT",
