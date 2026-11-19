@@ -6,7 +6,11 @@
 //   const grid = isometric({ tile: 120, origin: [960, 240] })
 //   grid.block({ at: [2, 1], size: [2, 2, 1.5] })      → { top, left, right, outline, centre, box }
 //   grid.backToFront(things)                           → the furthest first
+//   arrange(things, links)                             → where each thing stands, from what is joined to what
+//   gridFor(placed, [x0, y0, x1, y1])                  → the grid on which they fill that box
 
 export { isometric } from './src/isometric/grid.js';
 export { readThing } from './src/isometric/thing.js';
 export { MOST_ISOMETRIC_THINGS } from './src/isometric/order.js';
+export { arrange, MOST_LINKS } from './src/isometric/arrange.js';
+export { gridFor } from './src/isometric/fit.js';

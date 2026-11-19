@@ -11,6 +11,8 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `grid.js` | the grid: where a point lands, and back; the faces of a box; a round thing's ellipses; the tile lines; a line along the floor |
 | `thing.js` | a thing read: where it stands, how big it is; every number checked, a list with a hole refused |
 | `order.js` | the order to draw things in so the nearer covers the further (`grid.backToFront`) |
+| `arrange.js` | where things stand, worked out from what is joined to what (`arrange`) |
+| `fit.js` | the grid on which a picture fills a box of the frame (`gridFor`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -42,12 +44,39 @@ anything else, another ring too, is still kept (the same review found two rings,
 wrong way round). A test checks all of this against lines of sight worked out apart from the code, on thousands of
 pictures: boxes of any length, flat ones, rings, from four heights.
 
+**Places nobody types.** Whoever writes a picture knows what is joined to what, and should not have to work out where
+each block goes. `arrange(things, links)` does that: `things` are `[{name, size}]`, `links` are `[[from, to]]` by name.
+
+```js
+const { things, cols, rows } = arrange(
+  [{ name: 'you', size: [2, 2, 1] }, { name: 'dns', size: [2, 2, 1] }, { name: 'server', size: [2, 2, 1] }, { name: 'db', size: [2, 2, 1] }],
+  [['you', 'dns'], ['you', 'server'], ['server', 'db']],
+);   // you [0, 1.5] · dns [3, 0] · server [3, 3] · db [6, 3]; the arrangement reaches 8 cols and 5 rows
+```
+
+A joined thing stands one step further along the cols than what leads to it, so a chain reads from the far corner
+towards the viewer's right. Things led to from one place stand side by side along the rows, evenly either side of it:
+each thing wants its middle on the middle of what it is joined to, and within a step the things keep their order and
+their gaps and stand as near what they want as that allows (least squares, so the answer is exact and has one value).
+The order within a step is the one with the fewest links that cross. A ring of links is placed too: the link that
+closes it is read the other way round. Things joined to nothing stand in rows behind the rest. Everything is on the half
+tile, one tile apart unless `gap` says otherwise, and the same things and links always give the same places.
+
+A property test holds it to what an arrangement must always be (every thing placed once, none nearer another than the
+gap, a link running on along the cols), and the rows are checked against the closed form of the same least-squares
+answer, written apart from the code.
+
+`gridFor(things, [x0, y0, x1, y1])` then gives the grid on which the placed things fill that box: the usual two-to-one
+tile, a whole even number of pixels from 24 to 160 wide, the picture in the middle of the box. Every number of this
+view grows with the tile, so the picture is measured once and the rest is one division.
+
 **Which views.** Isometric is one of a family of views with no depth (axonometric). This grid gives every one of
 them seen from the corner: `tile` is the height the viewer stands at. The usual `120` is two to one, about 30° up (what
 tile games call isometric); `[120, 69.3]` (the width over √3) is the true isometric, where all three edges of a cube are
 as long as each other; a flatter tile looks from lower, a taller one from higher.
 
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
-on tiles that are not square, and finding a way round things (`route` goes where it is told). A view that turns is
+on tiles that are not square, and finding a way round things (`route` goes where it is told; `arrange` does not keep a
+link that skips a step clear of the things between, and places nothing by its height). A view that turns is
 `footprint-story/shot`'s camera, which has depth today; it is not changed by this. Where the ideas come from:
 [REFERENCES.md](REFERENCES.md).

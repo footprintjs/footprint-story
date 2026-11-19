@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.0 — places nobody types
+
+- **`arrange`**, in `footprint-story/isometric`: where things stand on the floor, worked out from what is joined to
+  what. `arrange([{ name, size }], [[from, to]])` gives each thing its `at`: a joined thing stands one step further along
+  the cols than what leads to it, things led to from one place stand side by side along the rows, evenly either side of
+  it, and the order within a step is the one with the fewest links that cross. A ring of links is placed too, things
+  joined to nothing stand in rows behind the rest, everything is on the half tile, and the same things and links always
+  give the same places. What it returns is things a grid draws. Every value is read by its own stored value and
+  bounded (256 things, 1,024 links), and a refusal says what to give. Not kept clear: a link that skips a step may pass
+  a thing between.
+- **`gridFor`**, in the same door: the grid on which placed things fill a box of the frame, `gridFor(things, [x0, y0,
+  x1, y1])` — a two-to-one tile a whole even number of pixels wide (24 to 160), the picture in the middle of the box.
+
 ## 0.9.0 — an order written once, and a floor seen from a corner
 
 - **Turns**, in `footprint-story/motion`: an order written once, for a click of a deck and a beat of a film.

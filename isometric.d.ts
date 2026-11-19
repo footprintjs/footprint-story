@@ -52,3 +52,25 @@ export function isometric(options?: { tile?: number | readonly [number, number];
 export function readThing(thing: IsoThing, what?: string): { at: [number, number, number]; size: [number, number, number] };
 /** The most things one picture orders. */
 export const MOST_ISOMETRIC_THINGS: number;
+
+/** A thing to arrange: its name (links say it), and how big it is, [wide, deep, high] in tiles. */
+export interface IsoNamed { name: string; size: readonly number[] }
+/** A thing arranged: where it stands on the floor, [col, row, 0]. It is a thing a grid draws. */
+export interface IsoPlaced { readonly name: string; readonly at: readonly [number, number, number]; readonly size: readonly number[] }
+/** An arrangement: the things in the order given, and how far it reaches along the cols and the rows from [0, 0]. */
+export interface IsoArrangement { readonly things: readonly IsoPlaced[]; readonly cols: number; readonly rows: number }
+/**
+ * Where things stand, from what is joined to what. `links` are [from, to] by name: a joined thing stands one step
+ * further along the cols than what leads to it, and things led to from one place stand side by side along the rows.
+ * Things joined to nothing stand in rows behind the rest. `gap`: the tiles left between two things (1). The same
+ * things and links always give the same places.
+ */
+export function arrange(things: readonly IsoNamed[], links?: readonly (readonly [string, string])[], options?: { gap?: number }): IsoArrangement;
+/** The most links one arrangement reads. */
+export const MOST_LINKS: number;
+/**
+ * The grid on which placed things fill a box of the frame, `into` = [x0, y0, x1, y1]: a two-to-one tile as wide as lets
+ * every thing sit inside the box (a whole even number of pixels from `least`, 24, to `most`, 160), the picture in the
+ * middle of the box.
+ */
+export function gridFor(things: readonly IsoThing[], into: readonly [number, number, number, number], options?: { most?: number; least?: number }): IsoGrid;

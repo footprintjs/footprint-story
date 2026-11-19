@@ -35,7 +35,7 @@ Six doors, nothing else. A door loads only when you import it, so a page that on
 | `footprint-story/motion` | eases and springs, moves, transitions as data, pace, turns (an order written once) | anywhere — browser or Node; no dependencies |
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
 | `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
-| `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in | anywhere — browser or Node; no dependencies |
+| `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in — and where things stand, worked out from what is joined to what | anywhere — browser or Node; no dependencies |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
 new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency or a release
@@ -361,8 +361,23 @@ grid.backToFront(things);              // the furthest first: only things that m
 
 The picture above is drawn from these numbers by a test, so it is what the grid gives today. A cube looks like a cube:
 the grid is checked against a camera with no depth, built in the test from first principles, and the drawing order
-against lines of sight worked out apart from the code. More in
-[src/isometric/README.md](src/isometric/README.md).
+against lines of sight worked out apart from the code.
+
+**No places to type.** Say what is joined to what, and `arrange` says where each thing stands; `gridFor` then gives the
+grid on which they fill a box of the frame. The same things and links always give the same places.
+
+```js
+import { arrange, gridFor } from 'footprint-story/isometric';
+
+const { things } = arrange(
+  [{ name: 'you', size: [2, 2, 1] }, { name: 'dns', size: [2, 2, 1] }, { name: 'server', size: [2, 2, 1] }, { name: 'db', size: [2, 2, 1] }],
+  [['you', 'dns'], ['you', 'server'], ['server', 'db']],
+);                                     // you at [0, 1.5]: before the two it asks, in their middle · dns [3, 0] · server [3, 3] · db [6, 3]
+const grid = gridFor(things, [0, 220, 1920, 1000]);          // a tile as wide as lets them all sit in that box, the picture in its middle
+things.map((thing) => grid.block(thing));                    // each is a thing the grid draws
+```
+
+More in [src/isometric/README.md](src/isometric/README.md).
 
 ## API
 
@@ -392,7 +407,7 @@ against lines of sight worked out apart from the code. More in
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
-| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered |
+| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`). Each `src/` folder has a README saying why it exists.
 
