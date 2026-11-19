@@ -13,6 +13,8 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `order.js` | the order to draw things in so the nearer covers the further (`grid.backToFront`) |
 | `arrange.js` | where things stand, worked out from what is joined to what (`arrange`) |
 | `fit.js` | the grid on which a picture fills a box of the frame (`gridFor`) |
+| `routes.js` | the way each link runs along the floor, round what stands on it, and what there is to say of it (`routes`, `routeNote`) |
+| `path.js` | a way with its corners rounded, and the place a share along it (`rounded`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -95,8 +97,56 @@ them seen from the corner: `tile` is the height the viewer stands at. The usual 
 tile games call isometric); `[120, 69.3]` (the width over √3) is the true isometric, where all three edges of a cube are
 as long as each other; a flatter tile looks from lower, a taller one from higher.
 
+**Links along the floor.** A link drawn straight from thing to thing reads as flying over the floor, and it runs
+through whatever stands between. `routes(things, links)` gives each link a way along the tile lines instead:
+
+```js
+import { arrange, routes, routeNote, rounded } from 'footprint-story/isometric';
+
+const { things } = arrange([{ name: 'app', size: [2, 2, 1] }, { name: 'logs', size: [2, 2, 1] }, { name: 'db', size: [2, 2, 1] }], [['app', 'logs'], ['app', 'db']]);
+const laid = routes(things, [['app', 'db'], ['db', 'app']]);
+laid[0];              // { from: 'app', to: 'db', points: [[col, row], …], feet: ['right', 'left'], bends, tiles, behind: [], crosses: 0, shared: 0 }
+routeNote(laid[0]);   // null when it lies well — or "app to db: passes behind logs"
+
+const onFrame = laid[0].points.map(([col, row]) => { const p = grid.at(col, row); return [p.x, p.y]; });
+const way = rounded(onFrame, 24);    // { start, pieces: [{ to } | { corner, to }], length, at(share) }
+way.at(0.5);                         // where a packet riding it stands halfway, by length
+```
+
+A route leaves a thing at one of the two feet a viewer sees (`right`: under its right face; `left`: under its left
+face), runs along the tile lines, turns square, and comes into the other thing at a foot that is seen: an arrow's tip
+at the back of a thing would be covered by it. It never passes under a thing that stands on its floor (a thing
+floating above the floor closes nothing: it only hides). It keeps off floor that a thing hides when it can (`hides`:
+1.22 tiles for each tile of height, the usual view); where it cannot, `behind` names every thing that hides a point
+of it, its two feet and the short runs out of them too. A later link takes the lane beside one laid before it, one
+lattice step off (half a tile as a rule), so a request and its answer lie side by side; a foot two tiles wide has
+room for three, and past that `shared` says how much of the way lies on another's. `crosses` counts where it meets
+a route laid before it, a touch at a corner too. A link alone takes the middle of a foot. Two things at one height above the floor
+are joined at that height. A link with no way says `why`: a name that is no thing here, a thing joined to itself, two
+different heights, no free place at a foot that can be seen, no way along the floor (walled in), too far apart for the smallest thing, or
+too many links (the work is counted, `MOST_WORK`: a picture too big leaves its last links untried, never a build that
+hangs).
+
+**Why the result says what happened.** Whoever writes the picture — a person, or a model — can be told "app to db
+passes behind logs" in words and move one thing. Without it the picture has to be looked at and the reason guessed.
+`routeNote` is that sentence, the same in a deck and in a film.
+
+**How.** The floor is a lattice of points half a tile apart — a quarter or an eighth when the narrowest thing is
+under two tiles or one wide, so its foot still has places, and coarser again on a picture so wide that the lattice
+would pass 200,000 points (a thing too small for that lattice then has no place, and its links say so). Each link, in the order given, takes the cheapest way
+over it: a step costs its length, a turn a tile and a half more (so a way has few bends), hidden floor three times its
+length more (so a way goes round where it can be seen), crossing a route laid before two tiles, and running along one
+twenty-four (so it takes the lane beside). The same things and links always give the same ways.
+
+**A way with rounded corners.** `rounded(points, radius)` takes a route's points once they are on the frame and
+rounds each corner, from `radius` before it to `radius` after it (never over half the shorter run). A piece is a
+straight run to `to`, or a corner: one curve to `to`, drawn towards `corner` (SVG's `Q`, a canvas's
+`quadraticCurveTo`). `way.at(share)` is the point a share of the way along, by length. It is here and not in each
+tool so that a deck's packet and a film's frame stand at the same place on the same way.
+
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
-on tiles that are not square, and finding a way round things (`route` goes where it is told; `arrange` does not keep a
-link that skips a step clear of the things between, and places nothing by its height). A view that turns is
+on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:
+an earlier one is never moved for a later one), and a label's place on a way. `grid.route` is the older, simpler line:
+it goes where it is told and turns once; `arrange` places nothing by its height. A view that turns is
 `footprint-story/shot`'s camera, which has depth today; it is not changed by this. Where the ideas come from:
 [REFERENCES.md](REFERENCES.md).
