@@ -11,7 +11,7 @@
 - **Each result says what happened.** `behind` names the things a route had to pass behind, `crosses` counts the
   routes it crosses, `shared` is the tiles that lie on another's way for want of room, and a link with no way has
   `points: null` and `why` (`NO_ROUTE`: a name that is no thing here, a thing joined to itself, two heights, no free
-  place at a foot that can be seen, no way along the floor, too far apart, too many links). `routeNote(route)` says it
+  place at a foot that can be seen, no way along the floor, too far apart for the smallest thing, too many links). `routeNote(route)` says it
   in words ("app to db: passes behind logs"), or null when a route lies well: a person or a model can change the
   picture without looking at it.
 - **`rounded`**, in the same door: a way with its corners rounded. `rounded(points, radius)` gives `{ start, pieces,

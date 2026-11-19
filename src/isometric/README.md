@@ -121,7 +121,7 @@ it passes behind. A later link takes the lane beside one laid before it, half a 
 lie side by side; a foot has room for three (a narrow thing gets a finer lattice), and past that `shared` says how
 much of the way lies on another's. A link alone takes the middle of a foot. Two things at one height above the floor
 are joined at that height. A link with no way says `why`: a name that is no thing here, a thing joined to itself, two
-different heights, no free place at a foot that can be seen, no way along the floor (walled in), too far apart, or
+different heights, no free place at a foot that can be seen, no way along the floor (walled in), too far apart for the smallest thing, or
 too many links (the work is counted, `MOST_WORK`: a picture too big leaves its last links untried, never a build that
 hangs).
 

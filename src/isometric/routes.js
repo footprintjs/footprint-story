@@ -35,7 +35,7 @@ import { own, readThing, refuse, shown } from './thing.js';
 export const MOST_ROUTES = 1024;
 /** The most steps of the search one picture may take, all its links together. */
 export const MOST_WORK = 4_000_000;
-const MOST_NAME = 200, MOST_POINTS = 40_000;
+const MOST_NAME = 200, MOST_POINTS = 200_000;   // the most points a lattice has: past that it is made coarser
 /** The tiles of floor a thing hides behind it for each tile of its height, in the usual two-to-one view. */
 const HIDES = Math.sqrt(1.5);
 const STEPS = [0.5, 0.25, 0.125];   // how far apart the lattice's points may be, in tiles: the coarsest that gives the narrowest foot three places
@@ -49,7 +49,7 @@ const WAYS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 export const NO_ROUTE = Object.freeze({
   name: 'a name that is no thing here', self: 'a thing joined to itself', heights: 'the two stand at different heights',
   foot: 'no free place at a foot that can be seen', way: 'no way along the floor', work: 'too many links to lay: not tried',
-  wide: 'the things stand too far apart to lay links between',
+  wide: 'the things stand too far apart for the smallest of them: no lattice fine enough to give its feet a place',
 });
 
 const option = (options, key, usual) => (options !== null && typeof options === 'object' ? own(options, key) ?? usual : usual);
