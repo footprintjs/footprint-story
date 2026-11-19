@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.0 — links that lie on the floor
+
+- **`routes`**, in `footprint-story/isometric`: the way each link runs along the floor, round what stands on it.
+  `routes([{ name, at, size }], [[from, to]])` gives one entry a link: its `points` along the tile lines, from one of
+  the two feet a viewer sees to one of the other thing's, the `feet` it uses, its `bends`, its length in `tiles`. It
+  never passes under a thing, keeps off floor a thing hides when it can, and takes the lane beside a route laid before
+  it, so a request and its answer lie side by side. A thing straight in front of another, behind it or against it is
+  reached too. The same things and links always give the same ways.
+- **Each result says what happened.** `behind` names the things a route had to pass behind, `crosses` counts the
+  routes it crosses, `shared` is the tiles that lie on another's way for want of room, and a link with no way has
+  `points: null` and `why` (`NO_ROUTE`: a name that is no thing here, a thing joined to itself, two heights, no free
+  place at a foot that can be seen, no way along the floor, too far apart, too many links). `routeNote(route)` says it
+  in words ("app to db: passes behind logs"), or null when a route lies well: a person or a model can change the
+  picture without looking at it.
+- **`rounded`**, in the same door: a way with its corners rounded. `rounded(points, radius)` gives `{ start, pieces,
+  length, at(share) }`: a piece is a straight run or a corner (one curve, SVG's `Q`), and `at` is the point a share of
+  the way along by length, so a deck's packet and a film's frame stand at the same place on the same way.
+- Bounded: 256 things, 1,024 links (`MOST_ROUTES`), and a count of the search's steps (`MOST_WORK`): on a picture too
+  big, the last links are not tried and say so. Every value is read by its own stored field, and a refusal says what
+  to give. Where the methods come from: `src/isometric/REFERENCES.md`.
+
 ## 0.10.0 — places nobody types
 
 - **`arrange`**, in `footprint-story/isometric`: where things stand on the floor, worked out from what is joined to

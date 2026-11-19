@@ -381,6 +381,12 @@ things.map((thing) => grid.block(thing));                    // each is a thing 
 Along the cols a long chain is a long slant down the frame. `arrange(things, links, { across: true })` runs the steps
 across the frame instead, left to right, which fills a frame wider than it is tall.
 
+**Links along the floor.** `routes(things, links)` gives each link a way along the tile lines, round what stands in
+its way, from a foot a viewer sees to a foot a viewer sees; a request and its answer lie in two lanes. Each result
+says what happened (`behind: ['logs']`, or `why` it has no way), and `routeNote` says it in words, so a person or a
+model can change the picture without looking at it. `rounded(points, radius)` rounds the corners and gives the point
+a share along the way: a deck's packet and a film's frame stand at the same place.
+
 More in [src/isometric/README.md](src/isometric/README.md).
 
 ## API
@@ -411,7 +417,7 @@ More in [src/isometric/README.md](src/isometric/README.md).
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
-| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
+| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `rounded` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`). Each `src/` folder has a README saying why it exists.
 

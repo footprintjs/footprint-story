@@ -40,6 +40,7 @@ const MOST_NAME = 200, MOST_POINTS = 40_000;
 const HIDES = Math.sqrt(1.5);
 const STEPS = [0.5, 0.25, 0.125];   // how far apart the lattice's points may be, in tiles: the coarsest that gives the narrowest foot three places
 const AROUND = 2;                   // tiles of floor round the things that a route may use
+const REACH = 0.5;                  // tiles a route runs straight out of a foot, at least: room for an arrow's head on its last run
 const TURN = 1.5, HIDDEN = 3, CROSS = 2, ALONG = 24, SHARED = 12;   // what each costs, in tiles (HIDDEN: for each tile of hidden floor)
 const OFF_MIDDLE = 1.5;   // for each tile a place is off its foot's middle: more than the way it would save, so a link alone takes the middle
 /** The four ways along the lattice: the cols on, the rows on, the cols back, the rows back. */
@@ -143,7 +144,8 @@ function lattice(read, lift, step, hides) {
 
 /**
  * The places a route may leave or reach a thing at: on each of its two seen feet, the lattice lines that cross it, each
- * {edge, at: [col, row] (on the foot), node (the lattice point in front of it), way (out of the foot), stub, off}.
+ * {edge, at: [col, row] (on the foot), node (the lattice point in front of it), way (out of the foot), stub (the
+ * straight run between the two, in tiles), run (the lattice stretches that run lies on), off}.
  */
 function places(thing, { first, nx, ny, closed }, step) {
   const { at: [c, r], size: [w, d], round } = thing, out = [];
@@ -151,12 +153,15 @@ function places(thing, { first, nx, ny, closed }, step) {
     const [lo, span, wall, way] = edge === 'right' ? [r, d, c + w, 0] : [c, w, r + d, 1];
     const margin = Math.min(step / 2, span / 4);
     for (let k = Math.ceil((lo + margin) / step); k * step <= lo + span - margin; k += 1) {
-      const along = k * step, front = Math.ceil((wall + step / 2) / step);   // the first lattice line at least half a step in front of the foot
+      const along = k * step, front = Math.ceil((wall + REACH) / step);   // the first lattice line at least REACH in front of the foot
       const [i, j] = edge === 'right' ? [front - first[0], k - first[1]] : [k - first[0], front - first[1]];
       if (i < 0 || j < 0 || i >= nx || j >= ny || closed[j * nx + i]) continue;
+      // the stretches of lattice between the foot and that point: kept as the route's own, so no other runs along them
+      const run = [];
+      for (let back = 1; (front - back) * step >= wall - 1e-9; back += 1) run.push(edge === 'right' ? j * nx + i - back : (j - back) * nx + i);
       // a round thing's foot is on its round base: nearer its middle than the square's side, away from the side's middle
       const off = along - (lo + span / 2), reach = round ? wall - span / 2 + Math.sqrt(Math.max(0, (span / 2) ** 2 - off ** 2)) : wall;
-      out.push({ edge, at: edge === 'right' ? [reach, along] : [along, reach], node: j * nx + i, way, stub: front * step - reach, off: Math.abs(off) });
+      out.push({ edge, at: edge === 'right' ? [reach, along] : [along, reach], node: j * nx + i, way, stub: front * step - reach, run, off: Math.abs(off) });
     }
   }
   return out;
@@ -167,7 +172,8 @@ function search(grid, starts, ends, step, seen, work) {
   const { nx, ny, closed, hidden, alongCols, alongRows, taken } = grid, stamp = (seen.turn += 1);
   const goals = new Map(ends.map((p) => [p.node, p]));
   const far = (node) => { let least = Infinity; const i = node % nx, j = (node - i) / nx; for (const g of goals.keys()) least = Math.min(least, Math.abs(g % nx - i) + Math.abs(Math.floor(g / nx) - j)); return least * step; };
-  const placeCost = (p) => p.stub + p.off * OFF_MIDDLE + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0);
+  const lies = (p) => { const kept = p.way === 0 ? alongCols : alongRows; return p.run.filter((stretch) => kept[stretch]).length; };
+  const placeCost = (p) => p.stub + p.off * OFF_MIDDLE + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG;
   const pointCost = (node) => (hidden[node] >= 0 ? HIDDEN * step : 0);
   const open = heap();
   let order = 0, best = null;
@@ -246,14 +252,22 @@ export function routes(things, links = [], options = undefined) {
     if (!found) return none(from, to, work.left <= 0 ? NO_ROUTE.work : NO_ROUTE.way);
     // the way is kept: its stretches, so a later link takes the lane beside it, and its two places
     const { nx, hidden, alongCols, alongRows, taken, first } = grid, { nodes, start, end } = found;
-    let crosses = 0, shared = taken.has(`${start.edge} ${start.at}`) || taken.has(`${end.edge} ${end.at}`) ? step : 0;
+    let crosses = 0, shared = 0;
+    for (const place of [start, end]) {
+      const kept = place.way === 0 ? alongCols : alongRows;
+      if (taken.has(`${place.edge} ${place.at}`)) shared += place.stub;
+      else shared += place.run.filter((stretch) => kept[stretch]).length * step;
+    }
     for (let k = 1; k < nodes.length; k += 1) {
       const cols = Math.abs(nodes[k] - nodes[k - 1]) === 1, [run, across] = cols ? [alongCols, alongRows] : [alongRows, alongCols];
       if (across[nodes[k]] || across[nodes[k] - (cols ? nx : 1)]) crosses += 1;
       if (run[Math.min(nodes[k], nodes[k - 1])]) shared += step;   // floor another route already runs along: only where there was no room beside it
     }
     for (let k = 1; k < nodes.length; k += 1) (Math.abs(nodes[k] - nodes[k - 1]) === 1 ? alongCols : alongRows)[Math.min(nodes[k], nodes[k - 1])] = 1;
-    taken.add(`${start.edge} ${start.at}`); taken.add(`${end.edge} ${end.at}`);
+    for (const place of [start, end]) {
+      taken.add(`${place.edge} ${place.at}`);
+      for (const stretch of place.run) (place.way === 0 ? alongCols : alongRows)[stretch] = 1;
+    }
     const point = (node) => [(first[0] + node % nx) * step, (first[1] + Math.floor(node / nx)) * step];
     const all = [start.at, ...nodes.map(point), end.at], points = all.filter((p, k) => k === 0 || k === all.length - 1 || (p[0] - all[k - 1][0]) * (all[k + 1][1] - p[1]) !== (p[1] - all[k - 1][1]) * (all[k + 1][0] - p[0]));
     const behind = [...new Set(nodes.map((node) => hidden[node]).filter((index) => index >= 0))].map((index) => read[index].name);
