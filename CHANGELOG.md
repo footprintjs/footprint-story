@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — an order written once, and a floor seen from a corner
 
 - **Turns**, in `footprint-story/motion`: an order written once, for a click of a deck and a beat of a film.
   `readTurns('camera laptop (dns server) w1:1.2 db')` reads names in the order they come, `(a b)` as names that come together
