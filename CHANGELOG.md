@@ -5,13 +5,18 @@
 - **`arrange`**, in `footprint-story/isometric`: where things stand on the floor, worked out from what is joined to
   what. `arrange([{ name, size }], [[from, to]])` gives each thing its `at`: a joined thing stands one step further along
   the cols than what leads to it, things led to from one place stand side by side along the rows, evenly either side of
-  it, and the order within a step is the one with the fewest links that cross. A ring of links is placed too, things
-  joined to nothing stand in rows behind the rest, everything is on the half tile, and the same things and links always
-  give the same places. What it returns is things a grid draws. Every value is read by its own stored value and
-  bounded (256 things, 1,024 links), and a refusal says what to give. Not kept clear: a link that skips a step may pass
-  a thing between.
+  it, and the order within a step has few links that cross (the best of a few tries, not always the fewest). A ring of
+  links is placed too, and things joined to nothing stand in rows past the rest, nearer the viewer. Two gaps, `gap`
+  between things side by side and `step` between one step and the next: left out, `gap` is what lets the floor show
+  between a thing and a taller one in front of it (1.22 tiles for each tile of the tallest thing's height, and half a
+  tile, never under one), and `step` is a tile more (never under two), room for a link's arrow. Every slot is on the
+  half tile, `cols` and `rows` are whole tiles (a
+  floor that size lies under the arrangement), and the same things and links always give the same places. What it
+  returns is things a grid draws. Every value is read by its own stored value and bounded (256 things, 1,024 links),
+  and a refusal says what to give. Not kept clear: a link that skips a step may pass a thing between.
 - **`gridFor`**, in the same door: the grid on which placed things fill a box of the frame, `gridFor(things, [x0, y0,
-  x1, y1])` — a two-to-one tile a whole even number of pixels wide (24 to 160), the picture in the middle of the box.
+  x1, y1])` — a two-to-one tile a whole even number of pixels wide (24 to 160, or `least` and `most`), the picture in
+  the middle of the box.
 
 ## 0.9.0 — an order written once, and a floor seen from a corner
 

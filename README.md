@@ -363,8 +363,9 @@ The picture above is drawn from these numbers by a test, so it is what the grid 
 the grid is checked against a camera with no depth, built in the test from first principles, and the drawing order
 against lines of sight worked out apart from the code.
 
-**No places to type.** Say what is joined to what, and `arrange` says where each thing stands; `gridFor` then gives the
-grid on which they fill a box of the frame. The same things and links always give the same places.
+**No places to type.** Say what is joined to what, and `arrange` says where each thing stands, far enough apart that
+the floor shows between them; `gridFor` then gives the grid on which they fill a box of the frame. The same things and
+links always give the same places.
 
 ```js
 import { arrange, gridFor } from 'footprint-story/isometric';
@@ -372,7 +373,7 @@ import { arrange, gridFor } from 'footprint-story/isometric';
 const { things } = arrange(
   [{ name: 'you', size: [2, 2, 1] }, { name: 'dns', size: [2, 2, 1] }, { name: 'server', size: [2, 2, 1] }, { name: 'db', size: [2, 2, 1] }],
   [['you', 'dns'], ['you', 'server'], ['server', 'db']],
-);                                     // you at [0, 1.5]: before the two it asks, in their middle · dns [3, 0] · server [3, 3] · db [6, 3]
+);                                     // you at [0, 2]: before the two it asks, in their middle · dns [5, 0] · server [5, 4] · db [10, 4]
 const grid = gridFor(things, [0, 220, 1920, 1000]);          // a tile as wide as lets them all sit in that box, the picture in its middle
 things.map((thing) => grid.block(thing));                    // each is a thing the grid draws
 ```

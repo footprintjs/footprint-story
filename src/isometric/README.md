@@ -51,23 +51,33 @@ each block goes. `arrange(things, links)` does that: `things` are `[{name, size}
 const { things, cols, rows } = arrange(
   [{ name: 'you', size: [2, 2, 1] }, { name: 'dns', size: [2, 2, 1] }, { name: 'server', size: [2, 2, 1] }, { name: 'db', size: [2, 2, 1] }],
   [['you', 'dns'], ['you', 'server'], ['server', 'db']],
-);   // you [0, 1.5] · dns [3, 0] · server [3, 3] · db [6, 3]; the arrangement reaches 8 cols and 5 rows
+);   // you [0, 2] · dns [5, 0] · server [5, 4] · db [10, 4]; the arrangement reaches 12 cols and 6 rows
 ```
 
 A joined thing stands one step further along the cols than what leads to it, so a chain reads from the far corner
-towards the viewer's right. Things led to from one place stand side by side along the rows, evenly either side of it:
-each thing wants its middle on the middle of what it is joined to, and within a step the things keep their order and
-their gaps and stand as near what they want as that allows (least squares, so the answer is exact and has one value).
-The order within a step is the one with the fewest links that cross. A ring of links is placed too: the link that
-closes it is read the other way round. Things joined to nothing stand in rows behind the rest. Everything is on the half
-tile, one tile apart unless `gap` says otherwise, and the same things and links always give the same places.
+towards the viewer's right. Things led to from one place stand side by side along the rows, evenly either side of it
+(to the half tile): each thing wants its middle on the middle of what it is joined to, and within a step the things
+keep their order and their gaps and stand as near what they want as that allows (least squares: each time a step is
+settled, the answer is exact and has one value). The order within a step has few links that cross: the best of a few
+tries, not always the fewest there could be. A ring of links is placed too: the link that closes it is read the other
+way round. Things joined to nothing stand in rows of their own past the rest, nearer the viewer. A link to a name that
+is not a thing here is left out. Every slot is on the half tile (a thing stands in the middle of its slot), `cols` and
+`rows` are whole tiles, so a floor that size lies under the arrangement, and the same things and links always give the
+same places.
+
+**The gaps.** There are two: `gap` between things side by side in a step, and `step` between one step and the next,
+where the links run. Left out, each is what a thing's height asks for. In the usual two-to-one view a thing hides 1.22
+tiles of floor behind it for each tile of its height. So `gap` is that for the tallest thing and half a tile of floor
+to see, rounded up to the half tile and never under one tile: closer than that, the nearer thing covers the further
+one's faces. And `step` is a tile more, never under two, so a link drawn between two steps has floor to be seen on and
+room for its arrow. Give either to choose it yourself (another view hides another amount).
 
 A property test holds it to what an arrangement must always be (every thing placed once, none nearer another than the
-gap, a link running on along the cols), and the rows are checked against the closed form of the same least-squares
-answer, written apart from the code.
+gaps, a link running on along the cols), the rows are checked against the closed form of the same least-squares answer,
+written apart from the code, and a test shows the floor between a thing and a much taller one in front of it.
 
 `gridFor(things, [x0, y0, x1, y1])` then gives the grid on which the placed things fill that box: the usual two-to-one
-tile, a whole even number of pixels from 24 to 160 wide, the picture in the middle of the box. Every number of this
+tile, a whole even number of pixels from 24 to 160 wide (`least`, `most`), the picture in the middle of the box. Every number of this
 view grows with the tile, so the picture is measured once and the rest is one division.
 
 **Which views.** Isometric is one of a family of views with no depth (axonometric). This grid gives every one of
