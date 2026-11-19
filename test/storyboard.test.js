@@ -370,3 +370,27 @@ test('what a brief asks for, written as it asks, reads clean', () => {
     found: [{ headline: 'It waits on a lock', line: 'It waited 41 minutes', notes: 'Said.', sources: ['m1'] }], unsure: [], next: ['Fix the lock'] };
   assert.deepEqual(storyboardProblems(answer, { conversation: [{ id: 'm1', text: 'waited 41 minutes, disk fine' }] }), []);
 });
+
+test('the brief says how many entries each list holds, from the same table the reader checks: a writer is never refused for a limit nobody told it', () => {
+  const brief = (shape) => storyboardBrief(shape).instructions;
+  assert.match(brief('what-we-found'), /\nHow many entries each list holds: checked 1 to 6, found 1 to 3, unsure 0 to 3, next 1 to 4, an entry's sources 0 to 12\.\n/);
+  assert.match(brief('told-twice'), /\nHow many entries each list holds: items 2 to 8, flow 1 to 20, remember 2 to 4, a flow entry's path 1 to 8, a flow entry's calls 0 to 7\.\n/);
+  assert.match(brief('what-we-found'), /A field marked \(optional\) may be left out; every other field is needed, in every entry\./);
+  // each number the brief gives is the one the reader holds a board to: one entry more than the most is refused, with that number
+  const entry = { checked: found().checked[0], found: found().found[0], unsure: { what: 'w', why: 'y' }, next: 'n' };
+  for (const [list, most] of [['checked', 6], ['found', 3], ['unsure', 3], ['next', 4]]) {
+    assert.ok(brief('what-we-found').includes(`${list} ${list === 'unsure' ? 0 : 1} to ${most}`));
+    const full = found({ [list]: Array.from({ length: most }, () => entry[list]) }), over = found({ [list]: Array.from({ length: most + 1 }, () => entry[list]) });
+    assert.deepEqual(storyboardProblems(full).filter((p) => p.at === list), [], `${most} ${list} are fine`);
+    assert.deepEqual(storyboardProblems(over).filter((p) => p.at === list), [{ at: list, message: `has ${most + 1}, and ${most} is the most it may have` }]);
+  }
+  assert.deepEqual(storyboardProblems(found({ found: [] })).filter((p) => p.at === 'found'), [{ at: 'found', message: 'has 0, and it needs at least 1' }]);
+  assert.equal(storyboardProblems(found({ unsure: [] })).length, 0);
+  // a found entry without its notes: the field the brief says is needed
+  assert.deepEqual(storyboardProblems(found({ found: [{ headline: 'H', line: 'L', sources: [] }] })).map((p) => p.at), ['found[0].notes']);
+  for (const [list, least, most] of [['items', 2, 8], ['remember', 2, 4]]) {
+    assert.ok(brief('told-twice').includes(`${list} ${least} to ${most}`));
+    const one = told()[list][0];
+    assert.ok(storyboardProblems(told({ [list]: Array.from({ length: most + 1 }, () => one) })).some((p) => p.at === list && p.message === `has ${most + 1}, and ${most} is the most it may have`));
+  }
+});

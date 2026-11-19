@@ -8,6 +8,9 @@ import { deepFreeze } from './fields.js';
 
 const LABELS = Object.freeze({ story: 'The story', turn: 'The turn', real: 'The real thing', remember: 'To remember' });
 const WHO = { name: 20, line: 36 };   // what fits a piece in a row of five
+/** How many entries each list holds. ONE table: the reader checks a board against it and the brief tells the writer the same numbers. */
+const COUNTS = deepFreeze({ items: { least: 2, most: 8 }, flow: { least: 1, most: 20 }, remember: { least: 2, most: 4 },
+  path: { least: 1, most: 8, in: 'a flow entry' }, calls: { least: 0, most: 7, optional: true, in: 'a flow entry' } });
 
 function readWho(f, value, at) {
   const who = f.object(value, at, ['name', 'line', 'icon']);
@@ -40,7 +43,7 @@ function readItem(f, value, i, seen) {
 function readMoment(f, value, i, order) {
   const at = `flow[${i}]`, moment = f.object(value, at, ['path', 'calls', 'story', 'real']);
   if (!moment) return null;
-  const path = [...f.list(moment, 'path', at, { least: 1, most: 8 })], calls = f.list(moment, 'calls', at, { most: 7, optional: true });
+  const path = [...f.list(moment, 'path', at, COUNTS.path)], calls = f.list(moment, 'calls', at, COUNTS.calls);
   path.forEach((id, k) => {
     if (!order.includes(id)) f.say(`${at}.path[${k}]`, `is not an item (they are ${order.join(', ')})`);
     else if (k && id === path[k - 1]) f.say(`${at}.path[${k}]`, `goes from "${id}" to itself`);
@@ -54,6 +57,7 @@ function readMoment(f, value, i, order) {
 export const toldTwice = Object.freeze({
   name: 'told-twice',
   lists: Object.freeze(['items', 'flow']),   // each entry can be fixed on its own
+  counts: COUNTS,
   about: 'A cast of people and everyday things acts a system out, each turns into the real thing where it stood, then the same story runs again for real. For explaining a system to people who do not work on it.',
   writing: Object.freeze([
     'Choose a cast of people and everyday things anyone knows, and one stand-in for each real thing.',
@@ -71,13 +75,13 @@ export const toldTwice = Object.freeze({
   }),
 
   read(f, input, base) {
-    const seen = new Set(), items = f.list(input, 'items', '', { least: 2, most: 8 }).map((v, i) => readItem(f, v, i, seen)).filter(Boolean);
-    const order = items.map((it) => it.id).filter(Boolean), flow = f.list(input, 'flow', '', { least: 1, most: 20 }).map((v, i) => readMoment(f, v, i, order)).filter(Boolean);
+    const seen = new Set(), items = f.list(input, 'items', '', COUNTS.items).map((v, i) => readItem(f, v, i, seen)).filter(Boolean);
+    const order = items.map((it) => it.id).filter(Boolean), flow = f.list(input, 'flow', '', COUNTS.flow).map((v, i) => readMoment(f, v, i, order)).filter(Boolean);
     const acting = new Set(flow.flatMap((m) => m.path));
     for (const id of order) if (!acting.has(id)) f.say('flow', `never reaches "${id}": every item acts in the story before it turns`);
     const analogy = f.text(input, 'analogy', '', { most: MOST.analogy }), labels = readLabels(f, input, base.lang, LABELS);
     const together = input.together === undefined ? null : readTold(f, input.together, 'together');
-    const points = f.list(input, 'remember', '', { least: 2, most: 4 }).map((_, i, all) => f.text(all, i, 'remember', { most: MOST.point }));
+    const points = f.list(input, 'remember', '', COUNTS.remember).map((_, i, all) => f.text(all, i, 'remember', { most: MOST.point }));
     const intro = f.text(input, 'intro', '', { most: MOST.notes }), closing = f.text(input, 'closing', '', { most: MOST.notes });
     const path = (m, look, k) => ({ id: `${look === 'cast' ? 'story' : 'real'}-${k + 1}`, part: look === 'cast' ? 'story' : 'real', look, ...(look === 'cast' ? m.story : m.real), beat: { kind: 'path', path: m.path, calls: look === 'cast' ? [] : m.calls } });
     return {

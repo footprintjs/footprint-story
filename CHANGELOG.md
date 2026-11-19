@@ -17,6 +17,10 @@
   the grid is checked against a camera with no depth, and the order against lines of sight worked out apart from the
   code. A tile's height is the height the viewer stands at, so the usual two-to-one view and the true isometric are both
   here. Nothing here draws, and no tool reads it yet.
+- **`storyboardBrief` says how many entries each list holds**, and that every field not marked (optional) is needed. In a
+  real run a model wrote four `found` entries without their `notes`, was refused, and had to be asked again: the brief
+  gave the character limits and never the counts. The numbers come from the same table the reader checks a board
+  against (a shape's `counts`), so the two cannot drift. Nothing a board may hold changes.
 
 ## 0.8.0 — a chatbot session read as a conversation
 
