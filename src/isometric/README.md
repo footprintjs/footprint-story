@@ -70,8 +70,10 @@ places.
 long chain is a long slant that leaves two corners of a wide frame empty. `arrange(things, links, { across: true })`
 runs the steps across the frame, left to right, and stands the things of a step one below the other: a step to the
 right is a tile along the cols and one back along the rows, a step down is a tile along both. It is the same
-arrangement laid out cornerwise, so what is said above holds, with the middle of every thing on the half tile. No step
-stands in front of the next that way, so a step needs only room for an arrow: one tile, whatever the heights.
+arrangement laid out cornerwise, so the same rules hold measured across the frame and down it, where they were
+measured along the cols and the rows: a joined thing stands one step to the right of what leads to it on the frame
+(along the cols it may stand further back), and the middle of every thing is on the half tile. No step stands in front
+of the next that way, so a step needs only room for an arrow: one tile, whatever the heights.
 
 **The gaps.** There are two: `gap` between things side by side in a step, and `step` between one step and the next,
 where the links run. Left out, each is what a thing's height asks for. In the usual two-to-one view a thing hides 1.22

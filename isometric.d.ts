@@ -61,7 +61,8 @@ export interface IsoPlaced { readonly name: string; readonly at: readonly [numbe
 export interface IsoArrangement { readonly things: readonly IsoPlaced[]; readonly cols: number; readonly rows: number }
 /**
  * Where things stand, from what is joined to what. `links` are [from, to] by name: a joined thing stands one step
- * further along the cols than what leads to it, and things led to from one place stand side by side along the rows.
+ * further along the cols than what leads to it, and things led to from one place stand side by side along the rows
+ * (with `across`: one step to the right on the frame, and one below the other).
  * Things joined to nothing stand in rows past the rest, nearer the viewer; a link to a name that is not a thing here is
  * left out. `gap`: the tiles left between two things side by side; `step`: the tiles left between one step and the next,
  * where the links run. Left out, `gap` is what lets the floor show past the tallest thing in the usual two-to-one view
