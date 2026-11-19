@@ -32,6 +32,14 @@ test('a tile is twice as wide as tall, col runs down-right, row down-left, heigh
   assert.deepEqual(isometric({ tile: [100, 40] }).tile, [100, 40]);
 });
 
+test('a tile as wide as √3 times its height is the true isometric: all three edges of a cube are as long as each other', () => {
+  const grid = isometric({ tile: [120, 120 / Math.sqrt(3)] }), o = grid.at(0, 0), col = grid.at(1, 0), row = grid.at(0, 1);
+  const along = (p) => Math.hypot(p.x - o.x, p.y - o.y);
+  assert.ok(near(along(col), grid.rise) && near(along(row), grid.rise));
+  const usual = isometric({ tile: 120 });
+  assert.ok(usual.rise > Math.hypot(60, 30), 'from lower down, the edge that stands up looks the longest');
+});
+
 test('property: the grid is the picture a parallel camera takes from that corner, so a cube looks like a cube', () => {
   fc.assert(fc.property(fc.double({ min: 20, max: 400, noNaN: true }), fc.double({ min: 0.2, max: 0.9, noNaN: true }), coord, coord, coord, coord, coord, (w, flat, ox, oy, col, row, height) => {
     const h = w * flat, grid = isometric({ tile: [w, h], origin: [ox, oy] }), eye = camera(w, h, [ox, oy]);

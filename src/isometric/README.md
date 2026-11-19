@@ -10,6 +10,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 |---|---|
 | `grid.js` | the grid: where a point lands, and back; the faces of a box; a round thing's ellipses; the tile lines; a line along the floor |
 | `order.js` | `backToFront`: the order to draw things in so the nearer covers the further |
+| `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
 import { isometric, backToFront } from 'footprint-story/isometric';
@@ -33,5 +34,12 @@ draws a thing first when all of it stands at smaller cols, at smaller rows, or b
 keep the order given. Long boxes can be laid so each is behind the next in a ring; no order is right then, and the ring
 is cut at the one given first.
 
-**Not here:** a camera that turns (the corner is fixed), shadows, and a round thing on tiles that are not square.
-`footprint-story/shot` is the camera with depth; it is not changed by this.
+**Which views.** Isometric is one of a family of views with no depth (axonometric). This grid gives every one of
+them seen from the corner: `tile` is the height the viewer stands at. The usual `120` is two to one, about 30° up (what
+tile games call isometric); `[120, 69.3]` (the width over √3) is the true isometric, where all three edges of a cube are
+as long as each other; a flatter tile looks from lower, a taller one from higher.
+
+**Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
+on tiles that are not square, and finding a way round things (`route` goes where it is told). A view that turns is
+`footprint-story/shot`'s camera, which has depth today; it is not changed by this. Where the ideas come from:
+[REFERENCES.md](REFERENCES.md).

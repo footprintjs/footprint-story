@@ -34,7 +34,7 @@ const turns = readTurns('camera laptop (dns server) w1:1.2 db');
 turnTimes(turns, { step: 0.35 }).turns.map((t) => t.at);   // [0, 0.35, 0.7, 1.05, 2.25]
 ```
 
-A tool looks the names up in its own picture. Text from anyone is bounded (256 turns, 8192 characters), a name with a
+The written form is our own; `stagger` is its plain case. A tool looks the names up in its own picture. Text from anyone is bounded (256 turns, 8192 characters), a name with a
 character nobody can see is refused, and every refusal says what to write.
 
 The ease, spring and moves files came from footprint-storyreel 0.23.0 unchanged in what they do (property tests
