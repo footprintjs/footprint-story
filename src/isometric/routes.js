@@ -167,7 +167,7 @@ function lattice(read, lift, step, hides, work) {
  * straight run between the two, in tiles), run (the lattice stretches that run lies on), between (the lattice points
  * on it), hidden (whether a thing hides the foot or the run), off}. The run from a foot to its lattice point is part
  * of the route like any other stretch: a place whose run would pass under another thing is no place, and one a thing
- * hides is told as hidden. `work`: {left} — a look for each thing a place is asked against.
+ * hides is told as hidden. `work`: {left} — a look for each thing a place is asked against; null when it runs out.
  */
 function places(thing, read, lift, hides, { first, nx, ny, closed, hidden }, step, work) {
   const { at: [c, r], size: [w, d], round } = thing, out = [], others = read.filter((t) => t !== thing && standsAt(t, lift));
@@ -177,7 +177,7 @@ function places(thing, read, lift, hides, { first, nx, ny, closed, hidden }, ste
     for (let k = Math.ceil((lo + margin) / step); k * step <= lo + span - margin; k += 1) {
       const along = k * step, [i, j] = edge === 'right' ? [front - first[0], k - first[1]] : [k - first[0], front - first[1]];
       if (i < 0 || j < 0 || i >= nx || j >= ny || closed[j * nx + i]) continue;
-      if (read.length > work.left) return out;
+      if (read.length > work.left) return null;   // not enough work left to ask: no list at all, never a short one
       work.left -= read.length;
       // a round thing's foot is on its round base: nearer its middle than the square's side, away from the side's middle
       const off = along - (lo + span / 2), reach = round ? wall - span / 2 + Math.sqrt(Math.max(0, (span / 2) ** 2 - off ** 2)) : wall;
@@ -296,8 +296,12 @@ export function routes(things, links = [], options = undefined) {
     const floor = floorAt(a.at[2]);
     if (!floor) return none(from, to, NO_ROUTE.work);   // no work left to build this height's floor
     const { grid } = floor;
-    const placesOf = (thing) => floor.places.get(thing) ?? floor.places.set(thing, places(thing, read, a.at[2], hides, grid, step, work)).get(thing);
-    const starts = placesOf(a), ends = placesOf(b);
+    const placesOf = (thing) => {
+      if (!floor.places.has(thing)) { const found = places(thing, read, a.at[2], hides, grid, step, work); if (found) floor.places.set(thing, found); return found; }
+      return floor.places.get(thing);
+    };
+    const starts = placesOf(a), ends = starts && placesOf(b);
+    if (!starts || !ends) return none(from, to, NO_ROUTE.work);
     if (!starts.length || !ends.length) return none(from, to, step > fine ? NO_ROUTE.wide : NO_ROUTE.foot);
     const found = search(grid, starts, ends, step, seen, work);
     if (!found) return none(from, to, work.left <= 0 ? NO_ROUTE.work : NO_ROUTE.way);
@@ -324,9 +328,10 @@ export function routes(things, links = [], options = undefined) {
     const point = (node) => [(first[0] + node % nx) * step, (first[1] + Math.floor(node / nx)) * step];
     const all = [start.at, ...nodes.map(point), end.at], points = all.filter((p, k) => k === 0 || k === all.length - 1 || (p[0] - all[k - 1][0]) * (all[k + 1][1] - p[1]) !== (p[1] - all[k - 1][1]) * (all[k + 1][0] - p[0]));
     // every thing that hides a point of it — the lattice points it stands on, those of its two short runs, and its two feet
-    const stood = [start.at, end.at, ...[...nodes, ...start.between, ...end.between].map(point)];
-    work.left -= stood.length * read.length;
-    const behind = read.filter((thing) => stood.some(([x, y]) => hidesPoint(thing, a.at[2], hides, x, y))).map((thing) => thing.name);
+    // (a foot is asked against every thing but its own: a round thing's foot is on its rim, inside the square it stands on)
+    const stood = [...nodes, ...start.between, ...end.between].map(point), feet = [[start.at, a], [end.at, b]];
+    work.left -= (stood.length + 2) * read.length;
+    const behind = read.filter((thing) => stood.some(([x, y]) => hidesPoint(thing, a.at[2], hides, x, y)) || feet.some(([[x, y], own]) => thing !== own && hidesPoint(thing, a.at[2], hides, x, y))).map((thing) => thing.name);
     const tiles = points.reduce((sum, p, k) => (k ? sum + Math.abs(p[0] - points[k - 1][0]) + Math.abs(p[1] - points[k - 1][1]) : 0), 0);
     return { from, to, points, feet: [start.edge, end.edge], bends: points.length - 2, tiles, behind, crosses, shared };
   });

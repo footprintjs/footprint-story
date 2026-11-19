@@ -321,6 +321,11 @@ test('routes: the short run out of a foot is part of the route — it passes und
   assert.deepEqual(routes(walled, [['a', 'b'], ['b', 'a']]).map((r) => r.why), [NO_ROUTE.foot, NO_ROUTE.foot]);
 });
 
+test('routes: a round thing does not hide its own foot', () => {
+  const things = [thing('r', [0, 0], [2, 2, 1], { round: true }), thing('n', [1.95, 1.7], [0.5, 0.25, 0.2]), thing('b', [6, 0])];
+  for (const route of routes(things, [['r', 'b'], ['b', 'r']])) { assert.ok(route.points, route.why); assert.equal(route.behind.includes('r'), false, JSON.stringify(route)); }
+});
+
 test('routes: behind names every thing that hides a point, whatever order the things are given in', () => {
   const picture = (order) => order.map((name) => ({ A: thing('A', [2, -7], [2, 2, 0]), W1: thing('W1', [-10, -1], [12.5, 0.5, 0]), W2: thing('W2', [3.5, -1], [16, 0.5, 0]), X: thing('X', [4, 0], [1, 1, 4]), Y: thing('Y', [5, 1], [1, 1, 4]), B: thing('B', [2, 6], [2, 2, 0]) }[name]));
   const one = routes(picture(['A', 'W1', 'W2', 'X', 'Y', 'B']), [['A', 'B']])[0], other = routes(picture(['A', 'W1', 'W2', 'Y', 'X', 'B']), [['A', 'B']])[0];
