@@ -74,6 +74,9 @@ test('every refusal says what to write', () => {
   refused([{ names: Object.assign([], { 1: 'a', length: 2 }) }], /a name is text, not undefined/);                 // a hole is not a name
   refused(Object.assign([], { 1: 'a', length: 2 }), /an order is text, or a list of text and \{names, takes\?\} — not undefined/);
   refused([{ names: Array.from({ length: MOST_TOGETHER + 1 }, (_, i) => `n${i}`) }], /at most 64 names come together/);
+  let ran = 0;                                                                                                      // a getter is somebody's code: never run
+  refused([{ names: Object.defineProperty(['a'], 0, { get() { ran += 1; return 'a'; }, enumerable: true }) }], /a name is text, not undefined/);
+  assert.equal(ran, 0);
   refused([{ names: ['a b'] }], /a name has no space in it/);
   refused([{ names: ['a'], takes: -1 }], /a turn takes seconds/);
   refused([{ names: ['a'], takes: '1' }], /a turn takes seconds/);
@@ -101,6 +104,8 @@ test('turnTimes: takes(turn, index) gives a turn its time when it does not say; 
   assert.throws(() => turnTimes('a b'), /turnTimes takes the turns readTurns gave/);
   assert.throws(() => turnTimes([null]), /turnTimes takes the turns readTurns gave — not a turn: null/);
   assert.throws(() => turnTimes([{ takes: 1 }]), /not a turn/);
+  assert.throws(() => turnTimes([{ names: [1, 2] }]), /a name is text, not 1/);
+  assert.throws(() => turnTimes([{ names: [] }]), /a turn's names are a list of one name or more/);
   assert.throws(() => turnTimes([{ names: ['a'], takes: Infinity }]), /a turn takes seconds, a number from 0 to 60 — not Infinity/);
   assert.throws(() => turnTimes(Array.from({ length: MOST_TURNS + 1 }, () => ({ names: ['a'] }))), /an order has at most 256 turns, not 257/);
   assert.throws(() => turnTimes([], { step: -1 }), /step is the seconds a turn takes when it does not say/);
@@ -132,6 +137,12 @@ test('a name the written form cannot spell is refused by writeTurns, never writt
   assert.throws(() => writeTurns([{ names: ['(a', 'b'] }]), /the name "\(a" cannot be written/);
   assert.throws(() => writeTurns([{ names: ['a b'] }]), /a name has no space in it/);
   assert.equal(writeTurns([{ names: ['k:v', 'a:b:c'] }]), '(k:v a:b:c)');   // a colon with no time after it is only a name
+  // found in the recheck: a name ending like a time, WITH a time of its own, writes and reads back
+  assert.deepEqual(readTurns('a:1:2 b:1.:.5'), [turn(['a:1'], 2), turn(['b:1.'], 0.5)]);
+  assert.equal(writeTurns(readTurns('a:1:2 b:1.:.5')), 'a:1:2 b:1.:0.5');
+  assert.deepEqual(readTurns(writeTurns(readTurns('a:1:2'))), readTurns('a:1:2'));
+  assert.throws(() => writeTurns([{ names: ['a:1'] }]), /the name "a:1" cannot be written/);                    // alone, with no time: it would read back as a taking 1 s
+  assert.throws(() => writeTurns([{ names: ['a:1', 'b'], takes: 2 }]), /the name "a:1" cannot be written/);     // in a group: a time inside a group is refused when read
   assert.deepEqual(readTurns('(k:v a:b:c)'), [turn(['k:v', 'a:b:c'])]);
 });
 

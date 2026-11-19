@@ -11,8 +11,10 @@
  * that do, the one behind is the one that can never cover the other: all of it at smaller cols, or at smaller rows,
  * or below. Things that pass through each other have no right order and get no rule.
  *
- * A ring that IS in the picture (three long boxes, each over the next) has no right order. It is cut at the thing
- * given first among those in the ring, and everything outside the ring is still drawn in a right order.
+ * A ring that IS in the picture (three long boxes, each over the next) has no right order among its own things. It is
+ * cut at its first given — but only a ring GROUP that waits for nothing outside itself is cut (a review found two
+ * rings, one in front of the other: cutting the front one first drew it under the back one). So every rule between a
+ * ring and anything outside it, another ring too, is still kept.
  */
 import { readThing } from './thing.js';
 
@@ -27,13 +29,32 @@ function shadows({ at: [c, r, z], size: [w, d, h] }, k) {
 }
 const meet = (a, b) => a.every(([lo, hi], i) => lo < b[i][1] && b[i][0] < hi);
 
-/** A thing in a ring among those not drawn: walk back along what each waits for until a thing comes round again, then take the ring's first given. */
-function inRing(start, waitsFor, drawn) {
-  const seen = new Map();
-  let at = start;
-  while (!seen.has(at)) { seen.set(at, seen.size); at = waitsFor[at].find((i) => !drawn[i]); }
-  const from = seen.get(at);
-  return Math.min(...[...seen].filter(([, order]) => order >= from).map(([i]) => i));
+/**
+ * Where to cut when nothing is ready: the first given thing of a ring group that waits for nothing outside itself.
+ * The things not drawn are put into groups that can each reach every other of the group along "drawn before" rules
+ * (R. Tarjan's strongly connected components, one walk). A group no other group must be drawn before always exists,
+ * and is a ring: one thing alone that waits for nothing would have been ready. Among such groups, the one holding the
+ * first given thing.
+ */
+function cutAt(then, waitsFor, drawn) {
+  const n = drawn.length, index = new Array(n).fill(-1), low = new Array(n).fill(0), group = new Array(n).fill(-1), stack = [], onStack = new Array(n).fill(false);
+  let counter = 0, groups = 0;
+  const visit = (v) => {
+    index[v] = low[v] = counter; counter += 1; stack.push(v); onStack[v] = true;
+    for (const w of then[v]) {
+      if (drawn[w]) continue;
+      if (index[w] < 0) { visit(w); low[v] = Math.min(low[v], low[w]); } else if (onStack[w]) low[v] = Math.min(low[v], index[w]);
+    }
+    if (low[v] !== index[v]) return;
+    for (let w = -1; w !== v;) { w = stack.pop(); onStack[w] = false; group[w] = groups; }
+    groups += 1;
+  };
+  for (let v = 0; v < n; v += 1) if (!drawn[v] && index[v] < 0) visit(v);
+  const waitsOutside = new Array(groups).fill(false);
+  for (let v = 0; v < n; v += 1) if (!drawn[v] && waitsFor[v].some((u) => !drawn[u] && group[u] !== group[v])) waitsOutside[group[v]] = true;
+  let first = n;   // such a group always exists, so this ends below n
+  for (let v = n - 1; v >= 0; v -= 1) if (!drawn[v] && !waitsOutside[group[v]]) first = v;
+  return first;
 }
 
 /**
@@ -59,7 +80,7 @@ export function backToFront(items, thingOf, { tileHeight, rise }) {
   while (out.length < n) {
     let next = -1;
     for (let i = 0; i < n && next < 0; i += 1) if (!drawn[i] && waits[i] === 0) next = i;
-    if (next < 0) next = inRing(drawn.indexOf(false), waitsFor, drawn);
+    if (next < 0) next = cutAt(then, waitsFor, drawn);
     drawn[next] = true;
     out.push(items[next]);
     for (const j of then[next]) waits[j] -= 1;

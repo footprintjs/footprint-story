@@ -13,8 +13,8 @@
  * `stagger` is the plain case: every item its own turn, one gap. Nothing here knows what a name is: a tool looks its
  * names up in its own picture, and gives `isName` when one of its names looks like the written form (a thing really
  * called `w1:2` is itself). The text may come from anyone: it is bounded as it is read (never after), a hidden
- * character in a name is refused, a list is read index by index (a hole in it is refused), and every refusal says
- * what to write. Seconds are kept to the millisecond, so what is written always reads back.
+ * character in a name is refused, a list is read by its own stored values (a hole is refused, a getter is never
+ * run), and every refusal says what to write. Seconds are kept to the millisecond, so what is written reads back.
  */
 
 /** The most turns an order has, names a turn has, characters a name has and characters the written form has (all its parts together). */
@@ -25,12 +25,20 @@ export const MOST_TURN_SECONDS = 60;
 const HIDDEN = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}\p{Noncharacter_Code_Point}\p{Variation_Selector}⠀]/u;
 const SECONDS = /^(?:\d+(?:\.\d*)?|\.\d+)$/;   // 1, 1.2, .5 — never '1.2.3', '-1' or '1e3'
 const FORM = "names in the order they come, '(a b)' for names that come together, 'name:seconds' for a turn's own time — e.g. 'a (b c) d:1.2'";
-const shown = (v) => (typeof v === 'number' || v === undefined ? String(v) : JSON.stringify(v));
+/** A value's own stored field: undefined when it has none, and for a getter (somebody's code, which is never run). */
+const own = (o, key) => { const d = Object.getOwnPropertyDescriptor(o, key); return d && 'value' in d ? d.value : undefined; };
+/** A value as a refusal shows it, read the same way: a list by its own stored values, an object only named. */
+function shown(v) {
+  if (Array.isArray(v)) return `[${Array.from({ length: Math.min(v.length, 8) }, (_, i) => shown(own(v, i))).join(',')}${v.length > 8 ? ',…' : ''}]`;
+  if (v !== null && typeof v === 'object') return 'an object';
+  if (typeof v === 'string') return JSON.stringify(v.length > 60 ? `${v.slice(0, 60)}…` : v);
+  return typeof v === 'function' ? 'a function' : String(v);
+}
 const short = (s) => (s.length > 40 ? `${s.slice(0, 40)}…` : s);
 const round = (v) => Math.round(v * 1000) / 1000;
 const isSeconds = (v) => typeof v === 'number' && v >= 0 && v <= MOST_TURN_SECONDS;
-/** A name that would read back as something else: with a bracket in it, or ending like a time. */
-const looksWritten = (name) => /[()]/.test(name) || (name.lastIndexOf(':') > 0 && SECONDS.test(name.slice(name.lastIndexOf(':') + 1)));
+/** A name ending like a time (`w1:2`): alone with no time of its own, or inside a group, it would read back as a time. */
+const endsLikeTime = (name) => name.lastIndexOf(':') > 0 && SECONDS.test(name.slice(name.lastIndexOf(':') + 1));
 
 function refuse(where, fix) { throw new Error(`${where}: ${fix}`); }
 
@@ -53,7 +61,8 @@ function namesOf(names, where) {
   if (!Array.isArray(names) || !names.length) refuse(where, `a turn's names are a list of one name or more — not ${shown(names)}`);
   if (names.length > MOST_TOGETHER) refuse(where, `at most ${MOST_TOGETHER} names come together in one turn, not ${names.length}`);
   const out = [];
-  for (let i = 0; i < names.length; i += 1) out.push(nameOf(Object.hasOwn(names, i) ? names[i] : undefined, where));
+  // each index by its own stored value: a hole has none, and a getter is somebody's code, which is never run
+  for (let i = 0; i < names.length; i += 1) out.push(nameOf(own(names, i), where));
   return out;
 }
 
@@ -92,8 +101,8 @@ function parse(text, where, isName, turns) {
 /** A turn handed over as data: {names, takes?}, own fields only. */
 function turnOf(raw, where) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) refuse(where, `an order is text, or a list of text and {names, takes?} — not ${shown(raw)}`);
-  const takes = Object.hasOwn(raw, 'takes') ? raw.takes : null;
-  const names = namesOf(Object.hasOwn(raw, 'names') ? raw.names : undefined, where);
+  const takes = own(raw, 'takes') ?? null;
+  const names = namesOf(own(raw, 'names'), where);
   if (takes !== null && takes !== undefined && !isSeconds(takes)) refuse(where, `a turn takes seconds, a number from 0 to ${MOST_TURN_SECONDS}, or nothing — not ${shown(takes)}`);
   return { names, takes: takes === null || takes === undefined ? null : round(takes) };
 }
@@ -110,7 +119,7 @@ export function readTurns(order, { where = 'turns', isName } = {}) {
   const turns = [];
   let written = 0;
   for (let k = 0; k < parts.length; k += 1) {
-    const part = Object.hasOwn(parts, k) ? parts[k] : undefined;
+    const part = own(parts, k);
     if (typeof part !== 'string') { if (turns.length >= MOST_TURNS) refuse(where, `an order has at most ${MOST_TURNS} turns`); turns.push(turnOf(part, where)); continue; }
     written += part.length;
     if (written > MOST_TURNS_TEXT) refuse(where, `an order is at most ${MOST_TURNS_TEXT} characters, not ${written} or more`);
@@ -121,9 +130,10 @@ export function readTurns(order, { where = 'turns', isName } = {}) {
 
 /** A turn as turnTimes and writeTurns take it: what readTurns gave, or {names, takes?} of the same shape. */
 function given(turn, where, what) {
-  if (!turn || typeof turn !== 'object' || !Array.isArray(turn.names)) refuse(where, `${what} takes the turns readTurns gave — not a turn: ${shown(turn)}`);
-  if (turn.takes !== null && turn.takes !== undefined && !isSeconds(turn.takes)) refuse(where, `a turn takes seconds, a number from 0 to ${MOST_TURN_SECONDS} — not ${shown(turn.takes)}`);
-  return turn;
+  const names = turn && typeof turn === 'object' ? own(turn, 'names') : undefined, takes = names === undefined ? undefined : own(turn, 'takes');
+  if (!Array.isArray(names)) refuse(where, `${what} takes the turns readTurns gave — not a turn: ${shown(turn)}`);
+  if (takes !== null && takes !== undefined && !isSeconds(takes)) refuse(where, `a turn takes seconds, a number from 0 to ${MOST_TURN_SECONDS} — not ${shown(takes)}`);
+  return { names: namesOf(names, where), takes: takes ?? null };
 }
 
 /**
@@ -137,16 +147,16 @@ export function turnTimes(turns, { step = 0.35, takes, where = 'turns' } = {}) {
   if (turns.length > MOST_TURNS) refuse(where, `an order has at most ${MOST_TURNS} turns, not ${turns.length}`);
   if (!isSeconds(step)) refuse(where, `step is the seconds a turn takes when it does not say, a number from 0 to ${MOST_TURN_SECONDS} — not ${shown(step)}`);
   if (takes !== undefined && typeof takes !== 'function') refuse(where, `takes is a function (turn, index) that gives a turn's seconds, not ${shown(takes)}`);
-  let steps = 0, own = 0;
+  let steps = 0, spent = 0;   // spent: the seconds of the turns that said their own
   const timed = [];
   for (let index = 0; index < turns.length; index += 1) {
-    const turn = given(turns[index], where, 'turnTimes'), asked = turn.takes ?? takes?.(turn, index) ?? null;
+    const turn = given(turns[index], where, 'turnTimes'), asked = turn.takes ?? takes?.(turns[index], index) ?? null;
     if (asked !== null && !isSeconds(asked)) refuse(where, `a turn takes seconds, a number from 0 to ${MOST_TURN_SECONDS} — not ${shown(asked)}`);
-    timed.push(Object.freeze({ names: turn.names, at: round(steps * step + own), takes: asked === null ? step : round(asked) }));
-    if (asked === null) steps += 1; else own += round(asked);
+    timed.push(Object.freeze({ names: Object.freeze(turn.names), at: round(steps * step + spent), takes: asked === null ? step : round(asked) }));
+    if (asked === null) steps += 1; else spent += round(asked);
   }
   const last = timed.length ? timed[timed.length - 1].at : 0;
-  return Object.freeze({ turns: Object.freeze(timed), last, end: timed.length ? round(steps * step + own) : 0 });
+  return Object.freeze({ turns: Object.freeze(timed), last, end: timed.length ? round(steps * step + spent) : 0 });
 }
 
 /**
@@ -157,9 +167,10 @@ export function writeTurns(turns) {
   if (!Array.isArray(turns)) refuse('turns', `writeTurns takes the turns readTurns gave, not ${shown(turns)}`);
   const out = [];
   for (let index = 0; index < turns.length; index += 1) {
-    const turn = given(turns[index], 'turns', 'writeTurns'), names = namesOf(turn.names, 'turns');
-    for (const name of names) if (looksWritten(name)) refuse('turns', `the name "${short(name)}" cannot be written: it would read back as a group or a time — keep these turns as data`);
-    out.push(`${names.length === 1 ? names[0] : `(${names.join(' ')})`}${turn.takes === null || turn.takes === undefined ? '' : `:${round(turn.takes)}`}`);
+    const { names, takes } = given(turns[index], 'turns', 'writeTurns'), timed = takes !== null;
+    // `a:1` with its own time writes as `a:1:2` and reads back; alone with none, or in a group, it would read back as a time
+    for (const name of names) if (/[()]/.test(name) || (endsLikeTime(name) && (names.length > 1 || !timed))) refuse('turns', `the name "${short(name)}" cannot be written: it would read back as a group or a time — keep these turns as data`);
+    out.push(`${names.length === 1 ? names[0] : `(${names.join(' ')})`}${timed ? `:${round(takes)}` : ''}`);
   }
   return out.join(' ');
 }

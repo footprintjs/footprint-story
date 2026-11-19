@@ -144,6 +144,11 @@ test('every refusal says what to give', () => {
   refused(() => grid.block({ at: [999999, 0], size: [5, 1, 1] }), /a block reaches past 1000000: at \[999999,0,0\] with size \[5,1,1\] — bring it nearer/);
   const given = [1, 2];
   assert.notEqual(readThing({ at: given, size: [1, 1, 1] }).at, given, 'what is read is a new list');
+  // a getter is somebody's code: it is never run, and the list is refused
+  let ran = 0;
+  const trap = Object.defineProperty([0, 0], 1, { get() { ran += 1; return 1; }, enumerable: true });
+  refused(() => readThing({ at: trap, size: [1, 1, 1] }), /a thing's at is/);
+  assert.equal(ran, 0);
   refused(() => readThing(null), /a thing is \{at/);
 });
 
@@ -169,6 +174,19 @@ function hasRing(things, grid) {
   };
   return things.some((_, i) => !state[i] && visit(i));
 }
+/** Which things are in one ring group: each can be reached from the other along "covers" (worked out by plain reachability, apart from the code's own walk). */
+function ringGroups(things, grid) {
+  const n = things.length, reach = things.map((a, i) => things.map((b, j) => i !== j && covers(b, a, grid)));   // reach[i][j]: i must be drawn before j
+  for (let k = 0; k < n; k += 1) for (let i = 0; i < n; i += 1) for (let j = 0; j < n; j += 1) if (reach[i][k] && reach[k][j]) reach[i][j] = true;
+  return (i, j) => reach[i][j] && reach[j][i];
+}
+/** The law for every picture, ringed or not: a thing is drawn before one it covers only when the two are in one ring group, where no order is right. */
+function onlyRingsAreCut(things, out, grid) {
+  const together = ringGroups(things, grid);
+  out.forEach((later, j) => out.slice(0, j).forEach((earlier) => {
+    if (covers(earlier, later, grid)) assert.ok(together(things.indexOf(earlier), things.indexOf(later)), `${JSON.stringify(earlier)} is drawn before ${JSON.stringify(later)}, which it covers, and they are not in one ring`);
+  }));
+}
 const noneBeforeWhatItCovers = (out, grid) => out.forEach((later, j) => out.slice(0, j).forEach((earlier) => assert.ok(!covers(earlier, later, grid), `${JSON.stringify(earlier)} is drawn before ${JSON.stringify(later)}, which it covers`)));
 const whole = (thing) => ({ ...thing, at: [thing.at[0], thing.at[1], thing.at[2] ?? 0] });
 
@@ -193,6 +211,19 @@ test('back to front: things that never meet on the frame get no rule, so they ca
   // far apart on the frame: no rule, the order given is kept
   const strangers = [{ id: 'right', at: [9, 0, 0], size: [1, 1, 1] }, { id: 'left', at: [0, 9, 0], size: [1, 1, 1] }, { id: 'high', at: [0, 0, 9], size: [1, 1, 1] }];
   assert.deepEqual(grid.backToFront(strangers).map((t) => t.id), ['right', 'left', 'high']);
+});
+
+test('back to front: two rings, one in front of the other: each is cut inside itself, and the one behind is still drawn first', () => {
+  // Found in the recheck: a ring was cut wherever the walk first met one, and here that was the ring in FRONT, so its
+  // boxes were drawn under the ring behind. A ring group is now cut only when nothing outside it must be drawn before it.
+  const grid = isometric();
+  const ring = (dx, dy, dz) => [{ at: [0 + dx, 2 + dy, 0 + dz], size: [3, 1, 1] }, { at: [0 + dx, 0 + dy, 1 + dz], size: [1, 3, 1] }, { at: [1 + dx, 0 + dy, 0 + dz], size: [1, 2, 3] }];
+  const front = ring(-2, 1, 2), behind = ring(0, 0, 0), things = [...front, ...behind];
+  assert.ok(hasRing(front, grid) && hasRing(behind, grid) && covers(front[0], behind[1], grid) && behind.every((b) => front.every((f) => !covers(b, f, grid))));
+  const out = grid.backToFront(things);
+  onlyRingsAreCut(things, out, grid);
+  assert.deepEqual(out.map((t) => things.indexOf(t)), [3, 4, 5, 0, 1, 2], 'the ring behind, then the ring in front');
+  onlyRingsAreCut([...behind, ...front], grid.backToFront([...behind, ...front]), grid);
 });
 
 test('back to front: a ring that is in the picture is cut at its first given, and what is outside it is still drawn right', () => {
@@ -222,10 +253,29 @@ test('back to front: refusals', () => {
   assert.throws(() => grid.backToFront(holed), /thing 2 is \{at: \[col, row, lift\?\], size: \[wide, deep, high\]\} — not undefined/);
 });
 
-const box = fc.record({ at: fc.tuple(fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 3 })), size: fc.tuple(fc.integer({ min: 1, max: 4 }), fc.integer({ min: 1, max: 4 }), fc.integer({ min: 1, max: 3 })) });
+const box = fc.record({ at: fc.tuple(fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 3 })), size: fc.tuple(fc.integer({ min: 1, max: 4 }), fc.integer({ min: 1, max: 4 }), fc.integer({ min: 0, max: 3 })) });   // high 0: a flat thing
+/** Three long boxes each over the next, at a place: a ring the picture really has. */
+const ringAt = fc.tuple(fc.integer({ min: -3, max: 4 }), fc.integer({ min: -3, max: 4 }), fc.integer({ min: 0, max: 4 })).map(([c, r, z]) => [{ at: [c, r + 2, z], size: [3, 1, 1] }, { at: [c, r, z + 1], size: [1, 3, 1] }, { at: [c + 1, r, z], size: [1, 2, 3] }]);
 /** Boxes that do not pass through each other: each one kept only when it is apart from those kept before it. */
-const scene = fc.array(box, { maxLength: 12 }).map((list) => list.reduce((kept, t) => (kept.every((o) => apart(o, t)) ? [...kept, { at: [...t.at], size: [...t.size] }] : kept), []));
+const keepApart = (list) => list.reduce((kept, t) => (kept.every((o) => apart(o, t)) ? [...kept, { at: [...t.at], size: [...t.size] }] : kept), []);
+const scene = fc.array(box, { maxLength: 12 }).map(keepApart);
+/** Pictures with rings in them: up to three rings (a ring kept whole or not at all) and some boxes, in a shuffled order. */
+const ringed = fc.tuple(fc.array(ringAt, { minLength: 1, maxLength: 3 }), fc.array(box, { maxLength: 5 }), fc.array(fc.nat(), { minLength: 14, maxLength: 14 })).map(([rings, boxes, keys]) => {
+  const whole = rings.reduce((kept, ring) => (ring.every((t) => kept.every((o) => apart(o, t))) ? [...kept, ...ring] : kept), []);
+  return keepApart([...whole, ...boxes]).map((t, i) => [keys[i % keys.length] + i / 100, t]).sort((a, b) => a[0] - b[0]).map(([, t]) => t);
+});
 const view = fc.constantFrom(120, [120, 120 / Math.sqrt(3)], [100, 30], [100, 80]);
+
+test('property: pictures with rings in them: a thing is drawn before one it covers only inside one ring, never across', () => {
+  let rings = 0;
+  fc.assert(fc.property(ringed, view, (things, tile) => {
+    const grid = isometric({ tile }), out = grid.backToFront(things);
+    assert.equal(new Set(out).size, things.length);
+    if (hasRing(things, grid)) rings += 1;
+    onlyRingsAreCut(things, out, grid);
+  }), { numRuns: 1500 });
+  assert.ok(rings > 1000, `only ${rings} of 1500 pictures had a ring`);
+});
 
 test('property: boxes of any length, from any height: every thing once, and when the picture has a right order, no thing before one it covers', () => {
   let ringed = 0, ordered = 0;

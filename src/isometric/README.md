@@ -30,13 +30,17 @@ the tiles from `at` (`[col, row]`, or `[col, row, lift]` above the floor) and is
 two-to-one tile, 30° up. A unit of height (`rise`) follows from that: 0.61 of the tile's width. A test builds that
 camera from first principles and compares every point.
 
-**Drawing order.** `grid.backToFront` orders only things that meet on the frame. Of two that do, the one drawn first is
-the one that can never cover the other: all of it at smaller cols, at smaller rows, or below. Things that do not meet
-keep the order given. Why only those that meet: a rule for every pair orders things that never touch on the frame, and
-such rules can run round in a ring the picture does not have (a review found four boxes where that drew one before a box
-it covers). Long boxes can truly be laid each over the next in a ring; no order is right then. The ring is cut at its
-first given, and everything outside it is still drawn right. A test checks the order against lines of sight worked out
-apart from the code, on thousands of pictures of boxes of any length, from four heights.
+**Drawing order.** `grid.backToFront` gives a rule only to two things that meet on the frame: the one drawn first is the
+one that can never cover the other (all of it at smaller cols, at smaller rows, or below). Where no rule says otherwise,
+directly or through things between them, the order given is kept. Why only those that meet: a rule for every pair orders
+things that never touch on the frame, and such rules can run round in a ring the picture does not have (a review found
+four boxes where that drew one before a box it covers).
+
+Long boxes can truly be laid each over the next in a ring, and no order is right among them. Such a ring is cut at its
+first given thing, and only when nothing outside the ring must be drawn before it: so every rule between a ring and
+anything else, another ring too, is still kept (the same review found two rings, one in front of the other, drawn the
+wrong way round). A test checks all of this against lines of sight worked out apart from the code, on thousands of
+pictures: boxes of any length, flat ones, rings, from four heights.
 
 **Which views.** Isometric is one of a family of views with no depth (axonometric). This grid gives every one of
 them seen from the corner: `tile` is the height the viewer stands at. The usual `120` is two to one, about 30° up (what
