@@ -66,9 +66,11 @@ export interface IsoArrangement { readonly things: readonly IsoPlaced[]; readonl
  * left out. `gap`: the tiles left between two things side by side; `step`: the tiles left between one step and the next,
  * where the links run. Left out, `gap` is what lets the floor show past the tallest thing in the usual two-to-one view
  * (1.22 tiles a tile of height, and half a tile; never under 1), and `step` a tile more (never under 2): room for a
- * link's arrow. The same things and links always give the same places.
+ * link's arrow. `across`: the steps run across the frame, left to right, and the things of a step stand one below the
+ * other (a step is then one tile: no step stands in front of the next) — for a frame wider than it is tall, where a
+ * chain along the cols is a long slant. The same things and links always give the same places.
  */
-export function arrange(things: readonly IsoNamed[], links?: readonly (readonly [string, string])[], options?: { gap?: number; step?: number } | null): IsoArrangement;
+export function arrange(things: readonly IsoNamed[], links?: readonly (readonly [string, string])[], options?: { gap?: number; step?: number; across?: boolean } | null): IsoArrangement;
 /** The most links one arrangement reads. */
 export const MOST_LINKS: number;
 /**

@@ -120,7 +120,7 @@ const drawn: { name: string; thing: IsoThing }[] = grid.backToFront([{ name: 'se
 export const isoMisc: unknown[] = [grid.at(1, 2, 3).x, grid.tileAt(10, 20).col, grid.tile[0], grid.origin[1], grid.rise, faces.top[0].y, round.top.rx, ground.lines[0][3], wire.length, bounds.w,
   drawn[0].name, readThing(server).at[2], MOST_ISOMETRIC_THINGS];
 const isoNamed: IsoNamed[] = [{ name: 'you', size: [2, 2, 1] }, { name: 'server', size: [2, 2, 1] }];
-const arranged: IsoArrangement = arrange(isoNamed, [['you', 'server']], { gap: 1, step: 3 });
+const arranged: IsoArrangement = arrange(isoNamed, [['you', 'server']], { gap: 1, step: 3, across: true });
 const placed: IsoPlaced = arranged.things[0];
 const fitted: IsoGrid = gridFor(arranged.things, [0, 220, 1920, 1000], { most: 160, least: 24 });
 export const isoArranged: unknown[] = [placed.name, placed.at[2], arranged.cols, arranged.rows, fitted.block(placed).box.w, MOST_LINKS, arrange(isoNamed).things.length];

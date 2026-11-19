@@ -66,6 +66,13 @@ is not a thing here is left out. Every slot is on the half tile (a thing stands 
 nothing arranged reaches 0, and a very long chain reaches past 256), and the same things and links always give the same
 places.
 
+**Across the frame.** Along the cols, a chain runs down and to the right of the frame. That is true to the floor, and a
+long chain is a long slant that leaves two corners of a wide frame empty. `arrange(things, links, { across: true })`
+runs the steps across the frame, left to right, and stands the things of a step one below the other: a step to the
+right is a tile along the cols and one back along the rows, a step down is a tile along both. It is the same
+arrangement laid out cornerwise, so what is said above holds, with the middle of every thing on the half tile. No step
+stands in front of the next that way, so a step needs only room for an arrow: one tile, whatever the heights.
+
 **The gaps.** There are two: `gap` between things side by side in a step, and `step` between one step and the next,
 where the links run. Left out, each is what a thing's height asks for. In the usual two-to-one view a thing hides 1.22
 tiles of floor behind it for each tile of its height. So `gap` is that for the tallest thing and half a tile of floor

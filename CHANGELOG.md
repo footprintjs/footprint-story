@@ -15,6 +15,10 @@
   always give the same places. What it
   returns is things a grid draws. Every value is read by its own stored value and bounded (256 things, 1,024 links),
   and a refusal says what to give. Not kept clear: a link that skips a step may pass a thing between.
+- **Across the frame.** `arrange(things, links, { across: true })` runs the steps across the frame, left to right,
+  where a chain along the cols runs down a long slant: it fills a frame wider than it is tall. The things of a step
+  stand one below the other, the middle of every thing is on the half tile, and a step is one tile, because no step
+  stands in front of the next.
 - **`gridFor`**, in the same door: the grid on which placed things fill a box of the frame, `gridFor(things, [x0, y0,
   x1, y1])` — a two-to-one tile a whole even number of pixels wide (24 to 160, or `least` and `most`), the picture in
   the middle of the box.

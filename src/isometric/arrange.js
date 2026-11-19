@@ -2,7 +2,7 @@
  * Arrange: where things stand on the floor, worked out from what is joined to what — so whoever writes the picture
  * says "the browser asks the server, the server asks the database" and never types a place.
  *
- *   arrange(things, links, {gap?, step?})  → {things: [{name, at: [col, row, 0], size}], cols, rows}
+ *   arrange(things, links, {gap?, step?, across?})  → {things: [{name, at: [col, row, 0], size}], cols, rows}
  *
  * `things` are [{name, size: [wide, deep, high]}], `links` are [[from, to], …] by name. A joined thing stands one step
  * further along the cols than what leads to it, so a chain reads from the far corner towards the viewer's right; things
@@ -26,6 +26,13 @@
  *      order and their gaps, and stand as near what they want as that allows — exactly, by least squares, each time a
  *      step is settled (down the steps, back, and down again).
  *   5. Every slot is on the half tile: a slot is the thing's size rounded up to a half, and the thing stands in its middle.
+ *
+ * ACROSS THE FRAME. Along the cols, a chain runs down and to the right of the frame: true to the floor, and a long one
+ * is a long slant that leaves two corners of a wide frame empty. With `across: true` the steps run across the frame,
+ * left to right, and the things of a step stand one below the other: a step to the right is a tile along the cols and
+ * one back along the rows, a step down is a tile along both. It is the same arrangement laid out cornerwise — each
+ * thing in the square its tiles fill seen that way — so everything above holds, with the middle of every thing on the
+ * half tile. No step then stands in front of the next, so a step needs only room for an arrow: a tile.
  *
  * THE GAPS. Two: `gap` between things side by side in a step, `step` between one step and the next — where the links
  * run. Left out, each is what a thing's height asks for. A thing one tile high hides 1.22 tiles of floor behind it in
@@ -235,18 +242,23 @@ function placeLoose(loose, slots, gap, { cols, rows }) {
 /**
  * Where things stand, from what is joined to what. `things`: [{name, size: [wide, deep, high]}]; `links`: [[from, to]]
  * by name; `gap`: the tiles left between two things side by side; `step`: the tiles left between one step and the
- * next (left out, each is what the tallest thing asks for — see THE GAPS above). Gives {things: [{name, at: [col, row,
- * 0], size}], cols, rows} — the things in the order given, each standing on the floor, the arrangement's far corner
- * at [0, 0], reaching `cols` and `rows` whole tiles from it.
+ * next (left out, each is what the tallest thing asks for — see THE GAPS above); `across`: the steps run across the
+ * frame, left to right, where they would run along the cols (see ACROSS THE FRAME above). Gives {things: [{name, at:
+ * [col, row, 0], size}], cols, rows} — the things in the order given, each standing on the floor, the arrangement's
+ * far corner at [0, 0], reaching `cols` and `rows` whole tiles from it.
  */
 export function arrange(things, links = [], options = undefined) {
   const { list, names } = readThings(things), n = list.length;
+  const across = option(options, 'across', false);
+  if (typeof across !== 'boolean') refuse(`across says whether the steps run across the frame, true or false — not ${shown(across)}`);
   const hidden = Math.max(0, ...list.map(({ size }) => size[2])) * HIDES;   // the floor the tallest thing hides behind it, in tiles
-  const gap = option(options, 'gap', Math.max(1, half(hidden + 0.5))), step = option(options, 'step', Math.max(2, half(hidden + 1.5)));
+  // across the frame no step stands in front of the next, so a step needs only room for an arrow
+  const gap = option(options, 'gap', Math.max(1, half(hidden + 0.5))), step = option(options, 'step', across ? 1 : Math.max(2, half(hidden + 1.5)));
   const tiles = (value, name, what) => { if (!(typeof value === 'number' && value >= 0 && value <= MOST_SIZE)) refuse(`${name} is the tiles left between ${what}, from 0 to ${MOST_SIZE} — not ${shown(value)}`); return half(value); };
   const between = tiles(gap, 'gap', 'two things side by side'), stride = tiles(step, 'step', 'one step and the next');
   const all = withoutRings(n, readLinks(links, names, n)), graph = stepsOf(n, all);
-  const slots = list.map(({ size }) => [slot(size[0]), slot(size[1])]);
+  // along the cols a slot is the thing's own tiles; across the frame it is the square its tiles fill seen cornerwise
+  const slots = list.map(({ size }) => (across ? new Array(2).fill(Math.max(1, Math.ceil((size[0] + size[1]) / 2))) : [slot(size[0]), slot(size[1])]));
   const isJoined = list.map((_, v) => graph.from[v].length + graph.to[v].length > 0);
   const joined = list.map((_, v) => v).filter((v) => isJoined[v]), loose = list.map((_, v) => v).filter((v) => !isJoined[v]);
   const place = joined.length ? placeJoined(orderSteps(joined, all, graph), slots, between, stride, graph) : [];
@@ -254,9 +266,18 @@ export function arrange(things, links = [], options = undefined) {
   for (const v of joined) place[v][1] -= top;
   const reach = (list_, axis) => (list_.length ? Math.max(...list_.map((v) => place[v][axis] + slots[v][axis])) : 0);
   placeLoose(loose, slots, between, { cols: reach(joined, 0), rows: reach(joined, 1) }).forEach((at, v) => { place[v] = at; });
+  // each thing in the middle of its slot. Across the frame the slots are laid out cornerwise — a step to the right on
+  // the frame is a tile along the cols and one back along the rows, a step down is a tile along both — so a slot's
+  // middle (x, y) is the tile [x + y, y − x], and the whole is moved to start from the far corner again
+  let at = list.map(({ size }, v) => (across
+    ? [place[v][0] + place[v][1] + slots[v][0] - size[0] / 2, place[v][1] - place[v][0] - size[1] / 2]
+    : [place[v][0] + (slots[v][0] - size[0]) / 2, place[v][1] + (slots[v][1] - size[1]) / 2]));
+  if (across && n) {
+    const far = [0, 1].map((axis) => Math.floor(Math.min(...at.map((p) => p[axis])) * 2) / 2);   // by half tiles, so every middle stays on the half tile
+    at = at.map((p) => [p[0] - far[0], p[1] - far[1]]);
+  }
   const clean = (value) => +value.toFixed(9);   // 0.1, not 0.09999999999999998: what is given back is what was meant
-  const placed = list.map(({ name, size }, v) => Object.freeze({ name, size: Object.freeze([...size]),
-    at: Object.freeze([clean(place[v][0] + (slots[v][0] - size[0]) / 2), clean(place[v][1] + (slots[v][1] - size[1]) / 2), 0]) }));   // in the middle of its slot
-  const everything = list.map((_, v) => v);
-  return Object.freeze({ things: Object.freeze(placed), cols: Math.ceil(reach(everything, 0)), rows: Math.ceil(reach(everything, 1)) });   // whole tiles, as a floor counts them
+  const placed = list.map(({ name, size }, v) => Object.freeze({ name, size: Object.freeze([...size]), at: Object.freeze([clean(at[v][0]), clean(at[v][1]), 0]) }));
+  const span = (axis) => (n ? Math.ceil(Math.max(...at.map((p, v) => p[axis] + list[v].size[axis])) - 1e-9) : 0);   // whole tiles, as a floor counts them
+  return Object.freeze({ things: Object.freeze(placed), cols: span(0), rows: span(1) });
 }

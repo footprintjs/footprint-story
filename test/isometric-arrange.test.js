@@ -314,6 +314,68 @@ test('gridFor refuses what is not a picture, a box or a tile, and says what to g
   assert.throws(() => gridFor(Array.from({ length: 257 }, () => one[0]), [0, 0, 10, 10]), /gridFor fits at most 256 things, not 257/);
 });
 
+// ——— across the frame
+
+/** A thing's reach across the frame and down it, in the tiles of the cornerwise view: [[left, right], [top, bottom]]. */
+const cornerwise = ({ at: [c, r], size: [w, d] }) => [[(c - r - d) / 2, (c + w - r) / 2], [(c + r) / 2, (c + w + r + d) / 2]];
+
+test('across the frame: a chain runs left to right on one line, and what one thing leads to stands one below the other', () => {
+  const grid = isometric({ tile: 120 }), middle = (t) => grid.at(t.at[0] + t.size[0] / 2, t.at[1] + t.size[1] / 2);
+  const chain = arrange(['a', 'b', 'c'].map((n) => thing(n)), [['a', 'b'], ['b', 'c']], { across: true });
+  assert.deepEqual(chain.things.map((t) => t.at.slice(0, 2)), [[0, 6], [3, 3], [6, 0]]);   // a tile along the cols and one back along the rows, each step
+  const [a, b, c] = chain.things.map(middle);
+  assert.ok(a.y === b.y && b.y === c.y && a.x < b.x && b.x < c.x);                          // on the frame: one level line, left to right
+  assert.equal(b.x - a.x, 3 * 120);                                                        // two tiles of block and one of gap: room for an arrow
+  const fan = arrange([thing('src'), thing('x'), thing('y')], [['src', 'x'], ['src', 'y']], { across: true }).things.map(middle);
+  assert.ok(fan[1].x === fan[2].x && fan[1].x > fan[0].x);                                 // one step to the right of it, both
+  assert.ok(fan[1].y < fan[0].y && fan[2].y > fan[0].y && Math.abs((fan[1].y + fan[2].y) / 2 - fan[0].y) <= 30);   // one above its line, one below, evenly (to the half tile)
+  assert.deepEqual(arrange([thing('only')], [], { across: true }).things[0].at, [0, 0, 0]);
+  assert.deepEqual(arrange([], [], { across: true }), { things: [], cols: 0, rows: 0 });
+  assert.throws(() => arrange([thing('a')], [], { across: 'yes' }), /across says whether the steps run across the frame, true or false — not "yes"/);
+});
+
+test('across the frame, for any things and links: none overlaps another, none nearer than the gaps, a link runs on to the right, every middle on the half tile', () => {
+  const seen = { joined: 0, loose: 0, links: 0 };
+  fc.assert(fc.property(picture, (given) => {
+    const { things, links, gap, step } = read(given), a = arrange(things, links, { gap, step, across: true });
+    assert.deepEqual(a.things.map((t) => t.name), things.map((t) => t.name));
+    assert.deepEqual(arrange(things, links, { gap, step, across: true }), a);   // the same input, the same places
+    for (let i = 0; i < a.things.length; i += 1) {
+      const p = a.things[i], [pu, pv] = cornerwise(p);
+      assert.ok(p.at[0] >= -1e-9 && p.at[1] >= -1e-9 && p.at[0] + p.size[0] <= a.cols + 1e-9 && p.at[1] + p.size[1] <= a.rows + 1e-9);
+      for (const axis of [0, 1]) { const mid = p.at[axis] + p.size[axis] / 2; assert.ok(near(mid * 2, Math.round(mid * 2), 1e-6), `${p.name}'s middle is at ${mid}`); }
+      for (let j = i + 1; j < a.things.length; j += 1) {
+        const q = a.things[j], [qu, qv] = cornerwise(q);
+        const apartAcross = Math.max(qu[0] - pu[1], pu[0] - qu[1]), apartDown = Math.max(qv[0] - pv[1], pv[0] - qv[1]);
+        // two steps keep the step between them across the frame; things of one step, and things joined to nothing, keep the gap
+        assert.ok(apartAcross >= Math.min(up(step), up(gap)) - 1e-9 || apartDown >= up(gap) - 1e-9, `${p.name} and ${q.name}: ${apartAcross} across, ${apartDown} down`);
+        const clear = Math.max(q.at[0] - (p.at[0] + p.size[0]), p.at[0] - (q.at[0] + q.size[0]), q.at[1] - (p.at[1] + p.size[1]), p.at[1] - (q.at[1] + q.size[1]));
+        assert.ok(clear >= -1e-9, `${p.name} and ${q.name} stand on the same tiles`);
+      }
+    }
+    const forward = read({ ...given, back: false }).links.filter(([u, v]) => u < v), b = arrange(things, forward, { gap, step, across: true });
+    for (const [u, v] of forward) {
+      const [fromAcross] = cornerwise(b.things.find((t) => t.name === u)), [toAcross] = cornerwise(b.things.find((t) => t.name === v));
+      assert.ok(toAcross[0] >= fromAcross[1] + up(step) - 1e-9, `${u} to ${v}: ${JSON.stringify([fromAcross, toAcross])}`);
+      seen.links += 1;
+    }
+    const linked = new Set(links.filter(([u, v]) => u !== v).flat());
+    seen.joined += linked.size > 0; seen.loose += linked.size < things.length;
+  }), { numRuns: 500, seed: 20261119 });
+  for (const [kind, n] of Object.entries(seen)) assert.ok(n > 30, `${kind} was tried ${n} times`);
+});
+
+test('across the frame no step stands in front of the next, so a step is a tile whatever the heights; side by side keeps the gap the tallest asks for', () => {
+  const grid = isometric({ tile: 120 });
+  for (const high of [0, 1, 3]) {
+    const [a, b] = arrange([thing('a', [2, 2, high]), thing('b', [2, 2, high])], [['a', 'b']], { across: true }).things;
+    const left = grid.block(a).box, right = grid.block(b).box;
+    assert.equal(right.x - (left.x + left.w), 120);   // a tile of clear frame between what the two draw: room for an arrow
+  }
+  const [, far, nearer] = arrange([thing('s', [2, 2, 0]), thing('far', [2, 2, 1]), thing('near', [2, 2, 2.4])], [['s', 'far'], ['s', 'near']], { across: true }).things;
+  assert.ok(grid.block(nearer).top[0].y - grid.block(far).outline[3].y > 20, 'the floor shows between a thing and a taller one below it on the frame');
+});
+
 test('the READMEs say what arrange gives today', async () => {
   const { readFileSync } = await import('node:fs');
   const { things, cols, rows } = arrange(['you', 'dns', 'server', 'db'].map((name) => thing(name)), [['you', 'dns'], ['you', 'server'], ['server', 'db']]);

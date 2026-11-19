@@ -378,6 +378,9 @@ const grid = gridFor(things, [0, 220, 1920, 1000]);          // a tile as wide a
 things.map((thing) => grid.block(thing));                    // each is a thing the grid draws
 ```
 
+Along the cols a long chain is a long slant down the frame. `arrange(things, links, { across: true })` runs the steps
+across the frame instead, left to right, which fills a frame wider than it is tall.
+
 More in [src/isometric/README.md](src/isometric/README.md).
 
 ## API
