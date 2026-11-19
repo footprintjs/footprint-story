@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { isometric, readThing, backToFront, MOST_ISOMETRIC_THINGS } from '../isometric.js';
+import { isometric, readThing, MOST_ISOMETRIC_THINGS } from '../isometric.js';
 
 const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps * Math.max(1, Math.abs(a), Math.abs(b));
 const samePoint = (p, q) => near(p.x, q.x) && near(p.y, q.y);
@@ -135,42 +135,117 @@ test('every refusal says what to give', () => {
   refused(() => grid.route([0, 0], 'there'), /a route's end is/);
   refused(() => grid.route([0, 0], [1, 1], { first: 'up' }), /along the cols first or the rows first/);
   assert.deepEqual(readThing({ at: [1, 2], size: [1, 1, 1] }), { at: [1, 2, 0], size: [1, 1, 1] });
+  // a list with a hole in it is not numbers: a hole reads as nothing, or as whatever a prototype holds
+  const hole = (list, i) => { const out = [...list]; delete out[i]; return out; };
+  refused(() => isometric({ origin: hole([0, 0], 1) }), /origin is \[x, y\]/);
+  refused(() => readThing({ at: hole([1, 1], 1), size: [1, 1, 1] }), /a thing's at is \[col, row\] on the floor/);
+  refused(() => readThing({ at: [1, 1], size: hole([1, 1, 1], 1) }), /a thing's size is \[wide, deep, high\], in tiles/);
+  refused(() => grid.route(hole([0, 0], 1), [1, 1]), /a route's start is/);
+  refused(() => grid.block({ at: [999999, 0], size: [5, 1, 1] }), /a block reaches past 1000000: at \[999999,0,0\] with size \[5,1,1\] — bring it nearer/);
+  const given = [1, 2];
+  assert.notEqual(readThing({ at: given, size: [1, 1, 1] }).at, given, 'what is read is a new list');
   refused(() => readThing(null), /a thing is \{at/);
 });
 
-test('back to front: what can cover another is drawn after it', () => {
-  const things = [{ n: 'front', at: [2, 2], size: [1, 1, 1] }, { n: 'back', at: [0, 0], size: [1, 1, 1] }, { n: 'on', at: [0, 0, 1], size: [1, 1, 1] }, { n: 'side', at: [0, 3], size: [1, 1, 1] }];
-  const order = backToFront(things).map((t) => t.n);
-  for (const [first, then] of [['back', 'front'], ['back', 'on'], ['back', 'side']]) assert.ok(order.indexOf(first) < order.indexOf(then), `${first} before ${then} in ${order}`);
-  assert.deepEqual(backToFront([]), []);
-  assert.deepEqual(backToFront([{ box: { at: [1, 1], size: [1, 1, 1] } }, { box: { at: [0, 0], size: [1, 1, 1] } }], (t) => t.box).map((t) => t.box.at), [[0, 0], [1, 1]]);
-  assert.deepEqual(backToFront([{ id: 1, at: [5, 0], size: [1, 1, 1] }, { id: 2, at: [0, 5], size: [1, 1, 1] }]).map((t) => t.id), [1, 2], 'no order between them: as given');
+// ── the drawing order ───────────────────────────────────────────────────────────────────────────────────
+// The oracle, worked out apart from the code: `a` covers `b` when some point of a is in front of some point of b on one
+// line of sight. Towards the viewer a point keeps its place on the frame: col and row grow alike, and height by
+// (tile height / rise) each. So a covers b when the box of differences a − b meets that line ahead of 0.
+function covers(a, b, grid) {
+  const sight = [1, 1, grid.tile[1] / grid.rise];
+  let lo = 0, hi = Infinity;
+  for (let i = 0; i < 3; i += 1) { lo = Math.max(lo, (a.at[i] - (b.at[i] + b.size[i])) / sight[i]); hi = Math.min(hi, (a.at[i] + a.size[i] - b.at[i]) / sight[i]); }
+  return lo < hi - 1e-12;
+}
+const apart = (a, b) => [0, 1, 2].some((i) => a.at[i] + a.size[i] <= b.at[i] || b.at[i] + b.size[i] <= a.at[i]);
+/** Does the true picture have a ring: things each covering the next, round to the first? */
+function hasRing(things, grid) {
+  const state = things.map(() => 0);
+  const visit = (i) => {
+    state[i] = 1;
+    for (let j = 0; j < things.length; j += 1) if (j !== i && covers(things[j], things[i], grid)) { if (state[j] === 1 || (!state[j] && visit(j))) return true; }
+    state[i] = 2;
+    return false;
+  };
+  return things.some((_, i) => !state[i] && visit(i));
+}
+const noneBeforeWhatItCovers = (out, grid) => out.forEach((later, j) => out.slice(0, j).forEach((earlier) => assert.ok(!covers(earlier, later, grid), `${JSON.stringify(earlier)} is drawn before ${JSON.stringify(later)}, which it covers`)));
+const whole = (thing) => ({ ...thing, at: [thing.at[0], thing.at[1], thing.at[2] ?? 0] });
+
+test('back to front: what covers another is drawn after it', () => {
+  const grid = isometric();
+  const things = [{ n: 'front', at: [1, 1], size: [1, 1, 1] }, { n: 'back', at: [0, 0], size: [1, 1, 1] }, { n: 'on', at: [0, 0, 1], size: [1, 1, 1] }, { n: 'far', at: [0, 9], size: [1, 1, 1] }];
+  const order = grid.backToFront(things).map((t) => t.n);
+  for (const [first, then] of [['back', 'front'], ['back', 'on']]) assert.ok(order.indexOf(first) < order.indexOf(then), `${first} before ${then} in ${order}`);
+  noneBeforeWhatItCovers(grid.backToFront(things).map(whole), grid);
+  assert.deepEqual(grid.backToFront([]), []);
+  assert.deepEqual(grid.backToFront([{ box: { at: [1, 1], size: [1, 1, 1] } }, { box: { at: [0, 0], size: [1, 1, 1] } }], (t) => t.box).map((t) => t.box.at), [[0, 0], [1, 1]]);
+  assert.deepEqual(grid.backToFront([{ id: 1, at: [5, 0], size: [1, 1, 1] }, { id: 2, at: [0, 5], size: [1, 1, 1] }]).map((t) => t.id), [1, 2], 'they do not meet on the frame: as given');
 });
 
-test('back to front: a ring of long boxes, each behind the next, still gives every thing once, the first given first', () => {
-  // a behind b (below it), b behind c (smaller cols), c behind a (smaller rows): no order satisfies all three
+test('back to front: things that never meet on the frame get no rule, so they cannot make a ring the picture does not have', () => {
+  // Found in review: ordered by "further along the cols, the rows, or below" for EVERY pair, these four made a ring of
+  // rules, and the cut put the first one before a box it covers. The picture itself has a right order.
+  const grid = isometric();
+  const things = [{ at: [0, 5, 1], size: [3, 1, 3] }, { at: [2, 0, 0], size: [1, 1, 3] }, { at: [0, 0, 2], size: [2, 2, 3] }, { at: [1, 1, 0], size: [4, 5, 1] }];
+  assert.equal(hasRing(things, grid), false);
+  noneBeforeWhatItCovers(grid.backToFront(things), grid);
+  // far apart on the frame: no rule, the order given is kept
+  const strangers = [{ id: 'right', at: [9, 0, 0], size: [1, 1, 1] }, { id: 'left', at: [0, 9, 0], size: [1, 1, 1] }, { id: 'high', at: [0, 0, 9], size: [1, 1, 1] }];
+  assert.deepEqual(grid.backToFront(strangers).map((t) => t.id), ['right', 'left', 'high']);
+});
+
+test('back to front: a ring that is in the picture is cut at its first given, and what is outside it is still drawn right', () => {
+  const grid = isometric();
+  // b covers a, c covers b, a covers c: three long boxes laid over each other in turn. No order is right for them.
   const a = { n: 'a', at: [0, 2, 0], size: [3, 1, 1] }, b = { n: 'b', at: [0, 0, 1], size: [1, 3, 1] }, c = { n: 'c', at: [1, 0, 0], size: [1, 2, 3] };
-  const out = backToFront([a, b, c]);
-  assert.deepEqual(out.map((t) => t.n).sort(), ['a', 'b', 'c']);
-  assert.equal(out[0].n, 'a');
+  assert.ok(covers(b, a, grid) && covers(c, b, grid) && covers(a, c, grid) && hasRing([a, b, c], grid));
+  assert.deepEqual(grid.backToFront([a, b, c]).map((t) => t.n), ['a', 'b', 'c']);
+  assert.deepEqual(grid.backToFront([c, b, a]).map((t) => t.n), ['c', 'a', 'b']);
+  // a tall post in front of all three, given first: it waits for the ring, and is not what the ring is cut at
+  const post = { n: 'post', at: [3, 3, 0], size: [1, 1, 6] };
+  assert.ok(covers(post, a, grid) && [a, b, c].every((t) => !covers(t, post, grid)));
+  const out = grid.backToFront([post, a, b, c]).map((t) => t.n);
+  assert.equal(out[3], 'post', `the post is drawn last in ${out}`);
+  assert.equal(out[0], 'a');
 });
 
 test('back to front: refusals', () => {
-  assert.throws(() => backToFront('things'), /backToFront takes a list of things/);
-  assert.throws(() => backToFront(Array.from({ length: MOST_ISOMETRIC_THINGS + 1 }, () => ({ at: [0, 0], size: [1, 1, 1] }))), /at most 256 things, not 257/);
-  assert.throws(() => backToFront([], 'box'), /takes a function that gives an item's \{at, size\}/);
-  assert.throws(() => backToFront([{ at: [0, 0], size: [1, 1, 1] }, {}]), /thing 2's at is/);
+  const grid = isometric();
+  assert.throws(() => grid.backToFront('things'), /backToFront takes a list of things/);
+  assert.throws(() => grid.backToFront(Array.from({ length: MOST_ISOMETRIC_THINGS + 1 }, () => ({ at: [0, 0], size: [1, 1, 1] }))), /at most 256 things, not 257/);
+  assert.throws(() => grid.backToFront([], 'box'), /takes a function that gives an item's \{at, size\}/);
+  assert.throws(() => grid.backToFront([{ at: [0, 0], size: [1, 1, 1] }, {}]), /thing 2's at is/);
+  // a list with a hole in it: the hole is a thing that is not there, and is refused as one
+  const holed = [{ at: [0, 0], size: [1, 1, 1] }, { at: [1, 1], size: [1, 1, 1] }, { at: [2, 2], size: [1, 1, 1] }];
+  delete holed[1];
+  assert.throws(() => grid.backToFront(holed), /thing 2 is \{at: \[col, row, lift\?\], size: \[wide, deep, high\]\} — not undefined/);
+});
+
+const box = fc.record({ at: fc.tuple(fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 3 })), size: fc.tuple(fc.integer({ min: 1, max: 4 }), fc.integer({ min: 1, max: 4 }), fc.integer({ min: 1, max: 3 })) });
+/** Boxes that do not pass through each other: each one kept only when it is apart from those kept before it. */
+const scene = fc.array(box, { maxLength: 12 }).map((list) => list.reduce((kept, t) => (kept.every((o) => apart(o, t)) ? [...kept, { at: [...t.at], size: [...t.size] }] : kept), []));
+const view = fc.constantFrom(120, [120, 120 / Math.sqrt(3)], [100, 30], [100, 80]);
+
+test('property: boxes of any length, from any height: every thing once, and when the picture has a right order, no thing before one it covers', () => {
+  let ringed = 0, ordered = 0;
+  fc.assert(fc.property(scene, view, (things, tile) => {
+    const grid = isometric({ tile }), out = grid.backToFront(things);
+    assert.equal(out.length, things.length);
+    assert.equal(new Set(out).size, things.length);
+    if (hasRing(things, grid)) { ringed += 1; return; }
+    ordered += 1;
+    noneBeforeWhatItCovers(out, grid);
+  }), { numRuns: 2000 });
+  assert.ok(ordered > 1500, `only ${ordered} of 2000 pictures had a right order to check (${ringed} had a ring)`);
 });
 
 test('property: unit cubes on whole tiles come out so no cube is drawn before one it can cover', () => {
   const cube = fc.tuple(fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 3 }));
   fc.assert(fc.property(fc.uniqueArray(cube, { maxLength: 40, selector: (c) => c.join(',') }), (cubes) => {
-    const things = cubes.map((at) => ({ at, size: [1, 1, 1] })), out = backToFront(things);
+    const grid = isometric(), things = cubes.map((at) => ({ at, size: [1, 1, 1] })), out = grid.backToFront(things);
     assert.equal(out.length, things.length);
-    assert.equal(new Set(out).size, things.length);
-    // a covers b only from nearer the viewer: no smaller col, row or lift, and not the same place
-    const covers = (a, b) => a.at.every((v, i) => v >= b.at[i]) && a.at.some((v, i) => v > b.at[i]);
-    out.forEach((later, j) => out.slice(0, j).forEach((earlier) => assert.ok(!covers(earlier, later), `${earlier.at} is drawn before ${later.at}, which it covers`)));
+    noneBeforeWhatItCovers(out, grid);
   }), { numRuns: 200 });
 });
 
@@ -190,7 +265,7 @@ function examplePicture() {
     { kind: 'cylinder', name: 'data', at: [6, 0], size: [1.6, 1.6, 1.2], faces: ['#e6dcf5', '#c9b8e8', '#c9b8e8'] },
   ];
   const floor = grid.floor({ cols: 8, rows: 5 }), wire = grid.route([2, 4], [4, 3], { first: 'col' });
-  const drawn = backToFront(things).map((t) => {
+  const drawn = grid.backToFront(things).map((t) => {
     if (t.kind === 'cylinder') {
       const c = grid.cylinder(t), { top, bottom } = c;
       return `<path d="M${n(top.cx - top.rx)},${n(top.cy)} L${n(bottom.cx - bottom.rx)},${n(bottom.cy)} A${n(bottom.rx)},${n(bottom.ry)} 0 0 0 ${n(bottom.cx + bottom.rx)},${n(bottom.cy)} L${n(top.cx + top.rx)},${n(top.cy)} Z" fill="${t.faces[1]}"/>`
@@ -219,5 +294,5 @@ test('the README example runs as written', () => {
   assert.deepEqual(grid.at(2, 1), { x: 1020, y: 330 });
   const server = { at: [2, 1], size: [2, 2, 1.5] }, faces = grid.block(server);
   assert.deepEqual(faces.box, { x: 900, y: 219.77296157475698, w: 240, h: 230.22703842524302 });
-  assert.deepEqual(backToFront([{ name: 'front', at: [4, 4], size: [1, 1, 1] }, { name: 'server', ...server }]).map((t) => t.name), ['server', 'front']);
+  assert.deepEqual(grid.backToFront([{ name: 'front', at: [4, 3], size: [1, 1, 1] }, { name: 'server', ...server }]).map((t) => t.name), ['server', 'front']);
 });

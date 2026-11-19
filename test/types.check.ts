@@ -107,7 +107,7 @@ const times: TurnTimes = turnTimes(order, { step: 0.35, takes: (turn, index) => 
 const orderText: string = writeTurns(order) + times.turns.map((t) => t.at + t.takes).join(' ') + times.last + times.end;
 export const turnLimits: number[] = [MOST_TURNS, MOST_TOGETHER, MOST_TURN_NAME, MOST_TURNS_TEXT, MOST_TURN_SECONDS, orderText.length];
 
-import { isometric, readThing, backToFront, MOST_ISOMETRIC_THINGS } from 'footprint-story/isometric';
+import { isometric, readThing, MOST_ISOMETRIC_THINGS } from 'footprint-story/isometric';
 import type { IsoGrid, IsoBlock, IsoCylinder, IsoFloor, IsoPoint, IsoThing, IsoBox } from 'footprint-story/isometric';
 const grid: IsoGrid = isometric({ tile: [120, 60], origin: [960, 240], rise: 70 });
 const server: IsoThing = { at: [2, 1], size: [2, 2, 1.5] };
@@ -116,6 +116,6 @@ const round: IsoCylinder = grid.cylinder({ at: [6, 1, 0], size: [2, 2, 1] });
 const ground: IsoFloor = isometric().floor({ cols: 8, rows: 6, at: [0, 0] });
 const wire: IsoPoint[] = grid.route([0, 3], [3, 1], { first: 'row' });
 const bounds: IsoBox = faces.box;
-const drawn: { name: string; thing: IsoThing }[] = backToFront([{ name: 'server', thing: server }], (item) => item.thing);
+const drawn: { name: string; thing: IsoThing }[] = grid.backToFront([{ name: 'server', thing: server }], (item) => item.thing);
 export const isoMisc: unknown[] = [grid.at(1, 2, 3).x, grid.tileAt(10, 20).col, grid.tile[0], grid.origin[1], grid.rise, faces.top[0].y, round.top.rx, ground.lines[0][3], wire.length, bounds.w,
   drawn[0].name, readThing(server).at[2], MOST_ISOMETRIC_THINGS];

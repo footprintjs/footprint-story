@@ -57,7 +57,10 @@ test('every refusal says what to write', () => {
   refused('a​b', /a character nobody can see/);
   refused('a'.repeat(MOST_TURN_NAME + 1), /at most 128 characters/);
   refused('a '.repeat(MOST_TURNS_TEXT), /at most 8192 characters/);
-  refused(Array.from({ length: MOST_TURNS + 1 }, (_, i) => `n${i}`).join(' '), /at most 256 turns, not 257/);
+  refused(Array.from({ length: MOST_TURNS + 1 }, (_, i) => `n${i}`).join(' '), /an order has at most 256 turns/);
+  refused(['a '.repeat(200), { names: ['b'] }, 'c '.repeat(60)], /an order has at most 256 turns/);
+  const together = `(${Array.from({ length: 60 }, (_, i) => `${'n'.repeat(98)}${String(i).padStart(2, '0')}`).join(' ')})`;   // one turn, about 6000 characters
+  refused([together, together], /an order is at most 8192 characters, not 12\d+ or more/);                      // the bound is on all the parts together
   refused(Array.from({ length: MOST_TURNS + 1 }, () => 'a'), /at most 256 turns, not 257/);
   refused(`(${Array.from({ length: MOST_TOGETHER + 1 }, (_, i) => `n${i}`).join(' ')})`, /at most 64 names come together/);
   refused(7, /an order is names in the order they come/);
@@ -68,6 +71,9 @@ test('every refusal says what to write', () => {
   refused([{ names: 'a' }], /a turn's names are a list/);
   refused([{ names: [''] }], /a name is text/);
   refused([{ names: [3] }], /a name is text/);
+  refused([{ names: Object.assign([], { 1: 'a', length: 2 }) }], /a name is text, not undefined/);                 // a hole is not a name
+  refused(Object.assign([], { 1: 'a', length: 2 }), /an order is text, or a list of text and \{names, takes\?\} — not undefined/);
+  refused([{ names: Array.from({ length: MOST_TOGETHER + 1 }, (_, i) => `n${i}`) }], /at most 64 names come together/);
   refused([{ names: ['a b'] }], /a name has no space in it/);
   refused([{ names: ['a'], takes: -1 }], /a turn takes seconds/);
   refused([{ names: ['a'], takes: '1' }], /a turn takes seconds/);
@@ -93,6 +99,10 @@ test('turnTimes: takes(turn, index) gives a turn its time when it does not say; 
   assert.throws(() => turnTimes(readTurns('a'), { takes: () => 'soon' }), /a turn takes seconds/);
   assert.throws(() => turnTimes(readTurns('a'), { takes: 1 }), /takes is a function/);
   assert.throws(() => turnTimes('a b'), /turnTimes takes the turns readTurns gave/);
+  assert.throws(() => turnTimes([null]), /turnTimes takes the turns readTurns gave — not a turn: null/);
+  assert.throws(() => turnTimes([{ takes: 1 }]), /not a turn/);
+  assert.throws(() => turnTimes([{ names: ['a'], takes: Infinity }]), /a turn takes seconds, a number from 0 to 60 — not Infinity/);
+  assert.throws(() => turnTimes(Array.from({ length: MOST_TURNS + 1 }, () => ({ names: ['a'] }))), /an order has at most 256 turns, not 257/);
   assert.throws(() => turnTimes([], { step: -1 }), /step is the seconds a turn takes when it does not say/);
   assert.throws(() => turnTimes([], { step: MOST_TURN_SECONDS + 1 }), /from 0 to 60/);
   assert.throws(() => turnTimes('x', { where: 'path' }), /^Error: path: /);
@@ -102,6 +112,33 @@ test('writeTurns: the written form of turns', () => {
   assert.equal(writeTurns(readTurns(' a  (b c)  d:1.2 (e f):0 ')), 'a (b c) d:1.2 (e f):0');
   assert.equal(writeTurns([{ names: ['a'] }]), 'a');
   assert.throws(() => writeTurns('a'), /writeTurns takes the turns readTurns gave/);
+  assert.throws(() => writeTurns([null]), /writeTurns takes the turns readTurns gave — not a turn: null/);
+  assert.throws(() => writeTurns([{ names: 'a' }]), /not a turn/);
+  assert.throws(() => writeTurns([{ names: ['a'], takes: 99 }]), /a turn takes seconds, a number from 0 to 60 — not 99/);
+});
+
+test('seconds are kept to the millisecond, so what is written always reads back', () => {
+  assert.deepEqual(readTurns([{ names: ['a'], takes: 1e-7 }, { names: ['b'], takes: 1.23456 }, 'c:0.0004 d:1.0006']).map((t) => t.takes), [0, 1.235, 0, 1.001]);
+  assert.equal(writeTurns([{ names: ['a'], takes: 1e-7 }, { names: ['b'], takes: 1.23456 }]), 'a:0 b:1.235');
+  assert.deepEqual(readTurns(writeTurns([{ names: ['a'], takes: 1e-7 }])), [turn(['a'], 0)]);
+  assert.equal(turnTimes([{ names: ['a'], takes: 0.3004 }, { names: ['b'] }]).turns[1].at, 0.3);
+});
+
+test('a name the written form cannot spell is refused by writeTurns, never written as something else', () => {
+  const own = (text) => ['w1:2', '(a', 'a)'].includes(text);
+  const read = readTurns('w1:2 (a a)', { isName: own });
+  assert.deepEqual(read.map((t) => t.names), [['w1:2'], ['(a'], ['a)']]);
+  assert.throws(() => writeTurns(read), /the name "w1:2" cannot be written: it would read back as a group or a time — keep these turns as data/);
+  assert.throws(() => writeTurns([{ names: ['(a', 'b'] }]), /the name "\(a" cannot be written/);
+  assert.throws(() => writeTurns([{ names: ['a b'] }]), /a name has no space in it/);
+  assert.equal(writeTurns([{ names: ['k:v', 'a:b:c'] }]), '(k:v a:b:c)');   // a colon with no time after it is only a name
+  assert.deepEqual(readTurns('(k:v a:b:c)'), [turn(['k:v', 'a:b:c'])]);
+});
+
+test('the bound holds while it reads: a huge order is refused in about the time a full one takes', () => {
+  const huge = Array.from({ length: MOST_TURNS }, () => 'a '.repeat(4000)), start = process.hrtime.bigint();
+  assert.throws(() => readTurns(huge), /an order has at most 256 turns/);
+  assert.ok(Number(process.hrtime.bigint() - start) / 1e6 < 50, 'it stopped at the 257th turn, not after a million');
 });
 
 const name = fc.stringMatching(/^[a-z0-9_+*.-]{1,12}$/);

@@ -63,5 +63,7 @@ test('every public symbol has one door, and its types declare it', async () => {
   for (const [door, names] of Object.entries(doors)) {
     const types = readFileSync(path.join(root, door.replace(/\.js$/, '.d.ts')), 'utf8');
     for (const name of names) assert.match(types, new RegExp(`export (?:declare )?(?:function|const) ${name}\\b`), `${door.replace(/\.js$/, '.d.ts')} does not declare ${name}`);
+    // and the other way round: the types promise no function or value the door does not hand out
+    for (const [, declared] of types.matchAll(/^export (?:declare )?(?:function|const) (\w+)/gm)) assert.ok(names.includes(declared), `${door.replace(/\.js$/, '.d.ts')} declares ${declared}, which ${door} does not export`);
   }
 });

@@ -174,7 +174,7 @@ export function readPace(pace?: PaceName | { hold: number; most: number; still: 
 
 // ── turns: an order written once ─────────────────────────────────────────────────────────────────────────
 
-/** One turn: the names that come together, and its own seconds (null: it takes the usual step). */
+/** One turn: the names that come together, and its own seconds, to the millisecond (null: it takes the usual step). */
 export interface Turn { readonly names: readonly string[]; readonly takes: number | null }
 /** A turn with its start: `at` and `takes` in seconds. */
 export interface TimedTurn { readonly names: readonly string[]; readonly at: number; readonly takes: number }
@@ -187,7 +187,7 @@ export const MOST_TURNS: number;
 export const MOST_TOGETHER: number;
 /** The most characters a name has. */
 export const MOST_TURN_NAME: number;
-/** The most characters the written form has. */
+/** The most characters the written form has, all its parts together. */
 export const MOST_TURNS_TEXT: number;
 /** The longest a turn takes, in seconds. */
 export const MOST_TURN_SECONDS: number;
@@ -198,5 +198,5 @@ export const MOST_TURN_SECONDS: number;
 export function readTurns(order: string | readonly (string | { names: readonly string[]; takes?: number | null })[], options?: { where?: string; isName?: (text: string) => boolean }): readonly Turn[];
 /** When each turn starts: a turn takes its own seconds, or what `takes(turn, index)` gives, or `step` (0.35). */
 export function turnTimes(turns: readonly { names: readonly string[]; takes?: number | null }[], options?: { step?: number; takes?: (turn: Turn, index: number) => number | null | undefined; where?: string }): TurnTimes;
-/** The written form of turns: what `readTurns` reads back to the same turns. */
+/** The written form of turns: what `readTurns` reads back to the same turns. A name the form cannot spell (a bracket in it, or ending like a time) is refused. */
 export function writeTurns(turns: readonly { names: readonly string[]; takes?: number | null }[]): string;

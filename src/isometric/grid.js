@@ -11,35 +11,20 @@
  *   grid.cylinder({at, size})         → {top, bottom, centre, box}                 a round thing: two ellipses
  *   grid.floor({cols, rows, at?})     → {outline, lines, box}                      the tile lines
  *   grid.route(a, b, {first?})        → [{x, y}, …]   a line along the floor, turning once
+ *   grid.backToFront(things)          → the things, the furthest first: the order to draw them in (order.js)
  *
  * `col` grows down and to the right of the frame, `row` down and to the left, `height` up. A thing is
  * {at: [col, row, lift?], size: [wide, deep, high]}: it stands on the tiles from `at`, `lift` above the floor.
  * `tile` is a tile's width on the frame in pixels, twice its height (or [width, height] for another angle);
  * `rise` is a unit of height in pixels, and by default it is what makes a cube look like a cube.
  *
- * Pure numbers: a tool draws with them, back to front (order.js). Every number may come from anyone: each is checked,
+ * Pure numbers: a tool draws with them, back to front. Every number may come from anyone: each is checked (thing.js),
  * and a refusal says what to give.
  */
+import { backToFront } from './order.js';
+import { FAR, fin, numbers, readThing, refuse, shown } from './thing.js';
 
-const FAR = 1e6, MOST_TILES = 256;
-const shown = (v) => (typeof v === 'number' || v === undefined ? String(v) : JSON.stringify(v));
-const fin = (n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= FAR;
-
-function refuse(fix) { throw new Error(`isometric: ${fix}`); }
-
-function numbers(v, count, what, form) {
-  if (!Array.isArray(v) || !count.includes(v.length) || !v.every(fin)) refuse(`${what} is ${form} — not ${shown(v)}`);
-  return v;
-}
-
-/** A thing's place and size, checked: [col, row, lift] and [wide, deep, high]. */
-export function readThing(thing, what = 'a thing') {
-  if (!thing || typeof thing !== 'object' || Array.isArray(thing)) refuse(`${what} is {at: [col, row, lift?], size: [wide, deep, high]} — not ${shown(thing)}`);
-  const at = numbers(Object.hasOwn(thing, 'at') ? thing.at : undefined, [2, 3], `${what}'s at`, '[col, row] on the floor, or [col, row, lift] above it');
-  const size = numbers(Object.hasOwn(thing, 'size') ? thing.size : undefined, [3], `${what}'s size`, '[wide, deep, high], in tiles');
-  if (!(size[0] > 0 && size[1] > 0 && size[2] >= 0)) refuse(`${what}'s size is [wide, deep, high] with wide and deep above 0 and high 0 or more — not ${shown(size)}`);
-  return { at: [at[0], at[1], at[2] ?? 0], size: [...size] };
-}
+const MOST_TILES = 256;
 
 const boundsOf = (points) => {
   const xs = points.map((p) => p.x), ys = points.map((p) => p.y), x = Math.min(...xs), y = Math.min(...ys);
@@ -110,5 +95,7 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
     return [[from[0], from[1]], ...(straight ? [] : [corner]), [to[0], to[1]]].map(([col, row]) => at(col, row, lift));
   };
 
-  return Object.freeze({ tile: Object.freeze([w, h]), origin: Object.freeze([ox, oy]), rise: up, at, tileAt, block, cylinder, floor, route });
+  return Object.freeze({ tile: Object.freeze([w, h]), origin: Object.freeze([ox, oy]), rise: up, at, tileAt, block, cylinder, floor, route,
+    /** `items` sorted so the furthest is drawn first; `thingOf(item)` gives an item's {at, size} (default: the item is one). */
+    backToFront: (items, thingOf = (item) => item) => backToFront(items, thingOf, { tileHeight: h, rise: up }) });
 }

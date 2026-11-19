@@ -36,6 +36,11 @@ export interface IsoGrid {
   floor(floor: { cols: number; rows: number; at?: readonly number[] }): IsoFloor;
   /** A line along the floor from a to b, turning once: along the cols first, or the rows. */
   route(a: readonly number[], b: readonly number[], options?: { first?: 'col' | 'row' }): IsoPoint[];
+  /**
+   * `items` sorted so the furthest is drawn first; `thingOf` gives an item's {at, size} (default: the item is one).
+   * Only things that meet on the frame are ordered; the rest keep the order given.
+   */
+  backToFront<T>(items: readonly T[], thingOf?: (item: T) => IsoThing): T[];
 }
 
 /**
@@ -47,5 +52,3 @@ export function isometric(options?: { tile?: number | readonly [number, number];
 export function readThing(thing: IsoThing, what?: string): { at: [number, number, number]; size: [number, number, number] };
 /** The most things one picture orders. */
 export const MOST_ISOMETRIC_THINGS: number;
-/** `items` sorted so the furthest is drawn first; `thingOf` gives an item's {at, size} (default: the item is one). */
-export function backToFront<T>(items: readonly T[], thingOf?: (item: T) => IsoThing): T[];

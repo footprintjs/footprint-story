@@ -295,6 +295,9 @@ turnTimes(turns, { step: 0.35 });
 writeTurns(turns);   // 'camera laptop (dns server) w1:1.2 db'
 ```
 
+Seconds are kept to the millisecond, so what is written always reads back. The bounds (256 turns, 64 names in a turn,
+8192 characters) hold while it reads: a huge order is refused at its 257th turn.
+
 Names alone read as a plain list, each its own turn. The names mean nothing here: a tool looks them up in its own
 picture, and passes `isName` when one of its names looks like the written form.
 
@@ -345,7 +348,7 @@ way. The grid gives numbers; each tool draws with them.
 ![A floor of tiles with a slab, a block and a cylinder on it, and a line along the floor](src/isometric/example.svg)
 
 ```js
-import { isometric, backToFront } from 'footprint-story/isometric';
+import { isometric } from 'footprint-story/isometric';
 
 const grid = isometric({ tile: 120, origin: [960, 240] });
 const server = { at: [2, 1], size: [2, 2, 1.5] };            // col 2, row 1: 2 wide, 2 deep, 1.5 high
@@ -353,11 +356,12 @@ grid.block(server);                    // { top, left, right, outline, centre, b
 grid.cylinder({ at: [6, 0], size: [2, 2, 1] });              // { top, bottom, centre, box }: two ellipses
 grid.floor({ cols: 8, rows: 5 });      // { outline, lines, box }
 grid.route([2, 4], [4, 3]);            // a line along the floor, turning once
-backToFront(things);                   // the furthest first
+grid.backToFront(things);              // the furthest first: only things that meet on the frame are ordered
 ```
 
 The picture above is drawn from these numbers by a test, so it is what the grid gives today. A cube looks like a cube:
-the grid is checked against a camera with no depth, built in the test from first principles. More in
+the grid is checked against a camera with no depth, built in the test from first principles, and the drawing order
+against lines of sight worked out apart from the code. More in
 [src/isometric/README.md](src/isometric/README.md).
 
 ## API
@@ -388,7 +392,7 @@ the grid is checked against a camera with no depth, built in the test from first
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
-| `/isometric` `isometric`, `readThing`, `backToFront`, `MOST_ISOMETRIC_THINGS` | a floor seen from a corner: the grid, a thing checked, the order to draw in |
+| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`). Each `src/` folder has a README saying why it exists.
 
