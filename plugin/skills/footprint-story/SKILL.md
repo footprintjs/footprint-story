@@ -13,8 +13,9 @@ picture and a pace are named here once, so a film and a deck move alike. Five do
 |---|---|---|
 | the shown↔spoken map, sentences, captions, chapters | `footprint-story` | anywhere (browser or Node), no dependencies |
 | a voice clip cache, the voice port, the Chatterbox kit adapter | `footprint-story/voice` | **Node only** |
-| eases, springs, moves, transitions as data, pace | `footprint-story/motion` | anywhere, no dependencies; nothing draws |
+| eases, springs, moves, transitions as data, pace, turns (an order written once: `'a (b c) d:1.2'`) | `footprint-story/motion` | anywhere, no dependencies; nothing draws |
 | a camera in 3D as data, projection, a check of what it sees in one line of text | `footprint-story/shot` | anywhere, no dependencies; nothing draws |
+| a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in | `footprint-story/isometric` | anywhere, no dependencies; nothing draws |
 | a story as data on a named shape, read and checked | `footprint-story/storyboard` | anywhere, no dependencies; nothing draws |
 
 Never import `footprint-story/voice` into browser code. This package was `footprint-narration` until 0.3.0: replace
