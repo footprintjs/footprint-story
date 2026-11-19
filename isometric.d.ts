@@ -80,3 +80,44 @@ export const MOST_LINKS: number;
  * number inside it), the picture in the middle of the box.
  */
 export function gridFor(things: readonly IsoThing[], into: readonly [number, number, number, number], options?: { most?: number; least?: number } | null): IsoGrid;
+
+/** A thing a route is laid round: named, placed, and round or not (`round`: a cylinder, whose feet are on its round base). */
+export interface IsoRouted extends IsoThing { readonly name: string; readonly round?: boolean }
+/** One of a thing's two feet a viewer sees: `right` under its right face (where the cols go on), `left` under its left face (where the rows go on). */
+export type IsoFoot = 'right' | 'left';
+/**
+ * The way one link runs along the floor. `points`: [col, row] from the foot it leaves to the foot it reaches, a square
+ * turn at every point between; `feet`: the foot it leaves and the foot it reaches; `bends`: its turns; `tiles`: its
+ * length; `behind`: the names of the things it passes behind (hidden floor it could not go round); `crosses`: how many
+ * routes laid before it it crosses; `shared`: the tiles of it that lie on another's way for want of room (0 as a rule).
+ */
+export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; readonly feet: readonly [IsoFoot, IsoFoot]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; readonly crosses: number; readonly shared: number }
+/** A link that has no way along the floor, and why (one of NO_ROUTE). */
+export interface IsoNoRoute { readonly from: string; readonly to: string; readonly points: null; readonly why: string }
+/**
+ * The way each link runs along the floor, round what stands on it: one entry a link, in the order given. A route
+ * leaves and reaches a thing at a foot a viewer sees, runs along the tile lines, never passes under a thing, keeps off
+ * hidden floor when it can, and takes the lane beside a route laid before it. `hides`: the tiles of floor a thing
+ * hides behind it for each tile of its height (1.22: the usual two-to-one view). The same things and links always give
+ * the same ways, and the work is bounded (MOST_WORK): on a picture too big, the last links are not tried and say so.
+ */
+export function routes(things: readonly IsoRouted[], links?: readonly (readonly [string, string])[], options?: { hides?: number } | null): (IsoRoute | IsoNoRoute)[];
+/** What there is to say about one route, in words ("api to db: passes behind logs") — or null when it lies well. */
+export function routeNote(route: IsoRoute | IsoNoRoute): string | null;
+/** The most links one picture lays. */
+export const MOST_ROUTES: number;
+/** The most steps of the search one picture may take, all its links together. */
+export const MOST_WORK: number;
+/** Why a link has no route: the sentences `why` is one of. */
+export const NO_ROUTE: Readonly<{ name: string; self: string; heights: string; foot: string; way: string; work: string; wide: string }>;
+
+/** A piece of a rounded way: a straight run to `to`, or a corner — one curve to `to`, drawn towards `corner` (SVG's Q, a canvas's quadraticCurveTo). */
+export type WayPiece = { readonly to: readonly [number, number]; readonly corner?: readonly [number, number] };
+/** A way through points with its corners rounded: where it starts, its pieces, its length, and the point a share (0 to 1) along it by length. */
+export interface RoundedWay { readonly start: readonly [number, number]; readonly pieces: readonly WayPiece[]; readonly length: number; at(share: number): [number, number] }
+/**
+ * `points` ([[x, y], …], two or more: a route's points once they are on the frame) with each corner rounded from
+ * `radius` before it to `radius` after it (never over half the shorter of the two runs that meet there; 0: sharp).
+ * A deck draws the pieces as SVG and a film as canvas; `at` is where a thing riding the way stands in both.
+ */
+export function rounded(points: readonly (readonly [number, number])[], radius?: number): RoundedWay;
