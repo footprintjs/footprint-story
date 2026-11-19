@@ -307,6 +307,18 @@ test('routes: the short run out of a foot is part of the route — it passes und
   holds(route, tall);
   const end = route.points.at(-1);
   assert.equal(hides(end, tall[0]), route.behind.includes('t0'), `${JSON.stringify(route)}`);
+  // and a hidden foot costs: with a place on that foot that is seen, the route takes it
+  assert.deepEqual(route.behind, [], JSON.stringify(route));
+  assert.equal(hides(end, tall[0], 0, MAYBE), false);
+  // only the middle of b's right foot is hidden (by T, in front of it): the route takes the place beside it that is seen
+  const peek = [thing('b', [0, 0]), thing('T', [2.25, 3], [2, 2, 2]), thing('a', [8, -2])];
+  assert.equal(hides([2, 1], peek[1], 0, SURE), true);
+  assert.equal(hides([2, 0.5], peek[1], 0, MAYBE), false);
+  const [seen] = routes(peek, [['a', 'b']]);
+  assert.deepEqual([seen.points.at(-1), seen.behind], [[2, 0.5], []]);
+  // a thing with a thin wall across the front of both its feet has no place at all: the run to any would pass under a wall
+  const walled = [thing('a', [0, 0]), thing('e', [2.1, -1], [0.15, 4, 1]), thing('s', [-1, 2.1], [4, 0.15, 1]), thing('b', [8, 8])];
+  assert.deepEqual(routes(walled, [['a', 'b'], ['b', 'a']]).map((r) => r.why), [NO_ROUTE.foot, NO_ROUTE.foot]);
 });
 
 test('routes: behind names every thing that hides a point, whatever order the things are given in', () => {
