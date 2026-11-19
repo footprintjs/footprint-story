@@ -26,14 +26,15 @@
  * links are laid in the order given, and the same things and links always give the same ways.
  *
  * Everything may come from anyone: every value is read by its own stored field and checked (thing.js), and the work is
- * counted — a picture too big to lay in MOST_WORK steps leaves its last links with a `why`, never a build that hangs.
+ * counted — building a floor's lattice and every step of the search. A picture too big to lay in MOST_WORK leaves its
+ * last links with a `why`, never a build that hangs or a floor for every height held at once.
  */
 import { MOST_ISOMETRIC_THINGS } from './order.js';
 import { own, readThing, refuse, shown } from './thing.js';
 
 /** The most links one picture lays. */
 export const MOST_ROUTES = 1024;
-/** The most steps of the search one picture may take, all its links together. */
+/** The most work one picture may take, all its links together: a step of the search, or a point looked at while a floor is built. */
 export const MOST_WORK = 4_000_000;
 const MOST_NAME = 200, MOST_POINTS = 200_000;   // the most points a lattice has: past that it is made coarser
 /** The tiles of floor a thing hides behind it for each tile of its height, in the usual two-to-one view. */
@@ -115,20 +116,27 @@ function heap() {
 /**
  * The lattice of one height of floor (`lift`): its points, which are under a thing (closed), and which a thing hides
  * (the thing's index, or -1). A thing closes the floor it stands on at that height; a thing whose top is above it hides
- * the floor behind it, as far as its height reaches.
+ * the floor behind it, as far as its height reaches. Building it is work too (`work`: {left}), a look for each point
+ * and for each point a thing may reach: a picture with a floor at every height must not cost more than one — null
+ * when there is not enough work left to build it.
  */
-function lattice(read, lift, step, hides) {
+function lattice(read, lift, step, hides, work) {
   const lo = (key) => Math.min(...read.map((t) => t.at[key])), hi = (key) => Math.max(...read.map((t) => t.at[key] + t.size[key]));
   const first = [Math.floor((lo(0) - AROUND) / step), Math.floor((lo(1) - AROUND) / step)];
   const nx = Math.ceil((hi(0) + AROUND) / step) - first[0] + 1, ny = Math.ceil((hi(1) + AROUND) / step) - first[1] + 1;
+  if (nx * ny > work.left) return null;
+  work.left -= nx * ny;
   const closed = new Uint8Array(nx * ny), hidden = new Int16Array(nx * ny).fill(-1), keep = step / 2;
-  read.forEach(({ at: [c, r, z], size: [w, d, h] }, index) => {
+  for (const [index, { at: [c, r, z], size: [w, d, h] }] of read.entries()) {
     const stands = z === lift || (z < lift && lift < z + h), from = Math.max(0, z - lift) * hides, to = (z + h - lift) * hides;
-    if (!stands && !(to > 0)) return;
+    if (!stands && !(to > 0)) continue;
     // only the points its floor or its shadow can reach: its own tiles, and as far back as it hides
     const reach = Math.max(to, 0) + keep;
     const i0 = Math.max(0, Math.floor((c - reach) / step) - first[0]), i1 = Math.min(nx - 1, Math.ceil((c + w + keep) / step) - first[0]);
     const j0 = Math.max(0, Math.floor((r - reach) / step) - first[1]), j1 = Math.min(ny - 1, Math.ceil((r + d + keep) / step) - first[1]);
+    const looks = Math.max(0, i1 - i0 + 1) * Math.max(0, j1 - j0 + 1);
+    if (looks > work.left) return null;
+    work.left -= looks;
     for (let j = j0; j <= j1; j += 1) {
       for (let i = i0; i <= i1; i += 1) {
         const x = (first[0] + i) * step, y = (first[1] + j) * step, node = j * nx + i;
@@ -138,7 +146,7 @@ function lattice(read, lift, step, hides) {
         if (to > 0 && near < far && far > 0 && hidden[node] < 0) hidden[node] = index;
       }
     }
-  });
+  }
   return { first, nx, ny, closed, hidden, alongCols: new Uint8Array(nx * ny), alongRows: new Uint8Array(nx * ny), taken: new Set() };
 }
 
@@ -234,17 +242,24 @@ export function routes(things, links = [], options = undefined) {
   let step = fine;
   while ((reachOf(0) / step + 2) * (reachOf(1) / step + 2) > MOST_POINTS) step *= 2;
   const floors = new Map(), work = { left: MOST_WORK };
-  const floorAt = (lift) => floors.get(lift) ?? floors.set(lift, (() => {
-    const grid = lattice(read, lift, step, hides), size = grid.nx * grid.ny * 4;
-    return { grid, seen: { stamp: new Int32Array(size), cost: new Float64Array(size), from: new Int32Array(size), turn: 0 }, places: new Map() };
-  })()).get(lift);
+  let seen = null;   // what the search remembers of one link: every floor's lattice has the same points, so one is enough
+  const floorAt = (lift) => {
+    if (!floors.has(lift)) {
+      const grid = lattice(read, lift, step, hides, work);
+      seen ??= grid && { stamp: new Int32Array(grid.nx * grid.ny * 4), cost: new Float64Array(grid.nx * grid.ny * 4), from: new Int32Array(grid.nx * grid.ny * 4), turn: 0 };
+      floors.set(lift, grid && { grid, places: new Map() });
+    }
+    return floors.get(lift);
+  };
   return wanted.map(([from, to]) => {
     const a = read[names.get(from)], b = read[names.get(to)];
     if (!a || !b) return none(from, to, NO_ROUTE.name);
     if (a === b) return none(from, to, NO_ROUTE.self);
     if (a.at[2] !== b.at[2]) return none(from, to, NO_ROUTE.heights);
     if (work.left <= 0) return none(from, to, NO_ROUTE.work);
-    const floor = floorAt(a.at[2]), { grid, seen } = floor;
+    const floor = floorAt(a.at[2]);
+    if (!floor) return none(from, to, NO_ROUTE.work);   // no work left to build this height's floor
+    const { grid } = floor;
     const placesOf = (thing) => floor.places.get(thing) ?? floor.places.set(thing, places(thing, grid, step)).get(thing);
     const starts = placesOf(a), ends = placesOf(b);
     if (!starts.length || !ends.length) return none(from, to, step > fine ? NO_ROUTE.wide : NO_ROUTE.foot);

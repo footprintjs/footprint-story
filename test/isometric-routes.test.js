@@ -198,6 +198,17 @@ test('routes: a picture too big to lay costs no more than the work allowed, and 
   assert.equal(MOST_WORK, 4_000_000);
 });
 
+test('routes: a floor at every height costs work too — the heights past what is left are not built', () => {
+  // 128 pairs, each at a height of its own: every floor is a lattice of its own, and every thing above it hides some of it
+  const things = Array.from({ length: 256 }, (_, i) => thing(`p${i}`, [(i % 2) * 5, Math.floor(i / 2) * 4, Math.floor(i / 2)]));
+  const began = performance.now(), laid = routes(things, Array.from({ length: 128 }, (_, i) => [`p${2 * i}`, `p${2 * i + 1}`]));
+  assert.ok(performance.now() - began < 3000, `${Math.round(performance.now() - began)} ms`);
+  const built = laid.findIndex((r) => !r.points);
+  assert.ok(built >= 2 && built < 128, `${built} heights were laid`);
+  assert.ok(laid.slice(built).every((r) => r.why === NO_ROUTE.work));
+  for (const route of laid.slice(0, built)) assert.equal(route.points.length >= 2, true);
+});
+
 test('routes: refuses what it cannot read, naming the fix; a getter is never run', () => {
   assert.throws(() => routes('a'), /routes takes a list of things/);
   assert.throws(() => routes([null]), /thing 1 is \{name, at: \[col, row\], size: \[wide, deep, high\]\}/);
