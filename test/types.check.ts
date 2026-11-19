@@ -45,7 +45,8 @@ const capped: number | undefined = record?.trim.pauses[0]?.now;
 export { kinds, shown, at, digits, now, back, misc, timed, key, low, capped };
 
 import { easeNamed, EASES, bezier, overshoots, spring, settleTime, track, pop, FEELS, readFeel, moveAt, readMove, movesBy, stagger, MOVES, REST, WORD_GAP,
-  readTransition, extendTransitions, checkTransition, TRANSITIONS, SECONDS, readSettings, isColor, readPace, PACES } from 'footprint-story/motion';
+  readTransition, extendTransitions, checkTransition, TRANSITIONS, SECONDS, readSettings, isColor, readPace, PACES,
+  readTurns, turnTimes, writeTurns, MOST_TURNS, MOST_TOGETHER, MOST_TURN_NAME, MOST_TURNS_TEXT, MOST_TURN_SECONDS } from 'footprint-story/motion';
 import type { Ease, Feel, Move, MoveValues, Transition, ReadTransition, Pace, SettingSpec } from 'footprint-story/motion';
 
 const curve: Ease = easeNamed('cubic-bezier(0.16, 1, 0.3, 1)');
@@ -99,3 +100,22 @@ const shotText: string = shotLine(checkShot(set, lensCamera, frame, { on: ['door
 const shotIssues: readonly ShotProblem[] = [...sceneProblems(set), ...shotProblems(written, set)];
 const shotMisc: unknown[] = [ROUNDS.front, HEIGHTS.high, SIZES.wide, LENSES.normal, MOST_THINGS, readView('low').azimuth, distanceFor(1, 0.4, 1.25), apertureFor(2), unproject(1, 2, 3, lensCamera, frame)[0], landed, box.state, report.faults[0]?.kind, shotText, shotIssues];
 export { shotMisc };
+
+import type { Turn, TurnTimes } from 'footprint-story/motion';
+const order: readonly Turn[] = readTurns(['camera laptop (dns server) w1:1.2', { names: ['db'], takes: 1 }], { where: 'route', isName: (text) => text === 'w1:2' });
+const times: TurnTimes = turnTimes(order, { step: 0.35, takes: (turn, index) => (turn.names.includes('camera') ? 1 + index : undefined) });
+const orderText: string = writeTurns(order) + times.turns.map((t) => t.at + t.takes).join(' ') + times.last + times.end;
+export const turnLimits: number[] = [MOST_TURNS, MOST_TOGETHER, MOST_TURN_NAME, MOST_TURNS_TEXT, MOST_TURN_SECONDS, orderText.length];
+
+import { isometric, readThing, backToFront, MOST_ISOMETRIC_THINGS } from 'footprint-story/isometric';
+import type { IsoGrid, IsoBlock, IsoCylinder, IsoFloor, IsoPoint, IsoThing, IsoBox } from 'footprint-story/isometric';
+const grid: IsoGrid = isometric({ tile: [120, 60], origin: [960, 240], rise: 70 });
+const server: IsoThing = { at: [2, 1], size: [2, 2, 1.5] };
+const faces: IsoBlock = grid.block(server);
+const round: IsoCylinder = grid.cylinder({ at: [6, 1, 0], size: [2, 2, 1] });
+const ground: IsoFloor = isometric().floor({ cols: 8, rows: 6, at: [0, 0] });
+const wire: IsoPoint[] = grid.route([0, 3], [3, 1], { first: 'row' });
+const bounds: IsoBox = faces.box;
+const drawn: { name: string; thing: IsoThing }[] = backToFront([{ name: 'server', thing: server }], (item) => item.thing);
+export const isoMisc: unknown[] = [grid.at(1, 2, 3).x, grid.tileAt(10, 20).col, grid.tile[0], grid.origin[1], grid.rise, faces.top[0].y, round.top.rx, ground.lines[0][3], wire.length, bounds.w,
+  drawn[0].name, readThing(server).at[2], MOST_ISOMETRIC_THINGS];

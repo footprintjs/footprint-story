@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Turns**, in `footprint-story/motion`: an order written once, for a click of a deck and a beat of a film.
+  `readTurns('camera laptop (dns server) w1:1.2 db')` reads names in the order they come, `(a b)` as names that come together
+  and `name:seconds` as a turn's own time. `turnTimes(turns, { step })` says when each turn starts, when the last one starts
+  and when it is over. `writeTurns` writes the form back. Names alone read as a plain list, so an order written before
+  turns keeps its meaning. Text from anyone is bounded, a name with a character nobody can see is refused, and every
+  refusal says what to write. `stagger` is unchanged.
+- **An isometric grid**, in a new door, `footprint-story/isometric`: a floor of tiles seen from a corner, as numbers.
+  `isometric({ tile, origin })` gives where a point lands (`at`) and the way back (`tileAt`), the three faces of a box
+  (`block`), a round thing's two ellipses (`cylinder`), the tile lines (`floor`) and a line along the floor (`route`).
+  `backToFront` gives the order to draw things in. A cube looks like a cube: the grid is checked against a camera with no
+  depth. Nothing here draws, and no tool reads it yet.
+
 ## 0.8.0 — a chatbot session read as a conversation
 
 - **`sessionReader()` and `readSession(text)`**, in `footprint-story/storyboard`: a chatbot session file read as a conversation

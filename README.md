@@ -26,15 +26,16 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Five doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Six doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
 | `footprint-story` | the shown↔spoken map, sentences, captions, chapters | anywhere — browser or Node; no dependencies |
 | `footprint-story/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
-| `footprint-story/motion` | eases and springs, moves, transitions as data, pace | anywhere — browser or Node; no dependencies |
+| `footprint-story/motion` | eases and springs, moves, transitions as data, pace, turns (an order written once) | anywhere — browser or Node; no dependencies |
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
 | `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
+| `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in | anywhere — browser or Node; no dependencies |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
 new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency or a release
@@ -279,6 +280,24 @@ Moves keep their kind's law (an entrance ends at rest, an exit starts there, an 
 move of your own is checked by the same laws. A drawer adds its own transitions with `extendTransitions`, checked the
 same way. More in [src/motion/README.md](src/motion/README.md).
 
+### An order written once (turns)
+
+**Why:** "the view moves, then three things come one after another, then two together" is said the same way for a
+click of a deck and a beat of a film. `stagger` covers one gap between items; this covers the rest.
+
+```js
+import { readTurns, turnTimes, writeTurns } from 'footprint-story/motion';
+
+const turns = readTurns('camera laptop (dns server) w1:1.2 db');
+// names in the order they come · (a b): together · name:seconds: that turn's own time
+turnTimes(turns, { step: 0.35 });
+// { turns: [{ names: ['camera'], at: 0, takes: 0.35 }, … { names: ['db'], at: 2.25, takes: 0.35 }], last: 2.25, end: 2.6 }
+writeTurns(turns);   // 'camera laptop (dns server) w1:1.2 db'
+```
+
+Names alone read as a plain list, each its own turn. The names mean nothing here: a tool looks them up in its own
+picture, and passes `isName` when one of its names looks like the written form.
+
 ## A camera in 3D (shots)
 
 **Why:** a film and a deck should say a shot in the same words, and whoever writes one should learn what the camera really
@@ -318,6 +337,29 @@ other things in front`, or `no other things given`. A flat layer over the pictur
 add it as a thing, and every thing with a size is solid. Two things in one shot's `on` can hide each other, and that is reported:
 name a tight cluster as one ball. The sizes, the lenses and "too small" are starting choices, not measurements. Nothing here draws, and no tool reads a shot yet. More in [src/shot/README.md](src/shot/README.md).
 
+## A floor seen from a corner (isometric)
+
+**Why:** a system drawn as blocks on a floor reads at a glance, and a film and a deck should place those blocks the same
+way. The grid gives numbers; each tool draws with them.
+
+![A floor of tiles with a slab, a block and a cylinder on it, and a line along the floor](src/isometric/example.svg)
+
+```js
+import { isometric, backToFront } from 'footprint-story/isometric';
+
+const grid = isometric({ tile: 120, origin: [960, 240] });
+const server = { at: [2, 1], size: [2, 2, 1.5] };            // col 2, row 1: 2 wide, 2 deep, 1.5 high
+grid.block(server);                    // { top, left, right, outline, centre, box }: three faces, four points each
+grid.cylinder({ at: [6, 0], size: [2, 2, 1] });              // { top, bottom, centre, box }: two ellipses
+grid.floor({ cols: 8, rows: 5 });      // { outline, lines, box }
+grid.route([2, 4], [4, 3]);            // a line along the floor, turning once
+backToFront(things);                   // the furthest first
+```
+
+The picture above is drawn from these numbers by a test, so it is what the grid gives today. A cube looks like a cube:
+the grid is checked against a camera with no depth, built in the test from first principles. More in
+[src/isometric/README.md](src/isometric/README.md).
+
 ## API
 
 | export | does |
@@ -340,13 +382,15 @@ name a tight cluster as one ball. The sizes, the lenses and "too small" are star
 | `/motion` `MOVES`, `moveAt`, `readMove`, `movesBy`, `stagger` | named moves: their values at t, your own checked, a filter, delays |
 | `/motion` `TRANSITIONS`, `readTransition`, `checkTransition`, `extendTransitions`, `readSettings` | changes of picture as data, read and checked |
 | `/motion` `PACES`, `readPace` | how long a picture may sit still, by kind of film |
+| `/motion` `readTurns`, `turnTimes`, `writeTurns`, `MOST_TURNS`, `MOST_TOGETHER`, `MOST_TURN_NAME`, `MOST_TURNS_TEXT`, `MOST_TURN_SECONDS` | an order written once: read, timed, written back; its bounds |
 | `/shot` `readView`, `readScene`, `sceneProblems`, `readShot`, `shotProblems` | named views, scenes and shots, read and refused in words |
 | `/shot` `readCamera`, `frameOf`, `distanceFor`, `apertureFor` | a camera's numbers; the camera a shot asks for |
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
+| `/isometric` `isometric`, `readThing`, `backToFront`, `MOST_ISOMETRIC_THINGS` | a floor seen from a corner: the grid, a thing checked, the order to draw in |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -357,7 +401,7 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboa
   a rule says is final.
 - **Every move and curve StoryReel 0.23.0 drew is drawn the same**: property tests compare thousands of generated
   calls against copies of that code in `test/control/` — values and refusals alike.
-- **The main, motion, storyboard and shot doors run in a browser**: nothing they reach imports a Node module, and the main
+- **The main, motion, storyboard, shot and isometric doors run in a browser**: nothing they reach imports a Node module, and the main
   door never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).
