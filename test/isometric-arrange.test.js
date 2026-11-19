@@ -112,6 +112,12 @@ test('cols and rows are whole tiles, so a floor that size lies under the arrange
   for (const t of odd.things) for (const p of isometric().block(t).outline) assert.ok(p.x >= floor.box.x - 1e-9 && p.x <= floor.box.x + floor.box.w + 1e-9);
 });
 
+test('a thing a hair over a half tile has a slot that holds it: nothing stands on its edge', () => {
+  const a = arrange([thing('a', [0.5000000004, 0.5, 0]), thing('b', [0.5, 0.5, 0])], [['a', 'b']], { gap: 0, step: 0 });
+  assert.ok(a.things[1].at[0] >= a.things[0].at[0] + a.things[0].size[0]);
+  assert.equal(a.things[1].at[0], 1);   // a's slot is a whole tile
+});
+
 test('a thing of almost no size still has a slot of its own', () => {
   const tiny = arrange([thing('a', [1e-10, 1e-10, 0]), thing('b', [1e-10, 1e-10, 0])], [['a', 'b']], { gap: 0 });
   assert.ok(tiny.things[1].at[0] - tiny.things[0].at[0] >= 0.5 - 1e-9);
@@ -159,7 +165,7 @@ const read = ({ sizes, pairs, gap, step, back }) => {
   const links = pairs.filter(([u, v]) => u < sizes.length && v < sizes.length).map(([u, v]) => [names[u], names[v]]);
   return { things: sizes.map((size, i) => thing(names[i], size)), links: back && links.length ? [...links, [links[0][1], links[0][0]]] : links, gap, step };
 };
-const up = (n) => Math.ceil(n * 2 - 1e-9) / 2;   // a gap as it is kept: up to the half tile
+const up = (n) => Math.ceil(n * 2) / 2;   // a gap as it is kept: up to the half tile
 
 test('for any things and links: every thing is placed once, none nearer another than the gap, all from [0, 0], and the same again', () => {
   const seen = { joined: 0, loose: 0, rings: 0, plain: 0 };
@@ -203,7 +209,7 @@ test('every slot is on the half tile: a slot is the size rounded up to a half, a
   fc.assert(fc.property(picture, (given) => {
     const { things, links, gap, step } = read(given);
     for (const p of arrange(things, links, { gap, step }).things) {   // any gap: it is rounded up to the half tile too
-      const slot = [0, 1].map((axis) => p.at[axis] - (Math.max(0.5, Math.ceil(p.size[axis] * 2 - 1e-9) / 2) - p.size[axis]) / 2);
+      const slot = [0, 1].map((axis) => p.at[axis] - (Math.max(0.5, Math.ceil(p.size[axis] * 2) / 2) - p.size[axis]) / 2);
       for (const start of slot) assert.ok(near(start * 2, Math.round(start * 2), 1e-6), `${p.name}'s slot starts at ${start}`);
     }
   }), { numRuns: 300, seed: 3 });

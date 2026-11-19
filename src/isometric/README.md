@@ -62,8 +62,9 @@ settled, the answer is exact and has one value). The order within a step has few
 tries, not always the fewest there could be. A ring of links is placed too: the link that closes it is read the other
 way round. Things joined to nothing stand in rows of their own past the rest, nearer the viewer. A link to a name that
 is not a thing here is left out. Every slot is on the half tile (a thing stands in the middle of its slot), `cols` and
-`rows` are whole tiles, so a floor that size lies under the arrangement, and the same things and links always give the
-same places.
+`rows` are whole tiles, so `grid.floor({ cols, rows })` lies under the arrangement (a floor is 1 to 256 tiles a side:
+nothing arranged reaches 0, and a very long chain reaches past 256), and the same things and links always give the same
+places.
 
 **The gaps.** There are two: `gap` between things side by side in a step, and `step` between one step and the next,
 where the links run. Left out, each is what a thing's height asks for. In the usual two-to-one view a thing hides 1.22

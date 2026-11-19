@@ -11,7 +11,8 @@
   between a thing and a taller one in front of it (1.22 tiles for each tile of the tallest thing's height, and half a
   tile, never under one), and `step` is a tile more (never under two), room for a link's arrow. Every slot is on the
   half tile, `cols` and `rows` are whole tiles (a
-  floor that size lies under the arrangement), and the same things and links always give the same places. What it
+  floor that size lies under the arrangement, up to the 256 tiles a floor may be), and the same things and links
+  always give the same places. What it
   returns is things a grid draws. Every value is read by its own stored value and bounded (256 things, 1,024 links),
   and a refusal says what to give. Not kept clear: a link that skips a step may pass a thing between.
 - **`gridFor`**, in the same door: the grid on which placed things fill a box of the frame, `gridFor(things, [x0, y0,

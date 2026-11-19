@@ -57,7 +57,7 @@ export const MOST_ISOMETRIC_THINGS: number;
 export interface IsoNamed { name: string; size: readonly number[] }
 /** A thing arranged: where it stands on the floor, [col, row, 0]. It is a thing a grid draws. */
 export interface IsoPlaced { readonly name: string; readonly at: readonly [number, number, number]; readonly size: readonly number[] }
-/** An arrangement: the things in the order given, and how far it reaches from its far corner, [0, 0], along the cols and the rows: whole tiles. */
+/** An arrangement: the things in the order given, and how far it reaches from its far corner, [0, 0], along the cols and the rows: whole tiles (0 when nothing was given; a long chain reaches past the 256 a floor may be). */
 export interface IsoArrangement { readonly things: readonly IsoPlaced[]; readonly cols: number; readonly rows: number }
 /**
  * Where things stand, from what is joined to what. `links` are [from, to] by name: a joined thing stands one step

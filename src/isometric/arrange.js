@@ -11,7 +11,8 @@
  * same things and links always give the same places: among equals, the one given first comes first.
  *
  * The far corner of the arrangement is [0, 0] (where a grid's `origin` lands); it reaches `cols` along the cols and
- * `rows` along the rows, whole tiles, so a floor of that many tiles lies under it.
+ * `rows` along the rows, whole tiles: a floor of that many tiles lies under it, where a grid draws a floor that size
+ * (1 to 256 tiles a side — nothing arranged reaches 0, and a long chain reaches past 256).
  *
  * HOW (each step has its source in REFERENCES.md):
  *   1. A ring of links (a to b to a) has no first thing, so one link of it is read the other way round: the link that
@@ -55,7 +56,7 @@ const SWEEPS = 4;
 const HIDES = Math.sqrt(1.5);
 
 /** A length rounded up to a half tile (what is a half already stays one). */
-const half = (n) => Math.ceil(n * 2 - 1e-9) / 2;
+const half = (n) => Math.ceil(n * 2) / 2;
 /** A thing's slot along one side: its size rounded up to a half tile, and never less than a half (a thing of no size still stands somewhere). */
 const slot = (n) => Math.max(0.5, half(n));
 /** An option by its own stored value (a getter is somebody's code, which is never run), or the usual one. */
@@ -257,5 +258,5 @@ export function arrange(things, links = [], options = undefined) {
   const placed = list.map(({ name, size }, v) => Object.freeze({ name, size: Object.freeze([...size]),
     at: Object.freeze([clean(place[v][0] + (slots[v][0] - size[0]) / 2), clean(place[v][1] + (slots[v][1] - size[1]) / 2), 0]) }));   // in the middle of its slot
   const everything = list.map((_, v) => v);
-  return Object.freeze({ things: Object.freeze(placed), cols: Math.ceil(reach(everything, 0)), rows: Math.ceil(reach(everything, 1)) });   // whole tiles: a floor that size lies under it
+  return Object.freeze({ things: Object.freeze(placed), cols: Math.ceil(reach(everything, 0)), rows: Math.ceil(reach(everything, 1)) });   // whole tiles, as a floor counts them
 }
