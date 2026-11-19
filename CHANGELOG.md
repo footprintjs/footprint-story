@@ -5,12 +5,12 @@
 - **`routes`**, in `footprint-story/isometric`: the way each link runs along the floor, round what stands on it.
   `routes([{ name, at, size }], [[from, to]])` gives one entry a link: its `points` along the tile lines, from one of
   the two feet a viewer sees to one of the other thing's, the `feet` it uses, its `bends`, its length in `tiles`. It
-  never passes under a thing, keeps off floor a thing hides when it can, and takes the lane beside a route laid before
+  never passes under a thing that stands on its floor, keeps off floor a thing hides when it can, and takes the lane beside a route laid before
   it, so a request and its answer lie side by side. A thing straight in front of another, behind it or against it is
   reached too. The same things and links always give the same ways.
-- **Each result says what happened.** `behind` names the things a route had to pass behind, `crosses` counts the
-  routes it crosses, `shared` is the tiles that lie on another's way for want of room, and a link with no way has
-  `points: null` and `why` (`NO_ROUTE`: a name that is no thing here, a thing joined to itself, two heights, no free
+- **Each result says what happened.** `behind` names every thing that hides a point of a route, its feet too, `crosses`
+  counts where it meets routes laid before it, `shared` is the tiles that lie on another's way for want of room, and a link with no way has
+  `points: null` and `why` (`NO_ROUTE`: a name that is no thing here, a thing joined to itself, two heights, no
   place at a foot that can be seen, no way along the floor, too far apart for the smallest thing, too many links). `routeNote(route)` says it
   in words ("app to db: passes behind logs"), or null when a route lies well: a person or a model can change the
   picture without looking at it.

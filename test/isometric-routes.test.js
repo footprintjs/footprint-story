@@ -14,7 +14,21 @@ const stretches = (route) => route.points.slice(1).map((p, k) => [route.points[k
 const along = (route) => stretches(route).flatMap(([a, b]) => { const n = Math.max(1, Math.round((Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1])) * 20)); return Array.from({ length: n - 1 }, (_, k) => [a[0] + (b[0] - a[0]) * (k + 1) / n, a[1] + (b[1] - a[1]) * (k + 1) / n]); });
 const under = ([x, y], t) => x > t.at[0] && x < t.at[0] + t.size[0] && y > t.at[1] && y < t.at[1] + t.size[1];
 /** Whether a thing hides a floor point: somewhere towards the viewer, within what its height covers, is on its tiles. */
-const hides = ([x, y], t) => { const lo = Math.max(t.at[0] - x, t.at[1] - y, 0), hi = Math.min(t.at[0] + t.size[0] - x, t.at[1] + t.size[1] - y, t.size[2] * HIDES); return lo < hi && hi > 0; };
+/**
+ * Whether a thing hides a floor point (the floor at `lift`), asked the long way round and apart from the code: walk
+ * from the point towards the viewer, a hundredth of a tile at a time, and see whether the walk is over the thing's
+ * tiles at a height the thing has there.
+ */
+const hides = ([x, y], t, lift = 0, slack = 0) => {
+  const [c, r, z = 0] = t.at, [w, d, h] = t.size;
+  for (let k = 1; k <= 600; k += 1) {   // six tiles: further than any thing here is high enough to hide
+    const far = k / 100, up = far / HIDES + lift;   // so far towards the viewer, the line of sight has risen so much
+    if (x + far > c - slack && x + far < c + w + slack && y + far > r - slack && y + far < r + d + slack && up > z - slack && up < z + h + slack) return true;
+  }
+  return false;
+};
+/** The walk is a hundredth of a tile at a time: a thing hides a point surely when one a little smaller does, and not at all when one a little bigger does not. */
+const SURE = -0.03, MAYBE = 0.03;
 /** What every route holds, whatever stands where. */
 function holds(route, things, where = '') {
   const byName = new Map(things.map((t) => [t.name, t])), a = byName.get(route.from), b = byName.get(route.to), tell = `${where} ${route.from}→${route.to} ${JSON.stringify(route.points)}`;
@@ -117,10 +131,10 @@ test('routes: behind names exactly the things that hide a point of the way', () 
     for (const route of routes(things, links)) {
       assert.ok(route.points, route.why);
       holds(route, things);
-      // at the points half a tile apart the search stood on: what hides one is named, and what is named hides one
-      const stood = stretches(route).slice(1, -1).flatMap(([a, b]) => { const n = Math.round((Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1])) * 2); return Array.from({ length: n + 1 }, (_, k) => [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]); });
+      // at the points half a tile apart it stands on, its two feet among them: what hides one is named, and what is named hides one
+      const stood = stretches(route).flatMap(([a, b]) => { const n = Math.max(1, Math.round((Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1])) * 2)); return Array.from({ length: n + 1 }, (_, k) => [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]); });
       const hiding = things.filter((t) => stood.some((p) => hides(p, t))).map((t) => t.name).sort();
-      assert.deepEqual([...route.behind].sort(), hiding);
+      assert.deepEqual([...route.behind].sort(), hiding, JSON.stringify([things, route]));
     }
   }), { numRuns: 200 });
 });
@@ -162,7 +176,7 @@ test('routes: a link with no way says why, in its place', () => {
   const laid = routes(things, [['a', 'nobody'], ['a', 'a'], ['a', 'up'], ['a', 'boxed'], ['a', 'b']]);
   assert.deepEqual(laid.slice(0, 4).map((r) => [r.points, r.why]), [[null, NO_ROUTE.name], [null, NO_ROUTE.self], [null, NO_ROUTE.heights], [null, NO_ROUTE.foot]]);
   assert.ok(laid[4].points);
-  assert.equal(routeNote(laid[3]), 'a to boxed: no route along the floor (no free place at a foot that can be seen)');
+  assert.equal(routeNote(laid[3]), 'a to boxed: no route along the floor (no place at a foot that can be seen: closed in, or too narrow)');
   assert.deepEqual(routes([], [['a', 'b']]), [{ from: 'a', to: 'b', points: null, why: NO_ROUTE.name }]);
   assert.deepEqual(routes(things, []), []);
   // walled in on every side: feet there are, a way there is not
@@ -281,4 +295,87 @@ test('rounded: refuses what it cannot read, naming the fix', () => {
   assert.throws(() => rounded([[0, 0], [1, 1]], -1), /a radius of 0 or more/);
   assert.throws(() => rounded([[2, 2], [2, 2]]), /its points are all one place/);
   assert.throws(() => rounded([[0, 0], [1, 1]]).at(2), /a share of it, from 0 to 1/);
+});
+
+test('routes: the short run out of a foot is part of the route — it passes under nothing, and a hidden foot is told', () => {
+  // a thin thing stands right in front of a's right foot: no route may run through it to that foot
+  const thin = [thing('a', [0, 0]), thing('thin', [2.1, -1], [0.15, 4, 1]), thing('b', [6, 0])];
+  for (const route of routes(thin, [['a', 'b'], ['b', 'a']])) { assert.ok(route.points, route.why); holds(route, thin); }
+  // the foot it reaches is hidden by the thing it comes from: said, where it used to be silent
+  const tall = [thing('t0', [7.3, 1.5], [3.1, 1.6, 2.9]), thing('t1', [4.3, -2.6], [2.2, 3, 2.7])];
+  const [route] = routes(tall, [['t0', 't1']]);
+  holds(route, tall);
+  const end = route.points.at(-1);
+  assert.equal(hides(end, tall[0]), route.behind.includes('t0'), `${JSON.stringify(route)}`);
+});
+
+test('routes: behind names every thing that hides a point, whatever order the things are given in', () => {
+  const picture = (order) => order.map((name) => ({ A: thing('A', [2, -7], [2, 2, 0]), W1: thing('W1', [-10, -1], [12.5, 0.5, 0]), W2: thing('W2', [3.5, -1], [16, 0.5, 0]), X: thing('X', [4, 0], [1, 1, 4]), Y: thing('Y', [5, 1], [1, 1, 4]), B: thing('B', [2, 6], [2, 2, 0]) }[name]));
+  const one = routes(picture(['A', 'W1', 'W2', 'X', 'Y', 'B']), [['A', 'B']])[0], other = routes(picture(['A', 'W1', 'W2', 'Y', 'X', 'B']), [['A', 'B']])[0];
+  assert.deepEqual(one.points, other.points);
+  assert.deepEqual([...one.behind].sort(), [...other.behind].sort());
+  assert.deepEqual([...one.behind].sort(), ['X', 'Y']);
+});
+
+test('routes: behind and under, with things at any place, size and height (random pictures off the half tile)', () => {
+  fc.assert(fc.property(fc.array(fc.tuple(fc.integer({ min: -20, max: 60 }), fc.integer({ min: -20, max: 60 }), fc.integer({ min: 3, max: 30 }), fc.integer({ min: 3, max: 30 }), fc.integer({ min: 0, max: 30 })), { minLength: 2, maxLength: 6 }), (raw) => {
+    const things = [];
+    for (const [c, r, w, d, h] of raw) {
+      const t = thing(`t${things.length}`, [c / 5, r / 5], [w / 10, d / 10, h / 10]);
+      if (!things.some((o) => t.at[0] < o.at[0] + o.size[0] + 0.3 && o.at[0] < t.at[0] + t.size[0] + 0.3 && t.at[1] < o.at[1] + o.size[1] + 0.3 && o.at[1] < t.at[1] + t.size[1] + 0.3)) things.push(t);
+    }
+    if (things.length < 2) return;
+    const links = things.slice(1).flatMap((t, k) => [[things[k].name, t.name], [t.name, things[k].name]]);
+    for (const route of routes(things, links)) {
+      if (!route.points) continue;
+      holds(route, things);
+      // a foot the code says is seen is seen, and a thing it names does hide a point of the way (asked at a twentieth of a tile)
+      const fine = stretches(route).flatMap(([p, q]) => { const n = Math.max(1, Math.round((Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1])) * 40)); return Array.from({ length: n + 1 }, (_, k) => [p[0] + (q[0] - p[0]) * k / n, p[1] + (q[1] - p[1]) * k / n]); });
+      for (const name of route.behind) assert.ok(fine.some((p) => hides(p, things.find((t) => t.name === name), 0, MAYBE)), `${name} is named and hides nothing: ${JSON.stringify([things, route])}`);
+      for (const foot of [route.points[0], route.points.at(-1)]) for (const t of things) if (hides(foot, t, 0, SURE)) assert.ok(route.behind.includes(t.name), `${t.name} hides a foot and is not named: ${JSON.stringify([things, route])}`);
+    }
+  }), { numRuns: 300 });
+});
+
+test('routes: a crossing at a route\'s own first point or short run is counted, and avoided when a lane is free', () => {
+  const things = [thing('t1', [3.1, 1], [2.8, 2.4, 0.5]), thing('t3', [2.3, 7.2], [1.6, 2.6, 0.8])];
+  const laid = routes(things, [['t3', 't1'], ['t3', 't1']]);
+  for (const route of laid) holds(route, things);
+  // counted by the geometry, apart from the code: two stretches that cross strictly inside both
+  const strict = (one, other) => stretches(one).reduce((n, [a, b]) => n + stretches(other).filter(([c, d]) => {
+    const cols = a[1] === b[1], across = c[0] === d[0];
+    if (cols !== across) return false;
+    const [h, v] = cols ? [[a, b], [c, d]] : [[c, d], [a, b]];
+    return v[0][0] > Math.min(h[0][0], h[1][0]) + 1e-9 && v[0][0] < Math.max(h[0][0], h[1][0]) - 1e-9 && h[0][1] > Math.min(v[0][1], v[1][1]) + 1e-9 && h[0][1] < Math.max(v[0][1], v[1][1]) - 1e-9;
+  }).length, 0);
+  assert.equal(strict(laid[1], laid[0]) <= laid[1].crosses, true, JSON.stringify(laid));
+  assert.equal(strict(laid[1], laid[0]), 0, 'a lane beside was free');
+  // and on random pictures: a route never crosses more, by the geometry, than it says
+  fc.assert(fc.property(fc.array(fc.tuple(fc.integer({ min: 0, max: 6 }), fc.integer({ min: 0, max: 6 })), { minLength: 3, maxLength: 7 }), fc.array(fc.tuple(fc.nat(6), fc.nat(6)), { minLength: 2, maxLength: 8 }), (cells, pairs) => {
+    const seen = new Set(), placed = [];
+    for (const [i, j] of cells) if (!seen.has(`${i} ${j}`)) { seen.add(`${i} ${j}`); placed.push(thing(`t${placed.length}`, [i * 4.3, j * 3.7], [2.1, 1.7, 1])); }
+    if (placed.length < 2) return;
+    const links = pairs.map(([a, b]) => [placed[a % placed.length].name, placed[b % placed.length].name]).filter(([a, b]) => a !== b);
+    const out = routes(placed, links).filter((r) => r.points);
+    out.forEach((route, k) => { const crossed = out.slice(0, k).reduce((n, before) => n + strict(route, before), 0); assert.ok(crossed <= route.crosses, `${crossed} by the geometry, ${route.crosses} said: ${JSON.stringify([placed, links, k])}`); });
+  }), { numRuns: 200 });
+});
+
+test('routes: a thing with thousands of places costs no more to search: the work allowed still ends it', () => {
+  const things = [thing('B', [0, 0], [18000, 1, 1]), thing('C', [0, 3], [18000, 2, 1]), thing('D', [-2, 0], [2, 5, 1]), thing('E', [18000, 0], [2, 5, 1]), thing('A', [-10, 0], [4, 4, 1])];
+  const began = performance.now(), laid = routes(things, Array.from({ length: 6 }, () => ['A', 'B']));
+  assert.ok(performance.now() - began < 4000, `${Math.round(performance.now() - began)} ms`);
+  for (const route of laid) assert.ok(route.points === null ? Object.values(NO_ROUTE).includes(route.why) : route.points.length >= 2);
+});
+
+test('routes: options are {hides} or none; a name is told on one line; what `at` gives is the caller\'s own', () => {
+  assert.throws(() => routes([thing('a', [0, 0])], [], 5), /routes takes its options as \{hides\}, or none — not 5/);
+  assert.throws(() => routes([thing('a', [0, 0])], [], [1]), /routes takes its options as \{hides\}/);
+  assert.deepEqual(routes([thing('a', [0, 0])], [], undefined), []);
+  assert.equal(routeNote({ from: 'a\nb', to: 'c', points: null, why: 'x' }), 'a b to c: no route along the floor (x)');
+  assert.equal(routeNote({ from: 'a', to: 'b', points: [[0, 0], [1, 0]], bends: 0, behind: ['lo gs'], crosses: 0, shared: 0 }), 'a to b: passes behind lo gs');
+  const way = rounded([[0, 0], [100, 0], [100, 80]], 20), end = way.at(1);
+  end[0] = 999;
+  assert.deepEqual(way.pieces.at(-1).to, [100, 80]);
+  assert.deepEqual(way.at(1), [100, 80]);
 });

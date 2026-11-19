@@ -60,7 +60,7 @@ export function rounded(points, radius = 0) {
   }
   const place = (share) => {
     if (!(typeof share === 'number' && share >= 0 && share <= 1)) refuse(`a place along a way is a share of it, from 0 to 1 — not ${shown(share)}`);
-    if (share === 1) return read.at(-1);
+    if (share === 1) return [...read.at(-1)];
     const want = share * length, run = runs.find((r) => want <= r.from + r.whole) ?? runs.at(-1);
     let left = want - run.from;
     for (let k = 0; k < run.lengths.length; k += 1) {
@@ -70,7 +70,7 @@ export function rounded(points, radius = 0) {
       }
       left -= run.lengths[k];
     }
-    return run.chords.at(-1);   // not reached: every run has a chord
+    return [...run.chords.at(-1)];   // not reached: every run has a chord
   };
   return { start, pieces, length, at: place };
 }

@@ -88,15 +88,16 @@ export type IsoFoot = 'right' | 'left';
 /**
  * The way one link runs along the floor. `points`: [col, row] from the foot it leaves to the foot it reaches, a square
  * turn at every point between; `feet`: the foot it leaves and the foot it reaches; `bends`: its turns; `tiles`: its
- * length; `behind`: the names of the things it passes behind (hidden floor it could not go round); `crosses`: how many
- * routes laid before it it crosses; `shared`: the tiles of it that lie on another's way for want of room (0 as a rule).
+ * length; `behind`: the names of the things that hide a point of it, its feet too (hidden floor it could not go round);
+ * `crosses`: how many times it meets a route laid before it, a touch at a corner too; `shared`: the tiles of it that
+ * lie on another's way for want of room (0 as a rule).
  */
 export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; readonly feet: readonly [IsoFoot, IsoFoot]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; readonly crosses: number; readonly shared: number }
 /** A link that has no way along the floor, and why (one of NO_ROUTE). */
 export interface IsoNoRoute { readonly from: string; readonly to: string; readonly points: null; readonly why: string }
 /**
  * The way each link runs along the floor, round what stands on it: one entry a link, in the order given. A route
- * leaves and reaches a thing at a foot a viewer sees, runs along the tile lines, never passes under a thing, keeps off
+ * leaves and reaches a thing at a foot a viewer sees, runs along the tile lines, never passes under a thing that stands on its floor, keeps off
  * hidden floor when it can, and takes the lane beside a route laid before it. `hides`: the tiles of floor a thing
  * hides behind it for each tile of its height (1.22: the usual two-to-one view). The same things and links always give
  * the same ways, and the work is bounded (MOST_WORK): on a picture too big, the last links are not tried and say so.
