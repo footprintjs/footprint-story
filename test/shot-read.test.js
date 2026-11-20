@@ -118,3 +118,15 @@ test('a shot names every problem at once, and what it repeats is clean', () => {
   const crowd = { things: Array.from({ length: 12 }, (_, i) => ({ name: `t${i}`, at: [i, 0, 0] })) };
   assert.match(shotProblems({ on: 'x', from: 'left' }, crowd)[0].message, /and 4 more/);
 });
+
+test('a scene\'s refusal carries its lines as rows, so a tool that prints errors shows each on a line of its own', async () => {
+  const { errorText } = await import('../index.js');
+  assert.throws(() => readScene({ unit: 3, things: [{ name: 'a' }] }), (e) => {
+    assert.equal(e.rows.length, 1 + e.problems.length);
+    assert.equal(e.rows[0], `this scene has ${e.problems.length} problems:`);
+    assert.ok(e.rows.slice(1).every((row) => row.startsWith('- ')));
+    assert.equal(e.rows.join('\n'), e.message);
+    assert.deepEqual(errorText(e).split('\n'), e.rows);
+    return true;
+  });
+});

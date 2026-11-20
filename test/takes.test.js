@@ -507,3 +507,25 @@ test('the real aligner: a take that says nothing aligns with every word low; one
   const timings = JSON.parse(readFileSync(path.join(dir, 'w2', 'timings.json'), 'utf8'));
   assert.deepEqual([timings.schemaVersion, timings.provider, timings.voiceProfile, timings.scenes[0].alignment.method], [1, 'recorded', engine.profile.id, 'forced-alignment-mms']);
 });
+
+test('find and check: a refusal carries its lines as rows, so a tool that prints errors shows each on a line of its own', async () => {
+  const { errorText } = await import('../index.js');
+  const { checkTakes } = await import('../src/voice/align.js');
+  const book = readTakeBook(takesFolder({ 'One.': ['1.wav', TAKE] }));
+  assert.throws(() => findTakes([{ id: 'k1', text: 'Two.' }, { id: 'k2', text: 'Three.' }], book), (e) => {
+    assert.deepEqual(e.rows.slice(1), ['  "Two.": "<file>.m4a",', '  "Three.": "<file>.m4a"']);
+    assert.match(e.rows[0], /^recordedTakes: 2 lines have no take in .*\(line → file\):$/);
+    assert.equal(e.rows.join('\n'), e.message);
+    assert.deepEqual(errorText(e).split('\n'), e.rows);
+    return true;
+  });
+  // a line a project wrote with a break in it stays on its own row
+  const cut = [{ id: 'a', file: 'a.wav', text: 'One.' }, { id: 'b', file: 'b.wav', text: 'Two\nverdict: clean' }];
+  assert.throws(() => checkTakes(cut, { timings: new Map(), checks: new Map() }, dir), (e) => {
+    assert.deepEqual(e.rows, ['recordedTakes refused 2 take(s):', '  a.wav ("One."): the aligner gave nothing back for it',
+      '  b.wav ("Two\nverdict: clean"): the aligner gave nothing back for it', 'Is each the take of its line? Record it again, or point takes.json at the right file.']);
+    assert.equal(e.rows.join('\n'), e.message);
+    assert.deepEqual(errorText(e).split('\n'), [e.rows[0], e.rows[1], '  b.wav ("Two\\nverdict: clean"): the aligner gave nothing back for it', e.rows[3]]);
+    return true;
+  });
+});

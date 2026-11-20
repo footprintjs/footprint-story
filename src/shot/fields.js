@@ -88,8 +88,10 @@ export function readAll(read) {
 /** The value, or a refusal listing every problem; `what` says what was being read. */
 export function orRefuse({ value, problems }, what) {
   if (!problems.length) return value;
+  // one row per problem, as the message lists them: a tool that prints errors shows each on a line of its own
   const list = problems.map((p) => `${p.at ? `${p.at} ` : ''}${p.message}`);
-  throw Object.assign(new TypeError(`this ${what} has ${list.length} problem${list.length === 1 ? '' : 's'}:\n- ${list.join('\n- ')}`), { problems });
+  const rows = [`this ${what} has ${list.length} problem${list.length === 1 ? '' : 's'}:`, ...list.map((line) => `- ${line}`)];
+  throw Object.assign(new TypeError(rows.join('\n')), { problems, rows });
 }
 
 /** What a reader hands out is never edited by whoever draws it. */

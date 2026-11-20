@@ -57,8 +57,10 @@ export function checkTakes(cut, { timings, checks }, dir) {
     results.push({ id: take.id, audio: path.join(dir, timing.audio), duration: timing.duration, words: timing.words,
       take: { file: take.file, trim: take.trim, check: { words, meanScore, lowWords, letterMatch } } });
   }
-  if (refused.length) throw new Error(`recordedTakes refused ${refused.length} take(s):\n  ${refused.join('\n  ')}\nIs each the take of its line? Record it again, or point takes.json at the right file.`);
-  return results;
+  if (!refused.length) return results;
+  // one row per refused take, as the message lists them: a tool that prints errors shows each on a line of its own
+  const rows = [`recordedTakes refused ${refused.length} take(s):`, ...refused.map((line) => `  ${line}`), 'Is each the take of its line? Record it again, or point takes.json at the right file.'];
+  throw Object.assign(new Error(rows.join('\n')), { rows });
 }
 
 const s = (x) => `${x.toFixed(2)} s`;
