@@ -24,7 +24,10 @@
  * so a way has few bends; a step over hidden floor costs HIDDEN more, so a way goes round where it can be seen; crossing
  * a route laid before costs CROSS, and running along one costs ALONG, so the later link takes the lane beside it. The
  * short run out of a foot is a stretch like any other: it passes under nothing, pays for hidden floor and for what it
- * crosses. The links are laid in the order given, and the same things and links always give the same ways.
+ * crosses. A step onto floor kept clear (`keep`, under words that float over the picture) costs KEPT more: a way goes
+ * round words where it can, and `under` names the words it could not keep off. Kept floor is no thing: it never
+ * changes the lattice's step, and it is asked at its own height. The links are laid in the order given, and the same
+ * things and links always give the same ways.
  *
  * Everything may come from anyone: every value is read by its own stored field and checked (thing.js), and the work is
  * counted — building a floor's lattice and every step of the search. A picture too big to lay in MOST_WORK leaves its
@@ -45,6 +48,10 @@ const STEPS = [0.5, 0.25, 0.125];   // how far apart the lattice's points may be
 const AROUND = 2;                   // tiles of floor round the things that a route may use
 const REACH = 0.5;                  // tiles a route runs straight out of a foot, at least: room for an arrow's head on its last run
 const TURN = 1.5, HIDDEN = 3, CROSS = 2, ALONG = 24, SHARED = 12;   // what each costs, in tiles (HIDDEN: for each tile of hidden floor)
+/** For each tile of floor kept clear (`keep`: under words that float over the picture), what a route pays more: more than going round a few tiles, less than a closed floor. */
+const KEPT = 4;
+/** The most stretches of kept floor one picture may name. */
+export const MOST_KEEP = 512;
 const OFF_MIDDLE = 1.5;   // for each tile a place is off its foot's middle: more than the way it would save, so a link alone takes the middle
 /** The four ways along the lattice: the cols on, the rows on, the cols back, the rows back. */
 const WAYS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
@@ -75,6 +82,21 @@ function readThings(things) {
     read.push({ name, at, size, round, ports: readPorts(own(thing, 'ports'), size, round, shown(name)) });
   }
   return { read, names };
+}
+
+/** The floor kept clear, checked: [{name, index, at: [col, row], lift, size: [wide, deep]}] — `keep` as given, each with its own fields. */
+function readKeep(keep) {
+  if (keep === undefined || keep === null) return [];
+  if (!Array.isArray(keep)) refuse(`keep is a list of floor kept clear, [{at: [col, row, lift?], size: [wide, deep], name?}, …] — not ${shown(keep)}`);
+  if (keep.length > MOST_KEEP) refuse(`keep names at most ${MOST_KEEP} stretches of floor, not ${keep.length}`);
+  return keep.map((area, i) => {
+    const what = `keep ${i + 1}`, name = area && typeof area === 'object' ? own(area, 'name') : undefined;
+    if (name !== undefined && (typeof name !== 'string' || !name || name.length > MOST_NAME)) refuse(`${what} has a name, some text of at most ${MOST_NAME} characters — not ${shown(name)}`);
+    const at = area && typeof area === 'object' ? own(area, 'at') : undefined, size = area && typeof area === 'object' ? own(area, 'size') : undefined;
+    // read as a thing of no height is read: the same checks, the same words
+    const thing = readThing({ at, size: Array.isArray(size) && size.length === 2 ? [size[0], size[1], 0] : size }, what);
+    return { name: name ?? null, index: i, at: [thing.at[0], thing.at[1]], lift: thing.at[2] ?? 0, size: [thing.size[0], thing.size[1]] };
+  });
 }
 
 function readLinks(links) {
@@ -142,7 +164,7 @@ function hidesPoint({ at: [c, r, z], size: [w, d, h] }, lift, hides, x, y) {
  * and for each point a thing may reach: a picture with a floor at every height must not cost more than one — null
  * when there is not enough work left to build it.
  */
-function lattice(read, lift, step, hides, work) {
+function lattice(read, lift, step, hides, work, clear = []) {
   const lo = (key) => Math.min(...read.map((t) => t.at[key])), hi = (key) => Math.max(...read.map((t) => t.at[key] + t.size[key]));
   const first = [Math.floor((lo(0) - AROUND) / step), Math.floor((lo(1) - AROUND) / step)];
   const nx = Math.ceil((hi(0) + AROUND) / step) - first[0] + 1, ny = Math.ceil((hi(1) + AROUND) / step) - first[1] + 1;
@@ -167,7 +189,17 @@ function lattice(read, lift, step, hides, work) {
       }
     }
   }
-  return { first, nx, ny, closed, hidden, alongCols: new Uint8Array(nx * ny), alongRows: new Uint8Array(nx * ny), taken: new Set(), cut: new Set() };
+  // floor kept clear at this height: each point inside a stretch remembers the first stretch it is in (its number, from 1)
+  const kept = new Uint16Array(nx * ny);
+  for (const { index, at: [c, r], size: [w, d] } of clear) {
+    const i0 = Math.max(0, Math.ceil(c / step) - first[0]), i1 = Math.min(nx - 1, Math.floor((c + w) / step) - first[0]);
+    const j0 = Math.max(0, Math.ceil(r / step) - first[1]), j1 = Math.min(ny - 1, Math.floor((r + d) / step) - first[1]);
+    const looks = Math.max(0, i1 - i0 + 1) * Math.max(0, j1 - j0 + 1);
+    if (looks > work.left) return null;
+    work.left -= looks;
+    for (let j = j0; j <= j1; j += 1) for (let i = i0; i <= i1; i += 1) if (!kept[j * nx + i]) kept[j * nx + i] = index + 1;
+  }
+  return { first, nx, ny, closed, hidden, kept, alongCols: new Uint8Array(nx * ny), alongRows: new Uint8Array(nx * ny), taken: new Set(), cut: new Set() };
 }
 
 /**
@@ -220,7 +252,7 @@ const cutCrossings = ({ alongCols, alongRows }, place) => (place.cuts ?? []).fil
 
 /** The cheapest way over the lattice from one of `starts` to one of `ends` (places): {nodes, start, end, cost}, or null. `work`: {left}. */
 function search(grid, starts, ends, step, seen, work) {
-  const { nx, ny, closed, hidden, alongCols, alongRows, taken, cut } = grid, stamp = (seen.turn += 1);
+  const { nx, ny, closed, hidden, alongCols, alongRows, taken, cut, kept } = grid, stamp = (seen.turn += 1);
   // this link's own ports' runs out are not crossed either
   const own = new Set([...starts, ...ends].flatMap((p) => p.cuts ?? [])), crosses = (key) => cut.has(key) || own.has(key);
   // nor the lattice points on its own ports' runs out: a route does not hook back across the run it left by
@@ -231,11 +263,11 @@ function search(grid, starts, ends, step, seen, work) {
   const box = [Infinity, -Infinity, Infinity, -Infinity];
   for (const g of goals.keys()) { const i = g % nx, j = (g - i) / nx; box[0] = Math.min(box[0], i); box[1] = Math.max(box[1], i); box[2] = Math.min(box[2], j); box[3] = Math.max(box[3], j); }
   const far = (node) => { const i = node % nx, j = (node - i) / nx; return (Math.max(0, box[0] - i, i - box[1]) + Math.max(0, box[2] - j, j - box[3])) * step; };
-  const lies = (p) => { const kept = p.way % 2 === 0 ? alongCols : alongRows; return p.run.filter((stretch) => kept[stretch]).length; };
+  const lies = (p) => { const lanes = p.way % 2 === 0 ? alongCols : alongRows; return p.run.filter((stretch) => lanes[stretch]).length; };
   // what a place costs: its run (three times more over hidden floor), being off the foot's middle, being taken, lying
   // on another's stretch, and crossing the routes laid before — `front`: whether the lattice point's own crossing is its to pay
   const placeCost = (p, front) => p.stub * (p.hidden ? 1 + HIDDEN : 1) + p.off * OFF_MIDDLE + p.turn + cutCrossings(grid, p) * CROSS + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG + runCrossings(grid, p, front) * CROSS;
-  const pointCost = (node) => (hidden[node] ? HIDDEN * step : 0);
+  const pointCost = (node) => (hidden[node] ? HIDDEN * step : 0) + (kept[node] ? KEPT * step : 0);
   const open = heap();
   let order = 0, best = null;
   const reach = (state, cost, from) => {
@@ -286,8 +318,8 @@ function search(grid, starts, ends, step, seen, work) {
  * another's way for want of room (`shared`, 0 as a rule) — or `points: null` and `why` (one of NO_ROUTE).
  */
 export function routes(things, links = [], options = undefined) {
-  if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) refuse(`routes takes its options as {hides}, or none — not ${shown(options)}`);
-  const { read, names } = readThings(things), wanted = readLinks(links), hides = option(options, 'hides', HIDES);
+  if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) refuse(`routes takes its options as {hides, keep}, or none — not ${shown(options)}`);
+  const { read, names } = readThings(things), wanted = readLinks(links), hides = option(options, 'hides', HIDES), keep = readKeep(option(options, 'keep', undefined));
   if (!(typeof hides === 'number' && hides >= 0 && hides <= 8)) refuse(`hides is the tiles of floor a thing hides behind it for each tile of its height, from 0 to 8 — not ${shown(hides)}`);
   const none = (from, to, why) => ({ from, to, points: null, why });
   if (!read.length) return wanted.map(([from, to]) => none(from.name, to.name, NO_ROUTE.name));
@@ -301,7 +333,7 @@ export function routes(things, links = [], options = undefined) {
   let seen = null;   // what the search remembers of one link: every floor's lattice has the same points, so one is enough
   const floorAt = (lift) => {
     if (!floors.has(lift)) {
-      const grid = lattice(read, lift, step, hides, work);
+      const grid = lattice(read, lift, step, hides, work, keep.filter((area) => area.lift === lift));
       seen ??= grid && { stamp: new Int32Array(grid.nx * grid.ny * 4), cost: new Float64Array(grid.nx * grid.ny * 4), from: new Int32Array(grid.nx * grid.ny * 4), turn: 0 };
       floors.set(lift, grid && { grid, places: new Map() });
     }
@@ -341,9 +373,9 @@ export function routes(things, links = [], options = undefined) {
     const straightIn = nodes.length > 1 && (Math.abs(nodes.at(-1) - nodes.at(-2)) === 1) === (end.way % 2 === 0);
     let crosses = runCrossings(grid, start, true) + runCrossings(grid, end, !straightIn) + cutCrossings(grid, start) + cutCrossings(grid, end), shared = 0;
     for (const place of [start, end]) {
-      const kept = place.way % 2 === 0 ? alongCols : alongRows;
+      const lanes = place.way % 2 === 0 ? alongCols : alongRows;
       if (taken.has(`${place.edge} ${place.at}`)) shared += place.stub;
-      else shared += place.run.filter((stretch) => kept[stretch]).length * step;
+      else shared += place.run.filter((stretch) => lanes[stretch]).length * step;
     }
     for (let k = 1; k < nodes.length; k += 1) {
       const cols = Math.abs(nodes[k] - nodes[k - 1]) === 1;
@@ -393,7 +425,11 @@ export function routes(things, links = [], options = undefined) {
       return z > 1e-9 ? [plug, axis === 0 ? [plug[0] + sign * OUT, plug[1], plug[2]] : [plug[0], plug[1] + sign * OUT, plug[2]]] : [plug];
     };
     const path = [...portPath(a, start), ...points.map(([x, y]) => [x, y, lift]), ...portPath(b, end).reverse()];
-    return { from, to, points, path, feet: [start.edge, end.edge], ports: [start.port?.name ?? null, end.port?.name ?? null], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared };
+    // the words it could not keep off: every stretch of kept floor a point of it stands in (its places' points too), by name
+    // or number, in the order given — said only when the picture names floor to keep clear
+    const keptIn = new Set([start.node, end.node, ...nodes, ...(start.between ?? []), ...(end.between ?? [])].map((node) => grid.kept[node]).filter(Boolean));
+    const under = keep.length ? { under: [...keptIn].sort((x, y) => x - y).map((k) => keep[k - 1].name ?? k) } : {};
+    return { from, to, points, path, feet: [start.edge, end.edge], ports: [start.port?.name ?? null, end.port?.name ?? null], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared, ...under };
   });
 }
 

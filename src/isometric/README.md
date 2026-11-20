@@ -179,6 +179,15 @@ a stretch is. It is empty exactly when `behind` is. A stretch is right to the ne
 quarter of a tile on a usual picture, more on a very big one), not to the edge of what hides it; stretches are in
 order and never touch.
 
+**Floor kept clear.** `routes(things, links, { keep })` takes floor that words float over —
+`keep: [{ at: [col, row, lift?], size: [wide, deep], name? }, …]`, at most 512 — and a route goes round it where it can:
+a step onto kept floor costs KEPT (4 tiles a tile) more, more than a short way round, less than closed floor. Where
+there is no other way the route runs over it, and `under` on the route names what it could not keep off (its `name`,
+or its number from 1), in the order given; `under` is there only when `keep` is given. Kept floor is no thing: it
+never changes the lattice's step (a picture's other routes lie as they did), and it is asked at its own height
+(`lift`, 0 when left out). WHY a cost and not a wall: words over a picture are a reason to go round, never a reason to
+leave a link with no route.
+
 **A name that fits its face.** `wordsToFit('Load Balancer', [wide, high])` gives `{ lines, size, fits }`: the name on
 one line at the usual size (26), else on two lines (broken where they are most alike), else a pixel smaller at a time
 down to the least (16). `fits` is false when it does not fit even there: draw it at the least size and say so — a
