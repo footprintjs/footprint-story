@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 — a picture that holds its links, and names that fit
+
+- **`gridFor(things, box, { also })`**: floor points the picture holds too. A link that runs round a thing reaches
+  past the things, and a picture fitted to its things alone cut it off: give `also` the routes' points.
+- **`unseen`** on a route (`routes`): the stretches of it a thing hides, `[[from, to], …]` in tiles along the way from
+  its start, empty exactly when `behind` is. A packet riding the route can fade there; a check can say how long a
+  hidden stretch is.
+- **`wordsToFit(text, [wide, high])`**, in `footprint-story/isometric`: a name on one line, else on two (broken where
+  the lines are most alike), else smaller, down to a least size — `{ lines, size, fits }`. `fits` is false when it does
+  not fit even there, so a tool can say so and never hide a name. Counted in letters: nothing here draws.
+
 ## 0.11.0 — links that lie on the floor
 
 - **`routes`**, in `footprint-story/isometric`: the way each link runs along the floor, round what stands on it.
