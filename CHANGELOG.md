@@ -8,7 +8,8 @@
   drops to the floor, runs along the tile lines as any route does, and comes up into the other port, so the line ends
   on the port itself. Which side a port is on is read from the point (`face` names it, and must at a corner); a port on
   a back side is allowed, and the route says it starts behind its thing. Not yet: the top, and round things (refused,
-  in words). `NO_ROUTE` gains `port` and `portName`; `MOST_PORTS` is 64.
+  in words). `NO_ROUTE` gains `port` and `portName`; `MOST_PORTS` is 64; `readPorts` checks a thing's ports the same
+  way, for a tool to refuse a wrong one in its own words.
 - **`path` on every route**: the whole way in three dimensions, `[col, row, height]` from its first point to its last
   (out of a port at its height, down, along the floor, up into the other port). `ports` names the port at each end.
   A route with no port is what it was in 0.14 (compared on 2,583 random routes), with `path` its floor points and

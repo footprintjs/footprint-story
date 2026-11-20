@@ -122,6 +122,12 @@ export interface IsoNoRoute { readonly from: string; readonly to: string; readon
 export function routes(things: readonly IsoRouted[], links?: readonly (readonly [IsoEnd, IsoEnd])[], options?: { hides?: number } | null): (IsoRoute | IsoNoRoute)[];
 /** The most ports one thing has. */
 export const MOST_PORTS: number;
+/**
+ * A thing's ports checked as `routes` checks them, so a tool can refuse a wrong one in its own words before laying:
+ * [{name, at, face, seen}] — `face` read from the point when not given, `seen` whether that side faces the viewer.
+ * `size`: the thing's [wide, deep, high]; `round`: a round thing (which has none yet); `who`: how a refusal names it.
+ */
+export function readPorts(ports: readonly IsoPort[] | undefined, size: readonly [number, number, number], round: boolean, who: string): readonly { readonly name: string; readonly at: readonly [number, number, number]; readonly face: IsoSide; readonly seen: boolean }[];
 /** What there is to say about one route, in words ("api to db: passes behind logs") — or null when it lies well. */
 export function routeNote(route: IsoRoute | IsoNoRoute): string | null;
 /** The most links one picture lays. */

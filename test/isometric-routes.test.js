@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { isometric, arrange, gridFor, routes, routeNote, rounded, wordsToFit, MOST_ALSO, MOST_ROUTES, MOST_WORK, NO_ROUTE, MOST_ISOMETRIC_THINGS } from '../isometric.js';
+import { readPorts, isometric, arrange, gridFor, routes, routeNote, rounded, wordsToFit, MOST_ALSO, MOST_ROUTES, MOST_WORK, NO_ROUTE, MOST_ISOMETRIC_THINGS } from '../isometric.js';
 
 const thing = (name, at, size = [2, 2, 1], more = {}) => ({ name, at, size, ...more });
 const HIDES = Math.sqrt(1.5);
@@ -618,4 +618,8 @@ test('ports are read as given and refused in words: a side read from the point, 
   assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { round: true, ports: [{ name: 'p', at: [1, 2, 0] }] })], []), /is round, and a round thing has no ports yet/);
   assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { ports: 'p1' })], []), /ports are a list of at most 64/);
   assert.throws(() => routes([thing('a', [0, 0])], [[{ thing: 'a' }, 'a']]), /each the name of a thing or \{thing, port\}/);
+  // the same reading, for a tool to refuse in its own words
+  assert.deepEqual(readPorts([{ name: 'p', at: [1, 2, 0.5] }], [2, 2, 1], false, 'the switch'), [{ name: 'p', at: [1, 2, 0.5], face: 'left', seen: true }]);
+  assert.deepEqual(readPorts(undefined, [2, 2, 1], false, 'x'), []);
+  assert.throws(() => readPorts([{ name: 'p', at: [1, 1, 0.5] }], [2, 2, 1], false, 'the switch'), /^Error: isometric: the switch's port "p" is at \[1,1,0.5\], on no side of the switch/);
 });

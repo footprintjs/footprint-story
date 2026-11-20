@@ -160,7 +160,8 @@ starts behind its own thing, `behind` names it and `unseen` says how far. A port
 lattice line meets the first lattice line in front and runs along it to the next lattice point: a turn there, which
 merges into the route's own turn when it goes that way. Not yet: a port on the top, or on a round thing (both are
 refused, in words). A route whose way out of a port passes under another thing has `why: NO_ROUTE.port`; an end that
-names no port of its thing, `NO_ROUTE.portName`.
+names no port of its thing, `NO_ROUTE.portName`. `readPorts(ports, size, round, who)` checks a thing's ports as `routes`
+does, so a tool can refuse a wrong one in its own words before it lays anything.
 
 **Fitting the picture to its links too.** A link that runs round a thing reaches past the things, so a picture
 fitted to its things alone cuts such a link off. `gridFor(things, box, { also })` takes floor points the picture
