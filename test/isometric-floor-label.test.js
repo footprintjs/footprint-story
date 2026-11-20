@@ -72,7 +72,8 @@ test('its work is bounded: outlines are asked by their boxes first, and the whol
   const far = Array.from({ length: 100_000 }, () => [[-5e5, -5e5], [-5e5 + 1, -5e5]]), wall = [...far, outline(0, 255.5, [256, 1, 1])];
   const t0 = Date.now();
   assert.throws(() => floorLabelPlace({ at: [0, 0], size: [256, 256] }, floor, 'Home', wall), (e) => e.message.includes(`more than ${MOST_LABEL_LOOKS} looks`));
-  assert.ok(Date.now() - t0 < 3000);
+  // (the bound is the counted looks, not a clock: a slow runner with coverage on takes seconds; this only says it ended)
+  assert.ok(Date.now() - t0 < 30_000);
 });
 
 test('every value is read by its own stored value, a grid by its numbers, and a refusal says what to give', () => {
