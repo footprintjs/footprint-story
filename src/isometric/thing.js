@@ -39,3 +39,16 @@ export function readThing(thing, what = 'a thing') {
   if (place.some((v, i) => !fin(v + size[i]))) refuse(`${what} reaches past ${FAR}: at ${shown(place)} with size ${shown(size)} — bring it nearer`);
   return { at: place, size };
 }
+
+/** A finite number, however far from 0: a place on the frame, in pixels, is not bounded by FAR. */
+export const finite = (n) => typeof n === 'number' && Number.isFinite(n);
+
+/** Points on the frame, [[x, y], …], each index by its own stored value (a hole refused), finite numbers; a new list. */
+export function framePoints(v, what) {
+  if (!Array.isArray(v)) refuse(`${what} is points on the frame, [[x, y], …] — not ${shown(v)}`);
+  return Array.from({ length: v.length }, (_, i) => {
+    const p = Object.hasOwn(v, i) ? own(v, i) : undefined, n = Array.isArray(p) && p.length === 2 ? [own(p, 0), own(p, 1)] : null;
+    if (!n || !n.every(finite)) refuse(`point ${i + 1} of ${what} is [x, y], two numbers — not ${shown(p)}`);
+    return n;
+  });
+}

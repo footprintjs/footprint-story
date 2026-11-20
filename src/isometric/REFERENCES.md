@@ -14,6 +14,8 @@
 | The cheapest way when steps cost different amounts: always go on from the point reached most cheaply so far | `routes.js` (`search`) | E. W. Dijkstra, "A Note on Two Problems in Connexion with Graphs", Numerische Mathematik 1, 1959 |
 | Looking first where the way left is shortest, so the search goes towards the end and still finds the cheapest way | `routes.js` (`search`: the cost so far and the tiles still to go) | P. E. Hart, N. J. Nilsson, B. Raphael, "A Formal Basis for the Heuristic Determination of Minimum Cost Paths", IEEE Transactions on Systems Science and Cybernetics 4 (2), 1968 (A*) |
 | Keeping what waits to be looked at in a heap, the least first | `routes.js` (`heap`) | J. W. J. Williams, "Algorithm 232: Heapsort", Communications of the ACM 7 (6), 1964 |
+| Whether two convex outlines on the frame overlap: no line along one of their sides parts them (the separating-axis test) | `floorLabel.js` (`overlap`) | S. Gottschalk, M. C. Lin, D. Manocha, "OBBTree: A Hierarchical Structure for Rapid Interference Detection", SIGGRAPH 1996 |
+| Whether a straight stretch passes inside a box: clip its parameter to the box's slab along each axis in turn, and see whether anything is left | `under.js` (`crossesBox`) | Y.-D. Liang, B. A. Barsky, "A New Concept and Method for Line Clipping", ACM Transactions on Graphics 3 (1), 1984 |
 | A corner as one curve from two points and the corner between them (a quadratic Bézier curve) | `path.js` | as set out in G. Farin, *Curves and Surfaces for Computer Aided Geometric Design*, Academic Press, 1988 |
 
 **Ours:** the test for "this can never cover that" (all of it at smaller cols, or at smaller rows, or below), with its
@@ -27,7 +29,13 @@ on a tile 100 wide. In `routes.js`: what a step costs (a turn, hidden floor, cro
 laid later pays to cross or share, so it takes the lane beside); leaving and reaching a thing only at the two feet a
 viewer sees; "hidden" as floor a thing's height covers towards the viewer; the short straight run out of a foot that
 is the route's own; a count of the work so a picture too big ends; and a result that says in words what happened to
-each link. In `path.js`: measuring a corner in chords so the place along a way is by length.
+each link. In `path.js`: measuring a corner in chords so the place along a way is by length. In `hairpins.js`: a way's stretches one way in a row read as one, a jog under a tenth of a tile and a riser as none,
+and a port end asked within two tiles of it whether the way runs back, said by which way the port faces. In
+`under.js`: whether a square of floor's drawn diamond meets a box, asked exactly as the box grown by the diamond at the
+diamond's middle; squares side by side joined into one stretch, each a hair past its squares so a line between two is
+kept too; the squares counted before any is looked at. In `floorLabel.js`: a label's size from the tile, its letters
+counted with capitals wider, moved half a tile at a time along the edge, and said, never cut. In `groups.js`: a group
+as one thing to the arrangement, as big as its things and its floor's margin and half a tile more.
 
 **Why not the simpler sort** (one score per thing, col + row + height): it is right for things one tile big and wrong
 for long ones, where a long box and a short one beside it swap. A deck's blocks are often long.

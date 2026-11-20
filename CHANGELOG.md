@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.17.0 — what StoryDeck worked out, shared: a packet's ride, hairpins, the floor under words, a floor's name, groups
+
+Five helpers StoryDeck 0.27.0 kept to itself move here, so a deck, its animation and a film work them out once.
+Each gives what StoryDeck's gave for every input it gave it (property tests against copies of that code,
+`test/control/storydeck-0.27.0-*.js`); what is new is that every value is read by its own stored fields (a getter is
+never run, a list with a hole is refused) and refused in words.
+
+- **`footprint-story/motion` · a packet riding a line**: `rideProfile(ease, length)` (eased out of its start and into
+  its end over shares of the line's length, stops within 0.4 px of the true ease), `rideSeconds(length, speed, ease)`,
+  `speedAt(progress, ease)`, `withHold(stops, share)`, `showStops(share, { end })`, `hiddenRamps(unseen, length,
+  speed, ease, { frames, fps, least, radius })`, and `MOST_EASE` (0.5). Refusals start `ride:`.
+- **`footprint-story/isometric` · `hairpins(path, ports)`**: where a way doubles back on itself, in a word
+  (`HAIRPINS`: `start`, `start-hook`, `middle`, `end`, `end-hook`). What to say about it stays the tool's.
+- **`floorUnder(box, grid, { lift, most })`** and **`crossesBox(points, box)`**: the floor under a box of the frame as
+  `routes`' `keep` takes it, and whether a way on the frame passes strictly inside a box. A box with no floor answers
+  `{ stretches: null, why, squares }`, `why` one of `NO_UNDER` (`far`, `big`, `most`), where StoryDeck threw its own
+  sentence: the deck words it now. `UNDER_CELL` (0.5) and `MOST_UNDER_SQUARES` (200,000) are exported.
+- **`floorLabelPlace(floor, grid, text, covers, { icon })`**: where a floor's name lies along its front edge, clear of
+  what stands there; `MOST_FLOOR_LABEL` (120 letters), `FLOOR_LABEL_ICON` (1.5), and `MOST_COVER_POINTS` (1,000,000:
+  the outlines asked of are bounded now; StoryDeck never reached it).
+- **`arrangeByGroup(things, links)`**: each group arranged on the links inside it, then the groups on the links
+  between them; `GROUP_MARGIN` (1). It calls this package's `arrange` (StoryDeck handed its own in). New refusals: two
+  things with one name (StoryDeck refused that before calling), a group name past 100 characters.
+- A grid handed to `floorUnder` or `floorLabelPlace` is read by its numbers (tile, origin, rise) and rebuilt, never
+  called: a grid `isometric()` made gives the same answers.
+
 ## 0.16.0 — floor kept clear
 
 - **`routes(things, links, { keep })`**: floor that words float over (`[{ at: [col, row, lift?], size: [wide, deep],

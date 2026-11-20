@@ -17,6 +17,10 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `ports.js` | named points on a thing's side where a link plugs in, and where a route leaves or reaches one (read by `routes`) |
 | `path.js` | a way with its corners rounded, and the place a share along it (`rounded`) |
 | `words.js` | a name on one line or two, as big as fits a face (`wordsToFit`) |
+| `hairpins.js` | where a way doubles back on itself, in a word (`hairpins`) |
+| `under.js` | the floor under a box of the frame, as `routes`' keep takes it (`floorUnder`); whether a way on the frame passes through a box (`crossesBox`) |
+| `floorLabel.js` | where a floor's name lies, flat along its front edge, clear of what stands there (`floorLabelPlace`) |
+| `groups.js` | placing things by group: each group arranged, then the groups (`arrangeByGroup`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -211,6 +215,59 @@ room is asked 0 for one line, one line's height for two), so the top of a letter
 line's middle does not, and one line is never refused for the face's height. Scale it to leave a margin:
 `(high) => 0.9 * grid.room(thing, high)`. What the function gives is read as a width (no finite number above 0 is no
 room; more than a million is a million), and what it throws comes out as it is.
+
+**Where a way doubles back.** A route out of a port that faces away from where it goes leaves the port one way and
+runs straight back the other: on the picture, a loop out of nowhere. `hairpins(route.path, route.ports)` says where,
+in a word: `'start'` (the first port faces away from the other end, or sideways to it: the port is on the wrong side),
+`'start-hook'` (a short loop near a port that faces the right way), the same at the end (`'end'`, `'end-hook'`), or
+`'middle'` (a tight U on the floor, under half a tile across). `[]` when it doubles back nowhere. A port end is asked
+whether the way runs back within two tiles of it; a foot is not asked (out of a foot a route steps half a tile off the
+thing and may step back to change lanes). A riser is upright, so it is no stretch, and a jog under a tenth of a tile
+is none either. What to say about it is the tool's: a deck's check words each, with its fix.
+
+**The floor under words.** Words that float over a picture stand in a box of the frame, not on the floor. A route keeps
+off the floor they cover (`keep`) only once that floor is known in tiles. `floorUnder({ x, y, w, h }, grid, { lift })`
+gives it: `{ stretches, why: null }`, every half-tile square of the floor at `lift` whose drawn diamond meets the box
+(exactly), those side by side along a row joined into one stretch, each a hair past its squares so the line between
+two is kept too — `routes`' keep as it takes it. A box it has no floor for answers why, and never throws, so a tool
+says it in its own words: `NO_UNDER.far` (further than a million px from the frame), `NO_UNDER.big` (more than 200,000
+squares, counted before any is looked at; `squares` says how many) or `NO_UNDER.most` (more stretches than `most`:
+counted as they are made, so many boxes sharing one budget stop at it, not after). The grid is read by its numbers (its
+tile, origin and rise), never by its code.
+
+```js
+const words = { x: 660, y: 420, w: 180, h: 36 };
+const { stretches } = floorUnder(words, grid);
+const laid = routes(things, links, { keep: stretches.map((s) => ({ ...s, name: 'lap-name' })) });
+// a route that could not keep off: does its way on the frame really run through the words?
+crossesBox(laid[0].points.map(([c, r]) => { const p = grid.at(c, r); return [p.x, p.y]; }), words);
+```
+
+`crossesBox(points, box)` is whether a way on the frame, straight between its points, passes strictly inside a box: a
+stretch along its edge, or one that touches a corner, does not. The router's kept floor is the half-tile squares
+round the box, a little wider than the words; whether a route really runs under them is asked of the box itself.
+
+**A floor's name.** `floorLabelPlace({ at, size }, grid, 'Production account', covers, { icon })` lays a floor's name
+flat on the floor along its front edge, the way a diagram heads a group box: its lines along the cols, just in from
+the edge nearest the viewer on the left, from its far end. It gives `{ x, y }` where the first line's foot starts,
+`matrix` (the transform that lays words on the floor: CSS's `matrix(a, b, c, d, 0, 0)`, a canvas's `transform`), the
+font `size` (from the tile: 0.3 px a px of a tile's side, 14 to 28), the `lines` (fitted with `wordsToFit`), `fits`
+(false when it does not fit along the edge even on two lines at the least size, or two lines are deeper than the
+floor) and `covered`. `covers` are the outlines on the frame of what is drawn over the floor — the things, and each
+stretch of a laid route as two points: the words move along the edge, half a tile at a time, to the first place whose
+strip of floor meets none of them (the separating-axis test), and `covered` says there was none. A label is never cut;
+an icon first takes 1.5 of the size more. WHY flat: a plate standing on the floor reads as one more thing.
+
+**Groups.** `arrangeByGroup([{ name, size, group }], links)` places things that belong together (an account, a team,
+a tier) together: each group is arranged on the links inside it, then the groups — each a thing as big as its things,
+`GROUP_MARGIN` (1) tile all round for its floor and half a tile more — on the links between them, both across the
+frame. Things with no group (`group` null, or left out) are a group of their own. It gives `[[col, row, 0], …]` in the
+order given. A floor fitted round a group's things, a tile past them on every side and out to whole tiles, keeps a
+clear tile from the next group's. WHY arrange twice: a group is a thing to the arrangement, so the rule that places
+things places groups the same way.
+
+These four came from StoryDeck 0.27.0, unchanged in what they give for what it gave them (property tests against
+copies of that code, `test/control/`); every value is now read by its own stored fields and refused in words.
 
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
 on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:

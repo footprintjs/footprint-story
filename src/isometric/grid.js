@@ -118,3 +118,13 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
     /** `items` sorted so the furthest is drawn first; `thingOf(item)` gives an item's {at, size} (default: the item is one). */
     backToFront: (items, thingOf = (item) => item) => backToFront(items, thingOf, { tileHeight: h, rise: up }) });
 }
+
+/**
+ * A grid handed in by anyone, rebuilt from its own numbers — its tile, origin and rise, each its own stored field — so
+ * its code is never run, only its numbers read: a grid isometric() made gives the same grid back. `who` names the
+ * call in a refusal.
+ */
+export function readGrid(grid, who) {
+  if (grid === null || typeof grid !== 'object' || Array.isArray(grid)) refuse(`${who} takes a grid, {tile, origin, rise} as isometric() gives — not ${shown(grid)}`);
+  return isometric({ tile: numbers(own(grid, 'tile'), [2], `${who}: a grid's tile`, '[width, height] in pixels'), origin: own(grid, 'origin'), rise: own(grid, 'rise') });
+}

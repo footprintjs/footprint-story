@@ -11,6 +11,11 @@
 //   routes(placed, links)                              → the way each link runs along the floor, round what stands on it
 //   rounded(points, radius)                            → that way with its corners rounded, and the place a share along it
 //   wordsToFit(name, [wide, high])                     → the name on one line or two, as big as fits a face
+//   hairpins(route.path, route.ports)                  → where a way doubles back on itself, in a word
+//   floorUnder(box, grid, {lift})                      → the floor under a box of the frame (a route's keep)
+//   crossesBox(points, box)                            → whether a way on the frame passes through a box
+//   floorLabelPlace(floor, grid, name, covers)         → where a floor's name lies along its front edge
+//   arrangeByGroup(things, links)                      → each group arranged, then the groups
 
 export { isometric } from './src/isometric/grid.js';
 export { readThing } from './src/isometric/thing.js';
@@ -21,3 +26,7 @@ export { wordsToFit } from './src/isometric/words.js';
 export { routes, routeNote, MOST_KEEP, MOST_ROUTES, MOST_WORK, NO_ROUTE } from './src/isometric/routes.js';
 export { MOST_PORTS, readPorts } from './src/isometric/ports.js';
 export { rounded } from './src/isometric/path.js';
+export { hairpins, HAIRPINS } from './src/isometric/hairpins.js';
+export { floorUnder, crossesBox, UNDER_CELL, MOST_UNDER_SQUARES, NO_UNDER } from './src/isometric/under.js';
+export { floorLabelPlace, MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS } from './src/isometric/floorLabel.js';
+export { arrangeByGroup, GROUP_MARGIN } from './src/isometric/groups.js';
