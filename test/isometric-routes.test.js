@@ -148,8 +148,10 @@ test('routes: on a map the build arranges, every link has a way; the same things
     laid.forEach((route, i) => {
       assert.ok(route.points, `${links[i]}: ${route.why}`);
       holds(route, placed);
-      // `shared` is honest: 0 exactly when the route lies on no stretch of one laid before it (its two short ends at a foot apart)
-      const lies = laid.slice(0, i).some((before) => share({ points: route.points.slice(1, -1) }, { points: before.points.slice(1, -1) }));
+      // `shared` is honest: 0 exactly when the route lies on no stretch of one laid before it. The whole of both is
+      // compared, the two short ends at its feet too (an end's short run may lie on another's stretch); only a touch of
+      // no length, as at a foot point the two meet at, is not lying on it
+      const lies = laid.slice(0, i).some((before) => share(route, before));
       const sameFoot = laid.slice(0, i).some((before) => [before.points[0], before.points.at(-1)].some((p) => [route.points[0], route.points.at(-1)].some((q) => p[0] === q[0] && p[1] === q[1])));
       assert.equal(route.shared > 0, lies || sameFoot, `${links[i]}: shared ${route.shared}`);
     });
