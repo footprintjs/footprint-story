@@ -388,8 +388,8 @@ test('routes: a thing with thousands of places costs no more to search: the work
 });
 
 test('routes: options are {hides} or none; a name is told on one line; what `at` gives is the caller\'s own', () => {
-  assert.throws(() => routes([thing('a', [0, 0])], [], 5), /routes takes its options as \{hides\}, or none — not 5/);
-  assert.throws(() => routes([thing('a', [0, 0])], [], [1]), /routes takes its options as \{hides\}/);
+  assert.throws(() => routes([thing('a', [0, 0])], [], 5), /routes takes its options as \{hides, keep\}, or none — not 5/);
+  assert.throws(() => routes([thing('a', [0, 0])], [], [1]), /routes takes its options as \{hides, keep\}/);
   assert.deepEqual(routes([thing('a', [0, 0])], [], undefined), []);
   assert.equal(routeNote({ from: 'a\nb', to: 'c', points: null, why: 'x' }), 'a b to c: no route along the floor (x)');
   assert.equal(routeNote({ from: 'a', to: 'b', points: [[0, 0], [1, 0]], bends: 0, behind: ['lo gs'], crosses: 0, shared: 0 }), 'a to b: passes behind lo gs');
@@ -688,4 +688,114 @@ test('ports: crossings at a back-left end are counted once, a later port\'s run 
   const left = { name: 'L', at: [6, 0], size: [2, 2, 1], ports: [{ name: 'in', at: [0, 1, 0.5] }] }, src = thing('S', [0, 0]), cut = thing('C', [3, -4]), low = thing('D', [3, 4]);
   const [, through] = routes([left, src, cut, low], [['C', 'D'], ['S', { thing: 'L', port: 'in' }]]);
   assert.ok(through.crosses <= 1, `counts ${through.crosses}`);
+});
+
+// Floor kept clear (`keep`): words that float over the picture, a cable goes round them where it can.
+test('keep: a route goes round floor kept clear where there is a way, and says nothing', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const plain = routes(things, [['a', 'b']])[0];
+  assert.ok(!('under' in plain));   // no keep, no word of it: every route without one is as before
+  const keep = [{ name: 'label', at: [4, 2], size: [1, 1] }];
+  const r = routes(things, [['a', 'b']], { keep })[0];
+  assert.deepEqual(r.under, []);
+  // no point of it inside the kept floor
+  for (const [p, q] of stretches(r)) for (let t = 0; t <= 1; t += 0.05) {
+    const x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t;
+    assert.ok(!(x > 4 && x < 5 && y > 2 && y < 3), `${x} ${y}`);   // strictly inside: along its edge is not under it
+  }
+  assert.notDeepEqual(r.points, plain.points);
+});
+
+test('keep: where there is no way round, the route runs over the kept floor and names it (a name, or its number from 1)', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const r = routes(things, [['a', 'b']], { keep: [{ at: [20, 20], size: [1, 1] }, { name: 'wall', at: [4, -5], size: [1, 12] }, { at: [6, -5], size: [0.5, 12] }] })[0];
+  assert.deepEqual(r.points, routes(things, [['a', 'b']])[0].points);
+  assert.deepEqual(r.under, ['wall', 3]);
+});
+
+test('keep: kept floor is no thing — it never changes the lattice, so a route far from it lies as before', () => {
+  const things = [thing('a', [0, 0], [3, 3, 1]), thing('b', [7, 4], [3, 3, 1])];
+  const links = [['a', 'b'], ['a', 'b'], ['a', 'b']];
+  const plain = routes(things, links), far = routes(things, links, { keep: [{ at: [40, 40], size: [0.1, 0.1] }] });
+  assert.deepEqual(far.map((r) => r.points), plain.map((r) => r.points));
+  assert.deepEqual(far.map((r) => r.under), [[], [], []]);
+});
+
+test('keep: kept floor is asked at its own height', () => {
+  const things = [thing('a', [0, 0, 1]), thing('b', [8, 0, 1])];
+  const at0 = routes(things, [['a', 'b']], { keep: [{ name: 'low', at: [4, -5], size: [1, 12] }] })[0];
+  const at1 = routes(things, [['a', 'b']], { keep: [{ name: 'high', at: [4, -5, 1], size: [1, 12] }] })[0];
+  assert.deepEqual(at0.under, []);
+  assert.deepEqual(at1.under, ['high']);
+});
+
+test('keep: under is said by the floor the drawn way crosses — an area thinner than a step, a foot\'s run, a port\'s lead, every one of overlapping areas', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const under = (keep, more = things, links = [['a', 'b']]) => routes(more, links, { keep })[0].under;
+  // thinner than the lattice's step, holding no point of it: the walled way crosses it, and says so
+  assert.deepEqual(under([{ name: 'thin', at: [4.1, -6], size: [0.3, 14] }]), ['thin']);
+  // with a way round, it is gone round (the search pays for the stretches that cross it, not only the points in it)
+  assert.deepEqual(under([{ name: 'short', at: [4.1, -1], size: [0.3, 4] }]), []);
+  // in front of a foot, before the first lattice line
+  assert.deepEqual(under([{ name: 'front', at: [1.6, 2.05], size: [14, 0.3] }]), ['front']);
+  // a port's lead off the lattice
+  const ported = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 0.7, 0.5] }] }), thing('b', [8, 0])];
+  assert.deepEqual(routes(ported, [[{ thing: 'a', port: 'p' }, 'b']], { keep: [{ name: 'jog', at: [2.05, 0.55], size: [0.4, 0.3] }, { name: 'wall', at: [4, -6], size: [1, 14] }] })[0].under, ['jog', 'wall']);
+  // overlapping areas: each is named, in the order given
+  assert.deepEqual(under([{ name: 'outer', at: [3.9, -6], size: [1.2, 14] }, { name: 'inner', at: [4, -6], size: [1, 14] }, { name: 'same', at: [4, -6], size: [1, 14] }]), ['outer', 'inner', 'same']);
+  // a keep that names nothing near still says under: given keep, there is always an answer
+  assert.deepEqual(under([]), []);
+});
+
+test('keep: a foot\'s run and a port\'s floor quarter tile are paid for and said', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const plain = routes(things, [['a', 'b']])[0];
+  assert.equal(plain.feet[0], 'left');
+  // floor kept clear in front of the left foot, before the first lattice line: the route leaves by the other foot
+  const r = routes(things, [['a', 'b']], { keep: [{ name: 'front', at: [0.1, 2.02], size: [1.8, 0.3] }] })[0];
+  assert.equal(r.feet[0], 'right');
+  assert.deepEqual(r.under, []);
+  // a port at floor height: its quarter tile from the plug lies on the floor, and is said
+  const ported = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 0.7, 0] }] }), thing('b', [8, 0])];
+  assert.deepEqual(routes(ported, [[{ thing: 'a', port: 'p' }, 'b']], { keep: [{ name: 'stub', at: [2.02, -6], size: [0.15, 14] }] })[0].under, ['stub']);
+  // kept floor at another height is not marked on this one: the route lies as it would with none
+  const high = [thing('a', [0, 0, 1]), thing('b', [8, 0, 1])];
+  assert.deepEqual(routes(high, [['a', 'b']], { keep: [{ at: [4, 2.2], size: [1, 1] }] })[0].points, routes(high, [['a', 'b']])[0].points);
+});
+
+test('keep: however many areas and however they overlap, the links are still laid', () => {
+  const things = [thing('a', [0, 0]), thing('b', [300, 0]), thing('c', [0, 300]), thing('d', [300, 300])];
+  const keep = Array.from({ length: 512 }, () => ({ at: [-10, -10], size: [320, 320] }));
+  const laid = routes(things, [['a', 'b'], ['c', 'd'], ['a', 'c']], { keep });
+  for (const r of laid) assert.ok(r.points, r.why);
+  for (const r of laid) assert.equal(r.under.length, 512);
+});
+
+test('keep: refused in words when it is not floor', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const bad = (keep, message) => assert.throws(() => routes(things, [['a', 'b']], { keep }), (e) => e.message.includes(message), JSON.stringify(keep));
+  bad('x', 'keep is a list of floor kept clear');
+  bad([{ at: [0, 0], size: [0, 1] }], "keep 1's size is [wide, deep], in tiles, each above 0 and no more than 1000000 — not [0,1]");
+  bad([{ at: [0, 0], size: [1, 1, 1] }], "keep 1's size is [wide, deep]");
+  bad([{ at: [0, 0], size: [NaN, 1] }], 'not [NaN,1]');
+  bad([{ at: [0, 0], size: [2e6, 1] }], "keep 1's size is [wide, deep], in tiles, each above 0 and no more than 1000000 — not [2000000,1]");
+  // read by its own stored fields: a hole is refused, a getter never runs
+  bad([, { at: [0, 0], size: [1, 1] }], 'keep 1 is {at: [col, row, lift?], size: [wide, deep], name?} — not undefined');
+  let ran = false;
+  const sly = [];
+  Object.defineProperty(sly, 0, { get() { ran = true; return { at: [0, 0], size: [1, 1] }; }, enumerable: true });
+  assert.throws(() => routes(things, [['a', 'b']], { keep: sly }), /keep 1 is/);
+  assert.equal(ran, false);
+  bad([{ at: [0, 0], size: [1, 1], name: '' }], 'keep 1 has a name');
+  bad([{ at: ['a', 0], size: [1, 1] }], 'keep 1');
+  bad(Array.from({ length: 513 }, () => ({ at: [0, 0], size: [1, 1] })), 'keep names at most 512 stretches of floor, not 513');
+  assert.throws(() => routes(things, [['a', 'b']], []), /routes takes its options as \{hides, keep\}, or none/);
+});
+
+test('keep: the work is counted — floor kept clear everywhere gives a reason, never a hang', () => {
+  const things = [thing('a', [0, 0]), thing('b', [900, 900])];
+  const keep = Array.from({ length: 512 }, () => ({ at: [-50, -50], size: [1100, 1100] }));
+  const t0 = Date.now(), [r] = routes(things, [['a', 'b']], { keep });
+  assert.ok(Date.now() - t0 < 5000);
+  assert.ok(r.points === null ? r.why === NO_ROUTE.work || r.why === NO_ROUTE.wide : Array.isArray(r.under));
 });

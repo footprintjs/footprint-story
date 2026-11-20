@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0 — floor kept clear
+
+- **`routes(things, links, { keep })`**: floor that words float over (`[{ at: [col, row, lift?], size: [wide, deep],
+  name? }]`, at most 512). A route goes round it where it can — a stretch inside it costs 4 tiles a tile more — and
+  where there is no other way runs over it; `under` names every area its drawn way passes strictly inside (feet's
+  runs and ports' leads included, overlapping areas each named), present whenever `keep` is given. Kept floor is no
+  thing: it never changes the lattice's step, it is asked at its own height, and marking it costs the lattice's work
+  whatever the areas. Without `keep`, every route is as before (no `under` field). `MOST_KEEP` and `IsoKeep` are exported.
+
 ## 0.15.1 — long refusals print line by line; a far-off port says why
 
 - **A refusal written on several lines carries them as `rows`.** A tool that prints this package's errors one line

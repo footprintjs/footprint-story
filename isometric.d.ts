@@ -109,17 +109,23 @@ export type IsoEndSide = IsoFoot | IsoSide;
  * `crosses`: how many times it meets a route laid before it, a touch at a corner too; `shared`: the tiles of it that
  * lie on another's way for want of room (0 as a rule).
  */
-export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; /** The whole way in three dimensions, [col, row, height]: out of a port at its height and down to the floor, along it, and up into the other port (the floor points alone when no end is a port). `points`, `tiles`, `bends` and `unseen` are of the floor run, from the floor point under a port's way out. */ readonly path: readonly (readonly [number, number, number])[]; /** The port at each end, or null for a foot. */ readonly ports: readonly [string | null, string | null]; readonly feet: readonly [IsoEndSide, IsoEndSide]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; /** The stretches of it a thing hides: [from, to] in tiles along the way from its start, right to the nearest half step, in order and apart. */ readonly unseen: readonly (readonly [number, number])[]; readonly crosses: number; readonly shared: number }
+export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; /** The whole way in three dimensions, [col, row, height]: out of a port at its height and down to the floor, along it, and up into the other port (the floor points alone when no end is a port). `points`, `tiles`, `bends` and `unseen` are of the floor run, from the floor point under a port's way out. */ readonly path: readonly (readonly [number, number, number])[]; /** The port at each end, or null for a foot. */ readonly ports: readonly [string | null, string | null]; readonly feet: readonly [IsoEndSide, IsoEndSide]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; /** The stretches of it a thing hides: [from, to] in tiles along the way from its start, right to the nearest half step, in order and apart. */ readonly unseen: readonly (readonly [number, number])[]; readonly crosses: number; readonly shared: number; /** What it could not keep off of `keep`: each stretch's name, or its number from 1, in the order given — present only when `keep` was given. */ readonly under?: readonly (string | number)[] }
 /** A link that has no way along the floor, and why (one of NO_ROUTE). */
 export interface IsoNoRoute { readonly from: string; readonly to: string; readonly points: null; readonly why: string }
+/** Floor kept clear, under words that float over the picture: a route goes round it where it can (routes · keep). */
+export interface IsoKeep { readonly at: readonly [number, number] | readonly [number, number, number]; readonly size: readonly [number, number]; readonly name?: string }
+/** The most stretches of kept floor one picture may name (routes · keep). */
+export const MOST_KEEP: number;
 /**
  * The way each link runs along the floor, round what stands on it: one entry a link, in the order given. A route
  * leaves and reaches a thing at a foot a viewer sees, runs along the tile lines, never passes under a thing that stands on its floor, keeps off
  * hidden floor when it can, and takes the lane beside a route laid before it. `hides`: the tiles of floor a thing
  * hides behind it for each tile of its height (1.22: the usual two-to-one view). The same things and links always give
  * the same ways, and the work is bounded (MOST_WORK): on a picture too big, the last links are not tried and say so.
+ * `keep`: floor kept clear (IsoKeep, at most MOST_KEEP): a route goes round it where it can, and `under` names what
+ * it crossed.
  */
-export function routes(things: readonly IsoRouted[], links?: readonly (readonly [IsoEnd, IsoEnd])[], options?: { hides?: number } | null): (IsoRoute | IsoNoRoute)[];
+export function routes(things: readonly IsoRouted[], links?: readonly (readonly [IsoEnd, IsoEnd])[], options?: { hides?: number; keep?: readonly IsoKeep[] } | null): (IsoRoute | IsoNoRoute)[];
 /** The most ports one thing has. */
 export const MOST_PORTS: number;
 /**

@@ -18,6 +18,6 @@ export { MOST_ISOMETRIC_THINGS } from './src/isometric/order.js';
 export { arrange, MOST_LINKS } from './src/isometric/arrange.js';
 export { gridFor, MOST_ALSO } from './src/isometric/fit.js';
 export { wordsToFit } from './src/isometric/words.js';
-export { routes, routeNote, MOST_ROUTES, MOST_WORK, NO_ROUTE } from './src/isometric/routes.js';
+export { routes, routeNote, MOST_KEEP, MOST_ROUTES, MOST_WORK, NO_ROUTE } from './src/isometric/routes.js';
 export { MOST_PORTS, readPorts } from './src/isometric/ports.js';
 export { rounded } from './src/isometric/path.js';
