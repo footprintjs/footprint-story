@@ -13,7 +13,9 @@
 - **`path` on every route**: the whole way in three dimensions, `[col, row, height]` from its first point to its last
   (out of a port at its height, down, along the floor, up into the other port). `ports` names the port at each end.
   A route with no port is what it was in 0.14 (compared on 2,583 random routes), with `path` its floor points and
-  `ports: [null, null]`.
+  `ports: [null, null]` — but for one fix: two hidden stretches of a route that touch (or overlap) are one now in
+  `unseen`, as its docs always said; a float test split them.
+- `points`, `tiles`, `bends` and `unseen` are of a route's floor run; `path` adds each port's way out and riser.
 
 ## 0.14.2 — a record with no log of the run's own is refused
 

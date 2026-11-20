@@ -420,7 +420,7 @@ More in [src/isometric/README.md](src/isometric/README.md).
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
-| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
+| `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.

@@ -623,3 +623,40 @@ test('ports are read as given and refused in words: a side read from the point, 
   assert.deepEqual(readPorts(undefined, [2, 2, 1], false, 'x'), []);
   assert.throws(() => readPorts([{ name: 'p', at: [1, 1, 0.5] }], [2, 2, 1], false, 'the switch'), /^Error: isometric: the switch's port "p" is at \[1,1,0.5\], on no side of the switch/);
 });
+
+test('ports: a route never crosses a port\'s run out between two lattice points, and a lane beside a port is shared only when said', () => {
+  // two ports a tenth of a tile apart on one side: the second takes the lane beside the first, or says it shares it
+  const sw = thing('sw', [0, 0], [2, 2, 1], { ports: [{ name: 'a', at: [2, 0.6, 0.5] }, { name: 'b', at: [2, 0.7, 0.5] }] }), far = thing('far', [6, -3]);
+  const [one, two] = routes([sw, far], [[{ thing: 'sw', port: 'a' }, 'far'], [{ thing: 'sw', port: 'b' }, 'far']]);
+  const segs = (r) => r.points.slice(1).map((p, i) => [r.points[i], p]);
+  const along = ([p, q], [s, t]) => { const k = p[1] === q[1] && s[1] === t[1] && p[1] === s[1] ? 0 : p[0] === q[0] && s[0] === t[0] && p[0] === s[0] ? 1 : -1; return k < 0 ? 0 : Math.max(0, Math.min(Math.max(p[k], q[k]), Math.max(s[k], t[k])) - Math.max(Math.min(p[k], q[k]), Math.min(s[k], t[k]))); };
+  const overlap = segs(two).reduce((n, s) => n + segs(one).reduce((m, t) => m + along(s, t), 0), 0);
+  assert.ok(overlap === 0 || two.shared > 0, `overlaps ${overlap} and shares ${two.shared}`);
+  // the reviewer's picture: a route came back along a line between a port's floor point and its lattice line, under its own run out
+  const t0 = { name: 't0', at: [6.41, 6.25, 1.3], size: [1.3, 1.5, 0] }, t2 = { name: 't2', at: [9.7, 7.65, 1.3], size: [0.6, 0.3, 2] };
+  const t3 = { name: 't3', at: [13, 10.1, 1.3], size: [0.3, 0.3, 2], ports: [{ name: 'p0', at: [0.031344841003417966, 0.3, 0.27677] }, { name: 'p1', at: [0.05403267288208007, 0.3, 0.71292] }] }, t5 = { name: 't5', at: [1.14, 12.9, 1.3], size: [4.7, 1.5, 0] };
+  const laid = routes([t0, t2, t3, t5], [[{ thing: 't3', port: 'p1' }, 't5'], ['t0', { thing: 't3', port: 'p0' }]]);
+  const runs = laid.flatMap((r) => [r.ports[0] && r.points.slice(0, 2), r.ports[1] && r.points.slice(-2)]).filter(Boolean);
+  const across = ([a, b], [c, d]) => { const h = a[1] === b[1]; if (h === (c[1] === d[1])) return false; const [H, V] = h ? [[a, b], [c, d]] : [[c, d], [a, b]]; const y = H[0][1], x = V[0][0]; return x > Math.min(H[0][0], H[1][0]) + 1e-9 && x < Math.max(H[0][0], H[1][0]) - 1e-9 && y > Math.min(V[0][1], V[1][1]) + 1e-9 && y < Math.max(V[0][1], V[1][1]) - 1e-9; };
+  for (const r of laid.filter((x) => x.points)) for (const s of segs(r)) for (const lead of runs) assert.ok(!across(s, lead), `${r.from} to ${r.to} crosses a port's run out at ${JSON.stringify(s)}`);
+});
+
+test('ports: a back port names its own thing, wherever its floor is in view; a billionth is no step', () => {
+  const a = thing('a', [0, 0], [2, 2, 2], { ports: [{ name: 'corner', at: [1.9, 0, 1] }, { name: 'low', at: [1, 0, 0.1] }, { name: 'near', at: [2, 1 + 1e-10, 0.5] }, { name: 'flat', at: [2, 1.5, 1e-10] }] }), b = thing('b', [6, -4]);
+  for (const port of ['corner', 'low']) assert.ok(routes([a, b], [[{ thing: 'a', port }, 'b']])[0].behind.includes('a'), port);
+  // a port a ten-billionth off a lattice line is on it: no jog, the bends of the port on it
+  const [on] = routes([a, b], [[{ thing: 'a', port: 'near' }, 'b']]), [exact] = routes([{ ...a, ports: [{ name: 'near', at: [2, 1, 0.5] }] }, b], [[{ thing: 'a', port: 'near' }, 'b']]);
+  assert.deepEqual(on.points, exact.points);
+  assert.deepEqual(on.path, exact.path);
+  // and a port a ten-billionth above the floor has no riser: every step of the path moves along one axis
+  const [flat] = routes([a, b], [[{ thing: 'a', port: 'flat' }, 'b']]);
+  for (let k = 1; k < flat.path.length; k += 1) assert.equal([0, 1, 2].filter((i) => flat.path[k][i] !== flat.path[k - 1][i]).length, 1, JSON.stringify(flat.path));
+  // the jog's way out is checked too: a thin bar on the line in front, beside the port's line, refuses it
+  const barred = routes([thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1.01, 0.5] }] }), thing('bar', [2.45, 1.03], [0.1, 0.02, 1]), thing('b', [6, 0])], [[{ thing: 'a', port: 'p' }, 'b']]);
+  assert.equal(barred[0].why, NO_ROUTE.port);
+  // readPorts checks what it is given
+  assert.throws(() => readPorts([], undefined, false, 'x'), /x's size is \[wide, deep, high\]/);
+  assert.throws(() => readPorts([], [NaN, 1, 1], false, 'x'), /x's size is \[wide, deep, high\]/);
+  assert.throws(() => readPorts([], [1, 1, 1], 'no', 'x'), /x's round says whether it is round/);
+  assert.throws(() => readPorts([], [1, 1, 1], false, 5), /readPorts names the thing it reads, as text/);
+});

@@ -167,7 +167,7 @@ function lattice(read, lift, step, hides, work) {
       }
     }
   }
-  return { first, nx, ny, closed, hidden, alongCols: new Uint8Array(nx * ny), alongRows: new Uint8Array(nx * ny), taken: new Set() };
+  return { first, nx, ny, closed, hidden, alongCols: new Uint8Array(nx * ny), alongRows: new Uint8Array(nx * ny), taken: new Set(), cut: new Set() };
 }
 
 /**
@@ -213,18 +213,20 @@ function places(thing, read, lift, hides, { first, nx, ny, closed, hidden }, ste
 /** Whether a route laid before runs across a lattice point: across a stretch along the cols (`cols`), one along the rows. */
 const crossedAt = ({ nx, alongCols, alongRows }, node, cols) => Boolean(cols ? alongRows[node] || alongRows[node - nx] : alongCols[node] || alongCols[node - 1]);
 /** How many routes laid before run across a place's own run: at the lattice points on it, and at the one in front (`front`). */
-const runCrossings = (grid, place, front) => [...(front ? [place.node] : []), ...place.between].filter((node) => crossedAt(grid, node, place.way === 0)).length;
+const runCrossings = (grid, place, front) => [...(front ? [place.node] : []), ...place.between].filter((node) => crossedAt(grid, node, place.way % 2 === 0)).length;
 
 /** The cheapest way over the lattice from one of `starts` to one of `ends` (places): {nodes, start, end, cost}, or null. `work`: {left}. */
 function search(grid, starts, ends, step, seen, work) {
-  const { nx, ny, closed, hidden, alongCols, alongRows, taken } = grid, stamp = (seen.turn += 1);
+  const { nx, ny, closed, hidden, alongCols, alongRows, taken, cut } = grid, stamp = (seen.turn += 1);
+  // this link's own ports' runs out are not crossed either
+  const own = new Set([...starts, ...ends].flatMap((p) => p.cuts ?? [])), crosses = (key) => cut.has(key) || own.has(key);
   const goals = new Map(ends.map((p) => [p.node, p]));
   // how far a point is from the box round the points to reach, along the lattice: never more than the way still to go,
   // and one sum whatever the number of places (a thing thousands of tiles wide has thousands)
   const box = [Infinity, -Infinity, Infinity, -Infinity];
   for (const g of goals.keys()) { const i = g % nx, j = (g - i) / nx; box[0] = Math.min(box[0], i); box[1] = Math.max(box[1], i); box[2] = Math.min(box[2], j); box[3] = Math.max(box[3], j); }
   const far = (node) => { const i = node % nx, j = (node - i) / nx; return (Math.max(0, box[0] - i, i - box[1]) + Math.max(0, box[2] - j, j - box[3])) * step; };
-  const lies = (p) => { const kept = p.way === 0 ? alongCols : alongRows; return p.run.filter((stretch) => kept[stretch]).length; };
+  const lies = (p) => { const kept = p.way % 2 === 0 ? alongCols : alongRows; return p.run.filter((stretch) => kept[stretch]).length; };
   // what a place costs: its run (three times more over hidden floor), being off the foot's middle, being taken, lying
   // on another's stretch, and crossing the routes laid before — `front`: whether the lattice point's own crossing is its to pay
   const placeCost = (p, front) => p.stub * (p.hidden ? 1 + HIDDEN : 1) + p.off * OFF_MIDDLE + p.turn + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG + runCrossings(grid, p, front) * CROSS;
@@ -258,6 +260,7 @@ function search(grid, starts, ends, step, seen, work) {
       if (closed[to]) continue;
       const cols = next % 2 === 0, run = cols ? alongCols : alongRows;
       const stretch = next < 2 ? node : to;   // a stretch is kept at its lower end
+      if (crosses(stretch * 2 + (cols ? 0 : 1))) continue;
       reach(to * 4 + next, cost + step + (next === way ? 0 : TURN) + pointCost(to) + (run[stretch] ? ALONG : 0) + (crossedAt(grid, to, cols) ? CROSS : 0), state);
     }
   }
@@ -330,7 +333,7 @@ export function routes(things, links = [], options = undefined) {
     const straightIn = nodes.length > 1 && (Math.abs(nodes.at(-1) - nodes.at(-2)) === 1) === (end.way === 0);
     let crosses = runCrossings(grid, start, true) + runCrossings(grid, end, !straightIn), shared = 0;
     for (const place of [start, end]) {
-      const kept = place.way === 0 ? alongCols : alongRows;
+      const kept = place.way % 2 === 0 ? alongCols : alongRows;
       if (taken.has(`${place.edge} ${place.at}`)) shared += place.stub;
       else shared += place.run.filter((stretch) => kept[stretch]).length * step;
     }
@@ -342,7 +345,8 @@ export function routes(things, links = [], options = undefined) {
     for (let k = 1; k < nodes.length; k += 1) (Math.abs(nodes[k] - nodes[k - 1]) === 1 ? alongCols : alongRows)[Math.min(nodes[k], nodes[k - 1])] = 1;
     for (const place of [start, end]) {
       taken.add(`${place.edge} ${place.at}`);
-      for (const stretch of place.run) (place.way === 0 ? alongCols : alongRows)[stretch] = 1;
+      for (const stretch of place.run) (place.way % 2 === 0 ? alongCols : alongRows)[stretch] = 1;
+      for (const cut of place.cuts ?? []) grid.cut.add(cut);   // a port's run out: no later route crosses it between two lattice points
     }
     const point = (node) => [(first[0] + node % nx) * step, (first[1] + Math.floor(node / nx)) * step];
     const all = [start.at, ...start.lead, ...nodes.map(point), ...[...end.lead].reverse(), end.at], points = all.filter((p, k) => k === 0 || k === all.length - 1 || (p[0] - all[k - 1][0]) * (all[k + 1][1] - p[1]) !== (p[1] - all[k - 1][1]) * (all[k + 1][0] - p[0]));
@@ -363,8 +367,11 @@ export function routes(things, links = [], options = undefined) {
       if (!hid) return;
       // the stretches of it that some thing hides, by how far along the way they are: a packet riding it can fade there, and a check can say how long
       const last = unseen.at(-1);
-      if (last && last.upTo === gone - step) { last.upTo = gone; last.to = gone; } else unseen.push({ from: gone, to: gone, upTo: gone });
+      if (last && Math.abs(last.upTo - (gone - step)) <= 1e-9) { last.upTo = gone; last.to = gone; } else unseen.push({ from: gone, to: gone, upTo: gone });
     });
+    // a port on a back side is on a face turned from the viewer: its thing hides at least the plug, whatever of the floor is in view
+    if (start.port && !start.port.seen) hiders.add(a);
+    if (end.port && !end.port.seen) hiders.add(b);
     const behind = read.filter((thing) => hiders.has(thing)).map((thing) => thing.name);
     const tiles = points.reduce((sum, p, k) => (k ? sum + Math.abs(p[0] - points[k - 1][0]) + Math.abs(p[1] - points[k - 1][1]) : 0), 0);
     // a hidden point stands for the half step either side of it: a stretch is right to the nearest half step, not to the edge of what hides it
@@ -372,7 +379,9 @@ export function routes(things, links = [], options = undefined) {
     // the whole way in three dimensions: out of a port at its height, down to the floor, along it, and up into the other
     const lift = a.at[2], portPath = (thing, place) => {
       if (!place.port) return [];
-      const { at: [c, r], size: [w, d] } = thing, [x, y, z] = place.port.at, { axis, sign } = SIDES[place.port.face], plug = [c + x, r + y, lift + z];
+      const { at: [c, r], size: [w, d] } = thing, [x, y, z] = place.port.at, { axis, sign } = SIDES[place.port.face];
+      // (its line out where the places put it: on a lattice line when it was within a billionth of one)
+      const plug = axis === 0 ? [sign > 0 ? c + w : c, place.along, lift + z] : [place.along, sign > 0 ? r + d : r, lift + z];
       return z > 1e-9 ? [plug, axis === 0 ? [plug[0] + sign * OUT, plug[1], plug[2]] : [plug[0], plug[1] + sign * OUT, plug[2]]] : [plug];
     };
     const path = [...portPath(a, start), ...points.map(([x, y]) => [x, y, lift]), ...portPath(b, end).reverse()];
