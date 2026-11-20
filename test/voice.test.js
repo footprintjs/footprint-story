@@ -193,7 +193,12 @@ test('the kit adapter says so when the kit fails — an exit code, a missing Pyt
   assert.equal(asked[1].timeout, (10 + 1) * 60_000);
   const late = () => ({ status: null, signal: 'SIGKILL', error: Object.assign(new Error('spawnSync python ETIMEDOUT'), { code: 'ETIMEDOUT' }) });
   assert.throws(() => chatterboxKit({ kit: '/kit', run: late }).synthesize([{ id: 'k1', text: 'x' }], { work }), /the voice kit did not finish in 20 minutes \(10 to load and 10 for each of 1 scene\) and was stopped, in \/kit — run it again, or give it longer: chatterboxKit\(\{ minutes/);
-  for (const minutes of [{ scene: 0 }, { start: -1 }, { scene: 'long' }, { scene: Infinity }]) assert.throws(() => chatterboxKit({ kit: '/kit', minutes }), /minutes is \{ start, scene \}/);
+  // never no limit: the smallest is a millisecond, and the longest a day however many scenes
+  chatterboxKit({ kit: '/kit', minutes: { start: 1e-9, scene: 1e-9 }, run: (cmd, args, options) => { asked.push(options); return run(); } }).synthesize([{ id: 'k1', text: 'x' }], { work });
+  assert.equal(asked[2].timeout, 1);
+  chatterboxKit({ kit: '/kit', run: (cmd, args, options) => { asked.push(options); return run(); } }).synthesize(Array.from({ length: 5000 }, (_, i) => ({ id: `k${i}`, text: 'x' })), { work });
+  assert.equal(asked[3].timeout, 24 * 60 * 60_000);
+  for (const minutes of [{ scene: 0 }, { start: -1 }, { scene: 'long' }, { scene: '5' }, { scene: Infinity }, { scene: 24 * 60 + 1 }, { scenes: 1 }, null, 5, [1, 2]]) assert.throws(() => chatterboxKit({ kit: '/kit', minutes }), /minutes is \{ start, scene \}/);
 });
 
 test('voicing with an engine that aligns no words: the clip keeps none, and says so with null', async () => {
