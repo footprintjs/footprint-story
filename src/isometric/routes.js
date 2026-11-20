@@ -2,7 +2,7 @@
  * Routes: the way each link runs along the floor, round what stands on it.
  *
  *   routes(things, links)   → one entry a link, in the order given:
- *     { from, to, points: [[col, row], …], feet: ['right', 'left'], bends, tiles, behind: ['logs'], crosses, shared }   a way was found
+ *     { from, to, points: [[col, row], …], feet: ['right', 'left'], bends, tiles, behind: ['logs'], unseen: [[3, 4.5]], crosses, shared }   a way was found
  *     { from, to, points: null, why: 'no way along the floor' }                                              none was
  *
  * `things` are [{name, at, size, round?}], `links` are [[from, to]] by name. A route leaves a thing at one of the two
@@ -262,7 +262,8 @@ function search(grid, starts, ends, step, seen, work) {
  * `links`: [[from, to]] by name; `hides`: the tiles of floor a thing hides behind it for each tile of its height (1.22,
  * the usual two-to-one view). Gives one entry a link, in the order given: its `points` ([col, row], from the foot it
  * leaves to the foot it reaches, a turn at every point between), the `feet` it uses, its `bends`, its length in `tiles`,
- * the names of the things it passes `behind`, how many routes laid before it `crosses`, and the tiles of it that lie on
+ * the names of the things it passes `behind` and where (`unseen`: [[from, to], …], the stretches a thing hides, in
+ * tiles along the way from its start), how many routes laid before it `crosses`, and the tiles of it that lie on
  * another's way for want of room (`shared`, 0 as a rule) — or `points: null` and `why` (one of NO_ROUTE).
  */
 export function routes(things, links = [], options = undefined) {
@@ -332,8 +333,21 @@ export function routes(things, links = [], options = undefined) {
     const stood = [...nodes, ...start.between, ...end.between].map(point), feet = [[start.at, a], [end.at, b]];
     work.left -= (stood.length + 2) * read.length;
     const behind = read.filter((thing) => stood.some(([x, y]) => hidesPoint(thing, a.at[2], hides, x, y)) || feet.some(([[x, y], own]) => thing !== own && hidesPoint(thing, a.at[2], hides, x, y))).map((thing) => thing.name);
+    // the stretches of it that some thing hides, by how far along the way they are: a packet riding it can fade there, and a check can say how long
+    const way = [[start.at, a], ...[...start.between].reverse().map((node) => [point(node)]), ...nodes.map((node) => [point(node)]), ...end.between.map((node) => [point(node)]), [end.at, b]];
+    const unseen = [];
+    let gone = 0;
+    way.forEach(([[x, y], own], k) => {
+      if (k) gone += Math.abs(x - way[k - 1][0][0]) + Math.abs(y - way[k - 1][0][1]);
+      if (!read.some((thing) => thing !== own && hidesPoint(thing, a.at[2], hides, x, y))) return;
+      const last = unseen.at(-1), before = k ? gone - (Math.abs(x - way[k - 1][0][0]) + Math.abs(y - way[k - 1][0][1])) : 0;
+      if (last && last.upTo === before) { last.upTo = gone; last.to = gone; } else unseen.push({ from: gone, to: gone, upTo: gone });
+    });
+    work.left -= way.length * read.length;
     const tiles = points.reduce((sum, p, k) => (k ? sum + Math.abs(p[0] - points[k - 1][0]) + Math.abs(p[1] - points[k - 1][1]) : 0), 0);
-    return { from, to, points, feet: [start.edge, end.edge], bends: points.length - 2, tiles, behind, crosses, shared };
+    // a hidden point stands for the half step either side of it
+    const spans = unseen.map(({ from: lo, to: hi }) => [Math.max(0, lo - step / 2), Math.min(tiles, hi + step / 2)]);
+    return { from, to, points, feet: [start.edge, end.edge], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared };
   });
 }
 

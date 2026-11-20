@@ -10,11 +10,13 @@
 //   gridFor(placed, [x0, y0, x1, y1])                  → the grid on which they fill that box
 //   routes(placed, links)                              → the way each link runs along the floor, round what stands on it
 //   rounded(points, radius)                            → that way with its corners rounded, and the place a share along it
+//   wordsToFit(name, [wide, high])                     → the name on one line or two, as big as fits a face
 
 export { isometric } from './src/isometric/grid.js';
 export { readThing } from './src/isometric/thing.js';
 export { MOST_ISOMETRIC_THINGS } from './src/isometric/order.js';
 export { arrange, MOST_LINKS } from './src/isometric/arrange.js';
-export { gridFor } from './src/isometric/fit.js';
+export { gridFor, MOST_ALSO } from './src/isometric/fit.js';
+export { wordsToFit } from './src/isometric/words.js';
 export { routes, routeNote, MOST_ROUTES, MOST_WORK, NO_ROUTE } from './src/isometric/routes.js';
 export { rounded } from './src/isometric/path.js';
