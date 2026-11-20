@@ -1,0 +1,125 @@
+// why — where a value of a run came from, read from the run's own record file.
+//
+//   await whyFromRecord({ file: 'runs/x.record.jsonl', control, key: 'verdict', run: 'run 1' })
+//   verdict = "fix"
+//   fix (fix#6) [wrote: verdict]
+//     verdict (verdict#5) ← [control: there is something to fix]
+//       count the errors (errors#3) ← via errors [wrote: errors]
+//
+// WHY here: StoryDeck and StoryReel each run a footprintjs chart for a check, and each keeps the run's record as a file
+// (footprintjs/sinks · fileSink). A run's words say what happened in order; they do not answer "why is this number so".
+// The record does: every commit as it was written, the keys each stage had read when it wrote (the executor's
+// `writeProvenance: 'reads-prefix'`), and — saved beside it — which decision let each stage run (controlEdges).
+// foottrace walks back from the key over that. Nothing is run again, and nothing is guessed. One reader, so a deck and
+// a film answer alike and are hardened alike.
+//
+// The record is a file in a project's folder, so it is read as data anyone may have written:
+//   - only as a plain file of at most RECORD_MOST bytes, never through a link (readRecordFile);
+//   - its entries checked one by one (readStoredRecord), and it must hold one run: a second is refused;
+//   - before the walk, what the answer would show of it (a stage's name and id, a key) is made one line and cut; a step
+//     keeps at most ROWS_MOST rows and READS_MOST keys read (the walk joins the lists of every row that wrote a key), a
+//     cut is said, and a step id longer than a run writes is refused (cut, it could become another's);
+//   - an edge of the saved control map is used only when it names a step of this record that ran before the step it governs;
+//   - a record that is not whole says so FIRST, and then a value it does not find is "not found in what could be read".
+// What no record holds is said under every answer: a stage also uses what it is given from outside the run's own state.
+//
+// footprintjs and foottrace are the caller's (peer dependencies, needed by this door alone): both tools have them.
+import { lstatSync } from 'node:fs';
+import { readRecordFile } from 'footprintjs/sinks';
+import { readStoredRecord, sliceForKey, formatSlice, findLastWriter, commitValueAt, keysReadFromMap, controlDepsFromMap } from 'foottrace';
+import { oneLine } from '../said/oneline.js';
+
+/** The most lines an answer holds, the most characters of a value or a name it shows, the most bytes of a record it reads, the most steps, and the most rows and keys read a step keeps. */
+export const WHY_LIMITS = Object.freeze({ lines: 40, value: 200, bytes: 8 * 1024 * 1024, steps: 5000, rows: 200, reads: 200 });
+const OUTSIDE = '(a stage also uses what it is given from outside the run\'s own state: the record holds what stages read and wrote, and no more)';
+const { lines: LINES, value: VALUE, bytes: BYTES, steps: STEPS, rows: ROWS, reads: READS } = WHY_LIMITS;
+
+const name = (text) => { const said = oneLine(String(text ?? '')); return said.length > VALUE ? `${said.slice(0, VALUE - 1)}…` : said; };
+const shown = (value) => { const said = oneLine(JSON.stringify(value) ?? String(value)); return said.length > VALUE ? `${said.slice(0, VALUE - 1)}…` : said; };
+
+/** A commit as the walk may show it (see the head). `cut.lists` counts the steps shortened. */
+function plainCommit(bundle, cut) {
+  const text = (key) => (typeof bundle[key] === 'string' ? { [key]: name(bundle[key]) } : {});
+  const all = Array.isArray(bundle.trace) ? bundle.trace.filter((row) => row && typeof row === 'object') : [];
+  let left = READS, short = all.length > ROWS;
+  const rows = all.slice(0, ROWS).map((row) => {
+    const keys = Array.isArray(row.readKeys) ? row.readKeys.filter((k) => typeof k === 'string') : null, kept = keys?.slice(0, left) ?? null;
+    if (keys) { short ||= kept.length < keys.length; left -= kept.length; }
+    return { ...row, ...(typeof row.path === 'string' ? { path: name(row.path) } : {}), ...(kept ? { readKeys: kept.map(name) } : {}) };
+  });
+  if (short) cut.lists += 1;
+  return { ...bundle, ...text('stage'), ...text('stageId'), ...text('stageName'), ...text('runtimeStageId'), trace: rows };
+}
+
+/** The keys each stage had read when it wrote, from the record's own rows: {runtimeStageId: [key]}. */
+function readsOf(commits) {
+  const reads = new Map();
+  for (const bundle of commits) for (const row of bundle.trace) for (const key of row.readKeys ?? []) {
+    if (!reads.has(bundle.runtimeStageId)) reads.set(bundle.runtimeStageId, new Set());
+    reads.get(bundle.runtimeStageId).add(key);
+  }
+  return Object.fromEntries([...reads].map(([id, keys]) => [id, [...keys]]));
+}
+
+/** The saved control edges that are true of this record: the decider is a step of it, and ran before the step it let run. */
+function trueEdges(control, commits) {
+  const at = new Map(commits.map((bundle, i) => [bundle.runtimeStageId, i])), out = {};
+  if (!control || typeof control !== 'object' || Array.isArray(control)) return out;
+  for (const [step, edge] of Object.entries(control).slice(0, STEPS)) {
+    const i = at.get(name(step)), d = at.get(name(edge?.deciderId));
+    if (i !== undefined && d !== undefined && d < i) out[name(step)] = { deciderId: name(edge.deciderId), ...(typeof edge.label === 'string' ? { label: name(edge.label) } : {}) };
+  }
+  return out;
+}
+
+/**
+ * Which decision let each step of a run go, as plain data to save beside its record: {step: {deciderId, label?}}.
+ * `commitLog`: the run's (executor.getSnapshot().commitLog); `control`: footprintjs/trace · controlDepRecorder(),
+ * attached to that run. Give it back to whyFromRecord as `control`.
+ */
+export function controlEdges(commitLog, control) {
+  const out = {};
+  for (const bundle of commitLog ?? []) {
+    const edge = control.lookup(bundle.runtimeStageId);
+    if (edge && typeof edge.deciderId === 'string') out[name(bundle.runtimeStageId)] = { deciderId: name(edge.deciderId), ...(typeof edge.label === 'string' ? { label: name(edge.label) } : {}) };
+  }
+  return out;
+}
+
+/** The record file's entries: read only as a plain file of a size a run's record can have, a refusal saying what it is. */
+async function entriesOf(file, run) {
+  let size;
+  try { size = lstatSync(file).size; } catch { throw new Error(`${run}'s record is gone: ${name(file)}`); }
+  if (size > BYTES) throw new Error(`${run}'s record is ${Math.round(size / 1e6)} MB, more than a run writes (${BYTES / 1024 / 1024} MB at most): it was changed, and is not read`);
+  try { return await readRecordFile(file, { maxBytes: BYTES }); } catch (e) { throw new Error(`${run}'s record cannot be read as a plain file of its own (${name(e?.code ?? e?.message ?? e)}): ${name(file)}`); }
+}
+
+/**
+ * Why `key` is what it is in a run: its value, then the stage that wrote it, the decision that let that stage run and
+ * what each had read, walked back — as text, every line one line. `file`: the run's record; `control`: what
+ * controlEdges gave for it (or nothing); `run`: how to call the run in a refusal ("run 1"); `listed`: how a reader
+ * lists what each stage wrote, said when no stage wrote `key`; `all`: every line (default: the first 40).
+ */
+export async function whyFromRecord({ file, control = null, key, run = 'this run', listed = null, all = false } = {}) {
+  const asked = typeof key === 'string' ? key.trim() : '';
+  if (!asked) throw new Error('why names a value of the run, one of what its stages wrote');
+  if (/[.[\]]/.test(asked)) throw new Error(`why names a value by its own name (verdict, errors), not a part of one: ${JSON.stringify(asked.slice(0, 60))}`);
+  if (typeof file !== 'string' || !file) throw new Error(`${run} kept no record, so it cannot say why`);
+  const { entries, unreadable } = await entriesOf(file, run), logs = [...readStoredRecord(entries).logs.values()];
+  if (logs.length > 1) throw new Error(`${run}'s record holds ${logs.length} runs, and a run writes one: it was changed, and is not read`);
+  const log = logs[0];
+  if (!log || !log.commitLog.length) throw new Error(`${run}'s record holds no step: ${name(file)}`);
+  if (log.commitLog.length > STEPS) throw new Error(`${run}'s record holds ${log.commitLog.length} steps, more than a run takes (${STEPS} at most): it was changed, and is not read`);
+  if (log.commitLog.some((b) => typeof b.runtimeStageId === 'string' && b.runtimeStageId.length > VALUE)) throw new Error(`${run}'s record names a step longer than a run names one (${VALUE} characters at most): it was changed, and is not read`);
+  const cut = { lists: 0 }, commits = log.commitLog.map((bundle) => plainCommit(bundle, cut));
+  // what is missing from the record is said before anything it answers
+  const torn = [...(log.complete ? [] : ['this run did not finish: its record stops where it stopped']), ...(log.gaps.length ? [`${log.gaps.length} of its steps could not be read back`] : []),
+    ...(unreadable?.length ? [`${unreadable.length} lines of its record could not be read`] : []),
+    ...(cut.lists ? [`${cut.lists} of its steps list more rows or keys read than a run writes, and were cut`] : [])];
+  const head = torn.length ? [`(the record is not whole — ${torn.join('; ')}: what follows is what could be read)`] : [];
+  if (!findLastWriter(commits, asked)) return [...head, torn.length ? `${name(asked)}: not found in what could be read` : `${name(asked)}: no stage of this run wrote it${listed ? ` (${oneLine(listed)})` : ''}`].join('\n');
+  const slice = sliceForKey(commits, asked, keysReadFromMap(readsOf(commits)), { controlDeps: controlDepsFromMap(trueEdges(control, commits)) });
+  const lines = [...head, `${name(asked)} = ${shown(commitValueAt(commits, commits.length - 1, asked))}`, ...formatSlice(slice).split('\n').filter((line) => !/^SLICE for /.test(line)).map(oneLine)];
+  const kept = all ? lines : lines.slice(0, LINES);
+  return [...kept, ...(lines.length > kept.length ? [`… ${lines.length - kept.length} more`] : []), OUTSIDE].join('\n');
+}

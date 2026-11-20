@@ -1,4 +1,4 @@
-// The six doors. The pure door ('footprint-story'), the motion door ('footprint-story/motion'), the storyboard door
+// The seven doors (the record door, Node only and the one that reaches a package, is the last test). The pure door ('footprint-story'), the motion door ('footprint-story/motion'), the storyboard door
 // ('footprint-story/storyboard'), the shot door ('footprint-story/shot') and the isometric door ('footprint-story/isometric') run in a browser: nothing they reach may import a Node module, or every React project
 // that bundles them breaks. The voice door
 // ('footprint-story/voice') is Node only. The motion door is its own: the pure door never loads it, so a page that
@@ -51,13 +51,13 @@ test('every source file is behind exactly one door, only the voice door reaches 
   assert.ok(shot.every((f) => f === 'shot.js' || f.startsWith('src/shot/')), 'the shot door reaches nothing else');
   assert.ok([...pure, ...voice, ...motion, ...board, ...shot].every((f) => !f.startsWith('src/isometric/')), 'src/isometric loads only through its own door');
   assert.ok(iso.every((f) => f === 'isometric.js' || f.startsWith('src/isometric/')), 'the isometric door reaches nothing else');
-  const files = ['spoken', 'sentences', 'captions', 'chapters', 'voice', 'motion', 'storyboard', 'shot', 'isometric'].flatMap((d) => readdirSync(path.join(root, 'src', d)).filter((f) => f.endsWith('.js')).map((f) => `src/${d}/${f}`));
+  const files = ['spoken', 'sentences', 'captions', 'chapters', 'said', 'voice', 'motion', 'storyboard', 'shot', 'isometric'].flatMap((d) => readdirSync(path.join(root, 'src', d)).filter((f) => f.endsWith('.js')).map((f) => `src/${d}/${f}`));
   for (const f of files) assert.ok(pure.includes(f) || voice.includes(f) || motion.includes(f) || board.includes(f) || shot.includes(f) || iso.includes(f), `${f} is behind no door`);
   for (const f of voice.filter((v) => v.startsWith('src/') && !v.startsWith('src/voice/'))) assert.ok(pure.includes(f), `${f}: a pure file the voice door uses is pure, behind the pure door too`);
 });
 
 test('every public symbol has one door, and its types declare it', async () => {
-  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')) };
+  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')), 'record.js': Object.keys(await import('../record.js')) };
   const all = Object.values(doors).flat();
   assert.deepEqual(all.filter((name, i) => all.indexOf(name) !== i), [], 'a symbol with two doors');
   for (const [door, names] of Object.entries(doors)) {
@@ -66,4 +66,16 @@ test('every public symbol has one door, and its types declare it', async () => {
     // and the other way round: the types promise no function or value the door does not hand out
     for (const [, declared] of types.matchAll(/^export (?:declare )?(?:function|const) (\w+)/gm)) assert.ok(names.includes(declared), `${door.replace(/\.js$/, '.d.ts')} declares ${declared}, which ${door} does not export`);
   }
+});
+
+test('the record door is Node only and the one door that reaches a package: footprintjs and foottrace, the caller\'s own', () => {
+  const record = reach('record.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js')];
+  for (const [file] of others) assert.ok(!relative(file).startsWith('src/record/'), `${relative(file)}: src/record loads only through its own door`);
+  const packages = [...record].flatMap(([, specs]) => specs.filter((s) => !s.startsWith('.') && !NODE.has(s))).map((s) => s.split('/')[0]);
+  assert.deepEqual([...new Set(packages)].sort(), ['footprintjs', 'foottrace']);
+  const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.deepEqual(Object.keys(pkg.peerDependencies).sort(), ['footprintjs', 'foottrace']);
+  assert.ok(Object.values(pkg.peerDependenciesMeta).every((m) => m.optional === true), 'optional: a page that only captions installs neither');
+  assert.equal(pkg.dependencies, undefined);
+  for (const [file] of record) assert.ok(relative(file) === 'record.js' || relative(file).startsWith('src/record/') || relative(file) === 'src/said/oneline.js', `${relative(file)}: the record door reaches its own folder and the one-line rule`);
 });
