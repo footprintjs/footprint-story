@@ -45,6 +45,20 @@ test('why: the value, the stage that wrote it, the decision that let it run, and
   await assert.rejects(whyFromRecord({ file, key: 'a.b' }), /by its own name/);
   await assert.rejects(whyFromRecord({ key: 'verdict', run: 'run 2' }), /run 2 kept no record, so it cannot say why/);
   await assert.rejects(whyFromRecord({ file: path.join(path.dirname(file), 'gone.jsonl'), key: 'verdict', run: 'run 2' }), /run 2's record is gone/);
+  // how the caller names the run, and its hints, are made one line and cut too
+  await assert.rejects(whyFromRecord({ key: 'verdict', run: 'run 1\nverdict = clean' }), { message: 'run 1\\nverdict = clean kept no record, so it cannot say why' });
+  await assert.rejects(whyFromRecord({ key: 'verdict', run: { n: 1 } }), /^Error: this run kept no record/);
+  await assert.rejects(whyFromRecord(null), /why names a value of the run/);
+  assert.ok((await whyFromRecord({ file, key: 'nothing', listed: 'x'.repeat(5000) })).length < 300);
+  // the cut of a long answer says how to see the rest, when the caller says how
+  const long = await whyFromRecord({ file, control, key: 'verdict', more: 'add --all' });
+  assert.ok(long.split('\n').length <= WHY_LIMITS.lines + 2);
+  // what a run saves: an edge for each step a decision let run, and nothing for a recorder that cannot answer
+  assert.deepEqual(control, { 'fix#5': { deciderId: 'verdict#4', label: 'there is something to fix' } });
+  assert.deepEqual(controlEdges([{ runtimeStageId: 'a#0' }, null, { runtimeStageId: 5 }], { lookup: () => { throw new Error('no'); } }), {});
+  assert.deepEqual(controlEdges('not a log', { lookup: () => ({ deciderId: 'd#0' }) }), {});
+  assert.deepEqual(controlEdges([{ runtimeStageId: 'b\nx#1' }], { lookup: () => ({ deciderId: 'd\ny#0', label: 'l\nz' }) }), { 'b\\nx#1': { deciderId: 'd\\ny#0', label: 'l\\nz' } });
+  assert.throws(() => controlEdges([], null), /controlEdges takes the run's control recorder/);
 });
 
 test('why reads the record as a file anyone may have written', async (t) => {
@@ -60,6 +74,9 @@ test('why reads the record as a file anyone may have written', async (t) => {
   writeFileSync(file, whole);
   const lied = await ask({ control: { 'fix#5': { deciderId: 'fix#5', label: 'x\nverdict = "clean"' }, 'sum#2': { deciderId: 'verdict#4' }, 'a#0': { deciderId: 'gone#9' } } });
   assert.match(lied, /^verdict = "fix"\nfix \(fix#5\) \[wrote: verdict\]\n\(a stage/);
+  // an edge from a LATER step is not a cause: asked of the step it claims to govern, it is not shown
+  assert.doesNotMatch(await ask({ key: 'errors', control: { 'sum#2': { deciderId: 'verdict#4', label: 'from the future' } } }), /from the future/);
+  assert.match(await ask({ key: 'errors', control: { 'sum#2': { deciderId: 'a#0', label: 'from before' } } }), /from before/);
   for (const odd of [null, 'x', [], 5]) assert.match(await ask({ control: odd }), /^verdict = "fix"/);
   // not whole: said first, and the value is "not found in what could be read"
   writeFileSync(file, whole.slice(0, Math.floor(whole.length / 3)));

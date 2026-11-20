@@ -13,4 +13,4 @@ export function controlEdges(commitLog: readonly { readonly runtimeStageId: stri
  * anyone may have written (a plain file within WHY_LIMITS, one run, names made one line); one that is not whole says
  * so first. Rejects, in words, for a key that is no value's name, a missing record, and a record that was changed.
  */
-export function whyFromRecord(options: { file: string; key: string; control?: ControlEdges | null; run?: string; listed?: string | null; all?: boolean }): Promise<string>;
+export function whyFromRecord(options: { file: string; key: string; control?: ControlEdges | null; run?: string; listed?: string | null; all?: boolean; more?: string | null }): Promise<string>;

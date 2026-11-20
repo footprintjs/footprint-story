@@ -78,9 +78,12 @@ function trueEdges(control, commits) {
  * attached to that run. Give it back to whyFromRecord as `control`.
  */
 export function controlEdges(commitLog, control) {
+  if (typeof control?.lookup !== 'function') throw new TypeError('controlEdges takes the run\'s control recorder (footprintjs/trace · controlDepRecorder()), which has lookup(runtimeStageId)');
   const out = {};
-  for (const bundle of commitLog ?? []) {
-    const edge = control.lookup(bundle.runtimeStageId);
+  for (const bundle of (Array.isArray(commitLog) ? commitLog : []).slice(0, STEPS)) {
+    if (typeof bundle?.runtimeStageId !== 'string') continue;
+    let edge = null;
+    try { edge = control.lookup(bundle.runtimeStageId); } catch { /* a step the recorder cannot answer for has no edge */ }
     if (edge && typeof edge.deciderId === 'string') out[name(bundle.runtimeStageId)] = { deciderId: name(edge.deciderId), ...(typeof edge.label === 'string' ? { label: name(edge.label) } : {}) };
   }
   return out;
@@ -98,9 +101,11 @@ async function entriesOf(file, run) {
  * Why `key` is what it is in a run: its value, then the stage that wrote it, the decision that let that stage run and
  * what each had read, walked back — as text, every line one line. `file`: the run's record; `control`: what
  * controlEdges gave for it (or nothing); `run`: how to call the run in a refusal ("run 1"); `listed`: how a reader
- * lists what each stage wrote, said when no stage wrote `key`; `all`: every line (default: the first 40).
+ * lists what each stage wrote, said when no stage wrote `key`; `all`: every line (default: the first 40); `more`: how
+ * a reader asks for every line, said when some are left out. `run`, `listed` and `more` are made one line and cut.
  */
-export async function whyFromRecord({ file, control = null, key, run = 'this run', listed = null, all = false } = {}) {
+export async function whyFromRecord(options) {
+  const { file, control = null, key, listed = null, all = false, more = null } = options ?? {}, run = name(typeof options?.run === 'string' && options.run ? options.run : 'this run');
   const asked = typeof key === 'string' ? key.trim() : '';
   if (!asked) throw new Error('why names a value of the run, one of what its stages wrote');
   if (/[.[\]]/.test(asked)) throw new Error(`why names a value by its own name (verdict, errors), not a part of one: ${JSON.stringify(asked.slice(0, 60))}`);
@@ -117,9 +122,9 @@ export async function whyFromRecord({ file, control = null, key, run = 'this run
     ...(unreadable?.length ? [`${unreadable.length} lines of its record could not be read`] : []),
     ...(cut.lists ? [`${cut.lists} of its steps list more rows or keys read than a run writes, and were cut`] : [])];
   const head = torn.length ? [`(the record is not whole — ${torn.join('; ')}: what follows is what could be read)`] : [];
-  if (!findLastWriter(commits, asked)) return [...head, torn.length ? `${name(asked)}: not found in what could be read` : `${name(asked)}: no stage of this run wrote it${listed ? ` (${oneLine(listed)})` : ''}`].join('\n');
+  if (!findLastWriter(commits, asked)) return [...head, torn.length ? `${name(asked)}: not found in what could be read` : `${name(asked)}: no stage of this run wrote it${typeof listed === 'string' && listed ? ` (${name(listed)})` : ''}`].join('\n');
   const slice = sliceForKey(commits, asked, keysReadFromMap(readsOf(commits)), { controlDeps: controlDepsFromMap(trueEdges(control, commits)) });
   const lines = [...head, `${name(asked)} = ${shown(commitValueAt(commits, commits.length - 1, asked))}`, ...formatSlice(slice).split('\n').filter((line) => !/^SLICE for /.test(line)).map(oneLine)];
   const kept = all ? lines : lines.slice(0, LINES);
-  return [...kept, ...(lines.length > kept.length ? [`… ${lines.length - kept.length} more`] : []), OUTSIDE].join('\n');
+  return [...kept, ...(lines.length > kept.length ? [`… ${lines.length - kept.length} more${typeof more === 'string' && more ? `: ${name(more)}` : ''}`] : []), OUTSIDE].join('\n');
 }

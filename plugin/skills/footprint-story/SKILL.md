@@ -7,7 +7,7 @@ description: What a film and a deck share (footprint-story, formerly footprint-n
 
 A voice drops or garbles digits and a forced aligner knows only letters, so a narration is **said in words and
 shown as written**. Everything here rests on one map from the shown text to the spoken text. And a move, a change of
-picture and a pace are named here once, so a film and a deck move alike. Five doors:
+picture and a pace are named here once, so a film and a deck move alike. Seven doors:
 
 | You need | Import | Runs |
 |---|---|---|
