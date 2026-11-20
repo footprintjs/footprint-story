@@ -88,6 +88,14 @@ test('why reads the record as a file anyone may have written', async (t) => {
   const mounted = await ask();
   assert.match(mounted, /^verdict = "fix"\nfix \(fix#5\) \[wrote: verdict\]/);
   assert.match(mounted, /\n\(a chart this run mounted keeps a log of its own: what happened inside is not walked here\)\n/);
+  // a log under a step this run never took is no mount of it: said first, and not counted as one; with no log of the run's own, refused
+  writeFileSync(file, whole + whole.split('\n').filter(Boolean).map((line) => JSON.stringify(((e) => ({ ...e, address: { ...e.address, drillPath: ['nowhere#9'] } }))(JSON.parse(line)))).join('\n') + '\n');
+  const strayed = await ask();
+  assert.match(strayed, /^\(the record is not whole — 1 logs in it are under no step of this run, and are not read/);
+  assert.doesNotMatch(strayed, /mounted keeps a log of its own/);
+  writeFileSync(file, whole.split('\n').filter(Boolean).map((line) => JSON.stringify(((e) => ({ ...e, address: { ...e.address, drillPath: ['sum#2'] } }))(JSON.parse(line)))).join('\n').replace(/"fix"/g, '"forged"') + '\n');
+  await assert.rejects(ask(), /run 1's record holds no log of the run's own, only a mounted chart's: it was changed, and is not read/);
+  writeFileSync(file, whole);
   // a record written without the reads says so, under what it can answer
   rewrite((e) => (commit(e) ? { ...e, bundle: { ...e.bundle, trace: (e.bundle.trace ?? []).map(({ readKeys, ...row }) => row) } } : e));
   assert.match(await ask(), /\n\(this record was written without what each stage had read, so the walk shows who wrote the value and the decisions, not the reads\)\n/);
