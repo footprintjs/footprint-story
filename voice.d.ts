@@ -64,7 +64,7 @@ export function voiceClips(texts: readonly string[], options: {
   onClips?: () => void;
 }): Promise<{ wanted: number; todo: number; voiced: number }>;
 /** The adapter for a local voice kit (Chatterbox, aligned; nothing is uploaded). */
-export function chatterboxKit(options: { kit: string; python?: string; script?: string; profile?: string; device?: string; env?: Record<string, string | undefined>; run?: Run }): VoiceEngine;
+export function chatterboxKit(options: { kit: string; python?: string; script?: string; profile?: string; device?: string; env?: Record<string, string | undefined>; run?: Run; /** How long the kit may take, in minutes: to load, and for each scene (10 and 10). Past it the kit is stopped and the refusal says so. */ minutes?: { start?: number; scene?: number } }): VoiceEngine;
 /**
  * The adapter for your own recorded takes: a `takes` folder of one recording per line (WAV or M4A) and its takes.json (`manifest`), { "<line>": "<file>" }.
  * Each take is found, trimmed (ffmpeg), aligned to its text (the kit's MMS_FA aligner, offline) and checked. Use its `profile` with voiceClips and clipFor.
