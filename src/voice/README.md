@@ -24,7 +24,8 @@ clipFor(texts[0], { cache: 'voice-cache', profile });               // { key, au
   only); any engine may carry a `preflight(scenes, { work })`, handed every scene to voice and the work folder before
   the first batch, to refuse them all at once. With no engine, `voiceClips` counts what is cached, and throws, as it
   always did, when a text is still to voice.
-- `chatterbox.js` — `chatterboxKit`: writes a storyboard, runs the kit's Python offline (`HF_HUB_OFFLINE=1`),
+- `chatterbox.js` — `chatterboxKit`: writes a storyboard, runs the kit's Python offline (`HF_HUB_OFFLINE=1`) and
+  within a time limit (`minutes: { start, scene }`, 10 and 10: a kit that hangs is stopped and the refusal says so),
   reads `timings.json`. The port is `{ name, synthesize(scenes, { work }) }`: bring another adapter with that shape.
 - `spawn.js` — how a tool the voice door runs failed (`failure`, `lastLine`): the one reading of `spawnSync`.
 

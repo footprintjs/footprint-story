@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.1 — a voice kit that hangs is stopped
+
+- **`chatterboxKit` runs the kit within a time limit.** A kit that never finished (a model that does not load, a
+  device that stalls) held its host for ever. It now has 10 minutes to load and 10 for each scene it voices; past
+  that it is stopped, and the refusal says how long it had and how to give it longer (`minutes: { start, scene }`).
+
 ## 0.13.0 — the true room on a block's top
 
 - **`grid.room(thing, high)`**: how wide an upright box `high` pixels tall may be on a thing's top, its middle on the
