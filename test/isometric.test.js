@@ -156,10 +156,19 @@ test('every refusal says what to give', () => {
 // The oracle, worked out apart from the code: `a` covers `b` when some point of a is in front of some point of b on one
 // line of sight. Towards the viewer a point keeps its place on the frame: col and row grow alike, and height by
 // (tile height / rise) each. So a covers b when the box of differences a − b meets that line ahead of 0.
+// Two flat things (no height) meet a line of sight at one point along it, never along a stretch: a strict test would
+// say neither covers the other, yet the higher one is drawn over the lower wherever they share the frame. So for two
+// flat things the one point along the line counts when it is ahead of 0 and inside both other directions with room on
+// each side (found by this very property: three things, two of them flat, that covered each other in a ring the strict
+// oracle could not see, so it asked the code for an order the picture does not have).
 function covers(a, b, grid) {
-  const sight = [1, 1, grid.tile[1] / grid.rise];
-  let lo = 0, hi = Infinity;
-  for (let i = 0; i < 3; i += 1) { lo = Math.max(lo, (a.at[i] - (b.at[i] + b.size[i])) / sight[i]); hi = Math.min(hi, (a.at[i] + a.size[i] - b.at[i]) / sight[i]); }
+  const sight = [1, 1, grid.tile[1] / grid.rise], los = [], his = [];
+  for (let i = 0; i < 3; i += 1) { los.push((a.at[i] - (b.at[i] + b.size[i])) / sight[i]); his.push((a.at[i] + a.size[i] - b.at[i]) / sight[i]); }
+  if (a.size[2] === 0 && b.size[2] === 0) {
+    const t = los[2];   // = his[2]: the one place along the line where the two heights meet
+    return t > 1e-12 && [0, 1].every((i) => los[i] < t - 1e-12 && t < his[i] - 1e-12);
+  }
+  const lo = Math.max(0, ...los), hi = Math.min(...his);
   return lo < hi - 1e-12;
 }
 const apart = (a, b) => [0, 1, 2].some((i) => a.at[i] + a.size[i] <= b.at[i] || b.at[i] + b.size[i] <= a.at[i]);
@@ -275,6 +284,17 @@ test('property: pictures with rings in them: a thing is drawn before one it cove
     onlyRingsAreCut(things, out, grid);
   }), { numRuns: 1500 });
   assert.ok(rings > 1000, `only ${rings} of 1500 pictures had a ring`);
+});
+
+test('two flat things at different heights and a tall one can cover each other in a ring: the oracle sees it, and the code cuts it', () => {
+  const grid = isometric({ tile: [100, 80] });
+  const things = [{ at: [3, 1, 1], size: [1, 4, 0] }, { at: [1, 2, 2], size: [3, 2, 0] }, { at: [2, 4, 0], size: [1, 1, 3] }];
+  // each covers the next, round to the first: the higher plate over the lower, the tall one over the higher, the lower over the tall one's foot
+  assert.ok(covers(things[1], things[0], grid) && covers(things[2], things[1], grid) && covers(things[0], things[2], grid));
+  assert.ok(hasRing(things, grid));
+  const out = grid.backToFront(things);
+  assert.equal(new Set(out).size, 3);
+  onlyRingsAreCut(things, out, grid);
 });
 
 test('property: boxes of any length, from any height: every thing once, and when the picture has a right order, no thing before one it covers', () => {
