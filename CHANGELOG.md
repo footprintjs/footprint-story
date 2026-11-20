@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.1 — 0.17.0, published
+
+- 0.17.0 was tagged but never published: a test that timed the router's biggest picture against the clock (5 s) ran
+  over on the release runner (5.6 s; a quarter of a second on a laptop). The bound that matters is the work counted
+  (MOST_WORK), which the tests still pin; the clock checks now only say a call ended, with room for a slow runner.
+  Nothing else changes: 0.17.1 is 0.17.0.
+
 ## 0.17.0 — what StoryDeck worked out, shared: a packet's ride, hairpins, the floor under words, a floor's name, groups
 
 Five helpers StoryDeck 0.27.0 kept to itself move here, so a deck, its animation and a film work them out once.
