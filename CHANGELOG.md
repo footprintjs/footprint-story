@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.15.0 — ports: a link that plugs in where you say
+
+- **Ports, in `footprint-story/isometric`.** A thing may name points on its sides where a link plugs in —
+  `ports: [{ name: 'p1', at: [x, y, z] }]`, in its own tiles — and a link may end at one:
+  `[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]`. The route leaves the port straight out of its side,
+  drops to the floor, runs along the tile lines as any route does, and comes up into the other port, so the line ends
+  on the port itself. Which side a port is on is read from the point (`face` names it, and must at a corner); a port on
+  a back side is allowed, and the route says it starts behind its thing. Not yet: the top, and round things (refused,
+  in words). `NO_ROUTE` gains `port` and `portName`; `MOST_PORTS` is 64; `readPorts` checks a thing's ports the same
+  way, for a tool to refuse a wrong one in its own words.
+- **`path` on every route**: the whole way in three dimensions, `[col, row, height]` from its first point to its last
+  (out of a port at its height, down, along the floor, up into the other port). `ports` names the port at each end.
+  A route with no port is what it was in 0.14 (compared on 2,583 random routes), with `path` its floor points and
+  `ports: [null, null]` — but for one fix: two hidden stretches of a route that touch (or overlap) are one now in
+  `unseen`, as its docs always said; a float test split them.
+- `points`, `tiles`, `bends` and `unseen` are of a route's floor run; `path` adds each port's way out and riser.
+- No route crosses a port's run out between two lattice points, nor hooks back across its own; a port's run laid
+  across a route laid before it counts that crossing (`crosses`). A port within a billionth of a tile of a lattice
+  line or of the floor is on it.
+
 ## 0.14.2 — a record with no log of the run's own is refused
 
 - `whyFromRecord` walked a mounted chart's log as the run's own when the record held no log of the run itself. Such

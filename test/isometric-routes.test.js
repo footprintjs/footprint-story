@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { isometric, arrange, gridFor, routes, routeNote, rounded, wordsToFit, MOST_ALSO, MOST_ROUTES, MOST_WORK, NO_ROUTE, MOST_ISOMETRIC_THINGS } from '../isometric.js';
+import { readPorts, isometric, arrange, gridFor, routes, routeNote, rounded, wordsToFit, MOST_ALSO, MOST_ROUTES, MOST_WORK, NO_ROUTE, MOST_ISOMETRIC_THINGS } from '../isometric.js';
 
 const thing = (name, at, size = [2, 2, 1], more = {}) => ({ name, at, size, ...more });
 const HIDES = Math.sqrt(1.5);
@@ -54,7 +54,7 @@ const share = (one, other) => stretches(one).some(([a, b]) => stretches(other).s
 test('routes: a thing to the side is reached in one turn, from the right foot to the left foot', () => {
   const things = [thing('a', [0, 4]), thing('b', [5, 1])];
   const [route] = routes(things, [['a', 'b']]);
-  assert.deepEqual(route, { from: 'a', to: 'b', points: [[2, 5], [6, 5], [6, 3]], feet: ['right', 'left'], bends: 1, tiles: 6, behind: [], unseen: [], crosses: 0, shared: 0 });
+  assert.deepEqual(route, { from: 'a', to: 'b', points: [[2, 5], [6, 5], [6, 3]], path: [[2, 5, 0], [6, 5, 0], [6, 3, 0]], feet: ['right', 'left'], ports: [null, null], bends: 1, tiles: 6, behind: [], unseen: [], crosses: 0, shared: 0 });
   holds(route, things);
   assert.equal(routeNote(route), null);
 });
@@ -566,4 +566,120 @@ test('routes: behind names what hides a route in the order the things were given
   assert.deepEqual(route.behind, ['wall1', 'wall2']);
   assert.equal(route.unseen.length, 2);
   assert.ok(route.unseen[0][1] < route.unseen[1][0]);
+});
+
+test('ports: a route leaves a port straight out of its side, drops to the floor, and comes up into the other port — the line ends on the port', () => {
+  const things = [thing('lap', [0, 4], [2, 2, 0.4], { ports: [{ name: 'rj45', at: [2, 0.7, 0.2] }] }), thing('sw', [6, 4], [4.7, 2, 0.4], { ports: [{ name: 'p1', at: [0.4, 2, 0.3] }, { name: 'p3', at: [1.5, 2, 0.3], face: 'left' }, { name: 'up', at: [2, 0, 0.3] }, { name: 'low', at: [0, 1, 0] }] }), thing('router', [6, 0])];
+  const [route] = routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]);
+  // its first point is the port, at the port's height; then a quarter tile out of the side; then the floor; the last point is the other port
+  assert.deepEqual(route.path.slice(0, 3), [[2, 4.7, 0.2], [2.25, 4.7, 0.2], [2.25, 4.7, 0]]);
+  assert.deepEqual(route.path.slice(-3), [[6.4, 6.25, 0], [6.4, 6.25, 0.3], [6.4, 6, 0.3]]);
+  assert.deepEqual(route.ports, ['rj45', 'p1']);
+  assert.deepEqual(route.feet, ['right', 'left']);
+  assert.deepEqual(route.points[0], [2.25, 4.7]);                                                     // the floor run starts under the port's way out
+  assert.equal(route.behind.length, 0);
+  // a port on a lattice line runs straight out to it: no jog (p3 at col 7.5), and the side was checked when named
+  const [straight] = routes(things, [[{ thing: 'sw', port: 'p3' }, 'router']]);
+  assert.deepEqual(straight.points.slice(0, 2), [[7.5, 6.25], [7.5, 6.5]]);
+  // a port at floor height has no riser: from the port along the floor
+  const [low] = routes(things, [[{ thing: 'sw', port: 'low' }, 'lap']]);
+  assert.deepEqual(low.path.slice(0, 2), [[6, 5, 0], [5.75, 5, 0]]);
+  assert.equal(low.feet[0], 'back-left');
+  // a port on a back side is allowed: its thing is between it and the viewer, and the route says so
+  const [back] = routes(things, [[{ thing: 'sw', port: 'up' }, 'router']]);
+  assert.equal(back.feet[0], 'back-right');
+  assert.ok(back.behind.includes('sw'));
+  assert.ok(back.unseen.length && back.unseen[0][0] === 0);
+  // an end that names no port of its thing, a port to a port of the same thing, and a way out under another thing
+  assert.equal(routes(things, [[{ thing: 'lap', port: 'nope' }, 'sw']])[0].why, NO_ROUTE.portName);
+  assert.equal(routes(things, [[{ thing: 'sw', port: 'p1' }, { thing: 'sw', port: 'p3' }]])[0].why, NO_ROUTE.self);
+  const walled = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1, 0.5] }] }), thing('wall', [2.1, -3], [0.1, 8, 1]), thing('b', [6, 0])];
+  assert.equal(routes(walled, [[{ thing: 'a', port: 'p' }, 'b']])[0].why, NO_ROUTE.port);   // a thin wall just in front of the side: the lattice point is open, the run out is not
+  // the same things and links always give the same ways; two links on one port share it, and say so
+  assert.deepEqual(routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]), routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]));
+  const twice = routes(things, [[{ thing: 'sw', port: 'p3' }, 'router'], [{ thing: 'sw', port: 'p3' }, 'lap']]);
+  assert.ok(twice[1].shared > 0);
+});
+
+test('ports are read as given and refused in words: a side read from the point, a wrong side, a corner, the top, a round thing', () => {
+  const at = (port, size = [2, 2, 1], more = {}) => routes([thing('a', [0, 0], size, { ports: [port], ...more }), thing('b', [6, 0])], [[{ thing: 'a', port: port?.name ?? 'p' }, 'b']]);
+  assert.equal(at({ name: 'p', at: [1, 2, 0.5] })[0].feet[0], 'left');
+  assert.equal(at({ name: 'p', at: [2, 1, 0.5] })[0].feet[0], 'right');
+  assert.throws(() => at({ name: 'p', at: [1, 2, 0.5], face: 'front' }), /the face "front": a side is right, left, back-left, back-right/);
+  assert.throws(() => at({ name: 'p', at: [1, 2, 0.5], face: 'right' }), /on the left side, not right: write face left, or move the point/);
+  assert.throws(() => at({ name: 'p', at: [2, 2, 0.5] }), /a corner \(the right and left sides\): say which with its face/);
+  assert.equal(at({ name: 'p', at: [2, 2, 0.5], face: 'right' })[0].feet[0], 'right');
+  assert.throws(() => at({ name: 'p', at: [1, 1, 1], face: 'top' }), /on the top, and a port on the top is not routed yet/);
+  assert.throws(() => at({ name: 'p', at: [1, 1, 0.5] }), /on no side of "a"/);
+  assert.throws(() => at({ name: 'p', at: [3, 1, 0.5] }), /outside "a"/);
+  assert.throws(() => at({ name: 'p', at: [1, 2] }), /is at \[x, y, z\]/);
+  assert.throws(() => at({ name: '', at: [1, 2, 0] }), /has a name, some text/);
+  assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [1, 2, 0] }, { name: 'p', at: [2, 1, 0] }] })], []), /two ports named "p"/);
+  assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { round: true, ports: [{ name: 'p', at: [1, 2, 0] }] })], []), /is round, and a round thing has no ports yet/);
+  assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { ports: 'p1' })], []), /ports are a list of at most 64/);
+  assert.throws(() => routes([thing('a', [0, 0])], [[{ thing: 'a' }, 'a']]), /each the name of a thing or \{thing, port\}/);
+  // the same reading, for a tool to refuse in its own words
+  assert.deepEqual(readPorts([{ name: 'p', at: [1, 2, 0.5] }], [2, 2, 1], false, 'the switch'), [{ name: 'p', at: [1, 2, 0.5], face: 'left', seen: true }]);
+  assert.deepEqual(readPorts(undefined, [2, 2, 1], false, 'x'), []);
+  assert.throws(() => readPorts([{ name: 'p', at: [1, 1, 0.5] }], [2, 2, 1], false, 'the switch'), /^Error: isometric: the switch's port "p" is at \[1,1,0.5\], on no side of the switch/);
+});
+
+test('ports: a route never crosses a port\'s run out between two lattice points, and a lane beside a port is shared only when said', () => {
+  // two ports a tenth of a tile apart on one side: the second takes the lane beside the first, or says it shares it
+  const sw = thing('sw', [0, 0], [2, 2, 1], { ports: [{ name: 'a', at: [2, 0.6, 0.5] }, { name: 'b', at: [2, 0.7, 0.5] }] }), far = thing('far', [6, -3]);
+  const [one, two] = routes([sw, far], [[{ thing: 'sw', port: 'a' }, 'far'], [{ thing: 'sw', port: 'b' }, 'far']]);
+  const segs = (r) => r.points.slice(1).map((p, i) => [r.points[i], p]);
+  const along = ([p, q], [s, t]) => { const k = p[1] === q[1] && s[1] === t[1] && p[1] === s[1] ? 0 : p[0] === q[0] && s[0] === t[0] && p[0] === s[0] ? 1 : -1; return k < 0 ? 0 : Math.max(0, Math.min(Math.max(p[k], q[k]), Math.max(s[k], t[k])) - Math.max(Math.min(p[k], q[k]), Math.min(s[k], t[k]))); };
+  const overlap = segs(two).reduce((n, s) => n + segs(one).reduce((m, t) => m + along(s, t), 0), 0);
+  assert.ok(overlap === 0 || two.shared > 0, `overlaps ${overlap} and shares ${two.shared}`);
+  // the reviewer's picture: a route came back along a line between a port's floor point and its lattice line, under its own run out
+  const t0 = { name: 't0', at: [6.41, 6.25, 1.3], size: [1.3, 1.5, 0] }, t2 = { name: 't2', at: [9.7, 7.65, 1.3], size: [0.6, 0.3, 2] };
+  const t3 = { name: 't3', at: [13, 10.1, 1.3], size: [0.3, 0.3, 2], ports: [{ name: 'p0', at: [0.031344841003417966, 0.3, 0.27677] }, { name: 'p1', at: [0.05403267288208007, 0.3, 0.71292] }] }, t5 = { name: 't5', at: [1.14, 12.9, 1.3], size: [4.7, 1.5, 0] };
+  const laid = routes([t0, t2, t3, t5], [[{ thing: 't3', port: 'p1' }, 't5'], ['t0', { thing: 't3', port: 'p0' }]]);
+  const runs = laid.flatMap((r) => [r.ports[0] && r.points.slice(0, 2), r.ports[1] && r.points.slice(-2)]).filter(Boolean);
+  const across = ([a, b], [c, d]) => { const h = a[1] === b[1]; if (h === (c[1] === d[1])) return false; const [H, V] = h ? [[a, b], [c, d]] : [[c, d], [a, b]]; const y = H[0][1], x = V[0][0]; return x > Math.min(H[0][0], H[1][0]) + 1e-9 && x < Math.max(H[0][0], H[1][0]) - 1e-9 && y > Math.min(V[0][1], V[1][1]) + 1e-9 && y < Math.max(V[0][1], V[1][1]) - 1e-9; };
+  for (const r of laid.filter((x) => x.points)) for (const s of segs(r)) for (const lead of runs) assert.ok(!across(s, lead), `${r.from} to ${r.to} crosses a port's run out at ${JSON.stringify(s)}`);
+});
+
+test('ports: a back port names its own thing, wherever its floor is in view; a billionth is no step', () => {
+  const a = thing('a', [0, 0], [2, 2, 2], { ports: [{ name: 'corner', at: [1.9, 0, 1] }, { name: 'low', at: [1, 0, 0.1] }, { name: 'near', at: [2, 1 + 1e-10, 0.5] }, { name: 'flat', at: [2, 1.5, 1e-10] }] }), b = thing('b', [6, -4]);
+  for (const port of ['corner', 'low']) assert.ok(routes([a, b], [[{ thing: 'a', port }, 'b']])[0].behind.includes('a'), port);
+  // a port a ten-billionth off a lattice line is on it: no jog, the bends of the port on it
+  const [on] = routes([a, b], [[{ thing: 'a', port: 'near' }, 'b']]), [exact] = routes([{ ...a, ports: [{ name: 'near', at: [2, 1, 0.5] }] }, b], [[{ thing: 'a', port: 'near' }, 'b']]);
+  assert.deepEqual(on.points, exact.points);
+  assert.deepEqual(on.path, exact.path);
+  // and a port a ten-billionth above the floor has no riser: every step of the path moves along one axis
+  const [flat] = routes([a, b], [[{ thing: 'a', port: 'flat' }, 'b']]);
+  for (let k = 1; k < flat.path.length; k += 1) assert.equal([0, 1, 2].filter((i) => flat.path[k][i] !== flat.path[k - 1][i]).length, 1, JSON.stringify(flat.path));
+  // the jog's way out is checked too: a thin bar on the line in front, beside the port's line, refuses it
+  const barred = routes([thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1.01, 0.5] }] }), thing('bar', [2.45, 1.03], [0.1, 0.02, 1]), thing('b', [6, 0])], [[{ thing: 'a', port: 'p' }, 'b']]);
+  assert.equal(barred[0].why, NO_ROUTE.port);
+  // readPorts checks what it is given
+  assert.throws(() => readPorts([], undefined, false, 'x'), /x's size is \[wide, deep, high\]/);
+  assert.throws(() => readPorts([], [NaN, 1, 1], false, 'x'), /x's size is \[wide, deep, high\]/);
+  assert.throws(() => readPorts([], [1, 1, 1], 'no', 'x'), /x's round says whether it is round/);
+  assert.throws(() => readPorts([], [1, 1, 1], false, 5), /readPorts names the thing it reads, as text/);
+});
+
+test('ports: crossings at a back-left end are counted once, a later port\'s run across an earlier route is counted, a reused port does not hook across its own run', () => {
+  // a port's run laid after a route that runs across its way out: it cannot go round, so it says so
+  const t0 = { name: 't0', at: [6.9, 4.1], size: [1, 1, 0], ports: [{ name: 'p0', at: [0.3641762542724609, 1, 0] }, { name: 'p2', at: [0.44620361328125, 1, 0], face: 'left' }] };
+  const t1 = { name: 't1', at: [7, 0.3], size: [1.9, 1, 0.5], ports: [{ name: 'p0', at: [1.1031759757995605, 0, 0.1777] }, { name: 'p2', at: [1.9, 0.16422142028808592, 0.1253] }] };
+  const [first, second] = routes([t0, t1], [[{ thing: 't1', port: 'p0' }, { thing: 't0', port: 'p0' }], [{ thing: 't1', port: 'p2' }, { thing: 't0', port: 'p2' }]]);
+  const segs = (r) => r.points.slice(1).map((p, i) => [r.points[i], p]);
+  const across = ([a, b], [c, d]) => { const h = a[1] === b[1]; if (h === (c[1] === d[1])) return false; const [H, V] = h ? [[a, b], [c, d]] : [[c, d], [a, b]]; const y = H[0][1], x = V[0][0]; return x > Math.min(H[0][0], H[1][0]) - 1e-9 && x < Math.max(H[0][0], H[1][0]) + 1e-9 && y > Math.min(V[0][1], V[1][1]) - 1e-9 && y < Math.max(V[0][1], V[1][1]) + 1e-9; };
+  const met = segs(second).reduce((n, s) => n + segs(first).filter((t) => across(s, t)).length, 0);
+  assert.ok(second.crosses >= Math.min(1, met), `meets the first ${met} times and says it crosses ${second.crosses}`);
+  // a port on a lattice line used three times: the third does not come back across its own run out
+  const a = { name: 't0', at: [1, 5.76, 1.3], size: [2.7, 1.3, 2], ports: [{ name: 'p0', at: [0.5, 0, 1.8] }] }, b = { name: 't1', at: [8, 2.5, 1.3], size: [2.7, 1.9, 1] };
+  const laid = routes([a, b], [['t1', { thing: 't0', port: 'p0' }], ['t1', { thing: 't0', port: 'p0' }], [{ thing: 't0', port: 'p0' }, 't1']]);
+  for (const r of laid.filter((x) => x.points)) {
+    const run = r.ports[0] ? r.points.slice(0, 2) : r.points.slice(-2), rest = r.ports[0] ? segs(r).slice(1) : segs(r).slice(0, -1);
+    const node = r.ports[0] ? run[1] : run[0];   // where the run meets the lattice: a route touches its run there
+    for (const s of rest) assert.ok(!across(s, run) || s.some((p) => p[0] === node[0] && p[1] === node[1]), `${JSON.stringify(r.points)} hooks across its own run`);
+  }
+  // a back-left end: a crossing at its last lattice point is counted once whether the route comes straight in or turns in
+  const left = { name: 'L', at: [6, 0], size: [2, 2, 1], ports: [{ name: 'in', at: [0, 1, 0.5] }] }, src = thing('S', [0, 0]), cut = thing('C', [3, -4]), low = thing('D', [3, 4]);
+  const [, through] = routes([left, src, cut, low], [['C', 'D'], ['S', { thing: 'L', port: 'in' }]]);
+  assert.ok(through.crosses <= 1, `counts ${through.crosses}`);
 });

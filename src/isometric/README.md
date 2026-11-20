@@ -14,6 +14,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `arrange.js` | where things stand, worked out from what is joined to what (`arrange`) |
 | `fit.js` | the grid on which a picture fills a box of the frame (`gridFor`) |
 | `routes.js` | the way each link runs along the floor, round what stands on it, and what there is to say of it (`routes`, `routeNote`) |
+| `ports.js` | named points on a thing's side where a link plugs in, and where a route leaves or reaches one (read by `routes`) |
 | `path.js` | a way with its corners rounded, and the place a share along it (`rounded`) |
 | `words.js` | a name on one line or two, as big as fits a face (`wordsToFit`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
@@ -144,6 +145,29 @@ rounds each corner, from `radius` before it to `radius` after it (never over hal
 straight run to `to`, or a corner: one curve to `to`, drawn towards `corner` (SVG's `Q`, a canvas's
 `quadraticCurveTo`). `way.at(share)` is the point a share of the way along, by length. It is here and not in each
 tool so that a deck's packet and a film's frame stand at the same place on the same way.
+
+**Ports: a link that plugs in where you say.** A thing may name points on its sides, in its own tiles —
+`ports: [{ name: 'p1', at: [x, y, z] }]`, x along its width, y along its depth, z up from its base — and a link may end
+at one: `[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]` (or a thing's name, as before). The route
+leaves the port straight out of its side (a quarter of a tile), drops to the floor, runs out to the lattice and on
+along the tile lines, and comes up into the other port the same way, so its line ends on the port itself. `path` is
+the whole way in three dimensions, `[col, row, height]` from the first point to the last (a route with no port has
+its floor points there, at the floor's height); `points` stay the floor run; `ports` names the port at each end
+(null for a foot). Which side a port is on is read from where it is: x = width is `right` (the side toward the lower
+right of the frame), y = depth is `left` (toward the lower left), x = 0 `back-left`, y = 0 `back-right`; `face` names
+it, and must at a corner, and a wrong one is refused with the right one. A port on a back side is allowed: its plug is on a face turned from the viewer, so `behind` always names its thing,
+and `unseen` says how much of the floor run is hidden (none, near a corner, where the floor in front of it is in view). A port whose line out does not fall on a
+lattice line meets the first lattice line in front and runs along it to the next lattice point: a turn there, which
+merges into the route's own turn when it goes that way. No route crosses a port's run out between two lattice
+points (where a crossing could not be counted), and the stretch of the line in front that a port's run joins is that
+route's lane, as a foot's run is, so a second link beside it takes the next lane or says it shares. A route that must cross a port's run out laid
+before it (a port's run is fixed) counts the crossing, and pays for it. A port within a billionth of a tile of a
+lattice line, or of the floor, is taken as on it, so no step of a billionth is drawn.
+`points`, `tiles`, `bends` and `unseen` are of the floor run, from the floor point under a port's way out; `path`
+adds the stretch out of the port and its riser at each end. Whether a riser is hidden is judged by its floor point. Not yet: a port on the top, or on a round thing (both are
+refused, in words). A route whose way out of a port passes under another thing has `why: NO_ROUTE.port`; an end that
+names no port of its thing, `NO_ROUTE.portName`. `readPorts(ports, size, round, who)` checks a thing's ports as `routes`
+does, so a tool can refuse a wrong one in its own words before it lays anything.
 
 **Fitting the picture to its links too.** A link that runs round a thing reaches past the things, so a picture
 fitted to its things alone cuts such a link off. `gridFor(things, box, { also })` takes floor points the picture
