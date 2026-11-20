@@ -517,6 +517,7 @@ test('room: the widest upright box on a top face — inside the top, and nothing
   assert.ok(grid.room(on([2, 2, 1], { round: true })) < grid.room(on([2, 2, 1])));                 // a round top is inside the square one
   assert.throws(() => grid.room(on([2, 2, 1]), -1), /room\(thing, high\) takes how tall the words stand/);
   assert.throws(() => grid.room(on([2, 2, 1]), 'x'), /room\(thing, high\) takes how tall the words stand/);
+  assert.throws(() => grid.room(on([2, 2, 1]), 1e9), /from 0 to 1000000/);
   assert.throws(() => grid.room(on([2, 3, 1], { round: true })), /a round thing has the same width and depth/);
   assert.throws(() => grid.room(on([2, 2, 1], { round: 'yes' })), /round says whether it is a round thing/);
   assert.throws(() => grid.room('a'), /a thing is \{at/);

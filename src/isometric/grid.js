@@ -84,7 +84,7 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
     const { size: [wide, deep] } = readThing(thing, 'a thing'), round = own(thing, 'round') ?? false;
     if (typeof round !== 'boolean') refuse(`a thing's round says whether it is a round thing, true or false — not ${shown(round)}`);
     if (round && wide !== deep) refuse(`a round thing has the same width and depth (2 2 1.5) — not ${shown([wide, deep])}`);
-    if (!(fin(high) && high >= 0)) refuse(`room(thing, high) takes how tall the words stand, in pixels, 0 or more — not ${shown(high)}`);
+    if (!(fin(high) && high >= 0)) refuse(`room(thing, high) takes how tall the words stand, in pixels, from 0 to ${FAR} — not ${shown(high)}`);
     // a round top: the chord of its ellipse half that far from its middle
     if (round) { const rx = wide / 2 * w / Math.SQRT2, ry = wide / 2 * h / Math.SQRT2; return high < 2 * ry ? 2 * rx * Math.sqrt(1 - (high / (2 * ry)) ** 2) : 0; }
     // a box's top: across its middle as wide as the shorter side is long; each pixel up or down, both edges come in by w / h
