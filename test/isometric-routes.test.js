@@ -593,8 +593,8 @@ test('ports: a route leaves a port straight out of its side, drops to the floor,
   // an end that names no port of its thing, a port to a port of the same thing, and a way out under another thing
   assert.equal(routes(things, [[{ thing: 'lap', port: 'nope' }, 'sw']])[0].why, NO_ROUTE.portName);
   assert.equal(routes(things, [[{ thing: 'sw', port: 'p1' }, { thing: 'sw', port: 'p3' }]])[0].why, NO_ROUTE.self);
-  const walled = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1, 0.5] }] }), thing('wall', [2.2, -3], [0.5, 8, 1]), thing('b', [6, 0])];
-  assert.equal(routes(walled, [[{ thing: 'a', port: 'p' }, 'b']])[0].why, NO_ROUTE.port);
+  const walled = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1, 0.5] }] }), thing('wall', [2.1, -3], [0.1, 8, 1]), thing('b', [6, 0])];
+  assert.equal(routes(walled, [[{ thing: 'a', port: 'p' }, 'b']])[0].why, NO_ROUTE.port);   // a thin wall just in front of the side: the lattice point is open, the run out is not
   // the same things and links always give the same ways; two links on one port share it, and say so
   assert.deepEqual(routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]), routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]));
   const twice = routes(things, [[{ thing: 'sw', port: 'p3' }, 'router'], [{ thing: 'sw', port: 'p3' }, 'lap']]);
