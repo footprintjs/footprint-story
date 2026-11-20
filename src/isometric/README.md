@@ -14,6 +14,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `arrange.js` | where things stand, worked out from what is joined to what (`arrange`) |
 | `fit.js` | the grid on which a picture fills a box of the frame (`gridFor`) |
 | `routes.js` | the way each link runs along the floor, round what stands on it, and what there is to say of it (`routes`, `routeNote`) |
+| `ports.js` | named points on a thing's side where a link plugs in, and where a route leaves or reaches one (read by `routes`) |
 | `path.js` | a way with its corners rounded, and the place a share along it (`rounded`) |
 | `words.js` | a name on one line or two, as big as fits a face (`wordsToFit`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
@@ -144,6 +145,22 @@ rounds each corner, from `radius` before it to `radius` after it (never over hal
 straight run to `to`, or a corner: one curve to `to`, drawn towards `corner` (SVG's `Q`, a canvas's
 `quadraticCurveTo`). `way.at(share)` is the point a share of the way along, by length. It is here and not in each
 tool so that a deck's packet and a film's frame stand at the same place on the same way.
+
+**Ports: a link that plugs in where you say.** A thing may name points on its sides, in its own tiles —
+`ports: [{ name: 'p1', at: [x, y, z] }]`, x along its width, y along its depth, z up from its base — and a link may end
+at one: `[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]` (or a thing's name, as before). The route
+leaves the port straight out of its side (a quarter of a tile), drops to the floor, runs out to the lattice and on
+along the tile lines, and comes up into the other port the same way, so its line ends on the port itself. `path` is
+the whole way in three dimensions, `[col, row, height]` from the first point to the last (a route with no port has
+its floor points there, at the floor's height); `points` stay the floor run; `ports` names the port at each end
+(null for a foot). Which side a port is on is read from where it is: x = width is `right` (the side toward the lower
+right of the frame), y = depth is `left` (toward the lower left), x = 0 `back-left`, y = 0 `back-right`; `face` names
+it, and must at a corner, and a wrong one is refused with the right one. A port on a back side is allowed: the route
+starts behind its own thing, `behind` names it and `unseen` says how far. A port whose line out does not fall on a
+lattice line meets the first lattice line in front and runs along it to the next lattice point: a turn there, which
+merges into the route's own turn when it goes that way. Not yet: a port on the top, or on a round thing (both are
+refused, in words). A route whose way out of a port passes under another thing has `why: NO_ROUTE.port`; an end that
+names no port of its thing, `NO_ROUTE.portName`.
 
 **Fitting the picture to its links too.** A link that runs round a thing reaches past the things, so a picture
 fitted to its things alone cuts such a link off. `gridFor(things, box, { also })` takes floor points the picture

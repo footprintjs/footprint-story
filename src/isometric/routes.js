@@ -32,6 +32,7 @@
  */
 import { MOST_ISOMETRIC_THINGS } from './order.js';
 import { own, readThing, refuse, shown } from './thing.js';
+import { readPorts, portPlaces, SIDES, OUT } from './ports.js';
 
 /** The most links one picture lays. */
 export const MOST_ROUTES = 1024;
@@ -51,6 +52,7 @@ const WAYS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 export const NO_ROUTE = Object.freeze({
   name: 'a name that is no thing here', self: 'a thing joined to itself', heights: 'the two stand at different heights',
   foot: 'no place at a foot that can be seen: closed in, or too narrow', way: 'no way along the floor', work: 'too many links to lay: not tried',
+  port: 'no way out of the port: its run to the floor passes under another thing, or the floor in front of it is closed', portName: 'a port that is no port of that thing',
   wide: 'the things stand too far apart for the smallest of them: no lattice fine enough to give its feet a place',
 });
 
@@ -70,7 +72,7 @@ function readThings(things) {
     const { at, size } = readThing(thing, shown(name));
     if (round && size[0] !== size[1]) refuse(`${shown(name)} is round: give it the same width and depth — not ${shown(size)}`);
     names.set(name, read.length);
-    read.push({ name, at, size, round });
+    read.push({ name, at, size, round, ports: readPorts(own(thing, 'ports'), size, round, shown(name)) });
   }
   return { read, names };
 }
@@ -78,10 +80,17 @@ function readThings(things) {
 function readLinks(links) {
   if (!Array.isArray(links)) refuse(`routes takes a list of links, [[from, to], …] by name — not ${shown(links)}`);
   if (links.length > MOST_ROUTES) refuse(`routes lays at most ${MOST_ROUTES} links, not ${links.length}`);
+  // an end is a thing's name, or {thing, port}: a port of that thing
+  const endOf = (end) => {
+    if (typeof end === 'string') return { name: end, port: null };
+    if (!end || typeof end !== 'object' || Array.isArray(end)) return null;
+    const name = own(end, 'thing'), port = own(end, 'port');
+    return typeof name === 'string' && typeof port === 'string' ? { name, port } : null;
+  };
   return Array.from({ length: links.length }, (_, i) => {
-    const link = own(links, i), from = Array.isArray(link) && link.length === 2 ? own(link, 0) : undefined, to = from === undefined ? undefined : own(link, 1);
-    if (typeof from !== 'string' || typeof to !== 'string') refuse(`link ${i + 1} is [from, to], the names of two things — not ${shown(link)}`);
-    return [from, to];
+    const link = own(links, i), ends = Array.isArray(link) && link.length === 2 ? [endOf(own(link, 0)), endOf(own(link, 1))] : [null, null];
+    if (!ends[0] || !ends[1]) refuse(`link ${i + 1} is [from, to], each the name of a thing or {thing, port} — not ${shown(link)}`);
+    return ends;
   });
 }
 
@@ -193,7 +202,9 @@ function places(thing, read, lift, hides, { first, nx, ny, closed, hidden }, ste
       }
       const at = edge === 'right' ? [reach, along] : [along, reach];
       const unseen = between.some((node) => hidden[node]) || read.some((t) => t !== thing && hidesPoint(t, lift, hides, at[0], at[1]));
-      out.push({ edge, at, node: j * nx + i, way, stub: ahead - reach, run, between, hidden: unseen, off: Math.abs(off) });
+      // the lattice points of its run, in order out of the foot, as floor points
+      const lead = [...between].reverse().map((node) => [(first[0] + (node % nx)) * step, (first[1] + Math.floor(node / nx)) * step]);
+      out.push({ edge, at, node: j * nx + i, way, stub: ahead - reach, run, between, lead, hidden: unseen, off: Math.abs(off), turn: 0, port: null });
     }
   }
   return out;
@@ -216,7 +227,7 @@ function search(grid, starts, ends, step, seen, work) {
   const lies = (p) => { const kept = p.way === 0 ? alongCols : alongRows; return p.run.filter((stretch) => kept[stretch]).length; };
   // what a place costs: its run (three times more over hidden floor), being off the foot's middle, being taken, lying
   // on another's stretch, and crossing the routes laid before — `front`: whether the lattice point's own crossing is its to pay
-  const placeCost = (p, front) => p.stub * (p.hidden ? 1 + HIDDEN : 1) + p.off * OFF_MIDDLE + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG + runCrossings(grid, p, front) * CROSS;
+  const placeCost = (p, front) => p.stub * (p.hidden ? 1 + HIDDEN : 1) + p.off * OFF_MIDDLE + p.turn + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG + runCrossings(grid, p, front) * CROSS;
   const pointCost = (node) => (hidden[node] ? HIDDEN * step : 0);
   const open = heap();
   let order = 0, best = null;
@@ -271,7 +282,7 @@ export function routes(things, links = [], options = undefined) {
   const { read, names } = readThings(things), wanted = readLinks(links), hides = option(options, 'hides', HIDES);
   if (!(typeof hides === 'number' && hides >= 0 && hides <= 8)) refuse(`hides is the tiles of floor a thing hides behind it for each tile of its height, from 0 to 8 — not ${shown(hides)}`);
   const none = (from, to, why) => ({ from, to, points: null, why });
-  if (!read.length) return wanted.map(([from, to]) => none(from, to, NO_ROUTE.name));
+  if (!read.length) return wanted.map(([from, to]) => none(from.name, to.name, NO_ROUTE.name));
   // the lattice: the coarsest step that gives the narrowest foot a place, made coarser again while the floor has too many points
   const narrow = Math.min(...read.map((t) => Math.min(t.size[0], t.size[1])));
   const reachOf = (key) => Math.max(...read.map((t) => t.at[key] + t.size[key])) - Math.min(...read.map((t) => t.at[key])) + 2 * AROUND;
@@ -288,9 +299,11 @@ export function routes(things, links = [], options = undefined) {
     }
     return floors.get(lift);
   };
-  return wanted.map(([from, to]) => {
-    const a = read[names.get(from)], b = read[names.get(to)];
+  return wanted.map(([fromEnd, toEnd]) => {
+    const from = fromEnd.name, to = toEnd.name, a = read[names.get(from)], b = read[names.get(to)];
     if (!a || !b) return none(from, to, NO_ROUTE.name);
+    const portA = fromEnd.port === null ? null : a.ports.find((q) => q.name === fromEnd.port), portB = toEnd.port === null ? null : b.ports.find((q) => q.name === toEnd.port);
+    if (portA === undefined || portB === undefined) return none(from, to, NO_ROUTE.portName);
     if (a === b) return none(from, to, NO_ROUTE.self);
     if (a.at[2] !== b.at[2]) return none(from, to, NO_ROUTE.heights);
     if (work.left <= 0) return none(from, to, NO_ROUTE.work);
@@ -301,7 +314,12 @@ export function routes(things, links = [], options = undefined) {
       if (!floor.places.has(thing)) { const found = places(thing, read, a.at[2], hides, grid, step, work); if (found) floor.places.set(thing, found); return found; }
       return floor.places.get(thing);
     };
-    const starts = placesOf(a), ends = starts && placesOf(b);
+    // a port's places, or a thing's two seen feet
+    const atPort = (thing, port) => portPlaces(thing, port, read, a.at[2], hides, grid, step, standsAt, hidesPoint, REACH, TURN, work);
+    const startsAt = portA ? atPort(a, portA) : null, endsAt = portB ? atPort(b, portB) : null;
+    if ((portA && !startsAt) || (portB && !endsAt)) return none(from, to, NO_ROUTE.work);
+    if (startsAt?.why || endsAt?.why) return none(from, to, NO_ROUTE.port);
+    const starts = portA ? startsAt.list : placesOf(a), ends = starts && (portB ? endsAt.list : placesOf(b));
     if (!starts || !ends) return none(from, to, NO_ROUTE.work);
     if (!starts.length || !ends.length) return none(from, to, step > fine ? NO_ROUTE.wide : NO_ROUTE.foot);
     const found = search(grid, starts, ends, step, seen, work);
@@ -327,11 +345,13 @@ export function routes(things, links = [], options = undefined) {
       for (const stretch of place.run) (place.way === 0 ? alongCols : alongRows)[stretch] = 1;
     }
     const point = (node) => [(first[0] + node % nx) * step, (first[1] + Math.floor(node / nx)) * step];
-    const all = [start.at, ...nodes.map(point), end.at], points = all.filter((p, k) => k === 0 || k === all.length - 1 || (p[0] - all[k - 1][0]) * (all[k + 1][1] - p[1]) !== (p[1] - all[k - 1][1]) * (all[k + 1][0] - p[0]));
+    const all = [start.at, ...start.lead, ...nodes.map(point), ...[...end.lead].reverse(), end.at], points = all.filter((p, k) => k === 0 || k === all.length - 1 || (p[0] - all[k - 1][0]) * (all[k + 1][1] - p[1]) !== (p[1] - all[k - 1][1]) * (all[k + 1][0] - p[0]));
     // every thing that hides a point of it, and where along it — asked once for each point: the lattice points it stands on, those of
     // its two short runs, and its two feet (a foot is asked against every thing but its own: a round thing's foot is on its rim,
     // inside the square it stands on). One pass gives both answers, so saying where costs the search nothing more than saying who.
-    const way = [[start.at, a], ...[...start.between].reverse().map((node) => [point(node)]), ...nodes.map((node) => [point(node)]), ...end.between.map((node) => [point(node)]), [end.at, b]];
+    // (a foot on a back side, a port's, is asked against its own thing too: that thing is between it and the viewer)
+    const ownOf = (place, thing) => (place.port && !place.port.seen ? null : thing);
+    const way = [[start.at, ownOf(start, a)], ...start.lead.map((p) => [p]), ...nodes.map((node) => [point(node)]), ...[...end.lead].reverse().map((p) => [p]), [end.at, ownOf(end, b)]];
     work.left -= way.length * read.length;
     const hiders = new Set(), unseen = [];
     let gone = 0;
@@ -349,7 +369,14 @@ export function routes(things, links = [], options = undefined) {
     const tiles = points.reduce((sum, p, k) => (k ? sum + Math.abs(p[0] - points[k - 1][0]) + Math.abs(p[1] - points[k - 1][1]) : 0), 0);
     // a hidden point stands for the half step either side of it: a stretch is right to the nearest half step, not to the edge of what hides it
     const spans = unseen.map(({ from: lo, to: hi }) => [Math.max(0, lo - step / 2), Math.min(tiles, hi + step / 2)]);
-    return { from, to, points, feet: [start.edge, end.edge], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared };
+    // the whole way in three dimensions: out of a port at its height, down to the floor, along it, and up into the other
+    const lift = a.at[2], portPath = (thing, place) => {
+      if (!place.port) return [];
+      const { at: [c, r], size: [w, d] } = thing, [x, y, z] = place.port.at, { axis, sign } = SIDES[place.port.face], plug = [c + x, r + y, lift + z];
+      return z > 1e-9 ? [plug, axis === 0 ? [plug[0] + sign * OUT, plug[1], plug[2]] : [plug[0], plug[1] + sign * OUT, plug[2]]] : [plug];
+    };
+    const path = [...portPath(a, start), ...points.map(([x, y]) => [x, y, lift]), ...portPath(b, end).reverse()];
+    return { from, to, points, path, feet: [start.edge, end.edge], ports: [start.port?.name ?? null, end.port?.name ?? null], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared };
   });
 }
 

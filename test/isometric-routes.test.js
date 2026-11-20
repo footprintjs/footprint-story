@@ -54,7 +54,7 @@ const share = (one, other) => stretches(one).some(([a, b]) => stretches(other).s
 test('routes: a thing to the side is reached in one turn, from the right foot to the left foot', () => {
   const things = [thing('a', [0, 4]), thing('b', [5, 1])];
   const [route] = routes(things, [['a', 'b']]);
-  assert.deepEqual(route, { from: 'a', to: 'b', points: [[2, 5], [6, 5], [6, 3]], feet: ['right', 'left'], bends: 1, tiles: 6, behind: [], unseen: [], crosses: 0, shared: 0 });
+  assert.deepEqual(route, { from: 'a', to: 'b', points: [[2, 5], [6, 5], [6, 3]], path: [[2, 5, 0], [6, 5, 0], [6, 3, 0]], feet: ['right', 'left'], ports: [null, null], bends: 1, tiles: 6, behind: [], unseen: [], crosses: 0, shared: 0 });
   holds(route, things);
   assert.equal(routeNote(route), null);
 });
@@ -566,4 +566,56 @@ test('routes: behind names what hides a route in the order the things were given
   assert.deepEqual(route.behind, ['wall1', 'wall2']);
   assert.equal(route.unseen.length, 2);
   assert.ok(route.unseen[0][1] < route.unseen[1][0]);
+});
+
+test('ports: a route leaves a port straight out of its side, drops to the floor, and comes up into the other port — the line ends on the port', () => {
+  const things = [thing('lap', [0, 4], [2, 2, 0.4], { ports: [{ name: 'rj45', at: [2, 0.7, 0.2] }] }), thing('sw', [6, 4], [4.7, 2, 0.4], { ports: [{ name: 'p1', at: [0.4, 2, 0.3] }, { name: 'p3', at: [1.5, 2, 0.3], face: 'left' }, { name: 'up', at: [2, 0, 0.3] }, { name: 'low', at: [0, 1, 0] }] }), thing('router', [6, 0])];
+  const [route] = routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]);
+  // its first point is the port, at the port's height; then a quarter tile out of the side; then the floor; the last point is the other port
+  assert.deepEqual(route.path.slice(0, 3), [[2, 4.7, 0.2], [2.25, 4.7, 0.2], [2.25, 4.7, 0]]);
+  assert.deepEqual(route.path.slice(-3), [[6.4, 6.25, 0], [6.4, 6.25, 0.3], [6.4, 6, 0.3]]);
+  assert.deepEqual(route.ports, ['rj45', 'p1']);
+  assert.deepEqual(route.feet, ['right', 'left']);
+  assert.deepEqual(route.points[0], [2.25, 4.7]);                                                     // the floor run starts under the port's way out
+  assert.equal(route.behind.length, 0);
+  // a port on a lattice line runs straight out to it: no jog (p3 at col 7.5), and the side was checked when named
+  const [straight] = routes(things, [[{ thing: 'sw', port: 'p3' }, 'router']]);
+  assert.deepEqual(straight.points.slice(0, 2), [[7.5, 6.25], [7.5, 6.5]]);
+  // a port at floor height has no riser: from the port along the floor
+  const [low] = routes(things, [[{ thing: 'sw', port: 'low' }, 'lap']]);
+  assert.deepEqual(low.path.slice(0, 2), [[6, 5, 0], [5.75, 5, 0]]);
+  assert.equal(low.feet[0], 'back-left');
+  // a port on a back side is allowed: its thing is between it and the viewer, and the route says so
+  const [back] = routes(things, [[{ thing: 'sw', port: 'up' }, 'router']]);
+  assert.equal(back.feet[0], 'back-right');
+  assert.ok(back.behind.includes('sw'));
+  assert.ok(back.unseen.length && back.unseen[0][0] === 0);
+  // an end that names no port of its thing, a port to a port of the same thing, and a way out under another thing
+  assert.equal(routes(things, [[{ thing: 'lap', port: 'nope' }, 'sw']])[0].why, NO_ROUTE.portName);
+  assert.equal(routes(things, [[{ thing: 'sw', port: 'p1' }, { thing: 'sw', port: 'p3' }]])[0].why, NO_ROUTE.self);
+  const walled = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1, 0.5] }] }), thing('wall', [2.2, -3], [0.5, 8, 1]), thing('b', [6, 0])];
+  assert.equal(routes(walled, [[{ thing: 'a', port: 'p' }, 'b']])[0].why, NO_ROUTE.port);
+  // the same things and links always give the same ways; two links on one port share it, and say so
+  assert.deepEqual(routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]), routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]));
+  const twice = routes(things, [[{ thing: 'sw', port: 'p3' }, 'router'], [{ thing: 'sw', port: 'p3' }, 'lap']]);
+  assert.ok(twice[1].shared > 0);
+});
+
+test('ports are read as given and refused in words: a side read from the point, a wrong side, a corner, the top, a round thing', () => {
+  const at = (port, size = [2, 2, 1], more = {}) => routes([thing('a', [0, 0], size, { ports: [port], ...more }), thing('b', [6, 0])], [[{ thing: 'a', port: port?.name ?? 'p' }, 'b']]);
+  assert.equal(at({ name: 'p', at: [1, 2, 0.5] })[0].feet[0], 'left');
+  assert.equal(at({ name: 'p', at: [2, 1, 0.5] })[0].feet[0], 'right');
+  assert.throws(() => at({ name: 'p', at: [1, 2, 0.5], face: 'front' }), /the face "front": a side is right, left, back-left, back-right/);
+  assert.throws(() => at({ name: 'p', at: [1, 2, 0.5], face: 'right' }), /on the left side, not right: write face left, or move the point/);
+  assert.throws(() => at({ name: 'p', at: [2, 2, 0.5] }), /a corner \(the right and left sides\): say which with its face/);
+  assert.equal(at({ name: 'p', at: [2, 2, 0.5], face: 'right' })[0].feet[0], 'right');
+  assert.throws(() => at({ name: 'p', at: [1, 1, 1], face: 'top' }), /on the top, and a port on the top is not routed yet/);
+  assert.throws(() => at({ name: 'p', at: [1, 1, 0.5] }), /on no side of "a"/);
+  assert.throws(() => at({ name: 'p', at: [3, 1, 0.5] }), /outside "a"/);
+  assert.throws(() => at({ name: 'p', at: [1, 2] }), /is at \[x, y, z\]/);
+  assert.throws(() => at({ name: '', at: [1, 2, 0] }), /has a name, some text/);
+  assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [1, 2, 0] }, { name: 'p', at: [2, 1, 0] }] })], []), /two ports named "p"/);
+  assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { round: true, ports: [{ name: 'p', at: [1, 2, 0] }] })], []), /is round, and a round thing has no ports yet/);
+  assert.throws(() => routes([thing('a', [0, 0], [2, 2, 1], { ports: 'p1' })], []), /ports are a list of at most 64/);
+  assert.throws(() => routes([thing('a', [0, 0])], [[{ thing: 'a' }, 'a']]), /each the name of a thing or \{thing, port\}/);
 });

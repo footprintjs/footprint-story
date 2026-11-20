@@ -91,9 +91,17 @@ export function gridFor(things: readonly IsoThing[], into: readonly [number, num
 export const MOST_ALSO: number;
 
 /** A thing a route is laid round: named, placed, and round or not (`round`: a cylinder, whose feet are on its round base). */
-export interface IsoRouted extends IsoThing { readonly name: string; readonly round?: boolean }
+export interface IsoRouted extends IsoThing { readonly name: string; readonly round?: boolean; /** Points on its sides where a link may plug in, in its own tiles. */ readonly ports?: readonly IsoPort[] }
+/** A port: a named point on a thing's side, [x, y, z] in its own tiles (x along its width, y along its depth, z up from its base). `face` names the side, read from the point when not given (and needed at a corner). */
+export interface IsoPort { readonly name: string; readonly at: readonly [number, number, number]; readonly face?: IsoSide }
+/** A side of a thing: `right` and `left` face the viewer (toward the lower right and lower left of the frame); `back-left` and `back-right` are behind. */
+export type IsoSide = 'right' | 'left' | 'back-left' | 'back-right';
+/** One end of a link: a thing's name, or one of its ports. */
+export type IsoEnd = string | { readonly thing: string; readonly port: string };
 /** One of a thing's two feet a viewer sees: `right` under its right face (where the cols go on), `left` under its left face (where the rows go on). */
 export type IsoFoot = 'right' | 'left';
+/** Where a route leaves or reaches a thing: one of its two seen feet, or the side of the port it plugs into. */
+export type IsoEndSide = IsoFoot | IsoSide;
 /**
  * The way one link runs along the floor. `points`: [col, row] from the foot it leaves to the foot it reaches, a square
  * turn at every point between; `feet`: the foot it leaves and the foot it reaches; `bends`: its turns; `tiles`: its
@@ -101,7 +109,7 @@ export type IsoFoot = 'right' | 'left';
  * `crosses`: how many times it meets a route laid before it, a touch at a corner too; `shared`: the tiles of it that
  * lie on another's way for want of room (0 as a rule).
  */
-export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; readonly feet: readonly [IsoFoot, IsoFoot]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; /** The stretches of it a thing hides: [from, to] in tiles along the way from its start, right to the nearest half step, in order and apart. */ readonly unseen: readonly (readonly [number, number])[]; readonly crosses: number; readonly shared: number }
+export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; /** The whole way in three dimensions, [col, row, height]: out of a port at its height and down to the floor, along it, and up into the other port (the floor points alone when no end is a port). */ readonly path: readonly (readonly [number, number, number])[]; /** The port at each end, or null for a foot. */ readonly ports: readonly [string | null, string | null]; readonly feet: readonly [IsoEndSide, IsoEndSide]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; /** The stretches of it a thing hides: [from, to] in tiles along the way from its start, right to the nearest half step, in order and apart. */ readonly unseen: readonly (readonly [number, number])[]; readonly crosses: number; readonly shared: number }
 /** A link that has no way along the floor, and why (one of NO_ROUTE). */
 export interface IsoNoRoute { readonly from: string; readonly to: string; readonly points: null; readonly why: string }
 /**
@@ -111,7 +119,9 @@ export interface IsoNoRoute { readonly from: string; readonly to: string; readon
  * hides behind it for each tile of its height (1.22: the usual two-to-one view). The same things and links always give
  * the same ways, and the work is bounded (MOST_WORK): on a picture too big, the last links are not tried and say so.
  */
-export function routes(things: readonly IsoRouted[], links?: readonly (readonly [string, string])[], options?: { hides?: number } | null): (IsoRoute | IsoNoRoute)[];
+export function routes(things: readonly IsoRouted[], links?: readonly (readonly [IsoEnd, IsoEnd])[], options?: { hides?: number } | null): (IsoRoute | IsoNoRoute)[];
+/** The most ports one thing has. */
+export const MOST_PORTS: number;
 /** What there is to say about one route, in words ("api to db: passes behind logs") — or null when it lies well. */
 export function routeNote(route: IsoRoute | IsoNoRoute): string | null;
 /** The most links one picture lays. */
@@ -119,7 +129,7 @@ export const MOST_ROUTES: number;
 /** The most steps of the search one picture may take, all its links together. */
 export const MOST_WORK: number;
 /** Why a link has no route: the sentences `why` is one of. */
-export const NO_ROUTE: Readonly<{ name: string; self: string; heights: string; foot: string; way: string; work: string; wide: string }>;
+export const NO_ROUTE: Readonly<{ name: string; self: string; heights: string; foot: string; way: string; work: string; wide: string; port: string; portName: string }>;
 
 /** A piece of a rounded way: a straight run to `to`, or a corner — one curve to `to`, drawn towards `corner` (SVG's Q, a canvas's quadraticCurveTo). */
 export type WayPiece = { readonly to: readonly [number, number]; readonly corner?: readonly [number, number] };
