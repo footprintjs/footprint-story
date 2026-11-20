@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.15.1 — long refusals print line by line; a far-off port says why
+
+- **A refusal written on several lines carries them as `rows`.** A tool that prints this package's errors one line
+  each (`errorText`) showed the storyboard and shot problem lists, the list of lines with no take, and the list of
+  refused takes as one long line with `\n` in it. Each now carries `rows`, its own lines, so each prints on a line of
+  its own. The message is what it was.
+- **A port end on a coarse lattice says the things stand too far apart.** When things stand so far apart that the
+  lattice is made coarser than its finest step, a port's run out to the lattice grows with it and may pass under
+  another thing. That link said `NO_ROUTE.port` (a port closed in); it now says `NO_ROUTE.wide`, as a foot end
+  already did. At the finest step it still says `port`.
+- A test fix: the check that a route's `shared` is honest left out each route's short ends at its feet, so it now
+  and then failed where a route's last short run lay on another's stretch and the router rightly said so. It compares
+  the whole route now. The router is unchanged.
+
 ## 0.15.0 — ports: a link that plugs in where you say
 
 - **Ports, in `footprint-story/isometric`.** A thing may name points on its sides where a link plugs in —
