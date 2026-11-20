@@ -168,11 +168,14 @@ in a browser.
 
 **The room on a top face.** The top of a block is a slanted diamond, not the rectangle round it: across its middle it
 is as wide as the block's SHORTER side is long (a block 8 by 1 has a top 1 tile wide there, however long it is), and it
-narrows above and below. `grid.block(thing).room(high)` and `grid.cylinder(thing).room(high)` give the width of an
-upright box `high` pixels tall that stands on the top, its middle on the top's centre, inside the top. Give it to
-`wordsToFit` in place of `[wide, high]`: `wordsToFit('Load Balancer', grid.block(thing).room)`. Each line is then
-measured across its own middle (the room is asked 0 for one line, one line's height for two), so the top of a letter
-may pass the face's edge where the line's middle does not. Scale it to leave a margin: `(high) => 0.9 * room(high)`.
+narrows above and below. `grid.room(thing, high)` gives the width of an upright box `high` pixels tall that stands on
+the top, its middle on the top's centre, inside the top (`thing.round: true` for a round thing). It is a number: what
+`block` and `cylinder` give stays plain data. Give it to `wordsToFit` in place of `[wide, high]`:
+`wordsToFit('Load Balancer', (high) => grid.room(thing, high))`. Each line is then measured across its own middle (the
+room is asked 0 for one line, one line's height for two), so the top of a letter may pass the face's edge where the
+line's middle does not, and one line is never refused for the face's height. Scale it to leave a margin:
+`(high) => 0.9 * grid.room(thing, high)`. What the function gives is read as a width (no finite number above 0 is no
+room; more than a million is a million), and what it throws comes out as it is.
 
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
 on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:

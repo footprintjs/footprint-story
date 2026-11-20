@@ -8,11 +8,11 @@ export interface IsoBox { x: number; y: number; w: number; h: number }
 /** A thing on the floor: it stands on the tiles from `at` ([col, row] or [col, row, lift]) and is `size` ([wide, deep, high]) tiles. */
 export interface IsoThing { at: readonly number[]; size: readonly number[] }
 /** A box's faces, each four points round: its top, the side towards the lower left, the side towards the lower right. */
-export interface IsoBlock { top: IsoPoint[]; left: IsoPoint[]; right: IsoPoint[]; outline: IsoPoint[]; centre: IsoPoint; box: IsoBox; /** How wide an upright box `high` pixels tall (0 when not given) may be on the top, its middle on the top's centre, inside the top: the room words have there. */ room(high?: number): number }
+export interface IsoBlock { top: IsoPoint[]; left: IsoPoint[]; right: IsoPoint[]; outline: IsoPoint[]; centre: IsoPoint; box: IsoBox }
 /** An ellipse on the frame. */
 export interface IsoEllipse { cx: number; cy: number; rx: number; ry: number }
 /** A round thing: the ellipse of its top and of its foot. */
-export interface IsoCylinder { top: IsoEllipse; bottom: IsoEllipse; centre: IsoPoint; box: IsoBox; /** How wide an upright box `high` pixels tall (0 when not given) may be on the round top, its middle on the top's centre. */ room(high?: number): number }
+export interface IsoCylinder { top: IsoEllipse; bottom: IsoEllipse; centre: IsoPoint; box: IsoBox }
 /** A floor: its four corners, and every tile line as [x1, y1, x2, y2]. */
 export interface IsoFloor { outline: IsoPoint[]; lines: number[][]; box: IsoBox }
 
@@ -32,6 +32,12 @@ export interface IsoGrid {
   block(thing: IsoThing): IsoBlock;
   /** A round thing on a square of tiles. */
   cylinder(thing: IsoThing): IsoCylinder;
+  /**
+   * How wide an upright box `high` pixels tall (0 when not given) may be on a thing's top, its middle on the top's
+   * centre and all of it inside the top: the room words have there. A box's top is a diamond, as wide across its middle
+   * as the box's shorter side is long. `round: true` for a round thing.
+   */
+  room(thing: IsoThing & { readonly round?: boolean }, high?: number): number;
   /** A floor of cols × rows tiles from `at`. */
   floor(floor: { cols: number; rows: number; at?: readonly number[] }): IsoFloor;
   /** A line along the floor from a to b, turning once: along the cols first, or the rows. */
@@ -133,8 +139,9 @@ export interface FittedWords { readonly lines: readonly string[]; readonly size:
  * two, then a pixel smaller at a time down to `least` (16). `fits` is false when it does not fit even there. Counted
  * in letters: `letter` is a letter's width for each pixel of its size (0.6), `line` a line's height (1.15); a mark on
  * a letter and a character that draws nothing take no room. Broken at a space, a tab or a line end, never at a no-break
- * space. A size is from 1 to 1000 pixels, and the room no more than 1,000,000 either way. `room` may be a function
- * for a face that narrows (`grid.block(thing).room`): it is asked how wide a box so tall may be — 0 for one line, one
- * line's height for two — and what is no number above 0 is read as no room.
+ * space. A size is from 1 to 1000 pixels, and a room given as [wide, high] no more than 1,000,000 either way. `room`
+ * may be a function for a face that narrows (`(high) => grid.room(thing, high)`): it is asked how wide a box so tall
+ * may be — 0 for one line, one line's height for two. What it gives that is no finite number above 0 is read as no
+ * room, and more than 1,000,000 as that; what it throws comes out as it is.
  */
 export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number } | null): FittedWords;
