@@ -394,3 +394,14 @@ test('the brief says how many entries each list holds, from the same table the r
     assert.ok(storyboardProblems(told({ [list]: Array.from({ length: most + 1 }, () => one) })).some((p) => p.at === list && p.message === `has ${most + 1}, and ${most} is the most it may have`));
   }
 });
+
+test('a storyboard\'s refusal carries its lines as rows, so a tool that prints errors shows each on a line of its own', async () => {
+  const { errorText } = await import('../index.js');
+  assert.throws(() => readStoryboard(told({ title: '', closing: '' })), (e) => {
+    assert.deepEqual(e.rows, ['this storyboard has 2 problems:', '- title must be text with something in it', e.rows[2]]);
+    assert.match(e.rows[2], /^- closing must be text/);
+    assert.equal(e.rows.join('\n'), e.message);
+    assert.deepEqual(errorText(e).split('\n'), e.rows);
+    return true;
+  });
+});

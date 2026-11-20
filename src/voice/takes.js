@@ -98,7 +98,10 @@ export function refuseWorkOverTakes(work, book) {
 export function findTakes(scenes, book) {
   const missing = [...new Set(scenes.filter((s) => !book.lines.has(matchKey(s.text))).map((s) => s.text))];
   if (missing.length) {
-    throw new Error(`recordedTakes: ${missing.length === 1 ? '1 line has' : `${missing.length} lines have`} no take in ${book.manifest}. Record each, then add it there (line → file):\n${missing.map((t) => `  ${JSON.stringify(t)}: "<file>.m4a"`).join(',\n')}`);
+    // one row per line to paste, as the message lists them: a tool that prints errors shows each on a line of its own
+    const rows = [`recordedTakes: ${missing.length === 1 ? '1 line has' : `${missing.length} lines have`} no take in ${book.manifest}. Record each, then add it there (line → file):`,
+      ...missing.map((t, i) => `  ${JSON.stringify(t)}: "<file>.m4a"${i < missing.length - 1 ? ',' : ''}`)];
+    throw Object.assign(new Error(rows.join('\n')), { rows });
   }
   return scenes.map((s) => {
     const { file, path: at } = book.lines.get(matchKey(s.text));

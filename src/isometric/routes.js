@@ -326,10 +326,13 @@ export function routes(things, links = [], options = undefined) {
     const atPort = (thing, port) => portPlaces(thing, port, read, a.at[2], hides, grid, step, standsAt, hidesPoint, REACH, TURN, work);
     const startsAt = portA ? atPort(a, portA) : null, endsAt = portB ? atPort(b, portB) : null;
     if ((portA && !startsAt) || (portB && !endsAt)) return none(from, to, NO_ROUTE.work);
-    if (startsAt?.why || endsAt?.why) return none(from, to, NO_ROUTE.port);
+    // on a lattice made coarser than the finest step, an end with no place says the things stand too far apart: a port's
+    // run out reaches the first lattice line in front, so a coarser lattice is what makes it long enough to meet a thing
+    const coarse = step > fine;
+    if (startsAt?.why || endsAt?.why) return none(from, to, coarse ? NO_ROUTE.wide : NO_ROUTE.port);
     const starts = portA ? startsAt.list : placesOf(a), ends = starts && (portB ? endsAt.list : placesOf(b));
     if (!starts || !ends) return none(from, to, NO_ROUTE.work);
-    if (!starts.length || !ends.length) return none(from, to, step > fine ? NO_ROUTE.wide : (portA && !starts.length) || (portB && !ends.length) ? NO_ROUTE.port : NO_ROUTE.foot);
+    if (!starts.length || !ends.length) return none(from, to, coarse ? NO_ROUTE.wide : (portA && !starts.length) || (portB && !ends.length) ? NO_ROUTE.port : NO_ROUTE.foot);
     const found = search(grid, starts, ends, step, seen, work);
     if (!found) return none(from, to, work.left <= 0 ? NO_ROUTE.work : NO_ROUTE.way);
     // the way is kept: its stretches, so a later link takes the lane beside it, and its two places

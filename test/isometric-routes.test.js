@@ -148,8 +148,10 @@ test('routes: on a map the build arranges, every link has a way; the same things
     laid.forEach((route, i) => {
       assert.ok(route.points, `${links[i]}: ${route.why}`);
       holds(route, placed);
-      // `shared` is honest: 0 exactly when the route lies on no stretch of one laid before it (its two short ends at a foot apart)
-      const lies = laid.slice(0, i).some((before) => share({ points: route.points.slice(1, -1) }, { points: before.points.slice(1, -1) }));
+      // `shared` is honest: 0 exactly when the route lies on no stretch of one laid before it. The whole of both is
+      // compared, the two short ends at its feet too (an end's short run may lie on another's stretch); only a touch of
+      // no length, as at a foot point the two meet at, is not lying on it
+      const lies = laid.slice(0, i).some((before) => share(route, before));
       const sameFoot = laid.slice(0, i).some((before) => [before.points[0], before.points.at(-1)].some((p) => [route.points[0], route.points.at(-1)].some((q) => p[0] === q[0] && p[1] === q[1])));
       assert.equal(route.shared > 0, lies || sameFoot, `${links[i]}: shared ${route.shared}`);
     });
@@ -595,6 +597,10 @@ test('ports: a route leaves a port straight out of its side, drops to the floor,
   assert.equal(routes(things, [[{ thing: 'sw', port: 'p1' }, { thing: 'sw', port: 'p3' }]])[0].why, NO_ROUTE.self);
   const walled = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 1, 0.5] }] }), thing('wall', [2.1, -3], [0.1, 8, 1]), thing('b', [6, 0])];
   assert.equal(routes(walled, [[{ thing: 'a', port: 'p' }, 'b']])[0].why, NO_ROUTE.port);   // a thin wall just in front of the side: the lattice point is open, the run out is not
+  // the same wall with a thing far off: the lattice is made coarser than the finest step, and the run out to its first line
+  // is then too long to miss the wall — the things stand too far apart, as a foot would say, not a port closed in
+  const far = routes([...walled, thing('far', [20000, 20000])], [[{ thing: 'a', port: 'p' }, 'b'], ['b', { thing: 'a', port: 'p' }]]);
+  assert.deepEqual(far.map((r) => r.why), [NO_ROUTE.wide, NO_ROUTE.wide]);
   // the same things and links always give the same ways; two links on one port share it, and say so
   assert.deepEqual(routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]), routes(things, [[{ thing: 'lap', port: 'rj45' }, { thing: 'sw', port: 'p1' }]]));
   const twice = routes(things, [[{ thing: 'sw', port: 'p3' }, 'router'], [{ thing: 'sw', port: 'p3' }, 'lap']]);
