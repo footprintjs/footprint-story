@@ -200,3 +200,30 @@ export function readTurns(order: string | readonly (string | { names: readonly s
 export function turnTimes(turns: readonly { names: readonly string[]; takes?: number | null }[], options?: { step?: number; takes?: (turn: Turn, index: number) => number | null | undefined; where?: string }): TurnTimes;
 /** The written form of turns: what `readTurns` reads back to the same turns. A name the form cannot spell (a bracket in it, or ending like a time) is refused. */
 export function writeTurns(turns: readonly { names: readonly string[]; takes?: number | null }[]): string;
+
+/** An ease along a line: [a, b], the shares of its length eased at its start and at its end, each 0 to MOST_EASE. */
+export type RideEase = readonly [number, number];
+/** Stops of a ride or a fade: [[time, value], …], shares, to draw straight lines between (CSS's linear(), a film's own interpolation). */
+export type RideStops = [number, number][];
+/** The most of a line one eased end may take: 0.5. */
+export const MOST_EASE: number;
+/** The ride's time, in seconds: a line `length` px long (any finite length) at `speed` px a second (its steady speed, finite, above 0), with its ends eased `ease` ([0, 0]): (1 + a + b) times the line at its steady speed. A time that cannot be counted (Infinity) is refused. */
+export function rideSeconds(length: number, speed: number, ease?: RideEase): number;
+/** The speed at `progress` (a share of the line), as a share of the steady speed: gathered evenly from rest over the first `a`, shed evenly over the last `b`. */
+export function speedAt(progress: number, ease?: RideEase): number;
+/**
+ * Where a packet is over its ride: [[time, progress], …] from [0, 0] to [1, 1]. An eased end gets as many stops as keep
+ * it within 0.4 px of the true ease on a line `length` px long (2 to 40); a steady ride is two stops.
+ */
+export function rideProfile(ease?: RideEase, length?: number): RideStops;
+/** A ride's stops when the ride takes only `share` of the run (above 0; 1 or more: all of it): the packet rests at the end. */
+export function withHold(stops: readonly (readonly [number, number])[], share: number): RideStops;
+/** How much of the packet shows over a run (0 to 1): in over 12% of the ride, out over the run's last 15% — or kept at the end (`end`). `share`: the share of the run the ride takes (1). */
+export function showStops(share?: number, options?: { end?: boolean } | null): RideStops;
+/**
+ * Where a packet fades out before each stretch a block hides and back after it: [[outFrom, outTo, backFrom, backTo], …],
+ * shares of the line. `unseen`: [[from, to], …] in px along the line; `length`: its px; `speed`: its steady px a second.
+ * A fade takes `frames` (3) frames at `fps` (60) at the speed the packet has there, never under `least` (2) px, and is
+ * done `radius` (0) px before the stretch.
+ */
+export function hiddenRamps(unseen: readonly (readonly [number, number])[], length: number, speed: number, ease?: RideEase, options?: { frames?: number; fps?: number; least?: number; radius?: number } | null): [number, number, number, number][];

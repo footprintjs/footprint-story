@@ -304,6 +304,14 @@ Seconds are kept to the millisecond, so what is written always reads back. The b
 Names alone read as a plain list, each its own turn. The names mean nothing here: a tool looks them up in its own
 picture, and passes `isName` when one of its names looks like the written form.
 
+### A packet riding a line (ride)
+
+A deck's running packets and a film's ride the same line the same way: `rideProfile([0.15, 0.2], 900)` is where a
+packet is over its ride, eased out of its start and into its end over shares of the line's LENGTH, as stops for CSS's
+`linear()` or a film's own interpolation (within 0.4 px of the true ease). `rideSeconds(length, speed, ease)` is the
+ride's time for a steady speed in px a second, `withHold` adds a rest at the end, `showStops` says how much of the
+packet shows, and `hiddenRamps` where it fades before a stretch a block hides and back after it. Numbers in, numbers out.
+
 ## A camera in 3D (shots)
 
 **Why:** a film and a deck should say a shot in the same words, and whoever writes one should learn what the camera really
@@ -390,6 +398,12 @@ says what happened (`behind: ['logs']`, or `why` it has no way), and `routeNote`
 model can change the picture without looking at it. `rounded(points, radius)` rounds the corners and gives the point
 a share along the way: a deck's packet and a film's frame stand at the same place.
 
+**What a deck and a film both ask of a picture.** `hairpins(route.path, route.ports)` says, in a word, where a way
+doubles back on itself (`'start'`: the port faces away). `floorUnder(box, grid)` is the floor under words that float
+over the picture, as `routes`' `keep` takes it, and `crossesBox(points, box)` whether a way on the frame runs through
+them. `floorLabelPlace(floor, grid, name, covers)` lays a floor's name flat along its front edge, clear of what stands
+there. `arrangeByGroup(things, links)` places each group's things together, then the groups, from what joins them.
+
 More in [src/isometric/README.md](src/isometric/README.md).
 
 ## API
@@ -415,12 +429,14 @@ More in [src/isometric/README.md](src/isometric/README.md).
 | `/motion` `TRANSITIONS`, `readTransition`, `checkTransition`, `extendTransitions`, `readSettings` | changes of picture as data, read and checked |
 | `/motion` `PACES`, `readPace` | how long a picture may sit still, by kind of film |
 | `/motion` `readTurns`, `turnTimes`, `writeTurns`, `MOST_TURNS`, `MOST_TOGETHER`, `MOST_TURN_NAME`, `MOST_TURNS_TEXT`, `MOST_TURN_SECONDS` | an order written once: read, timed, written back; its bounds |
+| `/motion` `rideProfile`, `rideSeconds`, `speedAt`, `withHold`, `showStops`, `hiddenRamps`, `MOST_EASE` | a packet riding a line: eased ends along its length, its time from a speed, a rest, how much shows, fades behind blocks |
 | `/shot` `readView`, `readScene`, `sceneProblems`, `readShot`, `shotProblems` | named views, scenes and shots, read and refused in words |
 | `/shot` `readCamera`, `frameOf`, `distanceFor`, `apertureFor` | a camera's numbers; the camera a shot asks for |
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
+| `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.

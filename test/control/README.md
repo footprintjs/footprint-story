@@ -14,6 +14,11 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.23.0-motion.mjs` | footprint-storyreel `src/motion.mjs` at `1f59978` | none |
 | `storyreel-0.23.0-moves.mjs` | footprint-storyreel `src/moves.mjs` at `1f59978` | its two imports point at the two controls above |
 | `storyreel-0.23.0-settings.mjs` | footprint-storyreel `src/settings.mjs` at `1f59978` | its import of `isHex` from `colour.mjs` is replaced by that one line (`colour.mjs` line 9) |
+| `storydeck-0.27.0-ride.js` | storydeck `deck/ride.js` at `2bdfff5` (0.27.0) | none (byte-identical) |
+| `storydeck-0.27.0-hairpins.js` | storydeck `deck/cable.js` at `2bdfff5`, lines 116–164 (`hairpins`, its constants and the unused `HAIRPIN_WORDS`) | none |
+| `storydeck-0.27.0-keepClear.js` | storydeck `deck/keepClear.js` at `2bdfff5`, lines 17–28 (the constants) and 52–108 (`floorUnder`, `crossesBox`) | none |
+| `storydeck-0.27.0-floorLabel.js` | storydeck `deck/floorLabel.js` at `2bdfff5` | its import of `wordsToFit` points at `../../isometric.js` |
+| `storydeck-0.27.0-groups.js` | storydeck `deck/groups.js` at `2bdfff5`, lines 20–60 (`GROUP_MARGIN`, `groupWritten`, `arrangeByGroup`) | none (`groupWritten`'s import of `ownAttribute` is left out with the lines above it; it is never called) |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these

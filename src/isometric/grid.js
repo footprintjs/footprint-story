@@ -23,7 +23,7 @@
  * and a refusal says what to give.
  */
 import { backToFront } from './order.js';
-import { FAR, fin, numbers, own, readThing, refuse, shown } from './thing.js';
+import { FAR, fin, numbers, own, readThing, refuse, shown, stored } from './thing.js';
 
 const MOST_TILES = 256;
 
@@ -117,4 +117,14 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
   return Object.freeze({ tile: Object.freeze([w, h]), origin: Object.freeze([ox, oy]), rise: up, at, tileAt, block, cylinder, floor, room, route,
     /** `items` sorted so the furthest is drawn first; `thingOf(item)` gives an item's {at, size} (default: the item is one). */
     backToFront: (items, thingOf = (item) => item) => backToFront(items, thingOf, { tileHeight: h, rise: up }) });
+}
+
+/**
+ * A grid handed in by anyone, rebuilt from its own numbers — its tile, origin and rise, each its own stored field — so
+ * its code is never run, only its numbers read: a grid isometric() made gives the same grid back. `who` names the
+ * call in a refusal.
+ */
+export function readGrid(grid, who) {
+  if (grid === null || typeof grid !== 'object' || Array.isArray(grid)) refuse(`${who} takes a grid, {tile, origin, rise} as isometric() gives — not ${shown(grid)}`);
+  return isometric({ tile: numbers(stored(grid, 'tile', `${who}: a grid's tile`), [2], `${who}: a grid's tile`, '[width, height] in pixels'), origin: stored(grid, 'origin', `${who}: a grid's origin`), rise: stored(grid, 'rise', `${who}: a grid's rise`) });
 }

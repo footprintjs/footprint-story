@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.17.0 — what StoryDeck worked out, shared: a packet's ride, hairpins, the floor under words, a floor's name, groups
+
+Five helpers StoryDeck 0.27.0 kept to itself move here, so a deck, its animation and a film work them out once.
+Each gives what StoryDeck's gave for every input StoryDeck can hand it — places and lengths far past a frame, and the
+NaN and Infinity a page's style can parse to, included — checked by property tests against copies of that code
+(`test/control/storydeck-0.27.0-*.js`) and, through StoryDeck, by building its decks and 430 maps before and after.
+What is new is that every value is read by its own stored fields (a getter is never run, and on an option or a grid's
+number it is refused, never read as left out; a list with a hole is refused) and that inputs only another caller
+could hand in are refused in words, listed below. One input StoryDeck could hand in is refused too: a line whose
+length is NaN (a wire through the air written with numbers near 1e308, whose length overflows); StoryDeck 0.28.0
+refuses such a wire itself, where 0.27.0 drew a broken ride. Two answers differ on purpose: `rideSeconds` refuses a time that
+cannot be counted where StoryDeck's gave Infinity, and `floorUnder` answers a box with no floor with a reason where
+StoryDeck's threw its own sentence (StoryDeck says both in its words, as before).
+
+- **`footprint-story/motion` · a packet riding a line**: `rideProfile(ease, length)` (eased out of its start and into
+  its end over shares of the line's length, stops within 0.4 px of the true ease), `rideSeconds(length, speed, ease)`,
+  `speedAt(progress, ease)`, `withHold(stops, share)`, `showStops(share, { end })`, `hiddenRamps(unseen, length,
+  speed, ease, { frames, fps, least, radius })`, and `MOST_EASE` (0.5). Any finite length and speed are taken (a
+  wire through the air may be written 3,000,000,000 px long); a time `rideSeconds` cannot count is refused, never
+  handed back as Infinity. Refusals start `ride:`.
+- **`footprint-story/isometric` · `hairpins(path, ports)`**: where a way doubles back on itself, in a word
+  (`HAIRPINS`: `start`, `start-hook`, `middle`, `end`, `end-hook`). What to say about it stays the tool's.
+- **`floorUnder(box, grid, { lift, most })`** and **`crossesBox(points, box)`**: the floor under a box of the frame as
+  `routes`' `keep` takes it, and whether a way on the frame passes strictly inside a box. A box with no floor answers
+  `{ stretches: null, why, squares }`, `why` one of `NO_UNDER` (`far`, `big`, `most`), where StoryDeck threw its own
+  sentence: the deck words it now. A box placed at NaN or Infinity is far, as it was; `crossesBox` takes any numbers, and a box or a stretch end that no number places (NaN, Infinity) is crossed by nothing. `UNDER_CELL` (0.5) and `MOST_UNDER_SQUARES` (200,000) are exported.
+- **`floorLabelPlace(floor, grid, text, covers, { icon })`**: where a floor's name lies along its front edge, clear of
+  what stands there; `MOST_FLOOR_LABEL` (120 letters), `FLOOR_LABEL_ICON` (1.5). Its work is bounded now: a floor at
+  most 256 tiles a side (so at most 512 places), outlines of at most `MOST_OUTLINE_POINTS` (64) points and
+  `MOST_COVER_POINTS` (1,000,000) in all, each asked by its box before the overlap test, and at most
+  `MOST_LABEL_LOOKS` (50,000,000) looks in all — past any of them, refused in words. A floor's own label never
+  reaches them (a deck's map spends a few thousand looks).
+- **`arrangeByGroup(things, links)`**: each group arranged on the links inside it, then the groups on the links
+  between them; `GROUP_MARGIN` (1). It calls this package's `arrange` (StoryDeck handed its own in). New refusals: two
+  things with one name (StoryDeck refused that before calling), a group name past 100 characters.
+- A grid handed to `floorUnder` or `floorLabelPlace` is read by its numbers (tile, origin, rise; `IsoGridNumbers`)
+  and rebuilt, never called: a grid `isometric()` made gives the same answers.
+- Refused here, never reached from StoryDeck: a hairpin path point further than 1,000,000 from 0, a floor label on a
+  floor past 256 tiles, a speed that is no finite number above 0 (StoryDeck asks only within its 0.5–60 s range), and
+  the bounds above.
+
 ## 0.16.0 — floor kept clear
 
 - **`routes(things, links, { keep })`**: floor that words float over (`[{ at: [col, row, lift?], size: [wide, deep],
