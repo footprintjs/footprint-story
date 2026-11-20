@@ -9,6 +9,7 @@
  *   grid.tileAt(x, y)                 → {col, row}    the floor point under a place on the frame
  *   grid.block({at, size})            → {top, left, right, outline, centre, box}   the faces of a box
  *   grid.cylinder({at, size})         → {top, bottom, centre, box}                 a round thing: two ellipses
+ *   grid.room({at, size, round?}, high) → the width words that tall have on its top  a number
  *   grid.floor({cols, rows, at?})     → {outline, lines, box}                      the tile lines
  *   grid.route(a, b, {first?})        → [{x, y}, …]   a line along the floor, turning once
  *   grid.backToFront(things)          → the things, the furthest first: the order to draw them in (order.js)
@@ -22,7 +23,7 @@
  * and a refusal says what to give.
  */
 import { backToFront } from './order.js';
-import { FAR, fin, numbers, readThing, refuse, shown } from './thing.js';
+import { FAR, fin, numbers, own, readThing, refuse, shown } from './thing.js';
 
 const MOST_TILES = 256;
 
@@ -72,6 +73,24 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
       box: { x: head.x - rx, y: head.y - ry, w: 2 * rx, h: foot.y - head.y + 2 * ry } };
   };
 
+  /**
+   * How wide an upright box `high` pixels tall may be on a thing's top, its middle on the top's centre and all of it
+   * inside the top: the room words set on that face have. `thing.round` says a round thing (as `routes` reads it).
+   * A number, so what `block` and `cylinder` give stays plain data.
+   * WHY here: the top of a box is a slanted diamond, not the rectangle round it — a long thin box has a top as wide
+   * across its middle as its SHORT side is long, however long it is — and a deck and a film must count alike.
+   */
+  const room = (thing, high = 0) => {
+    const { size: [wide, deep] } = readThing(thing, 'a thing'), round = own(thing, 'round') ?? false;
+    if (typeof round !== 'boolean') refuse(`a thing's round says whether it is a round thing, true or false — not ${shown(round)}`);
+    if (round && wide !== deep) refuse(`a round thing has the same width and depth (2 2 1.5) — not ${shown([wide, deep])}`);
+    if (!(fin(high) && high >= 0)) refuse(`room(thing, high) takes how tall the words stand, in pixels, from 0 to ${FAR} — not ${shown(high)}`);
+    // a round top: the chord of its ellipse half that far from its middle
+    if (round) { const rx = wide / 2 * w / Math.SQRT2, ry = wide / 2 * h / Math.SQRT2; return high < 2 * ry ? 2 * rx * Math.sqrt(1 - (high / (2 * ry)) ** 2) : 0; }
+    // a box's top: across its middle as wide as the shorter side is long; each pixel up or down, both edges come in by w / h
+    return Math.max(0, Math.min(wide, deep) * w - high * w / h);
+  };
+
   /** A floor of cols × rows tiles from `at`: its four corners and every tile line, [x1, y1, x2, y2]. */
   const floor = ({ cols, rows, at: from = [0, 0] } = {}) => {
     if (!(Number.isInteger(cols) && Number.isInteger(rows) && cols >= 1 && rows >= 1 && cols <= MOST_TILES && rows <= MOST_TILES)) refuse(`a floor is cols × rows tiles, whole numbers from 1 to ${MOST_TILES} — not ${shown([cols, rows])}`);
@@ -95,7 +114,7 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
     return [[from[0], from[1]], ...(straight ? [] : [corner]), [to[0], to[1]]].map(([col, row]) => at(col, row, lift));
   };
 
-  return Object.freeze({ tile: Object.freeze([w, h]), origin: Object.freeze([ox, oy]), rise: up, at, tileAt, block, cylinder, floor, route,
+  return Object.freeze({ tile: Object.freeze([w, h]), origin: Object.freeze([ox, oy]), rise: up, at, tileAt, block, cylinder, floor, room, route,
     /** `items` sorted so the furthest is drawn first; `thingOf(item)` gives an item's {at, size} (default: the item is one). */
     backToFront: (items, thingOf = (item) => item) => backToFront(items, thingOf, { tileHeight: h, rise: up }) });
 }

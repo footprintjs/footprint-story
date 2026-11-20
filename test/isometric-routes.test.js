@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { arrange, gridFor, routes, routeNote, rounded, wordsToFit, MOST_ALSO, MOST_ROUTES, MOST_WORK, NO_ROUTE, MOST_ISOMETRIC_THINGS } from '../isometric.js';
+import { isometric, arrange, gridFor, routes, routeNote, rounded, wordsToFit, MOST_ALSO, MOST_ROUTES, MOST_WORK, NO_ROUTE, MOST_ISOMETRIC_THINGS } from '../isometric.js';
 
 const thing = (name, at, size = [2, 2, 1], more = {}) => ({ name, at, size, ...more });
 const HIDES = Math.sqrt(1.5);
@@ -492,4 +492,78 @@ test('wordsToFit: refuses what it cannot read, naming the fix', () => {
   assert.throws(() => wordsToFit('a', [10, 10], { size: 2000 }), /from 1 to 1000/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 1e-300, least: 1e-300 }), /from 1 to 1000/);
   assert.throws(() => wordsToFit('a', [1e7, 10]), /no number further than 1000000 from 0/);
+});
+
+test('routes: saying where a route is hidden costs the search nothing — a very big picture lays what it laid before unseen', () => {
+  // 60 things in ten cols, 600 links by a fixed rule: the work (MOST_WORK) runs out on the way. 0.11.0 laid 557 of them; 0.12.0,
+  // which asked where a route is hidden in a second counted pass, laid 406.
+  let seed = 7;
+  const next = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const things = Array.from({ length: 60 }, (_, i) => thing(`t${i}`, [(i % 10) * 4, Math.floor(i / 10) * 4])), links = [], had = new Set();
+  while (links.length < 600) { const a = Math.floor(next() * 60), b = Math.floor(next() * 60); if (a !== b && !had.has(`${a} ${b}`)) { had.add(`${a} ${b}`); links.push([`t${a}`, `t${b}`]); } }
+  const got = routes(things, links);
+  assert.equal(got.filter((route) => route.points).length, 557);
+  assert.equal(got.filter((route) => route.why === NO_ROUTE.work).length, 43);
+});
+
+test('room: the widest upright box on a top face — inside the top, and nothing wider is', () => {
+  const grid = isometric({ tile: 96 }), on = (size, more = {}) => thing('a', [0, 0], size, more);
+  assert.equal(grid.room(on([2, 2, 1])), 192);            // a square top: as wide across its middle as the block's box
+  assert.equal(grid.room(on([8, 1, 0.2])), 96);           // a long thin one: as wide as its SHORT side, not 432
+  assert.equal(grid.room(on([1, 8, 0.2])), 96);
+  assert.equal(grid.room(on([2, 2, 1]), 30), 132);        // and narrower away from the middle: 2 px for each px of height
+  assert.equal(grid.room(on([2, 2, 1]), 500), 0);
+  assert.equal(grid.room(on([2, 2, 1], { round: true }), 500), 0);
+  assert.ok(grid.room(on([2, 2, 1], { round: true })) < grid.room(on([2, 2, 1])));                 // a round top is inside the square one
+  assert.throws(() => grid.room(on([2, 2, 1]), -1), /room\(thing, high\) takes how tall the words stand/);
+  assert.throws(() => grid.room(on([2, 2, 1]), 'x'), /room\(thing, high\) takes how tall the words stand/);
+  assert.throws(() => grid.room(on([2, 2, 1]), 1e9), /from 0 to 1000000/);
+  assert.throws(() => grid.room(on([2, 3, 1], { round: true })), /a round thing has the same width and depth/);
+  assert.throws(() => grid.room(on([2, 2, 1], { round: 'yes' })), /round says whether it is a round thing/);
+  assert.throws(() => grid.room('a'), /a thing is \{at/);
+  // what the grid gives of a thing is plain data still: it can be cloned, and kept in a record
+  for (const drawn of [grid.block(on([2, 2, 1])), grid.cylinder(on([2, 2, 1]))]) assert.deepEqual(structuredClone(drawn), drawn);
+  // asked apart from the code: a point is on a block's top when, taken back to the floor, it is on the block's tiles; on a round top when it is in the ellipse
+  fc.assert(fc.property(fc.integer({ min: 1, max: 9 }), fc.integer({ min: 1, max: 9 }), fc.integer({ min: 0, max: 400 }), fc.constantFrom(96, 120, [100, 40]), fc.boolean(), (wide, deep, tall, tile, round) => {
+    const g = isometric({ tile }), t = thing('a', [3, -2], [wide, round ? wide : deep, 1.5], round ? { round } : {}), drawn = round ? g.cylinder(t) : g.block(t), room = g.room(t, tall), { x, y } = drawn.centre;
+    const onTop = ([px, py]) => {
+      if (round) return ((px - drawn.top.cx) / drawn.top.rx) ** 2 + ((py - drawn.top.cy) / drawn.top.ry) ** 2 <= 1 + 1e-9;
+      const { col, row } = g.tileAt(px, py + 1.5 * g.rise);   // the top is the floor's tiles, raised
+      return col >= 3 - 1e-9 && col <= 3 + wide + 1e-9 && row >= -2 - 1e-9 && row <= -2 + deep + 1e-9;
+    };
+    const corners = (w) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [x + i * w / 2, y + j * tall / 2]);
+    if (room > 0) assert.ok(corners(room).every(onTop), `a box ${room} by ${tall} is on the top of ${[wide, deep]}`);
+    assert.ok(!corners(room + 0.2).every(onTop), `a box ${room + 0.2} by ${tall} is not`);
+  }), { numRuns: 500 });
+});
+
+test('wordsToFit: on a face that narrows, each line is measured across its own middle', () => {
+  const grid = isometric({ tile: 96 }), room = (size) => (high) => grid.room(thing('a', [0, 0], size), high), square = room([2, 2, 1]), thin = room([8, 1, 0.2]);
+  assert.deepEqual(wordsToFit('API', square), { lines: ['API'], size: 26, fits: true });
+  // two lines stand apart, where the top is narrower: 'Balancer' is 124.8 px at 26, and the top is 132.2 there less the margin (119) — a pixel smaller fits
+  assert.deepEqual(wordsToFit('Load Balancer', (high) => 0.9 * square(high)), { lines: ['Load', 'Balancer'], size: 25, fits: true });
+  assert.deepEqual(wordsToFit('Load Balancer', square), { lines: ['Load', 'Balancer'], size: 26, fits: true });
+  // a long thin block: the name that the rectangle round its top (432 px) would hold on one line does not fit its top at all
+  assert.deepEqual(wordsToFit('Authentication Service', thin), { lines: ['Authentication', 'Service'], size: 16, fits: false });
+  assert.deepEqual(wordsToFit('DB', thin), { lines: ['DB'], size: 26, fits: true });
+  // words exactly as wide as the room fit it: ten letters at 20 px are 120 px
+  assert.deepEqual(wordsToFit('abcdefghij', () => 120, { size: 20, least: 20 }), { lines: ['abcdefghij'], size: 20, fits: true });
+  assert.equal(wordsToFit('abcdefghij', () => 119.99, { size: 20, least: 20 }).fits, false);
+  // what the function gives is read as a width: no finite number above 0 is no room, and nothing it gives stops the fitting
+  for (const none of [() => NaN, () => -5, () => 'wide', () => undefined, () => null, () => Infinity, () => 10n, () => ({ valueOf: () => 500 })]) assert.deepEqual(wordsToFit('API', none), { lines: ['API'], size: 16, fits: false });
+  assert.equal(wordsToFit('API', () => 1e300).fits, true);                                  // a huge room is a million: still a room
+  assert.throws(() => wordsToFit('API', () => { throw new Error('the caller\'s own'); }), /the caller's own/);
+  const asked = []; wordsToFit('Load Balancer', (high) => { asked.push(high); return 0; }, { size: 20, least: 19, line: 1 });
+  assert.deepEqual(asked, [0, 20, 0, 19]);                                                 // 0 for one line, one line's height for two
+  // a box is measured as it always was
+  assert.deepEqual(wordsToFit('Load Balancer', [173, 90]), { lines: ['Load', 'Balancer'], size: 26, fits: true });
+});
+
+test('routes: behind names what hides a route in the order the things were given, wherever along the way each hides it', () => {
+  // the way from a meets wall2's shadow first and wall1's after: behind is still [wall1, wall2], the order of the things
+  const things = [thing('a', [-6, 0]), thing('b', [20, 0]), thing('wall1', [13, 1.75], [2, 40, 1]), thing('wall2', [5, 1.75], [2, 40, 1]), thing('fence', [-2, -6], [20, 6.75, 0.1])];
+  const [route] = routes(things, [['a', 'b']]);
+  assert.deepEqual(route.behind, ['wall1', 'wall2']);
+  assert.equal(route.unseen.length, 2);
+  assert.ok(route.unseen[0][1] < route.unseen[1][0]);
 });
