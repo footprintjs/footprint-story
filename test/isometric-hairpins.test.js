@@ -70,6 +70,9 @@ test('every value is read by its own stored value, and a refusal says what to gi
   const point = [8, 7];
   Object.defineProperty(point, 1, { get() { ran = true; return 7; } });
   refused(() => hairpins([point, [9, 7]]), 'point 1 of a way');
+  const ends = [null, null];
+  Object.defineProperty(ends, 0, { get() { ran = true; return 'p'; } });
+  refused(() => hairpins(away, ends), "a way's port 1 is read as a stored value");
   assert.equal(ran, false);
   assert.ok(Object.isFrozen(HAIRPINS));
 });

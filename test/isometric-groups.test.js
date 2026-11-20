@@ -64,6 +64,6 @@ test('every value is read by its own stored value, and a refusal says what to gi
   let ran = false;
   const sneaky = { name: 'a', size: [1, 1, 1] };
   Object.defineProperty(sneaky, 'group', { get() { ran = true; return 'x'; } });
-  assert.deepEqual(arrangeByGroup([sneaky]), arrangeByGroup([{ name: 'a', size: [1, 1, 1] }]));
+  refused(() => arrangeByGroup([sneaky]), "thing 1's group is read as a stored value");   // never read as no group
   assert.equal(ran, false);
 });

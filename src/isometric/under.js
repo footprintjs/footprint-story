@@ -14,7 +14,7 @@
  * the reasons a box gets no floor are the kit's words now (NO_UNDER), so each tool says them in its own.
  */
 import { readGrid } from './grid.js';
-import { FAR, finite, framePoints, own, refuse, shown } from './thing.js';
+import { FAR, finite, framePoints, own, refuse, shown, stored } from './thing.js';
 
 /** The floor under a box is found in squares this many tiles a side (the router's lattice step, at its finest usual). */
 export const UNDER_CELL = 0.5;
@@ -33,10 +33,14 @@ export const NO_UNDER = Object.freeze({
   most: 'the floor under the box is more stretches than the most asked for',
 });
 
-/** A box of the frame, {x, y, w, h}, read by its own stored fields: finite numbers, wide and tall above 0 when `solid`. */
+/**
+ * A box of the frame, {x, y, w, h}, read by its own stored fields: numbers, wide and tall above 0 when `solid`. Any
+ * number: a place past the frame's reach — NaN or Infinity too, what a page's style can parse to — is the box being
+ * far (NO_UNDER.far, answered, not thrown), and crossesBox's arithmetic answers it as it always did.
+ */
 function readBox(box, solid, what) {
   const read = box !== null && typeof box === 'object' && !Array.isArray(box) ? ['x', 'y', 'w', 'h'].map((k) => own(box, k)) : null;
-  if (!read || !read.every(finite) || (solid && !(read[2] > 0 && read[3] > 0))) refuse(`${what} is a box of the frame, {x, y, w, h} in pixels${solid ? ', w and h above 0' : ''} — not ${read ? shown(read) : shown(box)}`);
+  if (!read || !read.every((n) => typeof n === 'number') || (solid && !(read[2] > 0 && read[3] > 0))) refuse(`${what} is a box of the frame, {x, y, w, h} in pixels${solid ? ', w and h above 0' : ''} — not ${read ? shown(read) : shown(box)}`);
   return read;
 }
 
@@ -49,14 +53,14 @@ function readBox(box, solid, what) {
  * budget stop at it, not after.
  *
  * A box with no floor here gives {stretches: null, why, squares}: `why` one of NO_UNDER — `far` (a corner of the box,
- * or of it lowered to the floor at `lift`, is further than FAR px from the frame's 0), `big` (it covers more than
+ * or of it lowered to the floor at `lift`, is further than FAR px from the frame's 0, or no finite number at all), `big` (it covers more than
  * MOST_UNDER_SQUARES squares: counted before any square is looked at, so a box many frames wide on a tiny tile is
  * answered at once; `squares` says how many, Infinity past counting) or `most` (more stretches than `most`).
  */
 export function floorUnder(box, grid, options = undefined) {
   const [x, y, w, h] = readBox(box, true, 'floorUnder: the box'), g = readGrid(grid, 'floorUnder');
   if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) refuse(`floorUnder's options are {lift, most} — not ${shown(options)}`);
-  const lift = (options && own(options, 'lift')) ?? 0, most = (options && own(options, 'most')) ?? Infinity;
+  const lift = (options && stored(options, 'lift', "floorUnder's lift")) ?? 0, most = (options && stored(options, 'most', "floorUnder's most")) ?? Infinity;
   if (!(finite(lift) && Math.abs(lift) <= FAR)) refuse(`floorUnder's lift is the floor's height, a number no further than ${FAR} from 0 — not ${shown(lift)}`);
   if (!(most === Infinity || (Number.isInteger(most) && most >= 0))) refuse(`floorUnder's most is the most stretches to make, a whole number from 0 (or Infinity) — not ${shown(most)}`);
   const [tw, th] = g.tile, hw = UNDER_CELL * tw / 2, hh = UNDER_CELL * th / 2, up = lift * g.rise;
@@ -95,7 +99,7 @@ export function floorUnder(box, grid, options = undefined) {
  * the box's slab along x and along y in turn; what is left of it, if anything, is inside both.
  */
 export function crossesBox(points, box) {
-  const way = framePoints(points, 'crossesBox: the way');
+  const way = framePoints(points, 'crossesBox: the way', { anyNumber: true });
   const [x, y, w, h] = readBox(box, false, 'crossesBox: the box');
   return way.slice(1).some(([qx, qy], k) => {
     const [px, py] = way[k];

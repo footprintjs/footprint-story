@@ -178,17 +178,19 @@ export const HAIRPINS: readonly IsoHairpin[];
  * whether, within 2 tiles of it, the way runs back; the floor between, whether it makes a U under half a tile across.
  * A jog under a tenth of a tile and a riser are no stretch. [] when it doubles back nowhere.
  */
-export function hairpins(path: readonly (readonly number[])[], ports?: readonly (string | null | undefined)[] | null): IsoHairpin[];
+export function hairpins(path: readonly (readonly number[])[], ports?: readonly [(string | null)?, (string | null)?] | null): IsoHairpin[];
 
 /** A stretch of floor kept clear, as `routes` takes it in `keep`: [col, row, lift] from its far corner, [wide, deep] tiles. */
 export interface IsoUnder { at: [number, number, number]; size: [number, number] }
 /** The floor under a box: its stretches — or none, and why (one of NO_UNDER) with how many squares it was counted at (null for `far`). */
 export type IsoFloorUnder = { readonly stretches: IsoUnder[]; readonly why: null; readonly squares: number } | { readonly stretches: null; readonly why: string; readonly squares: number | null };
+/** A grid as `floorUnder` and `floorLabelPlace` read it: its own numbers (an IsoGrid is one); getters are refused. */
+export interface IsoGridNumbers { readonly tile: readonly [number, number]; readonly origin?: readonly [number, number]; readonly rise?: number }
 /** The floor under a box is found in squares this many tiles a side (0.5). */
 export const UNDER_CELL: number;
 /** The most squares of floor one box is asked over (200,000). */
 export const MOST_UNDER_SQUARES: number;
-/** Why a box has no floor under it: the sentences `why` is one of — `far` (further than 1,000,000 px from the frame), `big` (more than MOST_UNDER_SQUARES squares), `most` (more stretches than `most`). */
+/** Why a box has no floor under it: the sentences `why` is one of — `far` (further than 1,000,000 px from the frame, or a place that is no finite number: NaN, Infinity), `big` (more than MOST_UNDER_SQUARES squares), `most` (more stretches than `most`). */
 export const NO_UNDER: Readonly<{ far: string; big: string; most: string }>;
 /**
  * The floor under a box of the frame at a height `lift` (0): every UNDER_CELL square whose drawn diamond meets the box,
@@ -196,8 +198,8 @@ export const NO_UNDER: Readonly<{ far: string; big: string; most: string }>;
  * it takes it. `grid`: its tile, origin and rise are read (never its code). `most`: the most stretches to make, counted
  * as they are made (Infinity). A box with none answers why, never throws: a tool words it.
  */
-export function floorUnder(box: IsoBox, grid: Pick<IsoGrid, 'tile' | 'origin'> & { readonly rise?: number }, options?: { lift?: number; most?: number } | null): IsoFloorUnder;
-/** Whether a way on the frame through `points` ([[x, y], …], straight between) passes strictly inside a box: not along its edge, not touching a corner. */
+export function floorUnder(box: IsoBox, grid: IsoGridNumbers, options?: { lift?: number; most?: number } | null): IsoFloorUnder;
+/** Whether a way on the frame through `points` ([[x, y], …], straight between) passes strictly inside a box: not along its edge, not touching a corner. Any numbers are taken, and answered by the same arithmetic. */
 export function crossesBox(points: readonly (readonly [number, number])[], box: IsoBox): boolean;
 
 /** A floor's label placed: where its first line's foot starts on the frame, the transform that lays words on the floor, its size in px, its lines, and whether it fits and whether every place along the edge is covered. */
@@ -208,13 +210,19 @@ export const MOST_FLOOR_LABEL: number;
 export const FLOOR_LABEL_ICON: number;
 /** The most points the outlines a label keeps clear of may hold between them (1,000,000). */
 export const MOST_COVER_POINTS: number;
+/** The most points one outline over a floor may have (64). */
+export const MOST_OUTLINE_POINTS: number;
+/** The most looks one label spends finding its place (50,000,000): an outline's box asked, or a point projected; past it, refused in words. */
+export const MOST_LABEL_LOOKS: number;
 /**
  * Where a floor's label lies: flat along the floor's near-left edge, sized from the tile (14 to 28 px), fitted with
  * `wordsToFit`, at the first place from the far end (half a tile at a time) whose strip of floor meets none of `covers`
  * (outlines on the frame: the things drawn over the floor, and each stretch of a laid route as two points). `fits` is
- * false when it does not fit even at the least size; `covered`, when it fits and no place is clear.
+ * false when it does not fit even at the least size; `covered`, when it fits and no place is clear. Bounded: a floor of
+ * at most 256 tiles a side, outlines (convex) of at most MOST_OUTLINE_POINTS points and MOST_COVER_POINTS in all, each
+ * asked by its box first, and at most MOST_LABEL_LOOKS looks.
  */
-export function floorLabelPlace(floor: { readonly at: readonly number[]; readonly size: readonly [number, number] }, grid: Pick<IsoGrid, 'tile' | 'origin'> & { readonly rise?: number }, text: string, covers?: readonly (readonly (readonly [number, number])[])[], options?: { icon?: boolean } | null): FloorLabel;
+export function floorLabelPlace(floor: { readonly at: readonly number[]; readonly size: readonly [number, number] }, grid: IsoGridNumbers, text: string, covers?: readonly (readonly (readonly [number, number])[])[], options?: { icon?: boolean } | null): FloorLabel;
 
 /** A thing placed by group: its name (links say it), its size, and its group (null or left out: none). */
 export interface IsoGrouped extends IsoNamed { readonly group?: string | null }

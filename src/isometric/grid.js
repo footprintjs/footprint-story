@@ -23,7 +23,7 @@
  * and a refusal says what to give.
  */
 import { backToFront } from './order.js';
-import { FAR, fin, numbers, own, readThing, refuse, shown } from './thing.js';
+import { FAR, fin, numbers, own, readThing, refuse, shown, stored } from './thing.js';
 
 const MOST_TILES = 256;
 
@@ -126,5 +126,5 @@ export function isometric({ tile = 120, origin = [0, 0], rise } = {}) {
  */
 export function readGrid(grid, who) {
   if (grid === null || typeof grid !== 'object' || Array.isArray(grid)) refuse(`${who} takes a grid, {tile, origin, rise} as isometric() gives — not ${shown(grid)}`);
-  return isometric({ tile: numbers(own(grid, 'tile'), [2], `${who}: a grid's tile`, '[width, height] in pixels'), origin: own(grid, 'origin'), rise: own(grid, 'rise') });
+  return isometric({ tile: numbers(stored(grid, 'tile', `${who}: a grid's tile`), [2], `${who}: a grid's tile`, '[width, height] in pixels'), origin: stored(grid, 'origin', `${who}: a grid's origin`), rise: stored(grid, 'rise', `${who}: a grid's rise`) });
 }

@@ -10,7 +10,7 @@
  * 0.27.0 (deck/cable.js · hairpins), unchanged in what it gives for what that gave it (a property test against a copy
  * of that code, test/control/); what is new is that every number is checked.
  */
-import { fin, own, refuse, shown } from './thing.js';
+import { fin, own, refuse, shown, stored } from './thing.js';
 
 /** A U-turn whose middle stretch is shorter than this many tiles is a hairpin; a longer one goes round something. */
 const TIGHT_U = 0.5;
@@ -38,7 +38,7 @@ function readEnds(ports) {
   if (ports === undefined || ports === null) return [false, false];
   if (!Array.isArray(ports) || ports.length > 2) refuse(`a way's ports are [port, port], each a port's name or null — not ${shown(ports)}`);
   return [0, 1].map((k) => {
-    const p = k < ports.length ? own(ports, k) : null;
+    const p = k < ports.length ? stored(ports, k, `a way's port ${k + 1}`) : null;
     if (p !== null && p !== undefined && typeof p !== 'string') refuse(`a way's ports are [port, port], each a port's name or null — not ${shown(ports)}`);
     return Boolean(p);
   });

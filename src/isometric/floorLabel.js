@@ -16,7 +16,7 @@
  * that every value is checked.
  */
 import { readGrid } from './grid.js';
-import { framePoints, numbers, own, refuse, shown } from './thing.js';
+import { framePoints, numbers, own, refuse, shown, stored } from './thing.js';
 import { wordsToFit } from './words.js';
 
 /** Where the words start: tiles in along the edge from its far end, and in from the edge. */
@@ -33,11 +33,35 @@ export const FLOOR_LABEL_ICON = 1.5;
 const CLEARANCE = 0.25;
 /** Tiles all round the words that what is drawn over the floor must also keep off. */
 const MARGIN = 0.1;
-/** The most points the outlines a label keeps clear of may hold between them: each is asked at every place along the edge. */
+/** The most points the outlines a label keeps clear of may hold between them. */
 export const MOST_COVER_POINTS = 1_000_000;
+/** The most points one outline may have: a block's is 6, a stretch of a route 2; two outlines are compared side by side. */
+export const MOST_OUTLINE_POINTS = 64;
+/** The most tiles a labelled floor is a side (as a floor is: grid.floor): so at most 512 places along its edge. */
+const MOST_SIDE = 256;
+/**
+ * The most looks one label spends finding its place: a look is one outline's box asked against the words' strip, or one
+ * point projected in the overlap test. WHY a limit: whatever is handed in, a label costs no more than this (well under
+ * a second). Outlines are asked by their boxes first, so a picture's own — a few near the edge — spend a few thousand.
+ */
+export const MOST_LABEL_LOOKS = 50_000_000;
 
-/** Whether two convex outlines on the frame ([[x, y], …], each in order round it) overlap: no line parts them (the separating-axis test). */
-function overlap(a, b) {
+/** Spend `n` of a label's looks; past the most, refused in words. */
+function spend(looks, n) {
+  if ((looks.left -= n) < 0) refuse(`there is too much drawn over this floor's edge to look through for its label (more than ${MOST_LABEL_LOOKS} looks) — draw fewer things over it, or ask without them`);
+}
+/** The box round an outline: [left, top, right, bottom] (an empty outline's is empty: it meets nothing). */
+const boxOf = (points) => points.reduce(([l, t, r, b], [x, y]) => [Math.min(l, x), Math.min(t, y), Math.max(r, x), Math.max(b, y)], [Infinity, Infinity, -Infinity, -Infinity]);
+/** How far apart two boxes may be and still be asked by the overlap test: a hair, so the test's own tolerance decides at the edge. */
+const SLACK = 1e-6;
+const apart = (p, q) => p[2] < q[0] - SLACK || q[2] < p[0] - SLACK || p[3] < q[1] - SLACK || q[3] < p[1] - SLACK;
+
+/**
+ * Whether two convex outlines on the frame ([[x, y], …], each in order round it) overlap: no line parts them (the
+ * separating-axis test). `looks`: {left}, spent by every point projected.
+ */
+function overlap(a, b, looks) {
+  spend(looks, (a.length + b.length) * (a.length + b.length));
   for (const poly of [a, b]) {
     for (let i = 0; i < poly.length; i++) {
       const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length], nx = y2 - y1, ny = x1 - x2;
@@ -55,19 +79,19 @@ function readLabel(floor, text, covers, options) {
   if (!floor || typeof floor !== 'object' || Array.isArray(floor)) refuse(`a floor's label lies on a floor, {at: [col, row], size: [cols, rows]} — not ${shown(floor)}`);
   const [col, row] = numbers(own(floor, 'at'), [2, 3], "a labelled floor's at", '[col, row]: its far corner');
   const [cols, rows] = numbers(own(floor, 'size'), [2], "a labelled floor's size", '[cols, rows], in tiles');
-  if (!(cols > 0 && rows > 0)) refuse(`a labelled floor's size is [cols, rows], each above 0 — not ${shown([cols, rows])}`);
+  if (!(cols > 0 && rows > 0 && cols <= MOST_SIDE && rows <= MOST_SIDE)) refuse(`a labelled floor's size is [cols, rows], each above 0 and at most ${MOST_SIDE} — not ${shown([cols, rows])}`);
   const letters = typeof text === 'string' ? [...text].length : 0;
   if (typeof text !== 'string' || !letters || letters > MOST_FLOOR_LABEL) refuse(`a floor's label is a name of 1 to ${MOST_FLOOR_LABEL} letters — not ${typeof text === 'string' ? `${letters} letters` : shown(text)}`);
   if (!Array.isArray(covers)) refuse(`what covers a floor is outlines on the frame, [[[x, y], …], …] — not ${shown(covers)}`);
   let total = 0;
   const outlines = Array.from({ length: covers.length }, (_, i) => {
-    const outline = framePoints(Object.hasOwn(covers, i) ? own(covers, i) : undefined, `outline ${i + 1} over the floor`);
+    const outline = framePoints(Object.hasOwn(covers, i) ? own(covers, i) : undefined, `outline ${i + 1} over the floor`, { most: MOST_OUTLINE_POINTS });
     total += outline.length;
     if (total > MOST_COVER_POINTS) refuse(`what covers a floor is at most ${MOST_COVER_POINTS} points of outline in all — draw fewer things over it, or ask without them`);
     return outline;
   });
   if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) refuse(`a floor label's options are {icon} — not ${shown(options)}`);
-  const icon = (options && own(options, 'icon')) ?? false;
+  const icon = (options && stored(options, 'icon', "a floor label's icon")) ?? false;
   if (typeof icon !== 'boolean') refuse(`icon says whether an icon goes before the label, true or false — not ${shown(icon)}`);
   return { col, row, cols, rows, outlines, icon };
 }
@@ -75,8 +99,11 @@ function readLabel(floor, text, covers, options) {
 /**
  * A floor's label placed: `floor` {at: [col, row], size: [cols, rows]}, `grid` an isometric grid (its tile, origin and
  * rise are read), `text` the label's words (1 to MOST_FLOOR_LABEL letters), `covers` the outlines on the frame of what
- * is drawn over the floor ([[[x, y], …], …]: the blocks, and each stretch of a laid route as two points; at most
- * MOST_COVER_POINTS points in all), `icon` whether an icon goes first. Gives {x, y} where the line's foot starts on the
+ * is drawn over the floor ([[[x, y], …], …], each convex: the blocks, and each stretch of a laid route as two points;
+ * at most MOST_OUTLINE_POINTS points an outline and MOST_COVER_POINTS in all), `icon` whether an icon goes first. The
+ * floor is at most 256 tiles a side, so there are at most 512 places along its edge; at each, only the outlines whose
+ * box meets the words' strip are compared, and the whole search spends at most MOST_LABEL_LOOKS looks (past that it is
+ * refused in words, never left to run). Gives {x, y} where the line's foot starts on the
  * frame, `matrix` [a, b, c, d] (the CSS transform, or a canvas's, that lays the words on the floor: a line along the
  * cols, a line's height toward the far rows), `size` the font size in px, `lines` the words as set, `fits` false when
  * they do not fit along the edge even at the least size, `covered` true when no place along the edge is clear of what
@@ -104,7 +131,13 @@ export function floorLabelPlace(floor, grid, text, covers = [], options = undefi
   // asked a little wider than the words (MARGIN all round): a route is a line with width, and lies on the half-tile
   // lanes the words' far edge can fall on
   const strip = (from) => [[from - MARGIN, far - MARGIN], [from + long + MARGIN, far - MARGIN], [from + long + MARGIN, near + MARGIN], [from - MARGIN, near + MARGIN]].map(([c, r]) => { const p = g.at(c, r); return [p.x, p.y]; });
-  const clear = (from) => outlines.every((outline) => !overlap(strip(from), outline));
+  // each outline's box once; at each place only the outlines whose box meets the strip's are asked (convex outlines whose
+  // boxes are apart do not overlap, so this answers as asking them all would)
+  const boxes = outlines.map(boxOf), looks = { left: MOST_LABEL_LOOKS };
+  const clear = (from) => {
+    const s = strip(from), sb = boxOf(s);
+    return outlines.every((outline, k) => { spend(looks, 1); return apart(sb, boxes[k]) || !overlap(s, outline, looks); });
+  };
   let from = col + ALONG;
   for (let at = col + ALONG; at + long <= col + cols - ALONG + 1e-9; at += 0.5) if (clear(at)) { from = at; break; }
   const start = g.at(from, near);

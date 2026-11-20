@@ -207,7 +207,7 @@ export type RideEase = readonly [number, number];
 export type RideStops = [number, number][];
 /** The most of a line one eased end may take: 0.5. */
 export const MOST_EASE: number;
-/** The ride's time, in seconds: a line `length` px long at `speed` px a second (its steady speed), with its ends eased `ease` ([0, 0]): (1 + a + b) times the line at its steady speed. */
+/** The ride's time, in seconds: a line `length` px long (any finite length) at `speed` px a second (its steady speed, finite, above 0), with its ends eased `ease` ([0, 0]): (1 + a + b) times the line at its steady speed. A time that cannot be counted (Infinity) is refused. */
 export function rideSeconds(length: number, speed: number, ease?: RideEase): number;
 /** The speed at `progress` (a share of the line), as a share of the steady speed: gathered evenly from rest over the first `a`, shed evenly over the last `b`. */
 export function speedAt(progress: number, ease?: RideEase): number;

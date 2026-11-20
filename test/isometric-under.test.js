@@ -49,6 +49,8 @@ test('answers a box it finds no floor for with the reason, so a tool says it in 
   assert.ok(big.squares > MOST_UNDER_SQUARES && Number.isFinite(big.squares));
   assert.ok(Date.now() - t0 < 100);
   assert.deepEqual(floorUnder({ x: 2e6, y: 0, w: 10, h: 10 }, floor), { stretches: null, why: NO_UNDER.far, squares: null });
+  // a place no number at all — what a page's style can parse to (left:1.2.3px, a width of 400 digits) — is far, answered
+  for (const box of [{ x: NaN, y: 0, w: 10, h: 10 }, { x: 0, y: NaN, w: 10, h: 10 }, { x: Infinity, y: 0, w: 10, h: 10 }, { x: 0, y: 0, w: Infinity, h: 10 }, { x: 0, y: 0, w: 10, h: Infinity }]) assert.equal(floorUnder(box, floor).why, NO_UNDER.far, JSON.stringify(box));
   // lowered to a high floor, a box near the edge of the reach is past it
   assert.equal(floorUnder({ x: 0, y: 999_990, w: 10, h: 5 }, floor, { lift: -1 }).why, null);
   assert.equal(floorUnder({ x: 0, y: 999_990, w: 10, h: 5 }, floor, { lift: 1 }).why, NO_UNDER.far);
@@ -77,7 +79,8 @@ test('every value is read by its own stored value, a grid by its numbers, and a 
   const refused = (f, words) => assert.throws(f, (e) => e.message.startsWith('isometric: ') && e.message.includes(words), words);
   refused(() => floorUnder({ x: 0, y: 0, w: 0, h: 10 }, floor), 'floorUnder: the box is a box of the frame');
   refused(() => floorUnder([0, 0, 10, 10], floor), 'floorUnder: the box is a box of the frame');
-  refused(() => floorUnder({ x: 0, y: 0, w: 10, h: Infinity }, floor), 'w and h above 0');
+  refused(() => floorUnder({ x: 0, y: 0, w: NaN, h: 10 }, floor), 'w and h above 0');
+  refused(() => floorUnder({ x: 0, y: 0, w: 10, h: '10' }, floor), 'w and h above 0');
   refused(() => floorUnder({ x: 0, y: 0, w: 10, h: 10 }, null), 'floorUnder takes a grid');
   refused(() => floorUnder({ x: 0, y: 0, w: 10, h: 10 }, { tile: [60, 120], origin: [0, 0] }), 'a tile is wider than it is tall');
   refused(() => floorUnder({ x: 0, y: 0, w: 10, h: 10 }, floor, { lift: 'up' }), "floorUnder's lift");
@@ -93,5 +96,17 @@ test('every value is read by its own stored value, a grid by its numbers, and a 
   const box = { x: 700, y: 520, w: 80, h: 30 };
   Object.defineProperty(box, 'h', { get() { ran = true; return 30; } });
   refused(() => floorUnder(box, floor), 'floorUnder: the box');
+  // a getter on a grid's numbers or on an option is refused, never read as left out
+  const risen = { tile: [120, 60], origin: [960, 150] };
+  Object.defineProperty(risen, 'rise', { get() { ran = true; return 70; } });
+  refused(() => floorUnder({ x: 700, y: 520, w: 80, h: 30 }, risen), "floorUnder: a grid's rise is read as a stored value");
+  for (const key of ['lift', 'most']) {
+    const options = {};
+    Object.defineProperty(options, key, { get() { ran = true; return 1; } });
+    refused(() => floorUnder({ x: 700, y: 520, w: 80, h: 30 }, floor, options), `floorUnder's ${key} is read as a stored value`);
+  }
   assert.equal(ran, false);
+  // crossesBox answers any numbers as its arithmetic always did
+  assert.equal(typeof crossesBox([[0, 30], [100, 30]], { x: NaN, y: 10, w: 50, h: 50 }), 'boolean');   // (what each gives is the control's: test/deck-differential)
+  assert.equal(typeof crossesBox([[0, 30], [Infinity, 30]], { x: 10, y: 10, w: 50, h: 50 }), 'boolean');
 });

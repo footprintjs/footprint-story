@@ -132,11 +132,15 @@ const rideStops: RideStops = withHold(rideProfile(rideEase, 900), 0.8);
 export const rideMisc: unknown[] = [rideSeconds(900, 300, rideEase), speedAt(0.1, rideEase), rideStops[0][1], showStops(0.8, { end: true }), hiddenRamps([[10, 40]], 900, 300, rideEase, { radius: 7 })[0][3], MOST_EASE];
 
 import { hairpins, HAIRPINS, floorUnder, crossesBox, UNDER_CELL, MOST_UNDER_SQUARES, NO_UNDER, floorLabelPlace, MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS, arrangeByGroup, GROUP_MARGIN } from 'footprint-story/isometric';
-import type { IsoHairpin, IsoUnder, IsoFloorUnder, FloorLabel, IsoGrouped } from 'footprint-story/isometric';
+import type { IsoHairpin, IsoUnder, IsoFloorUnder, FloorLabel, IsoGrouped, IsoGridNumbers } from 'footprint-story/isometric';
+import { MOST_OUTLINE_POINTS, MOST_LABEL_LOOKS } from 'footprint-story/isometric';
+const numbersOnly: IsoGridNumbers = { tile: [120, 60] };
 const pins: IsoHairpin[] = hairpins([[0, 0, 0.3], [1, 0, 0]], ['p', null]);
 const under: IsoFloorUnder = floorUnder({ x: 0, y: 0, w: 10, h: 10 }, grid, { lift: 1, most: 512 });
+const underAlone: IsoFloorUnder = floorUnder({ x: 0, y: 0, w: 10, h: 10 }, numbersOnly);
+const onePort: IsoHairpin[] = hairpins([[0, 0]], ['p']);
 const stretch: IsoUnder | undefined = under.stretches ? under.stretches[0] : undefined;
 const label: FloorLabel = floorLabelPlace({ at: [0, 0], size: [8, 5] }, grid, 'Production', [[[0, 0], [1, 1]]], { icon: true });
 const grouped: IsoGrouped[] = [{ name: 'web', size: [2, 2, 1], group: 'front' }, { name: 'db', size: [2, 2, 1] }];
 export const isoDeckHelpers: unknown[] = [pins[0], HAIRPINS.length, under.why, stretch?.at[2], crossesBox([[0, 0], [5, 5]], { x: 1, y: 1, w: 2, h: 2 }), UNDER_CELL, MOST_UNDER_SQUARES, NO_UNDER.far,
-  label.matrix[0], label.lines[0], MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS, arrangeByGroup(grouped, [['web', 'db']])[0][2], GROUP_MARGIN];
+  label.matrix[0], label.lines[0], MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS, arrangeByGroup(grouped, [['web', 'db']])[0][2], GROUP_MARGIN, MOST_OUTLINE_POINTS, MOST_LABEL_LOOKS, underAlone.why, onePort.length];

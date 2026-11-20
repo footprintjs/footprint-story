@@ -40,15 +40,30 @@ export function readThing(thing, what = 'a thing') {
   return { at: place, size };
 }
 
+/**
+ * A value's own stored field where a getter must not pass for "left out": undefined when it has none, refused when it
+ * is a getter (somebody's code, never run) — so an option a getter holds is not quietly read as its default.
+ */
+export function stored(o, key, what) {
+  const d = Object.getOwnPropertyDescriptor(o, key);
+  if (d && !('value' in d)) refuse(`${what} is read as a stored value, and this one is a getter (code, never run) — give the value itself`);
+  return d ? d.value : undefined;
+}
+
 /** A finite number, however far from 0: a place on the frame, in pixels, is not bounded by FAR. */
 export const finite = (n) => typeof n === 'number' && Number.isFinite(n);
 
-/** Points on the frame, [[x, y], …], each index by its own stored value (a hole refused), finite numbers; a new list. */
-export function framePoints(v, what) {
+/**
+ * Points on the frame, [[x, y], …], each index by its own stored value (a hole refused), finite numbers — or, with
+ * `anyNumber`, any number at all (NaN and Infinity too: a caller whose arithmetic answers them as it always did); a new
+ * list. At most `most` points (a refusal past it).
+ */
+export function framePoints(v, what, { anyNumber = false, most = Infinity } = {}) {
+  if (Array.isArray(v) && v.length > most) refuse(`${what} is at most ${most} points — not ${v.length}`);
   if (!Array.isArray(v)) refuse(`${what} is points on the frame, [[x, y], …] — not ${shown(v)}`);
   return Array.from({ length: v.length }, (_, i) => {
     const p = Object.hasOwn(v, i) ? own(v, i) : undefined, n = Array.isArray(p) && p.length === 2 ? [own(p, 0), own(p, 1)] : null;
-    if (!n || !n.every(finite)) refuse(`point ${i + 1} of ${what} is [x, y], two numbers — not ${shown(p)}`);
+    if (!n || !n.every(anyNumber ? (k) => typeof k === 'number' : finite)) refuse(`point ${i + 1} of ${what} is [x, y], two numbers — not ${shown(p)}`);
     return n;
   });
 }

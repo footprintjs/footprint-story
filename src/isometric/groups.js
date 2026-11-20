@@ -13,7 +13,7 @@
  */
 import { arrange } from './arrange.js';
 import { MOST_ISOMETRIC_THINGS } from './order.js';
-import { numbers, own, refuse, shown } from './thing.js';
+import { numbers, own, refuse, shown, stored } from './thing.js';
 
 /** Tiles a group's floor reaches past its things on every side: a tool that fits each group's floor fits it so. */
 export const GROUP_MARGIN = 1;
@@ -30,7 +30,7 @@ function readMembers(things) {
   return Array.from({ length: things.length }, (_, i) => {
     const thing = Object.hasOwn(things, i) ? own(things, i) : undefined;
     if (!thing || typeof thing !== 'object' || Array.isArray(thing)) refuse(`thing ${i + 1} is {name, size: [wide, deep, high], group?} — not ${shown(thing)}`);
-    const name = own(thing, 'name'), group = own(thing, 'group') ?? null;
+    const name = own(thing, 'name'), group = stored(thing, 'group', `thing ${i + 1}'s group`) ?? null;
     if (typeof name !== 'string' || !name) refuse(`thing ${i + 1} has a name, some text — not ${shown(name)}`);
     if (names.has(name)) refuse(`two things are named ${shown(name)}: a name tells one thing from another, and links say it`);
     names.add(name);

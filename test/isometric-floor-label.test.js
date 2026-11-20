@@ -4,7 +4,7 @@
 // new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { floorLabelPlace, isometric, MOST_COVER_POINTS, MOST_FLOOR_LABEL } from '../isometric.js';
+import { floorLabelPlace, isometric, MOST_COVER_POINTS, MOST_FLOOR_LABEL, MOST_LABEL_LOOKS, MOST_OUTLINE_POINTS } from '../isometric.js';
 
 const floor = isometric({ tile: 120, origin: [960, 150] });
 const outline = (c, r, size) => floor.block({ at: [c, r], size }).outline.map(({ x, y }) => [x, y]);
@@ -63,6 +63,18 @@ test('counts an icon and capitals in the room the words take, and keeps a quarte
   assert.ok(floorLabelPlace({ at: [0, 0], size: [8, 5] }, floor, 'Home', [outline(end + 0.1, 4, [1, 1, 0])]).x > free.x);
 });
 
+test('its work is bounded: outlines are asked by their boxes first, and the whole search spends at most MOST_LABEL_LOOKS', () => {
+  // a thousand things standing well behind the edge cost a box each, and change nothing
+  const free = floorLabelPlace({ at: [0, 0], size: [8, 5] }, floor, 'Home');
+  const behind = Array.from({ length: 1000 }, (_, i) => outline(1 + (i % 5), (i % 3) * 0.2, [1, 1, 0.5]));
+  assert.deepEqual(floorLabelPlace({ at: [0, 0], size: [8, 5] }, floor, 'Home', behind), free);
+  // the whole edge of the biggest floor covered by the most outlines: refused in words, quickly, never left to run
+  const far = Array.from({ length: 100_000 }, () => [[-5e5, -5e5], [-5e5 + 1, -5e5]]), wall = [...far, outline(0, 255.5, [256, 1, 1])];
+  const t0 = Date.now();
+  assert.throws(() => floorLabelPlace({ at: [0, 0], size: [256, 256] }, floor, 'Home', wall), (e) => e.message.includes(`more than ${MOST_LABEL_LOOKS} looks`));
+  assert.ok(Date.now() - t0 < 3000);
+});
+
 test('every value is read by its own stored value, a grid by its numbers, and a refusal says what to give', () => {
   const refused = (f, words) => assert.throws(f, (e) => e.message.startsWith('isometric: ') && e.message.includes(words), words);
   const f = { at: [0, 0], size: [8, 5] };
@@ -79,6 +91,11 @@ test('every value is read by its own stored value, a grid by its numbers, and a 
   refused(() => floorLabelPlace(f, { tile: 'big' }, 'Home'), "floorLabelPlace: a grid's tile");
   const many = Array.from({ length: MOST_COVER_POINTS / 2 + 1 }, () => [[0, 0], [1, 1]]);
   refused(() => floorLabelPlace(f, floor, 'Home', many), `at most ${MOST_COVER_POINTS} points`);
+  refused(() => floorLabelPlace(f, floor, 'Home', [Array.from({ length: MOST_OUTLINE_POINTS + 1 }, (_, i) => [i, i])]), `outline 1 over the floor is at most ${MOST_OUTLINE_POINTS} points`);
+  refused(() => floorLabelPlace({ at: [0, 0], size: [257, 5] }, floor, 'Home'), 'at most 256');
+  const icon = {};
+  Object.defineProperty(icon, 'icon', { get() { ran = true; return true; } });
+  refused(() => floorLabelPlace(f, floor, 'Home', [], icon), "a floor label's icon is read as a stored value");
   let ran = false;
   const sneaky = { at: [0, 0] };
   Object.defineProperty(sneaky, 'size', { get() { ran = true; return [8, 5]; } });

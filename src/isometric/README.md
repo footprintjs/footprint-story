@@ -230,7 +230,8 @@ off the floor they cover (`keep`) only once that floor is known in tiles. `floor
 gives it: `{ stretches, why: null }`, every half-tile square of the floor at `lift` whose drawn diamond meets the box
 (exactly), those side by side along a row joined into one stretch, each a hair past its squares so the line between
 two is kept too — `routes`' keep as it takes it. A box it has no floor for answers why, and never throws, so a tool
-says it in its own words: `NO_UNDER.far` (further than a million px from the frame), `NO_UNDER.big` (more than 200,000
+says it in its own words: `NO_UNDER.far` (further than a million px from the frame, or a place that is no finite
+number at all — NaN, Infinity — as a page's style can parse to), `NO_UNDER.big` (more than 200,000
 squares, counted before any is looked at; `squares` says how many) or `NO_UNDER.most` (more stretches than `most`:
 counted as they are made, so many boxes sharing one budget stop at it, not after). The grid is read by its numbers (its
 tile, origin and rise), never by its code.
@@ -256,7 +257,10 @@ font `size` (from the tile: 0.3 px a px of a tile's side, 14 to 28), the `lines`
 floor) and `covered`. `covers` are the outlines on the frame of what is drawn over the floor — the things, and each
 stretch of a laid route as two points: the words move along the edge, half a tile at a time, to the first place whose
 strip of floor meets none of them (the separating-axis test), and `covered` says there was none. A label is never cut;
-an icon first takes 1.5 of the size more. WHY flat: a plate standing on the floor reads as one more thing.
+an icon first takes 1.5 of the size more. WHY flat: a plate standing on the floor reads as one more thing. The work is
+bounded whatever is handed in: a floor at most 256 tiles a side (at most 512 places), outlines (convex) of at most 64
+points (`MOST_OUTLINE_POINTS`) and 1,000,000 in all, each asked by its box before the overlap test, and at most
+`MOST_LABEL_LOOKS` (50,000,000) looks — past that it is refused in words, never left to run.
 
 **Groups.** `arrangeByGroup([{ name, size, group }], links)` places things that belong together (an account, a team,
 a tier) together: each group is arranged on the links inside it, then the groups — each a thing as big as its things,

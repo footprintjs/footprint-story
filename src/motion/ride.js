@@ -32,11 +32,11 @@ const MOST_STOPS = 40;   // stops for one eased end, at most: within TOLERANCE f
 const SHOW = { in: 0.12, out: 0.15 };   // the share of a ride a packet takes to fade in at its start and out before its end
 /** The most of a line one eased end may take: half — the two ends together are the whole line. */
 export const MOST_EASE = 0.5;
-/** The furthest a length, a speed or a place may be from 0 (px, px a second): far past any picture, short of overflow. */
-const FAR = 1e9;
 
-// Every value may come from anyone: each is read by its own stored value (a getter is somebody's code and is never run;
-// a list with a hole in it is refused), and a refusal says what to give.
+// Every value may come from anyone: each is read by its own stored value (a getter is somebody's code and is never run:
+// it is refused, never read as left out; a list with a hole in it is refused), and a refusal says what to give. Any
+// finite number is taken where the arithmetic holds — a line far longer than a frame is still a line (a wire through
+// the air may be written so).
 const own = (o, key) => { const d = Object.getOwnPropertyDescriptor(o, key); return d && 'value' in d ? d.value : undefined; };
 const shown = (v) => (Array.isArray(v) ? `a list of ${v.length}` : v !== null && typeof v === 'object' ? 'an object' : typeof v === 'string' ? JSON.stringify(v.length > 40 ? `${v.slice(0, 40)}…` : v) : String(v));
 const refuse = (fix) => { throw new Error(`ride: ${fix}`); };
@@ -49,19 +49,30 @@ function list(v, what, read) {
 }
 const pair = (v, what, lo, hi) => { const out = Array.isArray(v) && v.length === 2 ? list(v, what, (n) => n) : null; return out && out.every((n) => isNumber(n, lo, hi)) ? out : refuse(`${what} — not ${Array.isArray(v) ? `[${Array.from({ length: Math.min(v.length, 4) }, (_, i) => shown(own(v, i))).join(', ')}${v.length > 4 ? ', …' : ''}]` : shown(v)}`); };
 const easeOf = (ease) => pair(ease, `an ease is [a, b]: the shares of the line eased at its start and its end, each 0 to ${MOST_EASE}`, 0, MOST_EASE);
-const lengthOf = (length) => number(length, 0, FAR, `a line's length is its px, 0 to ${FAR}`);
+const lengthOf = (length) => number(length, 0, Infinity, "a line's length is its px, a finite number, 0 or more");
+/** A number above 0 (the least is the smallest number above 0: Number.MIN_VALUE), finite. */
+const ABOVE = Number.MIN_VALUE;
 /** An options object's own stored field, or the usual value. */
-const option = (options, key, usual) => (options === undefined || options === null ? usual : typeof options === 'object' && !Array.isArray(options) ? own(options, key) ?? usual : refuse(`options are an object — not ${shown(options)}`));
+function option(options, key, usual) {
+  if (options === undefined || options === null) return usual;
+  if (typeof options !== 'object' || Array.isArray(options)) refuse(`options are an object — not ${shown(options)}`);
+  const d = Object.getOwnPropertyDescriptor(options, key);
+  if (d && !('value' in d)) refuse(`${key} is read as a stored value, and this one is a getter (code, never run) — give the value itself`);
+  return d?.value ?? usual;
+}
 
 /** The ride's time, in seconds: a line `length` px long at `speed` px a second, its steady speed, with its ends eased [a, b]. */
 export function rideSeconds(length, speed, ease = [0, 0]) {
-  const px = lengthOf(length), perSecond = number(speed, Number.MIN_VALUE, FAR, `a speed is px a second, above 0 and at most ${FAR}`), [a, b] = easeOf(ease);
-  return (px * (1 + a + b)) / perSecond;
+  const px = lengthOf(length), perSecond = number(speed, ABOVE, Infinity, 'a speed is px a second, a finite number above 0'), [a, b] = easeOf(ease);
+  const seconds = (px * (1 + a + b)) / perSecond;
+  // a speed so small (or a line so long) that the time cannot be counted is refused, never handed back as Infinity
+  if (!Number.isFinite(seconds)) refuse(`a line ${px} px long at ${perSecond} px a second takes longer than can be counted — give a faster speed or a shorter line`);
+  return seconds;
 }
 
 /** The speed at `progress` (a share of the line, 0 to 1), as a share of the steady speed: gathered evenly from rest over the first `a`, shed evenly over the last `b`. */
 export function speedAt(progress, ease = [0, 0]) {
-  const at = number(progress, -FAR, FAR, 'progress is a share of the line, a number (0 to 1 lies on it)'), [a, b] = easeOf(ease);
+  const at = number(progress, -Infinity, Infinity, 'progress is a share of the line, a finite number (0 to 1 lies on it)'), [a, b] = easeOf(ease);
   if (a > 0 && at < a) return Math.sqrt(Math.max(0, at) / a);
   if (b > 0 && at > 1 - b) return Math.sqrt(Math.max(0, 1 - at) / b);
   return 1;
@@ -91,8 +102,8 @@ export function rideProfile(ease = [0, 0], length = 0) {
 
 /** A ride's stops (rideProfile) when the ride takes only `share` of the run (above 0; 1 or more: all of it): the packet then rests at the end. */
 export function withHold(stops, share) {
-  const read = list(stops, 'stops are [[time, progress], …]', (stop, i) => pair(stop, `stop ${i + 1} is [time, progress], two numbers`, -FAR, FAR));
-  const part = number(share, Number.MIN_VALUE, FAR, 'share is the share of the run the ride takes, above 0 (1: all of it)');
+  const read = list(stops, 'stops are [[time, progress], …]', (stop, i) => pair(stop, `stop ${i + 1} is [time, progress], two finite numbers`, -Infinity, Infinity));
+  const part = number(share, ABOVE, Infinity, 'share is the share of the run the ride takes, a finite number above 0 (1: all of it)');
   return part >= 1 ? read : [...read.map(([t, p]) => [t * part, p]), [1, 1]];
 }
 
@@ -102,7 +113,7 @@ export function withHold(stops, share) {
  * over the first 12% of the ride, out over its last 15%.
  */
 export function showStops(share = 1, options = undefined) {
-  const part = number(share, Number.MIN_VALUE, FAR, 'share is the share of the run the ride takes, above 0 (1: all of it)');
+  const part = number(share, ABOVE, Infinity, 'share is the share of the run the ride takes, a finite number above 0 (1: all of it)');
   const end = option(options, 'end', false);
   if (typeof end !== 'boolean') refuse(`end says whether the packet stays at the end, true or false — not ${shown(end)}`);
   const seen = [[0, 0], [SHOW.in * part, 1]];
@@ -120,12 +131,12 @@ export function showStops(share = 1, options = undefined) {
  * back; a stretch with no length is no stretch; a line with no length has none.
  */
 export function hiddenRamps(unseen, length, speed, ease = [0, 0], options = undefined) {
-  const stretches = list(unseen, 'unseen is the stretches a block hides, [[from, to], …] in px along the line', (s, i) => pair(s, `stretch ${i + 1} is [from, to], in px along the line`, -FAR, FAR));
-  const px = lengthOf(length), steady = number(speed, 0, FAR, `a speed is px a second, 0 to ${FAR}`), [a, b] = easeOf(ease);
-  const frames = number(option(options, 'frames', 3), Number.MIN_VALUE, FAR, 'frames is how many frames a fade takes, above 0');
-  const fps = number(option(options, 'fps', 60), Number.MIN_VALUE, FAR, 'fps is frames a second, above 0');
-  const least = number(option(options, 'least', 2), 0, FAR, 'least is the fewest px a fade takes, 0 or more');
-  const radius = number(option(options, 'radius', 0), 0, FAR, "radius is the packet's own, in px, 0 or more");
+  const stretches = list(unseen, 'unseen is the stretches a block hides, [[from, to], …] in px along the line', (s, i) => pair(s, `stretch ${i + 1} is [from, to], finite px along the line`, -Infinity, Infinity));
+  const px = lengthOf(length), steady = number(speed, 0, Infinity, 'a speed is px a second, a finite number, 0 or more'), [a, b] = easeOf(ease);
+  const frames = number(option(options, 'frames', 3), ABOVE, Infinity, 'frames is how many frames a fade takes, above 0');
+  const fps = number(option(options, 'fps', 60), ABOVE, Infinity, 'fps is frames a second, above 0');
+  const least = number(option(options, 'least', 2), 0, Infinity, 'least is the fewest px a fade takes, 0 or more');
+  const radius = number(option(options, 'radius', 0), 0, Infinity, "radius is the packet's own, in px, 0 or more");
   if (!(px > 0)) return [];
   const fade = (at) => Math.max(least, (steady * speedAt(at / px, [a, b]) * frames) / fps), share = (v) => Math.min(px, Math.max(0, v)) / px;
   return stretches

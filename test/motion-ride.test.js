@@ -91,10 +91,21 @@ test('fades out before a hidden stretch and back after it, over three frames at 
   assert.deepEqual(hiddenRamps([[5, 40]], 400, 300, [0, 0], { radius: 7 }), [[0, 0, 47 / 400, 62 / 400]]);   // too near the start to fade out: hidden from it
 });
 
+test('a line far longer than a frame is still a line: any finite length and speed, as a wire through the air may be written', () => {
+  assert.equal(rideProfile([0.2, 0.2], 3e9).length, 1 + 40 + 1 + 40);
+  assert.equal(rideSeconds(3e9, 1e12), 3e9 / 1e12);
+  assert.deepEqual(hiddenRamps([], 3e9, 1e300, [0.2, 0.1]), []);
+  assert.equal(hiddenRamps([[1e9, 2e9]], 3e9, 1e300)[0].length, 4);
+});
+
 test('every number is checked, read by its own stored value, and a refusal says what to give', () => {
   const refused = (f, words) => assert.throws(f, (e) => e.message.startsWith('ride: ') && e.message.includes(words), words);
   refused(() => rideSeconds(-1, 300), "a line's length is its px");
-  refused(() => rideSeconds(300, 0), 'a speed is px a second, above 0');
+  refused(() => rideSeconds(300, 0), 'a speed is px a second, a finite number above 0');
+  refused(() => rideSeconds(300, Infinity), 'a speed is px a second, a finite number above 0');
+  // a time that cannot be counted is refused, never handed back as Infinity
+  refused(() => rideSeconds(1e9, Number.MIN_VALUE), 'takes longer than can be counted');
+  refused(() => rideSeconds(1.7e308, 1, [0.5, 0.5]), 'takes longer than can be counted');
   refused(() => rideSeconds(300, NaN), 'not NaN');
   refused(() => rideProfile([0.6, 0], 100), `each 0 to ${MOST_EASE}`);
   refused(() => rideProfile([0.2], 100), 'an ease is [a, b]');
@@ -108,7 +119,9 @@ test('every number is checked, read by its own stored value, and a refusal says 
   refused(() => showStops(1, 'end'), 'options are an object');
   refused(() => hiddenRamps('none', 100, 1), 'unseen is the stretches');
   refused(() => hiddenRamps([[0, 'x']], 100, 1), 'stretch 1 is [from, to]');
-  refused(() => hiddenRamps([], 100, -1), 'a speed is px a second, 0 to');
+  refused(() => hiddenRamps([], 100, -1), 'a speed is px a second, a finite number, 0 or more');
+  refused(() => rideProfile([0.2, 0.2], NaN), "a line's length is its px");
+  refused(() => rideProfile([0.2, 0.2], Infinity), "a line's length is its px");
   refused(() => hiddenRamps([], 100, 1, [0, 0], { fps: 0 }), 'fps is frames a second');
   refused(() => hiddenRamps([], 100, 1, [0, 0], { radius: -1 }), "radius is the packet's own");
   // a getter is somebody's code: never run, read as nothing stored
@@ -117,8 +130,12 @@ test('every number is checked, read by its own stored value, and a refusal says 
   Object.defineProperty(sneaky, 1, { get() { ran = true; return 0.1; } });
   refused(() => rideProfile(sneaky, 100), 'an ease is [a, b]');
   assert.equal(ran, false);
+  // an option a getter holds is refused, never read as left out
   const options = {};
   Object.defineProperty(options, 'radius', { get() { ran = true; return 3; }, enumerable: true });
-  assert.deepEqual(hiddenRamps([[300, 360]], 600, 300, [0, 0], options), hiddenRamps([[300, 360]], 600, 300));
+  refused(() => hiddenRamps([[300, 360]], 600, 300, [0, 0], options), 'radius is read as a stored value');
+  const ending = {};
+  Object.defineProperty(ending, 'end', { get() { ran = true; return true; } });
+  refused(() => showStops(1, ending), 'end is read as a stored value');
   assert.equal(ran, false);
 });

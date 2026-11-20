@@ -28,5 +28,5 @@ export { MOST_PORTS, readPorts } from './src/isometric/ports.js';
 export { rounded } from './src/isometric/path.js';
 export { hairpins, HAIRPINS } from './src/isometric/hairpins.js';
 export { floorUnder, crossesBox, UNDER_CELL, MOST_UNDER_SQUARES, NO_UNDER } from './src/isometric/under.js';
-export { floorLabelPlace, MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS } from './src/isometric/floorLabel.js';
+export { floorLabelPlace, MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS, MOST_OUTLINE_POINTS, MOST_LABEL_LOOKS } from './src/isometric/floorLabel.js';
 export { arrangeByGroup, GROUP_MARGIN } from './src/isometric/groups.js';
