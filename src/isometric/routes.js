@@ -328,22 +328,24 @@ export function routes(things, links = [], options = undefined) {
     }
     const point = (node) => [(first[0] + node % nx) * step, (first[1] + Math.floor(node / nx)) * step];
     const all = [start.at, ...nodes.map(point), end.at], points = all.filter((p, k) => k === 0 || k === all.length - 1 || (p[0] - all[k - 1][0]) * (all[k + 1][1] - p[1]) !== (p[1] - all[k - 1][1]) * (all[k + 1][0] - p[0]));
-    // every thing that hides a point of it — the lattice points it stands on, those of its two short runs, and its two feet
-    // (a foot is asked against every thing but its own: a round thing's foot is on its rim, inside the square it stands on)
-    const stood = [...nodes, ...start.between, ...end.between].map(point), feet = [[start.at, a], [end.at, b]];
-    work.left -= (stood.length + 2) * read.length;
-    const behind = read.filter((thing) => stood.some(([x, y]) => hidesPoint(thing, a.at[2], hides, x, y)) || feet.some(([[x, y], own]) => thing !== own && hidesPoint(thing, a.at[2], hides, x, y))).map((thing) => thing.name);
-    // the stretches of it that some thing hides, by how far along the way they are: a packet riding it can fade there, and a check can say how long
+    // every thing that hides a point of it, and where along it — asked once for each point: the lattice points it stands on, those of
+    // its two short runs, and its two feet (a foot is asked against every thing but its own: a round thing's foot is on its rim,
+    // inside the square it stands on). One pass gives both answers, so saying where costs the search nothing more than saying who.
     const way = [[start.at, a], ...[...start.between].reverse().map((node) => [point(node)]), ...nodes.map((node) => [point(node)]), ...end.between.map((node) => [point(node)]), [end.at, b]];
-    const unseen = [];
+    work.left -= way.length * read.length;
+    const hiders = new Set(), unseen = [];
     let gone = 0;
     way.forEach(([[x, y], own], k) => {
-      if (k) gone += Math.abs(x - way[k - 1][0][0]) + Math.abs(y - way[k - 1][0][1]);
-      if (!read.some((thing) => thing !== own && hidesPoint(thing, a.at[2], hides, x, y))) return;
-      const last = unseen.at(-1), before = k ? gone - (Math.abs(x - way[k - 1][0][0]) + Math.abs(y - way[k - 1][0][1])) : 0;
-      if (last && last.upTo === before) { last.upTo = gone; last.to = gone; } else unseen.push({ from: gone, to: gone, upTo: gone });
+      const step = k ? Math.abs(x - way[k - 1][0][0]) + Math.abs(y - way[k - 1][0][1]) : 0;
+      gone += step;
+      let hid = false;
+      for (const thing of read) if (thing !== own && hidesPoint(thing, a.at[2], hides, x, y)) { hid = true; hiders.add(thing); }
+      if (!hid) return;
+      // the stretches of it that some thing hides, by how far along the way they are: a packet riding it can fade there, and a check can say how long
+      const last = unseen.at(-1);
+      if (last && last.upTo === gone - step) { last.upTo = gone; last.to = gone; } else unseen.push({ from: gone, to: gone, upTo: gone });
     });
-    work.left -= way.length * read.length;
+    const behind = read.filter((thing) => hiders.has(thing)).map((thing) => thing.name);
     const tiles = points.reduce((sum, p, k) => (k ? sum + Math.abs(p[0] - points[k - 1][0]) + Math.abs(p[1] - points[k - 1][1]) : 0), 0);
     // a hidden point stands for the half step either side of it: a stretch is right to the nearest half step, not to the edge of what hides it
     const spans = unseen.map(({ from: lo, to: hi }) => [Math.max(0, lo - step / 2), Math.min(tiles, hi + step / 2)]);

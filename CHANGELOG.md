@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.13.0 — the true room on a block's top
+
+- **`grid.block(thing).room(high)`** and **`grid.cylinder(thing).room(high)`**: how wide an upright box `high` pixels
+  tall may be on a thing's top, its middle on the top's centre. The top of a block is a slanted diamond: across its
+  middle it is as wide as the block's shorter side is long, and it narrows above and below. A name fitted to the
+  rectangle round the top ran off a long thin block on both sides.
+- **`wordsToFit(text, room)`** takes that function in place of `[wide, high]`: each line is measured across its own
+  middle (the room is asked 0 for one line, one line's height for two).
+- **Fixed, from 0.12.0: `routes` laid fewer links on a very big picture.** Saying where a route is hidden (`unseen`)
+  was a second pass over its points, counted against the search's work (`MOST_WORK`), so the work ran out sooner: on
+  60 things and 600 links, 406 were laid where 0.11.0 laid 557. Who hides a route and where are now asked in one
+  pass, and the same links are laid as in 0.11.0. A picture the work covers was never affected.
+
 ## 0.12.0 — a picture that holds its links, and names that fit
 
 - **`gridFor(things, box, { also })`**: floor points the picture holds too. A link that runs round a thing reaches

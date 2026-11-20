@@ -8,11 +8,11 @@ export interface IsoBox { x: number; y: number; w: number; h: number }
 /** A thing on the floor: it stands on the tiles from `at` ([col, row] or [col, row, lift]) and is `size` ([wide, deep, high]) tiles. */
 export interface IsoThing { at: readonly number[]; size: readonly number[] }
 /** A box's faces, each four points round: its top, the side towards the lower left, the side towards the lower right. */
-export interface IsoBlock { top: IsoPoint[]; left: IsoPoint[]; right: IsoPoint[]; outline: IsoPoint[]; centre: IsoPoint; box: IsoBox }
+export interface IsoBlock { top: IsoPoint[]; left: IsoPoint[]; right: IsoPoint[]; outline: IsoPoint[]; centre: IsoPoint; box: IsoBox; /** How wide an upright box `high` pixels tall (0 when not given) may be on the top, its middle on the top's centre, inside the top: the room words have there. */ room(high?: number): number }
 /** An ellipse on the frame. */
 export interface IsoEllipse { cx: number; cy: number; rx: number; ry: number }
 /** A round thing: the ellipse of its top and of its foot. */
-export interface IsoCylinder { top: IsoEllipse; bottom: IsoEllipse; centre: IsoPoint; box: IsoBox }
+export interface IsoCylinder { top: IsoEllipse; bottom: IsoEllipse; centre: IsoPoint; box: IsoBox; /** How wide an upright box `high` pixels tall (0 when not given) may be on the round top, its middle on the top's centre. */ room(high?: number): number }
 /** A floor: its four corners, and every tile line as [x1, y1, x2, y2]. */
 export interface IsoFloor { outline: IsoPoint[]; lines: number[][]; box: IsoBox }
 
@@ -133,6 +133,8 @@ export interface FittedWords { readonly lines: readonly string[]; readonly size:
  * two, then a pixel smaller at a time down to `least` (16). `fits` is false when it does not fit even there. Counted
  * in letters: `letter` is a letter's width for each pixel of its size (0.6), `line` a line's height (1.15); a mark on
  * a letter and a character that draws nothing take no room. Broken at a space, a tab or a line end, never at a no-break
- * space. A size is from 1 to 1000 pixels, and the room no more than 1,000,000 either way.
+ * space. A size is from 1 to 1000 pixels, and the room no more than 1,000,000 either way. `room` may be a function
+ * for a face that narrows (`grid.block(thing).room`): it is asked how wide a box so tall may be — 0 for one line, one
+ * line's height for two — and what is no number above 0 is read as no room.
  */
-export function wordsToFit(text: string, room: readonly [number, number], options?: { size?: number; least?: number; letter?: number; line?: number } | null): FittedWords;
+export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number } | null): FittedWords;

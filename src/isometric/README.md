@@ -166,6 +166,14 @@ no-break space keeps two words on one line. Sizes are from 1 to 1000 pixels. The
 script whose letters are wider (Chinese, Japanese, Korean) is under-counted, and wants a bigger `letter` or a measure
 in a browser.
 
+**The room on a top face.** The top of a block is a slanted diamond, not the rectangle round it: across its middle it
+is as wide as the block's SHORTER side is long (a block 8 by 1 has a top 1 tile wide there, however long it is), and it
+narrows above and below. `grid.block(thing).room(high)` and `grid.cylinder(thing).room(high)` give the width of an
+upright box `high` pixels tall that stands on the top, its middle on the top's centre, inside the top. Give it to
+`wordsToFit` in place of `[wide, high]`: `wordsToFit('Load Balancer', grid.block(thing).room)`. Each line is then
+measured across its own middle (the room is asked 0 for one line, one line's height for two), so the top of a letter
+may pass the face's edge where the line's middle does not. Scale it to leave a margin: `(high) => 0.9 * room(high)`.
+
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
 on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:
 an earlier one is never moved for a later one), and a label's place on a way. `grid.route` is the older, simpler line:
