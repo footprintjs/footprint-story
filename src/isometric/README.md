@@ -15,6 +15,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `fit.js` | the grid on which a picture fills a box of the frame (`gridFor`) |
 | `routes.js` | the way each link runs along the floor, round what stands on it, and what there is to say of it (`routes`, `routeNote`) |
 | `path.js` | a way with its corners rounded, and the place a share along it (`rounded`) |
+| `words.js` | a name on one line or two, as big as fits a face (`wordsToFit`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -143,6 +144,27 @@ rounds each corner, from `radius` before it to `radius` after it (never over hal
 straight run to `to`, or a corner: one curve to `to`, drawn towards `corner` (SVG's `Q`, a canvas's
 `quadraticCurveTo`). `way.at(share)` is the point a share of the way along, by length. It is here and not in each
 tool so that a deck's packet and a film's frame stand at the same place on the same way.
+
+**Fitting the picture to its links too.** A link that runs round a thing reaches past the things, so a picture
+fitted to its things alone cuts such a link off. `gridFor(things, box, { also })` takes floor points the picture
+holds too: give it the routes' points (`[col, row]`, or `[col, row, lift]`).
+
+**Where a route is hidden.** `unseen` on a route is the stretches of it a thing hides, `[[from, to], …]` in tiles along
+the way from its start (empty when nothing hides it): a packet riding it can fade there, and a check can say how long
+a stretch is. It is empty exactly when `behind` is. A stretch is right to the nearest half step of the search (a
+quarter of a tile on a usual picture, more on a very big one), not to the edge of what hides it; stretches are in
+order and never touch.
+
+**A name that fits its face.** `wordsToFit('Load Balancer', [wide, high])` gives `{ lines, size, fits }`: the name on
+one line at the usual size (26), else on two lines (broken where they are most alike), else a pixel smaller at a time
+down to the least (16). `fits` is false when it does not fit even there: draw it at the least size and say so — a
+name too long for its block is the writer's to shorten, and the tool must not hide it. The whole name always comes
+back, however long; no words at all gives no lines. It is counted in letters (`letter`: 0.6 of the size, a bold sans
+face), because nothing here draws; a tool with a browser can measure after. A mark that sits on a letter and a
+character that draws nothing (a zero-width space) take no room. A name breaks at a space, a tab or a line end only: a
+no-break space keeps two words on one line. Sizes are from 1 to 1000 pixels. The count suits Latin-like letters: a
+script whose letters are wider (Chinese, Japanese, Korean) is under-counted, and wants a bigger `letter` or a measure
+in a browser.
 
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
 on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:
