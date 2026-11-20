@@ -1,6 +1,6 @@
 {
   "name": "footprint-story",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Shared JavaScript narration, shown/spoken text, captions, motion and drawing-grid primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
   "type": "module",
   "license": "MIT",
@@ -64,6 +64,10 @@
       "types": "./isometric.d.ts",
       "default": "./isometric.js"
     },
+    "./record": {
+      "types": "./record.d.ts",
+      "default": "./record.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -79,6 +83,8 @@
     "shot.d.ts",
     "isometric.js",
     "isometric.d.ts",
+    "record.js",
+    "record.d.ts",
     "src",
     "plugin",
     "README.md",
@@ -86,9 +92,23 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=record.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
   },
   "devDependencies": {
-    "fast-check": "^4.10.2"
+    "fast-check": "^4.10.2",
+    "footprintjs": "^14.1.0",
+    "foottrace": "^2.2.0"
+  },
+  "peerDependencies": {
+    "footprintjs": "^14.0.0",
+    "foottrace": "^2.1.0"
+  },
+  "peerDependenciesMeta": {
+    "footprintjs": {
+      "optional": true
+    },
+    "foottrace": {
+      "optional": true
+    }
   }
 }

@@ -21,3 +21,6 @@ export { stamp, captionFile, readCaptions } from './src/captions/file.js';
 
 // chapters — YouTube's rule, its clock and its parser
 export { clockText, readChapters, youtubeChapters } from './src/chapters/chapters.js';
+
+// said — a row of a reply is one line, whatever a project's files put in it
+export { oneLine, isOneLine, errorText } from './src/said/oneline.js';

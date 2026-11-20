@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.0 — why a value is so, and replies that stay the tool's own
+
+- **`footprint-story/record`** (a new door, Node only): `whyFromRecord({ file, control, key })` says where a value
+  of a run came from, from the run's record file alone — its value, the stage that wrote it, the decision that let
+  that stage run and what each had read, walked back. `controlEdges(commitLog, recorder)` is what a run saves beside
+  its record so the walk can cross a decision. The record is read as a file anyone may have written: bounded, one
+  run, every line of the answer one line, and one that is not whole says so first. StoryDeck and StoryReel both keep
+  such a record; this is the one reader for both. It needs `footprintjs` 14 and `foottrace` 2, as optional peer
+  dependencies: no other door needs a package.
+- **`oneLine`, `isOneLine`, `errorText`** (the root door): a row of a tool's reply is one line, whatever a project's
+  files put in it. A line break, a control character, a mark that turns the reading direction and a character that
+  draws nothing are shown as their escape, never obeyed. `errorText` says an error on one line, or on the rows its
+  tool wrote itself (`error.rows`).
+
 ## 0.13.1 — a voice kit that hangs is stopped
 
 - **`chatterboxKit` runs the kit within a time limit.** A kit that never finished (a model that does not load, a

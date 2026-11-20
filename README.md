@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Six doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Seven doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -36,9 +36,12 @@ Six doors, nothing else. A door loads only when you import it, so a page that on
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
 | `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
 | `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in — and where things stand, worked out from what is joined to what | anywhere — browser or Node; no dependencies |
+| `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
+| `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
-new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency or a release
+new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency of its own (the record door needs none:
+`footprintjs` and `foottrace` are the caller's, optional peers that both tools already have) or a release
 pace of its own.
 
 ## A story written as data
@@ -418,8 +421,9 @@ More in [src/isometric/README.md](src/isometric/README.md).
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
+| `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 

@@ -134,3 +134,14 @@ export type ChapterChange =
 export interface Chapters { lines: string[]; text: string; kept: ChapterMark[]; changes: ChapterChange[]; problems: string[] }
 /** YouTube chapters by YouTube's rules (first at 0:00, at least three, each `min` s or more), fixing what it can and saying what it did. */
 export function youtubeChapters(marks: readonly ChapterMark[], options?: { length?: number; min?: number }): Chapters;
+
+/**
+ * `text` as one line: its line breaks, control characters, marks that turn the reading direction and characters that
+ * draw nothing are shown as escapes (a line break as \n, any other as its code point), never obeyed. For every row of
+ * a tool's reply that carries words from a project's own files.
+ */
+export function oneLine(text: unknown): string;
+/** Whether a name would stay one line as written: it has none of those characters. */
+export function isOneLine(text: unknown): boolean;
+/** An error as a reply says it: its message on one line — or, when it carries `rows` (the lines its tool wrote itself), each row on one line. */
+export function errorText(error: unknown): string;
