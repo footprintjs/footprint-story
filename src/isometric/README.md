@@ -162,7 +162,9 @@ name too long for its block is the writer's to shorten, and the tool must not hi
 back, however long; no words at all gives no lines. It is counted in letters (`letter`: 0.6 of the size, a bold sans
 face), because nothing here draws; a tool with a browser can measure after. A mark that sits on a letter and a
 character that draws nothing (a zero-width space) take no room. A name breaks at a space, a tab or a line end only: a
-no-break space keeps two words on one line. Sizes are from 1 to 1000 pixels.
+no-break space keeps two words on one line. Sizes are from 1 to 1000 pixels. The count suits Latin-like letters: a
+script whose letters are wider (Chinese, Japanese, Korean) is under-counted, and wants a bigger `letter` or a measure
+in a browser.
 
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
 on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:

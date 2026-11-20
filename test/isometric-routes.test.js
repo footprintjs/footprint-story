@@ -451,6 +451,7 @@ test('wordsToFit: a name on one line, then two, then smaller — and it says whe
   assert.deepEqual(wordsToFit('Authentication Service', [173, 90]), { lines: ['Authentication', 'Service'], size: 20, fits: true });
   assert.deepEqual(wordsToFit('Supercalifragilisticexpialidocious', [173, 90]), { lines: ['Supercalifragilisticexpialidocious'], size: 16, fits: false });
   assert.deepEqual(wordsToFit('a b c d e f', [60, 90]).lines, ['a b c', 'd e f']);                                          // broken where the two lines are most alike
+  assert.deepEqual(wordsToFit('a b c', [50, 90]).lines, ['a', 'b c']);                                                      // of two breaks alike, the earlier
   assert.deepEqual(wordsToFit('Load Balancer', [173, 40]), { lines: ['Load Balancer'], size: 22, fits: true });              // room for one line only: smaller, not broken
   assert.deepEqual(wordsToFit('  Load \n Balancer ', [400, 90]).lines, ['Load Balancer']);                                   // spaces are one space
   assert.deepEqual(wordsToFit('', [100, 50]), { lines: [], size: 26, fits: true });
@@ -465,7 +466,7 @@ test('wordsToFit: a name on one line, then two, then smaller — and it says whe
   { const t0 = performance.now(), big = wordsToFit('ab '.repeat(300_000), [200, 70]); assert.equal(big.lines.join(' ').length, 899_999); assert.ok(performance.now() - t0 < 2000, 'a long name costs its length once'); }
   // a letter is what takes room: an accent written apart, a zero-width space and half of a pair count for none
   assert.equal(wordsToFit('e\u0301'.repeat(10), [170, 70]).fits, true);            // ten letters, twenty code units
-  assert.deepEqual(wordsToFit('Data\u200Bbase', [8 * 0.6 * 26, 70]).lines, ['Data\u200Bbase']);
+  assert.deepEqual(wordsToFit('Data\u200Bbase', [8 * 0.6 * 26, 70]), { lines: ['Data\u200Bbase'], size: 26, fits: true });   // eight letters: the ninth character takes no room
   assert.equal(wordsToFit('\u{1F5C4}\u{1F5C4}', [2 * 0.6 * 26, 70]).size, 26);
   // a no-break space is the writer's word: the name is not broken there
   assert.deepEqual(wordsToFit('Load\u00A0Balancer', [173, 90]), { lines: ['Load\u00A0Balancer'], size: 22, fits: true });
