@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.2 — a record with no log of the run's own is refused
+
+- `whyFromRecord` walked a mounted chart's log as the run's own when the record held no log of the run itself. Such
+  a record is now refused as changed. A log under a step the run never took is no mount of it: it is not read, and
+  the answer says so first.
+
 ## 0.14.1 — a run that mounted a chart can say why
 
 - **`whyFromRecord` reads a record that holds mounted charts' logs.** A run that mounts a chart (a subflow) writes

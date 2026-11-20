@@ -114,9 +114,13 @@ export async function whyFromRecord(options) {
   const { entries, unreadable } = await entriesOf(file, run), logs = [...readStoredRecord(entries).logs.values()];
   // a run writes one log of its own, and one for each chart it mounted (a subflow), under its own address: the walk is over
   // the run's own log. A second log that is no mount of it is a second run: the file was changed.
-  const roots = logs.filter((l) => l.address.drillPath.length === 0), log = roots[0] ?? logs[0];
-  const mounts = logs.filter((l) => l !== log && l.address.logRunId === log?.address.logRunId && l.address.drillPath.length > 0);
-  if (logs.length > 1 + mounts.length) throw new Error(`${run}'s record holds ${logs.length - mounts.length} runs, and a run writes one: it was changed, and is not read`);
+  const log = logs.find((l) => l.address.drillPath.length === 0);
+  if (logs.length && !log) throw new Error(`${run}'s record holds no log of the run's own, only a mounted chart's: it was changed, and is not read`);
+  // a mount is named by the step that mounted it: a log under this run's address whose first step is one of the run's own
+  const steps = new Set((log?.commitLog ?? []).map((bundle) => bundle.runtimeStageId));
+  const under = logs.filter((l) => l !== log && l.address.logRunId === log?.address.logRunId && l.address.drillPath.length > 0);
+  if (logs.length > 1 + under.length) throw new Error(`${run}'s record holds ${logs.length - under.length} runs, and a run writes one: it was changed, and is not read`);
+  const mounts = under.filter((l) => steps.has(l.address.drillPath[0])), stray = under.length - mounts.length;
   if (!log || !log.commitLog.length) throw new Error(`${run}'s record holds no step: ${name(file)}`);
   if (log.commitLog.length > STEPS) throw new Error(`${run}'s record holds ${log.commitLog.length} steps, more than a run takes (${STEPS} at most): it was changed, and is not read`);
   if (log.commitLog.some((b) => typeof b.runtimeStageId === 'string' && b.runtimeStageId.length > VALUE)) throw new Error(`${run}'s record names a step longer than a run names one (${VALUE} characters at most): it was changed, and is not read`);
@@ -124,7 +128,8 @@ export async function whyFromRecord(options) {
   // what is missing from the record is said before anything it answers
   const torn = [...(log.complete ? [] : ['this run did not finish: its record stops where it stopped']), ...(log.gaps.length ? [`${log.gaps.length} of its steps could not be read back`] : []),
     ...(unreadable?.length ? [`${unreadable.length} lines of its record could not be read`] : []),
-    ...(cut.lists ? [`${cut.lists} of its steps list more rows or keys read than a run writes, and were cut`] : [])];
+    ...(cut.lists ? [`${cut.lists} of its steps list more rows or keys read than a run writes, and were cut`] : []),
+    ...(stray ? [`${stray} logs in it are under no step of this run, and are not read`] : [])];
   const head = torn.length ? [`(the record is not whole — ${torn.join('; ')}: what follows is what could be read)`] : [];
   if (!findLastWriter(commits, asked)) return [...head, torn.length ? `${name(asked)}: not found in what could be read` : `${name(asked)}: no stage of this run wrote it${typeof listed === 'string' && listed ? ` (${name(listed)})` : ''}`].join('\n');
   const slice = sliceForKey(commits, asked, keysReadFromMap(readsOf(commits)), { controlDeps: controlDepsFromMap(trueEdges(control, commits)) });
