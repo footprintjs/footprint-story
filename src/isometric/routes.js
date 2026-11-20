@@ -34,7 +34,7 @@
  * last links with a `why`, never a build that hangs or a floor for every height held at once.
  */
 import { MOST_ISOMETRIC_THINGS } from './order.js';
-import { own, readThing, refuse, shown } from './thing.js';
+import { FAR, own, readThing, refuse, shown } from './thing.js';
 import { readPorts, portPlaces, SIDES, OUT } from './ports.js';
 
 /** The most links one picture lays. */
@@ -98,7 +98,7 @@ function readKeep(keep) {
     const name = own(area, 'name'), size = own(area, 'size');
     if (name !== undefined && (typeof name !== 'string' || !name || name.length > MOST_NAME)) refuse(`${what} has a name, some text of at most ${MOST_NAME} characters — not ${shown(name)}`);
     const sizes = Array.isArray(size) && size.length === 2 ? [own(size, 0), own(size, 1)] : null;
-    if (!sizes || !sizes.every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)) refuse(`${what}'s size is [wide, deep], in tiles, each above 0 — not ${shown(size)}`);
+    if (!sizes || !sizes.every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= FAR)) refuse(`${what}'s size is [wide, deep], in tiles, each above 0 and no more than ${FAR} — not ${shown(size)}`);
     const thing = readThing({ at: own(area, 'at'), size: [...sizes, 0] }, what);
     return { name: name ?? null, index: i, at: [thing.at[0], thing.at[1]], lift: thing.at[2] ?? 0, size: sizes };
   });
@@ -470,9 +470,11 @@ export function routes(things, links = [], options = undefined) {
     // its feet and its ports' leads too), by name or number, in the order given — there whenever `keep` is given
     let under = {};
     if (keep !== null) {
-      const here = keep.filter((area) => area.lift === a.at[2]);
-      work.left -= Math.max(0, points.length - 1) * here.length;
-      under = { under: here.filter((area) => points.slice(1).some((q, k) => inArea(points[k], q, area))).map((area) => area.name ?? area.index + 1) };
+      // its way on the floor: the floor run, and a port's quarter tile from its plug when the port is at floor height
+      const floorWay = path.filter((p) => Math.abs(p[2] - lift) < 1e-9).map(([x, y]) => [x, y]);
+      const here = keep.filter((area) => area.lift === lift);
+      work.left -= Math.max(0, floorWay.length - 1) * here.length;
+      under = { under: here.filter((area) => floorWay.slice(1).some((q, k) => inArea(floorWay[k], q, area))).map((area) => area.name ?? area.index + 1) };
     }
     return { from, to, points, path, feet: [start.edge, end.edge], ports: [start.port?.name ?? null, end.port?.name ?? null], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared, ...under };
   });

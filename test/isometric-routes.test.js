@@ -747,6 +747,22 @@ test('keep: under is said by the floor the drawn way crosses — an area thinner
   assert.deepEqual(under([]), []);
 });
 
+test('keep: a foot\'s run and a port\'s floor quarter tile are paid for and said', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const plain = routes(things, [['a', 'b']])[0];
+  assert.equal(plain.feet[0], 'left');
+  // floor kept clear in front of the left foot, before the first lattice line: the route leaves by the other foot
+  const r = routes(things, [['a', 'b']], { keep: [{ name: 'front', at: [0.1, 2.02], size: [1.8, 0.3] }] })[0];
+  assert.equal(r.feet[0], 'right');
+  assert.deepEqual(r.under, []);
+  // a port at floor height: its quarter tile from the plug lies on the floor, and is said
+  const ported = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 0.7, 0] }] }), thing('b', [8, 0])];
+  assert.deepEqual(routes(ported, [[{ thing: 'a', port: 'p' }, 'b']], { keep: [{ name: 'stub', at: [2.02, -6], size: [0.15, 14] }] })[0].under, ['stub']);
+  // kept floor at another height is not marked on this one: the route lies as it would with none
+  const high = [thing('a', [0, 0, 1]), thing('b', [8, 0, 1])];
+  assert.deepEqual(routes(high, [['a', 'b']], { keep: [{ at: [4, 2.2], size: [1, 1] }] })[0].points, routes(high, [['a', 'b']])[0].points);
+});
+
 test('keep: however many areas and however they overlap, the links are still laid', () => {
   const things = [thing('a', [0, 0]), thing('b', [300, 0]), thing('c', [0, 300]), thing('d', [300, 300])];
   const keep = Array.from({ length: 512 }, () => ({ at: [-10, -10], size: [320, 320] }));
@@ -759,9 +775,10 @@ test('keep: refused in words when it is not floor', () => {
   const things = [thing('a', [0, 0]), thing('b', [8, 0])];
   const bad = (keep, message) => assert.throws(() => routes(things, [['a', 'b']], { keep }), (e) => e.message.includes(message), JSON.stringify(keep));
   bad('x', 'keep is a list of floor kept clear');
-  bad([{ at: [0, 0], size: [0, 1] }], "keep 1's size is [wide, deep], in tiles, each above 0 — not [0,1]");
+  bad([{ at: [0, 0], size: [0, 1] }], "keep 1's size is [wide, deep], in tiles, each above 0 and no more than 1000000 — not [0,1]");
   bad([{ at: [0, 0], size: [1, 1, 1] }], "keep 1's size is [wide, deep]");
   bad([{ at: [0, 0], size: [NaN, 1] }], 'not [NaN,1]');
+  bad([{ at: [0, 0], size: [2e6, 1] }], "keep 1's size is [wide, deep], in tiles, each above 0 and no more than 1000000 — not [2000000,1]");
   // read by its own stored fields: a hole is refused, a getter never runs
   bad([, { at: [0, 0], size: [1, 1] }], 'keep 1 is {at: [col, row, lift?], size: [wide, deep], name?} — not undefined');
   let ran = false;
