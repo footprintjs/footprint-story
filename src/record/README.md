@@ -34,10 +34,11 @@ answer alike and are hardened alike.
   answer ends by saying so.
 
 **The record is read as a file anyone may have written** (`WHY_LIMITS`): only as a plain file of at most 8 MB, never
-through a link; it must hold one run; a name or a value in it starts no line of the answer; a step keeps at most 200
+through a link; it must hold one run (its own log, and one for each chart it mounted: the run's own is walked, and the answer says
+when there are others); a name or a value in it starts no line of the answer; a step keeps at most 200
 rows and 200 keys read (more are cut, and the answer says so); a saved decision is used only when it names an earlier
 step of this record. A record that is not whole says so first, and a value it lacks is then "not found in what could
-be read", never "never written".
+be read", never "never written". A record written without the reads (before a tool kept them) says so under its answer.
 
 `footprintjs` (14) and `foottrace` (2) are peer dependencies, optional: only this door needs them, and both tools
 have them. The walk is foottrace's (`sliceForKey`, `formatSlice`); the one-line rule is `oneLine` (the root door).
