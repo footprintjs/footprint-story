@@ -192,7 +192,7 @@ test('the kit adapter says so when the kit fails — an exit code, a missing Pyt
   chatterboxKit({ kit: '/kit', minutes: { scene: 1 }, run: (cmd, args, options) => { asked.push(options); return run(); } }).synthesize([{ id: 'k1', text: 'x' }], { work });
   assert.equal(asked[1].timeout, (10 + 1) * 60_000);
   const late = () => ({ status: null, signal: 'SIGKILL', error: Object.assign(new Error('spawnSync python ETIMEDOUT'), { code: 'ETIMEDOUT' }) });
-  assert.throws(() => chatterboxKit({ kit: '/kit', run: late }).synthesize([{ id: 'k1', text: 'x' }], { work }), /the voice kit did not finish in 20 minutes \(10 to load and 10 for each of 1 scene\) and was stopped, in \/kit — run it again \(clips it finished are kept\), or give it longer: chatterboxKit\(\{ minutes/);
+  assert.throws(() => chatterboxKit({ kit: '/kit', run: late }).synthesize([{ id: 'k1', text: 'x' }], { work }), /the voice kit did not finish in 20 minutes \(10 to load and 10 for each of 1 scene\) and was stopped, in \/kit — run it again, or give it longer: chatterboxKit\(\{ minutes/);
   for (const minutes of [{ scene: 0 }, { start: -1 }, { scene: 'long' }, { scene: Infinity }]) assert.throws(() => chatterboxKit({ kit: '/kit', minutes }), /minutes is \{ start, scene \}/);
 });
 
