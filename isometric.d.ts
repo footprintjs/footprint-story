@@ -95,7 +95,7 @@ export type IsoFoot = 'right' | 'left';
  * `crosses`: how many times it meets a route laid before it, a touch at a corner too; `shared`: the tiles of it that
  * lie on another's way for want of room (0 as a rule).
  */
-export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; readonly feet: readonly [IsoFoot, IsoFoot]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; /** The stretches of it a thing hides: [from, to] in tiles along the way from its start. */ readonly unseen: readonly (readonly [number, number])[]; readonly crosses: number; readonly shared: number }
+export interface IsoRoute { readonly from: string; readonly to: string; readonly points: readonly (readonly [number, number])[]; readonly feet: readonly [IsoFoot, IsoFoot]; readonly bends: number; readonly tiles: number; readonly behind: readonly string[]; /** The stretches of it a thing hides: [from, to] in tiles along the way from its start, right to the nearest half step, in order and apart. */ readonly unseen: readonly (readonly [number, number])[]; readonly crosses: number; readonly shared: number }
 /** A link that has no way along the floor, and why (one of NO_ROUTE). */
 export interface IsoNoRoute { readonly from: string; readonly to: string; readonly points: null; readonly why: string }
 /**
@@ -126,11 +126,13 @@ export interface RoundedWay { readonly start: readonly [number, number]; readonl
  */
 export function rounded(points: readonly (readonly [number, number])[], radius?: number): RoundedWay;
 
-/** A name set on a face: its lines (one or two), the size it is drawn at in pixels, and whether it fits the room at all. */
+/** A name set on a face: its lines (one or two, the whole name between them; none when there are no words), the size it is drawn at in pixels, and whether it fits the room at all. */
 export interface FittedWords { readonly lines: readonly string[]; readonly size: number; readonly fits: boolean }
 /**
  * `text` on one line or two, as big as fits `room` ([wide, high] in pixels): tried at `size` (26) on one line, then on
  * two, then a pixel smaller at a time down to `least` (16). `fits` is false when it does not fit even there. Counted
- * in letters: `letter` is a letter's width for each pixel of its size (0.6), `line` a line's height (1.15).
+ * in letters: `letter` is a letter's width for each pixel of its size (0.6), `line` a line's height (1.15); a mark on
+ * a letter and a character that draws nothing take no room. Broken at a space, a tab or a line end, never at a no-break
+ * space. A size is from 1 to 1000 pixels, and the room no more than 1,000,000 either way.
  */
 export function wordsToFit(text: string, room: readonly [number, number], options?: { size?: number; least?: number; letter?: number; line?: number } | null): FittedWords;

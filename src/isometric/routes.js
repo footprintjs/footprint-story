@@ -263,7 +263,7 @@ function search(grid, starts, ends, step, seen, work) {
  * the usual two-to-one view). Gives one entry a link, in the order given: its `points` ([col, row], from the foot it
  * leaves to the foot it reaches, a turn at every point between), the `feet` it uses, its `bends`, its length in `tiles`,
  * the names of the things it passes `behind` and where (`unseen`: [[from, to], …], the stretches a thing hides, in
- * tiles along the way from its start), how many routes laid before it `crosses`, and the tiles of it that lie on
+ * tiles along the way from its start, right to the nearest half step of the search), how many routes laid before it `crosses`, and the tiles of it that lie on
  * another's way for want of room (`shared`, 0 as a rule) — or `points: null` and `why` (one of NO_ROUTE).
  */
 export function routes(things, links = [], options = undefined) {
@@ -345,7 +345,7 @@ export function routes(things, links = [], options = undefined) {
     });
     work.left -= way.length * read.length;
     const tiles = points.reduce((sum, p, k) => (k ? sum + Math.abs(p[0] - points[k - 1][0]) + Math.abs(p[1] - points[k - 1][1]) : 0), 0);
-    // a hidden point stands for the half step either side of it
+    // a hidden point stands for the half step either side of it: a stretch is right to the nearest half step, not to the edge of what hides it
     const spans = unseen.map(({ from: lo, to: hi }) => [Math.max(0, lo - step / 2), Math.min(tiles, hi + step / 2)]);
     return { from, to, points, feet: [start.edge, end.edge], bends: points.length - 2, tiles, behind, unseen: spans, crosses, shared };
   });

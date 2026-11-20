@@ -151,13 +151,18 @@ holds too: give it the routes' points (`[col, row]`, or `[col, row, lift]`).
 
 **Where a route is hidden.** `unseen` on a route is the stretches of it a thing hides, `[[from, to], …]` in tiles along
 the way from its start (empty when nothing hides it): a packet riding it can fade there, and a check can say how long
-a stretch is. It is empty exactly when `behind` is.
+a stretch is. It is empty exactly when `behind` is. A stretch is right to the nearest half step of the search (a
+quarter of a tile on a usual picture, more on a very big one), not to the edge of what hides it; stretches are in
+order and never touch.
 
 **A name that fits its face.** `wordsToFit('Load Balancer', [wide, high])` gives `{ lines, size, fits }`: the name on
 one line at the usual size (26), else on two lines (broken where they are most alike), else a pixel smaller at a time
 down to the least (16). `fits` is false when it does not fit even there: draw it at the least size and say so — a
-name too long for its block is the writer's to shorten, and the tool must not hide it. It is counted in letters
-(`letter`: 0.6 of the size, a bold sans face), because nothing here draws; a tool with a browser can measure after.
+name too long for its block is the writer's to shorten, and the tool must not hide it. The whole name always comes
+back, however long; no words at all gives no lines. It is counted in letters (`letter`: 0.6 of the size, a bold sans
+face), because nothing here draws; a tool with a browser can measure after. A mark that sits on a letter and a
+character that draws nothing (a zero-width space) take no room. A name breaks at a space, a tab or a line end only: a
+no-break space keeps two words on one line. Sizes are from 1 to 1000 pixels.
 
 **Not here:** a view turned to another side (the corner is fixed, so no trimetric or plan view), shadows, a round thing
 on tiles that are not square, the fewest crossings there could be (links are laid one at a time, in the order given:

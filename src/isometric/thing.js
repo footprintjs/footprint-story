@@ -22,9 +22,10 @@ export function refuse(fix) { throw new Error(`isometric: ${fix}`); }
 /** A list of `count` (one of the lengths allowed) numbers, every index its own and finite; a new list. */
 export function numbers(v, count, what, form) {
   const ok = Array.isArray(v) && count.includes(v.length), out = [];
+  let far = false;
   // each index by its own stored value: a hole has none, and a getter is somebody's code, which is never run
-  for (let i = 0; ok && i < v.length; i += 1) { const n = own(v, i); if (!fin(n)) break; out.push(n); }
-  if (!ok || out.length !== v.length) refuse(`${what} is ${form} — not ${shown(v)}`);
+  for (let i = 0; ok && i < v.length; i += 1) { const n = own(v, i); if (!fin(n)) { far = typeof n === 'number' && Number.isFinite(n); break; } out.push(n); }
+  if (!ok || out.length !== v.length) refuse(`${what} is ${form}${far ? `, no number further than ${FAR} from 0` : ''} — not ${shown(v)}`);
   return out;
 }
 

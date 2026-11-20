@@ -407,10 +407,17 @@ test('routes: unseen says where along its way a route is hidden — nowhere when
   const at = (far) => { let left = far; for (const [p, q] of stretches(hidden)) { const run = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]); if (left <= run) return [p[0] + (q[0] - p[0]) * left / run, p[1] + (q[1] - p[1]) * left / run]; left -= run; } return hidden.points.at(-1); };
   let before = 0;
   for (const [from, to] of hidden.unseen) {
-    assert.ok(from >= before && to > from && to <= hidden.tiles + 1e-9, `${from}–${to} of ${hidden.tiles}`);
+    assert.ok(from > before - (before ? 0 : 1) && to > from && to <= hidden.tiles + 1e-9, `${from}–${to} of ${hidden.tiles}`);   // apart from the one before: two that touch are one
     assert.ok(walled.some((t) => hides(at((from + to) / 2), t, 0, MAYBE)), `the middle of ${from}–${to} is hidden`);
     before = to;
   }
+  // one picture worked by hand. The way runs along row 1 from col -4, in a lane between a low fence behind it and a wall in front
+  // (cols 5 to 7, from row 1.75, a tile high). A thing hides the floor behind it for 1.22 tiles of each tile of its height, so on
+  // row 1 the wall hides cols 3.78 to 6.25: 7.78 to 10.25 tiles along the way. One stretch, right to the nearest half step (0.25).
+  const [by] = routes([thing('a', [-6, 0]), thing('b', [12, 0]), thing('wall', [5, 1.75], [2, 40, 1]), thing('fence', [-2, -6], [12, 6.75, 0.1])], [['a', 'b']]);
+  assert.deepEqual(by.points.slice(0, 2), [[-4, 1], [11, 1]]);
+  assert.deepEqual(by.behind, ['wall']);
+  assert.deepEqual(by.unseen, [[7.75, 10.25]]);
   // on random pictures: hidden somewhere exactly when something is named
   fc.assert(fc.property(fc.array(fc.tuple(fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 4 })), { minLength: 2, maxLength: 7 }), (cells) => {
     const seen = new Set(), things = [];
@@ -424,6 +431,9 @@ test('gridFor: also — the picture holds the floor points given too, so a link 
   const things = [{ at: [0, 0], size: [2, 2, 1] }, { at: [5, -3], size: [2, 2, 1] }], box = [100, 100, 1820, 980];
   const alone = gridFor(things, box), also = [[0, 20], [30, 0], [4, 4, 2]], held = gridFor(things, box, { also });
   assert.ok(held.tile[0] < alone.tile[0]);
+  // a point over the things' own floor that reaches past them only by its height
+  const high = gridFor(things, box, { also: [[2, -1, 40]] }), top = high.at(2, -1, 40);
+  assert.ok(high.tile[0] < alone.tile[0] && top.y >= box[1] - 1e-6, `a point 40 tiles up is in the box: ${top.y}`);
   for (const [col, row, lift = 0] of also) { const { x, y } = held.at(col, row, lift); assert.ok(x >= box[0] - 1e-6 && x <= box[2] + 1e-6 && y >= box[1] - 1e-6 && y <= box[3] + 1e-6, `${[col, row]} lands at ${[x, y]}`); }
   for (const t of things) { const { box: b } = held.block(t); assert.ok(b.x >= box[0] - 1e-6 && b.x + b.w <= box[2] + 1e-6 && b.y >= box[1] - 1e-6 && b.y + b.h <= box[3] + 1e-6); }
   // points inside what the things already reach change nothing; none given is the grid it always was
@@ -446,6 +456,19 @@ test('wordsToFit: a name on one line, then two, then smaller — and it says whe
   assert.deepEqual(wordsToFit('', [100, 50]), { lines: [], size: 26, fits: true });
   assert.deepEqual(wordsToFit('Queue', [100, 50], { size: 40, least: 10, letter: 0.5, line: 1 }), { lines: ['Queue'], size: 40, fits: true });
   assert.deepEqual(wordsToFit('Queue', [50, 50], null), { lines: ['Queue'], size: 16, fits: true });
+  // the whole name comes back, however long: nothing is cut, so "fits" is never said of half a name
+  const long = `${'a'.repeat(395)} Database`, far = wordsToFit(long, [1e5, 1e5]);
+  assert.equal(far.lines.join(' '), long);
+  assert.deepEqual(wordsToFit(`${' '.repeat(5000)}Payments`, [200, 70]), { lines: ['Payments'], size: 26, fits: true });
+  assert.equal(wordsToFit(`Primary ${'x'.repeat(400)} Store`, [200, 70]).fits, false);
+  assert.deepEqual(wordsToFit(`Primary ${'x'.repeat(400)} Store`, [200, 70]).lines, ['Primary', `${'x'.repeat(400)} Store`]);
+  { const t0 = performance.now(), big = wordsToFit('ab '.repeat(300_000), [200, 70]); assert.equal(big.lines.join(' ').length, 899_999); assert.ok(performance.now() - t0 < 2000, 'a long name costs its length once'); }
+  // a letter is what takes room: an accent written apart, a zero-width space and half of a pair count for none
+  assert.equal(wordsToFit('e\u0301'.repeat(10), [170, 70]).fits, true);            // ten letters, twenty code units
+  assert.deepEqual(wordsToFit('Data\u200Bbase', [8 * 0.6 * 26, 70]).lines, ['Data\u200Bbase']);
+  assert.equal(wordsToFit('\u{1F5C4}\u{1F5C4}', [2 * 0.6 * 26, 70]).size, 26);
+  // a no-break space is the writer's word: the name is not broken there
+  assert.deepEqual(wordsToFit('Load\u00A0Balancer', [173, 90]), { lines: ['Load\u00A0Balancer'], size: 22, fits: true });
 });
 
 test('wordsToFit: what fits does fit — every line inside the room at the size given (random names and rooms)', () => {
@@ -465,4 +488,7 @@ test('wordsToFit: refuses what it cannot read, naming the fix', () => {
   assert.throws(() => wordsToFit('a', [10, 10], 'big'), /takes its options as \{size, least, letter, line\}/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 10, least: 20 }), /least no more than size/);
   assert.throws(() => wordsToFit('a', [10, 10], { letter: 0 }), /letter and line above 0/);
+  assert.throws(() => wordsToFit('a', [10, 10], { size: 2000 }), /from 1 to 1000/);
+  assert.throws(() => wordsToFit('a', [10, 10], { size: 1e-300, least: 1e-300 }), /from 1 to 1000/);
+  assert.throws(() => wordsToFit('a', [1e7, 10]), /no number further than 1000000 from 0/);
 });

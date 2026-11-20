@@ -5,11 +5,13 @@
 - **`gridFor(things, box, { also })`**: floor points the picture holds too. A link that runs round a thing reaches
   past the things, and a picture fitted to its things alone cut it off: give `also` the routes' points.
 - **`unseen`** on a route (`routes`): the stretches of it a thing hides, `[[from, to], …]` in tiles along the way from
-  its start, empty exactly when `behind` is. A packet riding the route can fade there; a check can say how long a
+  its start, right to the nearest half step, empty exactly when `behind` is. A packet riding the route can fade there; a check can say how long a
   hidden stretch is.
 - **`wordsToFit(text, [wide, high])`**, in `footprint-story/isometric`: a name on one line, else on two (broken where
   the lines are most alike), else smaller, down to a least size — `{ lines, size, fits }`. `fits` is false when it does
-  not fit even there, so a tool can say so and never hide a name. Counted in letters: nothing here draws.
+  not fit even there, so a tool can say so and never hide a name: the whole name always comes back. Counted in letters
+  (a mark on a letter and a zero-width character take no room): nothing here draws. A no-break space is never broken at.
+- A refusal for a number too far from 0 now says the limit (1,000,000).
 
 ## 0.11.0 — links that lie on the floor
 
