@@ -41,8 +41,8 @@ export const MOST_OUTLINE_POINTS = 64;
 const MOST_SIDE = 256;
 /**
  * The most looks one label spends finding its place: a look is one outline's box asked against the words' strip, or one
- * point projected in the overlap test. WHY a limit: whatever is handed in, a label costs no more than this (well under
- * a second). Outlines are asked by their boxes first, so a picture's own — a few near the edge — spend a few thousand.
+ * point projected in the overlap test. WHY a limit: whatever is handed in, a label costs no more than this (about a
+ * second at worst on a laptop). Outlines are asked by their boxes first, so a picture's own — a few near the edge — spend a few thousand.
  */
 export const MOST_LABEL_LOOKS = 50_000_000;
 

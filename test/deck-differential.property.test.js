@@ -89,7 +89,13 @@ test('floorUnder: the floor under a box is what StoryDeck 0.27.0 found; a box it
 
 test('crossesBox: whether a way passes through a box, as StoryDeck 0.27.0 asked it — on the box\'s own edges too', () => {
   const v = fc.oneof({ weight: 12, arbitrary: fc.oneof(fc.integer({ min: -20, max: 120 }), fc.double({ min: -20, max: 120, noNaN: true }), fc.constantFrom(0, 100, 10, 60)) }, { weight: 1, arbitrary: fc.constantFrom(NaN, Infinity, -Infinity, 1e308) });
-  fc.assert(fc.property(fc.array(fc.tuple(v, v), { maxLength: 6 }), fc.record({ x: fc.constantFrom(0, 10, 33.3, NaN), y: fc.constantFrom(0, 10, -Infinity), w: fc.constantFrom(50, 90, 0.5, Infinity), h: fc.constantFrom(50, 0.5) }), (pts, b) => assert.equal(crossesBox(pts, b), keep0.crossesBox(pts, b))), { numRuns: RUNS });
+  fc.assert(fc.property(fc.array(fc.tuple(v, v), { maxLength: 6 }), fc.record({ x: fc.constantFrom(0, 10, 33.3, NaN), y: fc.constantFrom(0, 10, -Infinity), w: fc.constantFrom(50, 90, 0.5, Infinity), h: fc.constantFrom(50, 0.5) }), (pts, b) => {
+    // a box or a point no number places is crossed by nothing now (0.27.0's arithmetic fell through to true); elsewhere the same answer
+    // (a stretch with an end no number places crosses nothing; the others are asked as 0.27.0 asked them)
+    const boxed = [b.x, b.y, b.w, b.h].every(Number.isFinite);
+    const expected = boxed && pts.slice(1).some((q, k) => [...pts[k], ...q].every(Number.isFinite) && keep0.crossesBox([pts[k], q], b));
+    assert.equal(crossesBox(pts, b), expected);
+  }), { numRuns: RUNS });
 });
 
 test('floorLabelPlace: a floor\'s label lies where StoryDeck 0.27.0 laid it, round blocks and routes over its edge', () => {

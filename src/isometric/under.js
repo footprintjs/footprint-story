@@ -101,8 +101,11 @@ export function floorUnder(box, grid, options = undefined) {
 export function crossesBox(points, box) {
   const way = framePoints(points, 'crossesBox: the way', { anyNumber: true });
   const [x, y, w, h] = readBox(box, false, 'crossesBox: the box');
+  // a box or a point no number places (NaN, Infinity) is crossed by nothing: never true by arithmetic falling through
+  if (![x, y, w, h].every(Number.isFinite)) return false;
   return way.slice(1).some(([qx, qy], k) => {
     const [px, py] = way[k];
+    if (![px, py, qx, qy].every(Number.isFinite)) return false;
     let t0 = 0, t1 = 1;
     for (const [delta, lo, hi, from] of [[qx - px, x, x + w, px], [qy - py, y, y + h, py]]) {
       if (Math.abs(delta) < 1e-12) { if (!(from > lo + 1e-9 && from < hi - 1e-9)) return false; continue; }

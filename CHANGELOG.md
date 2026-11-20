@@ -25,7 +25,7 @@ StoryDeck's threw its own sentence (StoryDeck says both in its words, as before)
 - **`floorUnder(box, grid, { lift, most })`** and **`crossesBox(points, box)`**: the floor under a box of the frame as
   `routes`' `keep` takes it, and whether a way on the frame passes strictly inside a box. A box with no floor answers
   `{ stretches: null, why, squares }`, `why` one of `NO_UNDER` (`far`, `big`, `most`), where StoryDeck threw its own
-  sentence: the deck words it now. A box placed at NaN or Infinity is far, as it was; `crossesBox` takes any numbers. `UNDER_CELL` (0.5) and `MOST_UNDER_SQUARES` (200,000) are exported.
+  sentence: the deck words it now. A box placed at NaN or Infinity is far, as it was; `crossesBox` takes any numbers, and a box or a stretch end that no number places (NaN, Infinity) is crossed by nothing. `UNDER_CELL` (0.5) and `MOST_UNDER_SQUARES` (200,000) are exported.
 - **`floorLabelPlace(floor, grid, text, covers, { icon })`**: where a floor's name lies along its front edge, clear of
   what stands there; `MOST_FLOOR_LABEL` (120 letters), `FLOOR_LABEL_ICON` (1.5). Its work is bounded now: a floor at
   most 256 tiles a side (so at most 512 places), outlines of at most `MOST_OUTLINE_POINTS` (64) points and
