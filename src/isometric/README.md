@@ -181,12 +181,14 @@ order and never touch.
 
 **Floor kept clear.** `routes(things, links, { keep })` takes floor that words float over —
 `keep: [{ at: [col, row, lift?], size: [wide, deep], name? }, …]`, at most 512 — and a route goes round it where it can:
-a step onto kept floor costs KEPT (4 tiles a tile) more, more than a short way round, less than closed floor. Where
-there is no other way the route runs over it, and `under` on the route names what it could not keep off (its `name`,
-or its number from 1), in the order given; `under` is there only when `keep` is given. Kept floor is no thing: it
-never changes the lattice's step (a picture's other routes lie as they did), and it is asked at its own height
-(`lift`, 0 when left out). WHY a cost and not a wall: words over a picture are a reason to go round, never a reason to
-leave a link with no route.
+a stretch of the way that passes inside kept floor costs KEPT (4 tiles a tile) more, more than a short way round,
+less than closed floor. Where there is no other way the route runs over it, and `under` on the route names every area
+its drawn way passes strictly inside (its runs out of its feet and its ports' leads too; along an edge is not inside),
+by `name` or by number from 1, in the order given — overlapping areas each named. `under` is there whenever `keep` is
+given (`[]` when it crossed none) and absent otherwise. Kept floor is no thing: it never changes the lattice's step
+(a picture's other routes lie as they did), it is asked at its own height (`lift`, 0 when left out), and however many
+areas there are, or however they overlap, marking them costs the lattice's work, never a link's route. WHY a cost
+and not a wall: words over a picture are a reason to go round, never a reason to leave a link with no route.
 
 **A name that fits its face.** `wordsToFit('Load Balancer', [wide, high])` gives `{ lines, size, fits }`: the name on
 one line at the usual size (26), else on two lines (broken where they are most alike), else a pixel smaller at a time

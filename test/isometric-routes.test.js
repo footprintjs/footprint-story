@@ -701,7 +701,7 @@ test('keep: a route goes round floor kept clear where there is a way, and says n
   // no point of it inside the kept floor
   for (const [p, q] of stretches(r)) for (let t = 0; t <= 1; t += 0.05) {
     const x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t;
-    assert.ok(!(x >= 4 && x <= 5 && y >= 2 && y <= 3), `${x} ${y}`);
+    assert.ok(!(x > 4 && x < 5 && y > 2 && y < 3), `${x} ${y}`);   // strictly inside: along its edge is not under it
   }
   assert.notDeepEqual(r.points, plain.points);
 });
@@ -729,11 +729,46 @@ test('keep: kept floor is asked at its own height', () => {
   assert.deepEqual(at1.under, ['high']);
 });
 
+test('keep: under is said by the floor the drawn way crosses — an area thinner than a step, a foot\'s run, a port\'s lead, every one of overlapping areas', () => {
+  const things = [thing('a', [0, 0]), thing('b', [8, 0])];
+  const under = (keep, more = things, links = [['a', 'b']]) => routes(more, links, { keep })[0].under;
+  // thinner than the lattice's step, holding no point of it: the walled way crosses it, and says so
+  assert.deepEqual(under([{ name: 'thin', at: [4.1, -6], size: [0.3, 14] }]), ['thin']);
+  // with a way round, it is gone round (the search pays for the stretches that cross it, not only the points in it)
+  assert.deepEqual(under([{ name: 'short', at: [4.1, -1], size: [0.3, 4] }]), []);
+  // in front of a foot, before the first lattice line
+  assert.deepEqual(under([{ name: 'front', at: [1.6, 2.05], size: [14, 0.3] }]), ['front']);
+  // a port's lead off the lattice
+  const ported = [thing('a', [0, 0], [2, 2, 1], { ports: [{ name: 'p', at: [2, 0.7, 0.5] }] }), thing('b', [8, 0])];
+  assert.deepEqual(routes(ported, [[{ thing: 'a', port: 'p' }, 'b']], { keep: [{ name: 'jog', at: [2.05, 0.55], size: [0.4, 0.3] }, { name: 'wall', at: [4, -6], size: [1, 14] }] })[0].under, ['jog', 'wall']);
+  // overlapping areas: each is named, in the order given
+  assert.deepEqual(under([{ name: 'outer', at: [3.9, -6], size: [1.2, 14] }, { name: 'inner', at: [4, -6], size: [1, 14] }, { name: 'same', at: [4, -6], size: [1, 14] }]), ['outer', 'inner', 'same']);
+  // a keep that names nothing near still says under: given keep, there is always an answer
+  assert.deepEqual(under([]), []);
+});
+
+test('keep: however many areas and however they overlap, the links are still laid', () => {
+  const things = [thing('a', [0, 0]), thing('b', [300, 0]), thing('c', [0, 300]), thing('d', [300, 300])];
+  const keep = Array.from({ length: 512 }, () => ({ at: [-10, -10], size: [320, 320] }));
+  const laid = routes(things, [['a', 'b'], ['c', 'd'], ['a', 'c']], { keep });
+  for (const r of laid) assert.ok(r.points, r.why);
+  for (const r of laid) assert.equal(r.under.length, 512);
+});
+
 test('keep: refused in words when it is not floor', () => {
   const things = [thing('a', [0, 0]), thing('b', [8, 0])];
   const bad = (keep, message) => assert.throws(() => routes(things, [['a', 'b']], { keep }), (e) => e.message.includes(message), JSON.stringify(keep));
   bad('x', 'keep is a list of floor kept clear');
-  bad([{ at: [0, 0], size: [0, 1] }], 'keep 1');
+  bad([{ at: [0, 0], size: [0, 1] }], "keep 1's size is [wide, deep], in tiles, each above 0 — not [0,1]");
+  bad([{ at: [0, 0], size: [1, 1, 1] }], "keep 1's size is [wide, deep]");
+  bad([{ at: [0, 0], size: [NaN, 1] }], 'not [NaN,1]');
+  // read by its own stored fields: a hole is refused, a getter never runs
+  bad([, { at: [0, 0], size: [1, 1] }], 'keep 1 is {at: [col, row, lift?], size: [wide, deep], name?} — not undefined');
+  let ran = false;
+  const sly = [];
+  Object.defineProperty(sly, 0, { get() { ran = true; return { at: [0, 0], size: [1, 1] }; }, enumerable: true });
+  assert.throws(() => routes(things, [['a', 'b']], { keep: sly }), /keep 1 is/);
+  assert.equal(ran, false);
   bad([{ at: [0, 0], size: [1, 1], name: '' }], 'keep 1 has a name');
   bad([{ at: ['a', 0], size: [1, 1] }], 'keep 1');
   bad(Array.from({ length: 513 }, () => ({ at: [0, 0], size: [1, 1] })), 'keep names at most 512 stretches of floor, not 513');
