@@ -660,3 +660,26 @@ test('ports: a back port names its own thing, wherever its floor is in view; a b
   assert.throws(() => readPorts([], [1, 1, 1], 'no', 'x'), /x's round says whether it is round/);
   assert.throws(() => readPorts([], [1, 1, 1], false, 5), /readPorts names the thing it reads, as text/);
 });
+
+test('ports: crossings at a back-left end are counted once, a later port\'s run across an earlier route is counted, a reused port does not hook across its own run', () => {
+  // a port's run laid after a route that runs across its way out: it cannot go round, so it says so
+  const t0 = { name: 't0', at: [6.9, 4.1], size: [1, 1, 0], ports: [{ name: 'p0', at: [0.3641762542724609, 1, 0] }, { name: 'p2', at: [0.44620361328125, 1, 0], face: 'left' }] };
+  const t1 = { name: 't1', at: [7, 0.3], size: [1.9, 1, 0.5], ports: [{ name: 'p0', at: [1.1031759757995605, 0, 0.1777] }, { name: 'p2', at: [1.9, 0.16422142028808592, 0.1253] }] };
+  const [first, second] = routes([t0, t1], [[{ thing: 't1', port: 'p0' }, { thing: 't0', port: 'p0' }], [{ thing: 't1', port: 'p2' }, { thing: 't0', port: 'p2' }]]);
+  const segs = (r) => r.points.slice(1).map((p, i) => [r.points[i], p]);
+  const across = ([a, b], [c, d]) => { const h = a[1] === b[1]; if (h === (c[1] === d[1])) return false; const [H, V] = h ? [[a, b], [c, d]] : [[c, d], [a, b]]; const y = H[0][1], x = V[0][0]; return x > Math.min(H[0][0], H[1][0]) - 1e-9 && x < Math.max(H[0][0], H[1][0]) + 1e-9 && y > Math.min(V[0][1], V[1][1]) - 1e-9 && y < Math.max(V[0][1], V[1][1]) + 1e-9; };
+  const met = segs(second).reduce((n, s) => n + segs(first).filter((t) => across(s, t)).length, 0);
+  assert.ok(second.crosses >= Math.min(1, met), `meets the first ${met} times and says it crosses ${second.crosses}`);
+  // a port on a lattice line used three times: the third does not come back across its own run out
+  const a = { name: 't0', at: [1, 5.76, 1.3], size: [2.7, 1.3, 2], ports: [{ name: 'p0', at: [0.5, 0, 1.8] }] }, b = { name: 't1', at: [8, 2.5, 1.3], size: [2.7, 1.9, 1] };
+  const laid = routes([a, b], [['t1', { thing: 't0', port: 'p0' }], ['t1', { thing: 't0', port: 'p0' }], [{ thing: 't0', port: 'p0' }, 't1']]);
+  for (const r of laid.filter((x) => x.points)) {
+    const run = r.ports[0] ? r.points.slice(0, 2) : r.points.slice(-2), rest = r.ports[0] ? segs(r).slice(1) : segs(r).slice(0, -1);
+    const node = r.ports[0] ? run[1] : run[0];   // where the run meets the lattice: a route touches its run there
+    for (const s of rest) assert.ok(!across(s, run) || s.some((p) => p[0] === node[0] && p[1] === node[1]), `${JSON.stringify(r.points)} hooks across its own run`);
+  }
+  // a back-left end: a crossing at its last lattice point is counted once whether the route comes straight in or turns in
+  const left = { name: 'L', at: [6, 0], size: [2, 2, 1], ports: [{ name: 'in', at: [0, 1, 0.5] }] }, src = thing('S', [0, 0]), cut = thing('C', [3, -4]), low = thing('D', [3, 4]);
+  const [, through] = routes([left, src, cut, low], [['C', 'D'], ['S', { thing: 'L', port: 'in' }]]);
+  assert.ok(through.crosses <= 1, `counts ${through.crosses}`);
+});

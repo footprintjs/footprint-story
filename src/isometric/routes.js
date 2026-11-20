@@ -215,11 +215,16 @@ const crossedAt = ({ nx, alongCols, alongRows }, node, cols) => Boolean(cols ? a
 /** How many routes laid before run across a place's own run: at the lattice points on it, and at the one in front (`front`). */
 const runCrossings = (grid, place, front) => [...(front ? [place.node] : []), ...place.between].filter((node) => crossedAt(grid, node, place.way % 2 === 0)).length;
 
+/** How many routes laid before run across a port's run out (its `cuts`, which lie between lattice points): it cannot go round them, so it pays for each and says so. */
+const cutCrossings = ({ alongCols, alongRows }, place) => (place.cuts ?? []).filter((key) => (key % 2 ? alongRows : alongCols)[Math.floor(key / 2)]).length;
+
 /** The cheapest way over the lattice from one of `starts` to one of `ends` (places): {nodes, start, end, cost}, or null. `work`: {left}. */
 function search(grid, starts, ends, step, seen, work) {
   const { nx, ny, closed, hidden, alongCols, alongRows, taken, cut } = grid, stamp = (seen.turn += 1);
   // this link's own ports' runs out are not crossed either
   const own = new Set([...starts, ...ends].flatMap((p) => p.cuts ?? [])), crosses = (key) => cut.has(key) || own.has(key);
+  // nor the lattice points on its own ports' runs out: a route does not hook back across the run it left by
+  const onOwn = new Set([...starts, ...ends].flatMap((p) => (p.port ? p.between : [])));
   const goals = new Map(ends.map((p) => [p.node, p]));
   // how far a point is from the box round the points to reach, along the lattice: never more than the way still to go,
   // and one sum whatever the number of places (a thing thousands of tiles wide has thousands)
@@ -229,7 +234,7 @@ function search(grid, starts, ends, step, seen, work) {
   const lies = (p) => { const kept = p.way % 2 === 0 ? alongCols : alongRows; return p.run.filter((stretch) => kept[stretch]).length; };
   // what a place costs: its run (three times more over hidden floor), being off the foot's middle, being taken, lying
   // on another's stretch, and crossing the routes laid before — `front`: whether the lattice point's own crossing is its to pay
-  const placeCost = (p, front) => p.stub * (p.hidden ? 1 + HIDDEN : 1) + p.off * OFF_MIDDLE + p.turn + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG + runCrossings(grid, p, front) * CROSS;
+  const placeCost = (p, front) => p.stub * (p.hidden ? 1 + HIDDEN : 1) + p.off * OFF_MIDDLE + p.turn + cutCrossings(grid, p) * CROSS + (taken.has(`${p.edge} ${p.at}`) ? SHARED : 0) + lies(p) * ALONG + runCrossings(grid, p, front) * CROSS;
   const pointCost = (node) => (hidden[node] ? HIDDEN * step : 0);
   const open = heap();
   let order = 0, best = null;
@@ -257,7 +262,7 @@ function search(grid, starts, ends, step, seen, work) {
       const ni = i + WAYS[next][0], nj = j + WAYS[next][1];
       if (ni < 0 || nj < 0 || ni >= nx || nj >= ny) continue;
       const to = nj * nx + ni;
-      if (closed[to]) continue;
+      if (closed[to] || onOwn.has(to)) continue;
       const cols = next % 2 === 0, run = cols ? alongCols : alongRows;
       const stretch = next < 2 ? node : to;   // a stretch is kept at its lower end
       if (crosses(stretch * 2 + (cols ? 0 : 1))) continue;
@@ -324,14 +329,14 @@ export function routes(things, links = [], options = undefined) {
     if (startsAt?.why || endsAt?.why) return none(from, to, NO_ROUTE.port);
     const starts = portA ? startsAt.list : placesOf(a), ends = starts && (portB ? endsAt.list : placesOf(b));
     if (!starts || !ends) return none(from, to, NO_ROUTE.work);
-    if (!starts.length || !ends.length) return none(from, to, step > fine ? NO_ROUTE.wide : NO_ROUTE.foot);
+    if (!starts.length || !ends.length) return none(from, to, step > fine ? NO_ROUTE.wide : (portA && !starts.length) || (portB && !ends.length) ? NO_ROUTE.port : NO_ROUTE.foot);
     const found = search(grid, starts, ends, step, seen, work);
     if (!found) return none(from, to, work.left <= 0 ? NO_ROUTE.work : NO_ROUTE.way);
     // the way is kept: its stretches, so a later link takes the lane beside it, and its two places
     const { nx, alongCols, alongRows, taken, first } = grid, { nodes, start, end } = found;
     // what it crosses: at its first lattice point and along its two short runs, as on the way between
-    const straightIn = nodes.length > 1 && (Math.abs(nodes.at(-1) - nodes.at(-2)) === 1) === (end.way === 0);
-    let crosses = runCrossings(grid, start, true) + runCrossings(grid, end, !straightIn), shared = 0;
+    const straightIn = nodes.length > 1 && (Math.abs(nodes.at(-1) - nodes.at(-2)) === 1) === (end.way % 2 === 0);
+    let crosses = runCrossings(grid, start, true) + runCrossings(grid, end, !straightIn) + cutCrossings(grid, start) + cutCrossings(grid, end), shared = 0;
     for (const place of [start, end]) {
       const kept = place.way % 2 === 0 ? alongCols : alongRows;
       if (taken.has(`${place.edge} ${place.at}`)) shared += place.stub;

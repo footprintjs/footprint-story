@@ -16,6 +16,9 @@
   `ports: [null, null]` — but for one fix: two hidden stretches of a route that touch (or overlap) are one now in
   `unseen`, as its docs always said; a float test split them.
 - `points`, `tiles`, `bends` and `unseen` are of a route's floor run; `path` adds each port's way out and riser.
+- No route crosses a port's run out between two lattice points, nor hooks back across its own; a port's run laid
+  across a route laid before it counts that crossing (`crosses`). A port within a billionth of a tile of a lattice
+  line or of the floor is on it.
 
 ## 0.14.2 — a record with no log of the run's own is refused
 

@@ -30,6 +30,8 @@ export const SIDES = Object.freeze({ right: { way: 0, axis: 0, sign: 1 }, left: 
 const NAMES = Object.keys(SIDES);
 const SEEN = new Set(['right', 'left']);
 const near = (a, b) => Math.abs(a - b) <= 1e-9;
+/** Past a limit by more than a billionth: the same measure as `near`, so a number is either near a side or outside it, never neither. */
+const beyond = (v, limit) => v - limit > 1e-9;
 
 /** The sides a point [x, y] of a thing's footprint (wide × deep) is on. */
 function sidesOf([x, y], [w, d]) {
@@ -59,7 +61,7 @@ export function readPorts(given, size, round, who) {
     const xyz = Array.isArray(at) && at.length === 3 ? [own(at, 0), own(at, 1), own(at, 2)] : null;
     if (!xyz || !xyz.every(fin)) refuse(`${who}'s port ${shown(name)} is at [x, y, z] in ${who}'s own tiles — not ${shown(at)}`);
     const [x, y, z] = xyz;
-    if (x < -1e-9 || x > w + 1e-9 || y < -1e-9 || y > d + 1e-9 || z < -1e-9 || z > h + 1e-9) refuse(`${who}'s port ${shown(name)} is at ${shown(xyz)}, outside ${who} (x from 0 to ${w}, y from 0 to ${d}, z from 0 to ${h})`);
+    if (beyond(0, x) || beyond(x, w) || beyond(0, y) || beyond(y, d) || beyond(0, z) || beyond(z, h)) refuse(`${who}'s port ${shown(name)} is at ${shown(xyz)}, outside ${who} (x from 0 to ${w}, y from 0 to ${d}, z from 0 to ${h})`);
     if (face === 'top') refuse(`${who}'s port ${shown(name)} is on the top, and a port on the top is not routed yet: put it on a side (${NAMES.join(', ')})`);
     if (face !== undefined && !NAMES.includes(face)) refuse(`${who}'s port ${shown(name)} has the face ${shown(face)}: a side is ${NAMES.join(', ')} (left and right are the two sides that face the viewer)`);
     const on = sidesOf([x, y], [w, d]);
@@ -94,7 +96,7 @@ function overThing([x0, y0], [x1, y1], { at: [c, r], size: [w, d] }) {
 export function portPlaces(thing, port, read, lift, hides, { first, nx, ny, closed }, step, standsAt, hidesPoint, reach, turn, work) {
   const { at: [c, r], size: [w, d] } = thing, { axis, sign, way } = SIDES[port.face];
   const wall = axis === 0 ? (sign > 0 ? c + w : c) : (sign > 0 ? r + d : r), given = axis === 0 ? r + port.at[1] : c + port.at[0];
-  const onLine = Math.abs(given / step - Math.round(given / step)) <= 1e-9, along = onLine ? Math.round(given / step) * step : given;
+  const onLine = Math.abs(given - Math.round(given / step) * step) <= 1e-9, along = onLine ? Math.round(given / step) * step : given;   // a billionth of a tile, whatever the step
   const foot = wall + sign * OUT, k = sign > 0 ? Math.ceil((wall + reach) / step - 1e-9) : Math.floor((wall - reach) / step + 1e-9), line = k * step;
   const xy = (n, o) => (axis === 0 ? [n, o] : [o, n]), ij = (n, m) => (axis === 0 ? [n - first[0], m - first[1]] : [m - first[0], n - first[1]]);
   const at = xy(foot, along), corner = xy(line, along);
@@ -135,5 +137,5 @@ export function portPlaces(thing, port, read, lift, hides, { first, nx, ny, clos
     const hidden = [at, ...lead].some(([x, y]) => read.some((t) => (t !== thing || !port.seen) && hidesPoint(t, lift, hides, x, y)));
     list.push({ edge: port.face, at, node: j * nx + i, way: jog ? jogWay : way, stub: Math.abs(line - foot) + jog, run, between, lead, hidden, off: 0, turn: jog ? turn : 0, port, cuts, along });
   }
-  return list.length ? { list } : { why: 'port' };
+  return { list };   // none: the lattice in front is closed, or too coarse — the caller says which
 }

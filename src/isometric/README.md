@@ -160,8 +160,9 @@ and `unseen` says how much of the floor run is hidden (none, near a corner, wher
 lattice line meets the first lattice line in front and runs along it to the next lattice point: a turn there, which
 merges into the route's own turn when it goes that way. No route crosses a port's run out between two lattice
 points (where a crossing could not be counted), and the stretch of the line in front that a port's run joins is that
-route's lane, as a foot's run is, so a second link beside it takes the next lane or says it shares. A port within a
-billionth of a tile of a lattice line, or of the floor, is taken as on it, so no step of a billionth is drawn.
+route's lane, as a foot's run is, so a second link beside it takes the next lane or says it shares. A route that must cross a port's run out laid
+before it (a port's run is fixed) counts the crossing, and pays for it. A port within a billionth of a tile of a
+lattice line, or of the floor, is taken as on it, so no step of a billionth is drawn.
 `points`, `tiles`, `bends` and `unseen` are of the floor run, from the floor point under a port's way out; `path`
 adds the stretch out of the port and its riser at each end. Whether a riser is hidden is judged by its floor point. Not yet: a port on the top, or on a round thing (both are
 refused, in words). A route whose way out of a port passes under another thing has `why: NO_ROUTE.port`; an end that
