@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.1 — a run that mounted a chart can say why
+
+- **`whyFromRecord` reads a record that holds mounted charts' logs.** A run that mounts a chart (a subflow) writes
+  that chart's log into the same file, under the run's address. 0.14.0 took it for a second run and refused the
+  record as changed. The run's own log is now walked, and the answer says that a mounted chart keeps a log of its
+  own. A second run in the file is still refused.
+- A record written without what each stage had read (by a tool that did not yet keep the reads) says so under its
+  answer, so a short walk is not taken for the whole story.
+
 ## 0.14.0 — why a value is so, and replies that stay the tool's own
 
 - **`footprint-story/record`** (a new door, Node only): `whyFromRecord({ file, control, key })` says where a value

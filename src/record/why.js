@@ -15,7 +15,8 @@
 //
 // The record is a file in a project's folder, so it is read as data anyone may have written:
 //   - only as a plain file of at most RECORD_MOST bytes, never through a link (readRecordFile);
-//   - its entries checked one by one (readStoredRecord), and it must hold one run: a second is refused;
+//   - its entries checked one by one (readStoredRecord), and it must hold one run — its own log, and one for each chart it
+//     mounted: a second run is refused;
 //   - before the walk, what the answer would show of it (a stage's name and id, a key) is made one line and cut; a step
 //     keeps at most ROWS_MOST rows and READS_MOST keys read (the walk joins the lists of every row that wrote a key), a
 //     cut is said, and a step id longer than a run writes is refused (cut, it could become another's);
@@ -111,8 +112,11 @@ export async function whyFromRecord(options) {
   if (/[.[\]]/.test(asked)) throw new Error(`why names a value by its own name (verdict, errors), not a part of one: ${JSON.stringify(asked.slice(0, 60))}`);
   if (typeof file !== 'string' || !file) throw new Error(`${run} kept no record, so it cannot say why`);
   const { entries, unreadable } = await entriesOf(file, run), logs = [...readStoredRecord(entries).logs.values()];
-  if (logs.length > 1) throw new Error(`${run}'s record holds ${logs.length} runs, and a run writes one: it was changed, and is not read`);
-  const log = logs[0];
+  // a run writes one log of its own, and one for each chart it mounted (a subflow), under its own address: the walk is over
+  // the run's own log. A second log that is no mount of it is a second run: the file was changed.
+  const roots = logs.filter((l) => l.address.drillPath.length === 0), log = roots[0] ?? logs[0];
+  const mounts = logs.filter((l) => l !== log && l.address.logRunId === log?.address.logRunId && l.address.drillPath.length > 0);
+  if (logs.length > 1 + mounts.length) throw new Error(`${run}'s record holds ${logs.length - mounts.length} runs, and a run writes one: it was changed, and is not read`);
   if (!log || !log.commitLog.length) throw new Error(`${run}'s record holds no step: ${name(file)}`);
   if (log.commitLog.length > STEPS) throw new Error(`${run}'s record holds ${log.commitLog.length} steps, more than a run takes (${STEPS} at most): it was changed, and is not read`);
   if (log.commitLog.some((b) => typeof b.runtimeStageId === 'string' && b.runtimeStageId.length > VALUE)) throw new Error(`${run}'s record names a step longer than a run names one (${VALUE} characters at most): it was changed, and is not read`);
@@ -126,5 +130,8 @@ export async function whyFromRecord(options) {
   const slice = sliceForKey(commits, asked, keysReadFromMap(readsOf(commits)), { controlDeps: controlDepsFromMap(trueEdges(control, commits)) });
   const lines = [...head, `${name(asked)} = ${shown(commitValueAt(commits, commits.length - 1, asked))}`, ...formatSlice(slice).split('\n').filter((line) => !/^SLICE for /.test(line)).map(oneLine)];
   const kept = all ? lines : lines.slice(0, LINES);
-  return [...kept, ...(lines.length > kept.length ? [`… ${lines.length - kept.length} more${typeof more === 'string' && more ? `: ${name(more)}` : ''}`] : []), OUTSIDE].join('\n');
+  // what this record does not hold is said, so a short answer is not taken for the whole story
+  const lacks = [...(commits.some((bundle) => bundle.trace.some((row) => Array.isArray(row.readKeys))) ? [] : ['(this record was written without what each stage had read, so the walk shows who wrote the value and the decisions, not the reads)']),
+    ...(mounts.length ? [`(${mounts.length === 1 ? 'a chart this run mounted keeps a log of its own' : `${mounts.length} charts this run mounted keep logs of their own`}: what happened inside is not walked here)`] : [])];
+  return [...kept, ...(lines.length > kept.length ? [`… ${lines.length - kept.length} more${typeof more === 'string' && more ? `: ${name(more)}` : ''}`] : []), ...lacks, OUTSIDE].join('\n');
 }

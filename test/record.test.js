@@ -83,6 +83,14 @@ test('why reads the record as a file anyone may have written', async (t) => {
   const torn = await ask();
   assert.match(torn, /^\(the record is not whole — /);
   assert.match(torn, /\nverdict: not found in what could be read$/);
+  // a chart the run mounted keeps a log of its own, under the run's address: the run's own log is walked, and the answer says so
+  writeFileSync(file, whole + whole.split('\n').filter(Boolean).map((line) => JSON.stringify(((e) => ({ ...e, address: { ...e.address, drillPath: ['sum#2'] } }))(JSON.parse(line)))).join('\n') + '\n');
+  const mounted = await ask();
+  assert.match(mounted, /^verdict = "fix"\nfix \(fix#5\) \[wrote: verdict\]/);
+  assert.match(mounted, /\n\(a chart this run mounted keeps a log of its own: what happened inside is not walked here\)\n/);
+  // a record written without the reads says so, under what it can answer
+  rewrite((e) => (commit(e) ? { ...e, bundle: { ...e.bundle, trace: (e.bundle.trace ?? []).map(({ readKeys, ...row }) => row) } } : e));
+  assert.match(await ask(), /\n\(this record was written without what each stage had read, so the walk shows who wrote the value and the decisions, not the reads\)\n/);
   // two runs in one file, a step id longer than a run writes, a link, a file far too big: refused in words
   writeFileSync(file, whole + whole.replace(/"logRunId":"[^"]+"/g, '"logRunId":"zzz"'));
   await assert.rejects(ask(), /run 1's record holds 2 runs, and a run writes one/);
