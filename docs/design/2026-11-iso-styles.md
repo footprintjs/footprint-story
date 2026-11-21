@@ -1,6 +1,6 @@
 # Styles for isometric maps — one design for a deck and a film
 
-Status: design, 2026-11-21. Step 1 built in footprint-story 0.23.0 (`isoStyle`, `paintPiece`); steps 2–4 to come.
+Status: design, 2026-11-21. Step 1 built in footprint-story 0.23.0 (`isoStyle`, `paintPiece`). Steps 2–4 are now planned in `2026-11-map-flow.md`: the painters plug into the map flow.
 
 ## The idea
 
