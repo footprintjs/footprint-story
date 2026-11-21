@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.21.0 — a lead into a port, worked out once
+
+- **`footprint-story/isometric` · `cableLead(cable, end, count, back)`**: a cable's lead into a port — the stretch a
+  tool draws again over the port's block, from the port up or down its riser and on through its floor corner — as
+  `{way, pieces, length}`: the line rounded from that end (its tip pulled back for a head, `stopShort`), the lead's
+  pieces, and their length in px; `length / cableWay(…).length` is the share of the line where a packet passes onto
+  it. From StoryDeck 0.30.1's `deck/transforms.js · leadOf` and `deck/rides.js · piecesLength`, the same numbers
+  wherever StoryDeck's lead ended at its floor point (a property test against copies of StoryDeck's code; a zero's
+  sign aside). **Differences from the code it replaced:** StoryDeck counted the lead's pieces (2, or 4 with a riser);
+  where a riser is too short for a straight run between its two corners, or the floor point is no corner, the count
+  ran on along the floor, and the lead took in a piece of the floor run past its corner (a few px on a map's routes).
+  `cableLead` ends it at the floor point by its place among the way's points (StoryDeck 0.31.0 takes this, a fix). StoryReel 0.36.0 took the share as the straight run of the lead's
+  points, before the pull — short of the floor corner, and at a headed end counting the stretch under the head;
+  StoryReel 0.37.0 takes this one.
+
 ## 0.20.1 — stopShort asks a way's size before it reads a point
 
 - `footprint-story/isometric` · `stopShort` and `cableWay` refuse a list of more than 4,096 points (the most a way

@@ -4,7 +4,7 @@
 // the worked cases and the refusals, which are new — every value is read by its own stored value, a getter is never run.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CABLE, LABEL_PLACES, cableWay, stopShort, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, arrowHead, bentWire, curveWay, exitBox, exitOutline, headingOf, held, isometric, labelHalf, labelPlace, lanesOf, rounded, roundOutline, straightRun, walkWay } from '../isometric.js';
+import { CABLE, LABEL_PLACES, cableLead, cableWay, stopShort, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, arrowHead, bentWire, curveWay, exitBox, exitOutline, headingOf, held, isometric, labelHalf, labelPlace, lanesOf, rounded, roundOutline, straightRun, walkWay } from '../isometric.js';
 import { onStops, seenAt, seenTerms } from '../motion.js';
 
 const getter = (o, key, value) => Object.defineProperty(o, key, { get: () => value, enumerable: true });
@@ -227,4 +227,22 @@ test('cableWay: the tip pulled back for a head, corners rounded — and what it 
   assert.throws(() => stopShort(getter([[0, 0], [9, 0]], 1, [9, 0])), /the cable's last point/, 'a point behind a getter is never read');
   // read by its own stored values: a getter is never run
   assert.throws(() => cableWay(getter({}, 'points', [[0, 0], [9, 0]])), /points are a way of 2 to 4096 points/);
+});
+
+test('cableLead: the lead from a port through its floor corner, its pieces and their length — and what it refuses', () => {
+  // a port at [0, -40] down to its floor point [0, 0], along the floor to [100, 0], then on to [100, 100]
+  const cable = { points: [[0, -40], [0, 0], [100, 0], [100, 100]], radius: 20 };
+  const start = cableLead(cable, 0, 2);
+  assert.deepEqual(start.pieces.map((p) => Boolean(p.corner)), [false, true], 'the run out of the port, then the floor corner');
+  assert.ok(start.length > 40 && start.length < 40 + 20 + 20, `through the corner: ${start.length}`);
+  const end = cableLead(cable, 1, 2, 10);
+  assert.deepEqual(end.way.start, [100, 90], 'from the end, its tip pulled back for its head');
+  assert.ok(Math.abs(end.length - (cableLead(cable, 1, 2).length - 10)) < 1e-9, 'the head\'s stretch is not the lead\'s');
+  assert.equal(cableLead(cable, 0, 3).pieces.length, 4, 'a riser: two runs and two corners');
+  for (const bad of [2, -1, '0', null]) assert.throws(() => cableLead(cable, bad, 2), /^Error: isometric: cableLead's end is 0 \(the cable's start\) or 1/);
+  for (const bad of [1, 5, 2.5, '2']) assert.throws(() => cableLead(cable, 0, bad), /^Error: isometric: cableLead's count is how many of the cable's points its lead holds, a whole number from 2 to 4/);
+  for (const bad of [-1, NaN]) assert.throws(() => cableLead(cable, 1, 2, bad), /^Error: isometric: cableLead pulls the tip back/);
+  assert.throws(() => cableLead(null, 0, 2), /^Error: isometric: cableLead takes a cable, \{points, radius\}/);
+  const huge = new Array(10_000_000); huge[0] = [0, 0]; huge[9_999_999] = [9, 0];
+  assert.throws(() => cableLead({ points: huge }, 0, 2), /a way of 2 to 4096 points/, 'the size is asked before a point is read');
 });

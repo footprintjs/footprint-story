@@ -263,6 +263,8 @@ export interface HeldRun extends HeldPoints { readonly of: unknown }
 export function held(points: readonly Xy[]): { points: [number, number][]; left: number; top: number; right: number; bottom: number };
 /** A cable's points with the last pulled `back` px towards the one before (never past 1 px short of that run's start): a new list. */
 export function stopShort(points: readonly Xy[], back?: number): [number, number][];
+/** A cable's lead into a port at `end` (0 its start, 1 its end), holding `count` of its points (2, or 3 with a riser): the line rounded from that end, the lead's pieces (through its floor corner) and their length in px. */
+export function cableLead(cable: { readonly points: readonly Xy[]; readonly radius?: number }, end: 0 | 1, count: number, back?: number): { way: RoundedWay; pieces: RoundedWay['pieces']; length: number };
 /** A cable's line: `points` with the last pulled `back` px towards the one before (never past 1 px short of that run's start), corners rounded `radius` (0). */
 export function cableWay(cable: { readonly points: readonly Xy[]; readonly radius?: number }, back?: number): RoundedWay;
 /**
