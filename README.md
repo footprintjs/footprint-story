@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Nine doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Ten doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -39,6 +39,7 @@ Nine doors, nothing else. A door loads only when you import it, so a page that o
 | `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
 | `footprint-story/mapflow` | an isometric map built as a footprintjs chart, one stage per step, so a run's record says why each block stands where it does | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
+| `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; named models that plan a move from an intent, and critics that say what still looks wrong | anywhere — browser or Node; no dependencies |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 | `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
 
@@ -285,6 +286,26 @@ readPace('promo');   // { hold: 0.6, most: 0, still: 0.4, spare: 1 }: nothing st
 Moves keep their kind's law (an entrance ends at rest, an exit starts there, an ambient move loops from rest), and a
 move of your own is checked by the same laws. A drawer adds its own transitions with `extendTransitions`, checked the
 same way. More in [src/motion/README.md](src/motion/README.md).
+
+### A hand that moves like one (human)
+
+**Why:** a reach, a pen line or a letter looks human only when it follows how bodies move. The author writes the
+intent; a named model plans it from a law — the duration from Fitts's law, never a guess — and says why in words;
+critics measure the result and name what still looks wrong, with the fix. The same entry draws the same motion.
+
+```js
+import { planMove, sampleMove, checkMove } from 'footprint-story/human';
+
+const move = planMove({ do: 'reach', name: 'hand', who: 'blocks[2] ("hand")', from: [200, 600], to: [500, 200] });
+move.reason;            // "do: 'reach' → min-jerk, the usual for do: 'reach' — over 0.85 s from Fitts's law: 500 px to a 40 px target …"
+sampleMove(move, 0.4);  // { x, y, progress }: frozen, the same every time
+checkMove(planMove({ do: 'draw', path: [[100, 100], [300, 180], [420, 90]] })).findings;   // []: slower in the bends, as a hand
+```
+
+`do: 'reach'` (minimum jerk), `'draw'` (a centripetal Catmull-Rom line traced by the two-thirds power law, with a
+seeded tremor) and `'write'` (overlapping sigma-lognormal strokes); a tool adds its own model or critic under its
+prefix (`'reel:chalk'`). More in [src/human/README.md](src/human/README.md); the papers in
+[src/human/REFERENCES.md](src/human/REFERENCES.md).
 
 ### An order written once (turns)
 
@@ -551,9 +572,12 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
 | `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS`, `BREAK_RULES` | the zoom that frames a box; words broken across a width as drawn, by a named rule (fill or even) |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
+| `/human` `minJerk`, `minJerkSpeed`, `minJerkAccel`, `fittsIndex`, `fittsSeconds`, `FITTS`, `powerLawSpeed`, `powerLawTimes`, `powerLawFit`, `POWER_LAW`, `strokeBetween`, `sigmaLognormalAt`, `lognormalShare`, `lognormalSpeed`, `strokeOffset`, `strokeEnd`, `SIGMA_LOGNORMAL`, `tremorKnots`, `tremorAt`, `TREMOR` | the laws of a body's moves, each default named with its source |
+| `/human` `arcTable`, `pointAt`, `shareToDistance`, `distanceToShare`, `catmullRom`, `curvatures`, `resample` | the paths they run on: length tables, a centripetal Catmull-Rom line, curvature, resampling by distance |
+| `/human` `planMove`, `sampleMove`, `sampleTrack`, `checkMove`, `HUMAN_FAMILIES`, `HUMAN_DOS`, `HUMAN_MODELS`, `USUAL_MODELS`, `HUMAN_CRITICS` | an intent planned by a named model (its reason in words), sampled, and checked by critics that say the fix: [src/human/README.md](src/human/README.md) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -567,7 +591,7 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboa
 - **What moved from a tool frames, breaks and judges as the tool did**: the differs rules (StoryDeck 0.28.0 and
   StoryReel 0.33.0), a whole map's build (StoryReel 0.38.0), `frameZoom` (StoryDeck 0.28.0's cameras, to the last bit) and `wrapWords` / `narrowestWidth`
   (StoryReel 0.33.0's line breaking) are compared against copies of that code in `test/control/`.
-- **The main, motion, storyboard, shot, isometric and layout doors run in a browser**: nothing they reach imports a Node module, and the main
+- **The main, motion, storyboard, shot, isometric, layout and human doors run in a browser**: nothing they reach imports a Node module, and the main
   door never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).

@@ -230,3 +230,29 @@ buildIsoMap(mapSpec, { ...filmPolicy, hold: 'everything' });
 // 0.24.0: a style made again from a built map's record
 import { restyle } from 'footprint-story/isometric';
 export const again: unknown = restyle(isoStyle({ line: 'none' }), { choices: [] });
+// 0.26.0: the human door — laws, paths, models, critics
+import { minJerk, minJerkSpeed, minJerkAccel, MIN_JERK_PEAK, FITTS, fittsIndex, fittsSeconds, POWER_LAW, powerLawSpeed, powerLawTimes, powerLawFit, SIGMA_LOGNORMAL, STROKE_SIGMAS,
+  lognormalShare, lognormalSpeed, strokeEnd, strokeOffset, strokeBetween, sigmaLognormalAt, TREMOR, MOST_TREMOR_KNOTS, tremorKnots, tremorAt, arcTable, pointAt, shareToDistance,
+  distanceToShare, MOST_TABLE_POINTS, catmullRom, MOST_CURVE_POINTS, curvatures, resample, MOST_RESAMPLED, HUMAN_FAMILIES, HUMAN_DOS, HUMAN_MODELS, USUAL_MODELS, planMove, sampleMove,
+  sampleTrack, MOST_TRACK_SAMPLES, MIN_JERK_BEND, PEN_SPEED, MOST_STROKES, HUMAN_CRITICS, FINDING_LEVELS, checkMove, JERK_PEAK_SHARE, ARC_LEAST, PEN_SPEED_MOST } from 'footprint-story/human';
+import type { HumanModel, HumanCritic, HumanMove, HumanSample, HumanTrack, HumanFinding, LognormalStroke, ArcTable, HumanFamily } from 'footprint-story/human';
+
+const lawNumbers: number[] = [minJerk(0.5), minJerkSpeed(0.5), minJerkAccel(0.2), MIN_JERK_PEAK, FITTS.a + FITTS.b + FITTS.target, fittsIndex(100, 20), fittsSeconds(100), fittsSeconds(100, 20, { a: 0 }),
+  POWER_LAW.exponent, powerLawSpeed(0.01, { gain: 2 }), powerLawTimes([0, 1], [0, 0], 1)[1], powerLawFit([1, 2, 3], [3, 2, 1])?.exponent ?? 0, SIGMA_LOGNORMAL.gap, STROKE_SIGMAS, TREMOR.amplitude,
+  MOST_TREMOR_KNOTS, tremorAt(tremorKnots(Math.random, 100), 50, 100), MOST_TABLE_POINTS, MOST_CURVE_POINTS, MOST_RESAMPLED, MOST_TRACK_SAMPLES, MIN_JERK_BEND, PEN_SPEED, MOST_STROKES, JERK_PEAK_SHARE, ARC_LEAST, PEN_SPEED_MOST];
+const stroke: LognormalStroke = strokeBetween([0, 0], [10, 0], { bend: 0.3 });
+const pen = sigmaLognormalAt([stroke], strokeEnd(stroke), [0, 0], strokeEnd(stroke));
+const strokeNumbers: number[] = [lognormalShare(0.2, stroke), lognormalSpeed(0.2, stroke), strokeOffset(stroke, 1)[0], pen.vx];
+const table: ArcTable = arcTable(catmullRom([[0, 0], [10, 0], [10, 10]], { spacing: 2 }));
+const pathNumbers: number[] = [pointAt(table, 3)[0], shareToDistance(table, 0.5), distanceToShare(table, 4), curvatures(resample(table.points, { count: 5 }))[0], resample(table.points, { spacing: 2 }).length];
+const chalkPen: HumanModel = { family: 'pen', name: 'reel:chalk', options: ['grit'], checks: ['reel:wide'], plan: (intent, context) => ({ seconds: 1, r: context.random(), who: context.who }), sample: (plan, t) => ({ x: t, y: 0, width: 2 }) };
+const wide: HumanCritic = { name: 'reel:wide', limit: 1, measure: (track: HumanTrack) => track.samples.length, finding: (v, who) => (v > 1 ? { level: 'note', message: `${who}: wide`, fix: 'nearer' } : null) };
+const move: HumanMove = planMove({ do: 'draw', name: 'w', path: [[0, 0], [5, 5]], model: { name: 'reel:chalk', grit: 2 } }, { models: [chalkPen], critics: [wide], frame: [1920, 1080] });
+const penAt: HumanSample = sampleMove(move, 0.5, { models: [chalkPen], critics: [wide] });
+const findings: readonly HumanFinding[] = checkMove(move, { models: [chalkPen], critics: [wide], rate: 60 }).findings;
+const fam: HumanFamily = HUMAN_DOS.draw;
+export const human: unknown[] = [lawNumbers, strokeNumbers, pathNumbers, penAt.x + penAt.y, findings[0]?.fix, fam, HUMAN_FAMILIES, HUMAN_MODELS.reach, USUAL_MODELS.pen, HUMAN_CRITICS, FINDING_LEVELS, sampleTrack(planMove({ do: 'reach', from: [0, 0], to: [1, 1] }), { rate: 30 }).samples[0].t, move.reason];
+// @ts-expect-error an intent says what to do in its own words
+planMove({ do: 'jump' });
+// @ts-expect-error a resample is by spacing or count
+resample([[0, 0], [1, 1]], { every: 2 });
