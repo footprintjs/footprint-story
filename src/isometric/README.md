@@ -388,13 +388,13 @@ map.order       // ['web', 'db'] — the furthest first
 | Step | Reads | Writes | Decides |
 |---|---|---|---|
 | `place` | blocks, wires | `at`; `placed`, `placedWhy` | the map placed them (every block has an at), or the build from its wires (by group when any has one) |
-| `route` | blocks, at, wires | `routes` (null for a straight wire) | — |
-| `fitFloors` | blocks, at, floors, routes, policy | `floorTiles` (each floor's at and size) | — |
-| `grid` | written, area, … | `view` (tile, origin, rise); `grid`, `gridWhy` | written in numbers, or fitted to the area |
-| `shape` | blocks, floors, view, style | `shapes`, `floorShapes` (box, centre, outline, faces: the style's `shape` column) | — |
+| `route` | blocks, at, obstacles, wires, keep | `routes` (null for a straight wire) | — |
+| `fitFloors` | blocks, at, obstacles, floors, routes, policy | `floorTiles` (each floor's at and size) | — |
+| `grid` | written, placed, usualGrid, area, … | `view` (tile, origin, rise); `grid`, `gridWhy` | written in numbers, fitted to the area, or the tool's usual grid |
+| `shape` | blocks, obstacles, floors, view, style | `shapes`, `floorShapes` (box, centre, outline, faces: the style's `shape` column), `obstacleShapes` (box, centre, outline) | — |
 | `names` | blocks, at, view, policy | `names`, `smalls` (each fitted to its top) | — |
-| `order` | blocks, at, view | `order` (block names, the furthest first) | — |
-| `floorLabels` | floors, floorTiles, shapes, routes, view | `floorLabels` (each label's place, fits, covered) | — |
+| `order` | blocks, at, obstacles, view | `order` (block and obstacle names, the furthest first) | — |
+| `floorLabels` | blocks, at, obstacles, floors, floorTiles, shapes, routes, view, policy | `floorLabels` (each label's place, fits, covered) | — |
 | `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | `paints`, `floorPaints` (the style's other columns) | — |
 
 Each step is `{name, about, reads, writes, run}`: `run(state)` reads only the keys it names and gives back a new state
@@ -407,22 +407,46 @@ decider for each, so a run's record says what each step read, wrote and decided 
 
 **The spec** is the map as data, already read by the tool from its own format: `blocks` (`name`, `kind`, `at` or none,
 `size`, `label`, `small`, `rule`, `group`, `ports`, `colours`, `who`), `floors` (`name`, `at` and `size` or neither,
-`label`, `group`, `colours`, `who`), `wires` (`from`/`to` `{block, port?}`, `straight`, `who`), `grid` (`{tile, origin,
-rise?}`) or `area`, `style` (a row of choices) and `who` (the map). `who` is the tool's own words for where a piece was
+`label`, `icon`, `group`, `colours`, `who`), `wires` (`from`/`to` `{block, port?}`, `straight`, `who`), `obstacles`
+(`name`, `at`, `size`, `ports`, `who`), `keep` (`at`, `size`, `name`), `grid` (`{tile, origin, rise?}`, or `'fit'`),
+`usualGrid`, `area`, `style` (a row of choices) and `who` (the map). `who` is the tool's own words for where a piece was
 written: every refusal names it, with the fix, so a tool needs no rewording. Read by own stored fields (a getter is
-refused, never run), each list a plain list, bounded (`ISO_MAP_LIMITS`: 256 blocks and floors, 1024 wires), a key a
-piece does not take refused. The tools' rules hold: all or none of the blocks have an at, one name one piece, a group's
-floor has a block, a wire to a port runs along the floor.
+refused, never run), each list a plain list, bounded (`ISO_MAP_LIMITS`: 256 blocks, floors and obstacles, 1024 wires,
+512 stretches kept clear), a key a piece does not take refused. The tools' rules hold: all or none of the blocks have
+an at, one name one piece, a floor fitted round a group has blocks in it, a wire to a port runs along the floor, and
+the build places blocks only when nothing on the floor is placed by hand (no obstacle, no keep).
+
+**What a deck hands in (0.25.0).** StoryDeck 0.32.0 hands its map's parts four things the steps did not take; each is
+data, and left out each is nothing, so a film's map is 0.24.0's:
+
+| Input | What it is | What the steps do with it | Why |
+|---|---|---|---|
+| `obstacles` | what stands on the floor that the tool draws itself (the deck's footprints: a picture of a laptop standing by the tiles it takes) | a laid wire goes round it and may end at it (at a port of its own); a floor with no size and no group is fitted round it; a floor's label keeps clear of its block; it takes its place in `order`; `obstacleShapes` gives its box, centre and outline | the floor it takes is what the wires and labels need to know; the picture is the tool's |
+| `keep` | floor kept clear under words placed over the picture, `[{at, size, name}]` in tiles | handed to `routes` as `keep` (only when there are some, so a map that keeps none lays as before); a route's `under` names each words it could not keep off, once | the tool works the tiles out from where its words stand on the frame (`floorUnder`), on a grid that does not move |
+| a floor's `icon` | `true`: the tool draws an icon before the label | `floorLabelPlace(…, {icon: true})`: the label has that much less room | the icon takes room on the edge |
+| `usualGrid` | the grid the tool draws a map on when the map places its own blocks and writes none (the deck's: tile 120, its far corner at the slide's middle, 240 px down) | the `grid` step picks it (`grid: 'usual'`, said so in `gridWhy`) — not when the build placed the blocks, nor when the map writes `grid: 'fit'` | it depends on the slide's width, so it is data; and the record says honestly where the grid came from |
+
+Two rules changed for every tool, neither touching a map 0.24.0 built: a map may have no block (floors and obstacles on
+a written or usual grid; a fitted picture needs something to fit), and a sized floor may name a group no block has (a
+named area) — which makes the map one of groups, fitted down to the policy's `grouped` tile, as StoryDeck fits it.
 
 **The policy** is a tool's own numbers, where a deck and a film differ on purpose: `ISO_MAP_POLICIES.film` (StoryReel's
 ISO_FIT: a small line fitted down to 12 px; a fitted picture holds every floor that names a group or has a label —
 `hold: 'groups-and-labels'`) and `.deck` (StoryDeck's: the small line left as written, `small: null`; only a group's
-floor held, `hold: 'groups'`).
+floor held, `hold: 'groups'`; a block covers a floor's label by the block it stands in, `cover: 'block'` — a cylinder by
+its square box, not its round edge, because the deck's label keeps clear of the box a click lights). `cover` left out is
+`'drawn'`: the outline each block draws, the film's rule (mapSpec.js · `ISO_MAP_COVERS`).
 
 Moved from StoryReel 0.38.0's `buildMap` and pinned against a verbatim copy of it (`test/control/storyreel-0.38.0-build.mjs`):
 for random maps and the film policy, every block's at, shape, fitted name and small line, every floor's at, size, shape
 and label, every route, the grid and the paint order are the same numbers (`test/isometric-map-differential.property.test.js`).
-The deck's policy is pinned when StoryDeck builds its maps here. **Not here:** a tool's own style choices (code, which no
-record holds: the spec's style is a row of this package's choices), cables on the frame (their line, label, head, lead
-and packets — a later step: the tools differ most there), and the deck's footprints, keep-clear and callouts.
+The deck's policy is pinned against a verbatim copy of StoryDeck 0.32.0's map code (`test/control/storydeck-0.32.0-iso.js`
+and its siblings): for random deck maps written as the deck's HTML and as the spec, the grid, every block's and
+footprint's place, outline and paint level, every floor's tiles and label place, every route and every name's fit are
+the same numbers (`test/deck-map-differential.property.test.js`); and 0.25.0 builds every film map as 0.24.0 did
+(`test/isometric-map-0.24.0.property.test.js`). **Not here:** a tool's own style choices (code, which no record holds:
+the spec's style is a row of this package's choices), cables on the frame (their line, label, head, lead and packets —
+a later step: the tools differ most there), and what a deck reads from its HTML and writes into it — its pieces and
+names, a footprint's box on the slide, the keep-clear stretches worked out from a box (`floorUnder`), the icon's
+drawing, callouts, the px and levels it writes.
 

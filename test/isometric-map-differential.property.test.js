@@ -80,7 +80,10 @@ function same(spec) {
 test('the film policy is StoryReel 0.38.0\'s ISO_FIT, and a deck\'s differs only where a deck does', () => {
   const { most, least, grouped, inset, margin, name, small, clear } = reel0.ISO_FIT;
   assert.deepEqual(FILM, { fit: { most, least, grouped, inset, margin }, name: { ...name }, small: { ...small }, clear, hold: 'groups-and-labels' });
-  assert.deepEqual({ ...ISO_MAP_POLICIES.deck, small: FILM.small, hold: FILM.hold }, FILM);
+  // (0.25.0: the deck covers a floor's label by the block each piece stands in — `cover`, which the film leaves out for 'drawn')
+  const { cover, ...deck } = ISO_MAP_POLICIES.deck;
+  assert.equal(cover, 'block');
+  assert.deepEqual({ ...deck, small: FILM.small, hold: FILM.hold }, FILM);
 });
 
 test('buildIsoMap builds the map StoryReel 0.38.0 built, for random maps and the film policy', () => {

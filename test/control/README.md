@@ -37,6 +37,17 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.38.0-draw.mjs` | footprint-storyreel `src/kits/isometric/draw.mjs` at `a2f08c2` (0.38.0), lines 21, 23, 25, 26, 38 and 40–87 (`ISO_LOOK`, `channels`, `mix`, `withAlpha`, `polygon`, `drawFloor`, `drawBlock`) | `export` added to `withAlpha`, `drawFloor`, `drawBlock`; a comment line naming the source |
 | `storydeck-0.32.0-shapeOf.js` | storydeck `deck/iso.js` at `fc9e4ca` (0.32.0), lines 80–81 (`fixed`, `points`) and 301–321 (`shapeOf`) | `export` added to `shapeOf`; its imports (`floorLabelPlace`, `roundOutline`) point at `../../isometric.js`; a comment line naming the source |
 | `storyreel-0.38.0-build.mjs` | footprint-storyreel `src/kits/isometric/build.mjs` at `a2f08c2` (0.38.0), the whole file (`ISO_FIT`, `buildMap` and the steps it runs) | its import points at `../../isometric.js` |
+| `footprint-story-0.24.0-mapSteps.js` | this package's `src/isometric/mapSteps.js` at `54b2ddf` (npm 0.24.0) | its imports point at `../../src/isometric/` and at the mapSpec control below; a comment line naming the source |
+| `footprint-story-0.24.0-mapSpec.js` | this package's `src/isometric/mapSpec.js` at `54b2ddf` (npm 0.24.0) | its imports point at `../../src/isometric/`; a comment line naming the source |
+| `storydeck-0.32.0-iso.js` | storydeck `deck/iso.js` at `fc9e4ca` (0.32.0), the whole file | its imports point at `../deckDoor.js` (the package's isometric door with `floorLabelPlace` and each grid's `floor` watched — see that file; not a copy), `../../layout.js`, and the controls below (`closeOf`, which `deck/callouts.js` re-exports from `pieceRules.js`, at the pieceRules control); a comment line naming the source |
+| `storydeck-0.32.0-pieceRules.js` | storydeck `pieceRules.js` at `fc9e4ca`, the whole file | a comment line naming the source |
+| `storydeck-0.32.0-html.js` | storydeck `deck/html.js` at `fc9e4ca`, the whole file | a comment line naming the source |
+| `storydeck-0.32.0-portsWritten.js` | storydeck `deck/portsWritten.js` at `fc9e4ca`, the whole file | its import points at `../deckDoor.js`; a comment line |
+| `storydeck-0.32.0-groups.js` | storydeck `deck/groups.js` at `fc9e4ca`, the whole file | its import points at the pieceRules control; a comment line |
+| `storydeck-0.32.0-focusHtml.js` | storydeck `focusHtml.js` at `fc9e4ca`, lines 15–92 (its import, `attrOf`, `joinAttr`, `px`, `readPieces`, `SVG_PARTS`, `VOID`, `refuseNested`) | its import points at the pieceRules control; a comment line |
+| `storydeck-0.32.0-keepClear.js` | storydeck `deck/keepClear.js` at `fc9e4ca`, the whole file | its imports point at `../deckDoor.js` and the pieceRules and focusHtml controls; a comment line |
+| `storydeck-0.32.0-footprint.js` | storydeck `deck/footprint.js` at `fc9e4ca`, the whole file | its imports point at `../deckDoor.js` and the pieceRules and portsWritten controls; a comment line |
+| `storydeck-0.32.0-cable.js` | storydeck `deck/cable.js` at `fc9e4ca`, lines 17 and 23–58 (its import, `CLEAR`/`CORNER`, `layRoutes`, `reachOf`) | its import points at `../deckDoor.js`; a comment line. The test lays the wires as `deck/transforms.js` · `transformed` does (lines 515–517: `lay` and `lines`), written out in the test |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these
