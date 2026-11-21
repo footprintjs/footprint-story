@@ -35,7 +35,7 @@ const measure = (text) => text.length * 10;
 test('wrapWords: first fit, measured whole; a word too wide has a line to itself; an empty word joins as written', () => {
   assert.deepEqual(wrapWords(['Hello', 'there', 'world'], 110, measure), ['Hello there', 'world']);
   assert.deepEqual(wrapWords(['Supercalifragilistic', 'a'], 50, measure), ['Supercalifragilistic', 'a']);
-  assert.deepEqual(wrapWords([], 50, measure), ['']);
+  assert.deepEqual(wrapWords([], 50, measure), ['']);                                      // no words: one empty line, as documented
   assert.deepEqual(wrapWords(['a', '', 'b'], 30, measure), ['a ', 'b']);                   // 'a ' fits; 'a  b' does not
   assert.deepEqual(wrapWords(['', 'b'], 30, measure), ['b']);                              // a line still empty takes the next word
   assert.deepEqual(wrapWords(['a', 'b'], Infinity, measure), ['a b']);
@@ -48,7 +48,9 @@ test('wrapWords refuses what it cannot read; what measure throws is the caller\'
   assert.throws(() => wrapWords(['a', 3], 10, measure), /word 2 is a text — not 3/);
   // eslint-disable-next-line no-sparse-arrays
   assert.throws(() => wrapWords(['a', , 'c'], 10, measure), /word 2 is a text — not missing/);
-  assert.throws(() => wrapWords(Object.defineProperty(['a'], 0, { get: () => 'x' }), 10, measure), /word 1 is a text — not missing/);
+  assert.throws(() => wrapWords(Object.defineProperty(['a'], 0, { get: () => 'x' }), 10, measure), /word 1 is read as a stored value, and this one is a getter/);
+  assert.throws(() => wrapWords(['a'], NaN, measure), /width as a number — not NaN/);
+  for (const bad of [NaN, -1, Infinity, '3', undefined]) assert.throws(() => wrapWords(['a', 'b'], 10, () => bad), /measure gives a line's width, a finite number from 0 — not .* for "a b"/);
   assert.throws(() => wrapWords(['a', 'b'], 10, () => { throw new Error('mine'); }), /^Error: mine$/);
 });
 
@@ -63,5 +65,8 @@ test('narrowestWidth: halves NARROWEST_STEPS times and gives the upper end', () 
   assert.equal(asked, NARROWEST_STEPS);
   assert.equal(narrowestWidth(100, 1, () => 1), 100 / 4096);
   assert.throws(() => narrowestWidth('1', 1, () => 1), /^Error: layout: narrowestWidth takes the width and the line count as numbers/);
+  assert.throws(() => narrowestWidth(NaN, 1, () => 1), /as numbers — not NaN and 1/);
+  assert.throws(() => narrowestWidth(10, NaN, () => 1), /as numbers — not 10 and NaN/);
+  assert.throws(() => narrowestWidth(Infinity, 1, () => 1), /as numbers/);
   assert.throws(() => narrowestWidth(1, 1, 1), /counts lines with a function \(width\) => lines — not 1/);
 });

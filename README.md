@@ -442,9 +442,9 @@ const lines = wrapWords(words, 600, measure);                               // f
 const even = wrapWords(words, narrowestWidth(600, lines.length, (w) => wrapWords(words, w, measure).length), measure);   // balanced
 ```
 
-`frameZoom` is StoryDeck's zoom, fit and side-mover rule: contain the box in the room, take `share` of that, hold it
-between `least` and `most` (`smallest` counts a point as a pixel). `wrapWords` and `narrowestWidth` are StoryReel's
-title, end-card, summary-card and caption breaking. A name on a block's face is `wordsToFit` (isometric), which now
+`frameZoom` is the one framing rule: StoryDeck's zoom, fit and side movers and StoryReel's focus and pushes contain the
+box in the room, take `share` of that and hold it between `least` and `most` (`smallest` counts a point as a pixel).
+`wrapWords` and `narrowestWidth` are StoryReel's title, end-card, summary-card, whiteboard-title and caption breaking. A name on a block's face is `wordsToFit` (isometric), which now
 takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
 
 ## API

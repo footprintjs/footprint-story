@@ -9,10 +9,12 @@
  * has no size to fill, so a deck counts it 1 px wide); left out, the box is taken as it is. A room's sides are the
  * caller's: a caller that must not divide by an empty room gives it at least a pixel itself.
  *
- * WHY here: StoryDeck's three cameras (zoom, fit, and the room a mover leaves) each wrote this rule, and a film frames a
- * named thing the same way; one rule, so a deck and a film close in alike. WHY these exact operations, in this order:
- * StoryDeck rounds a view to 4 places, so an answer that differs in its last bit can round the other way (0.21875 and
- * 0.21874999999999997 round to 0.2188 and 0.2187) — the order is the one the deck's pages were built with.
+ * WHY here: StoryDeck's three cameras (zoom, fit, and the room a mover leaves) each wrote this rule, and StoryReel's
+ * focus and its pushes framed a named thing by it too (as share ÷ the larger of box ÷ room, the same rule in another
+ * order); one rule, so a deck and a film close in alike. WHY these exact operations, in this order: StoryDeck rounds a
+ * view to 4 places, so an answer that differs in its last bit can round the other way (0.21875 and
+ * 0.21874999999999997 round to 0.2188 and 0.2187) — the order is the one the deck's pages were built with. StoryReel
+ * 0.34.0 took it as it is: its zoom moved in the last bit, which changed no frame.
  *
  * Numbers in, numbers out: any number is taken as IEEE arithmetic answers it (a NaN in is a NaN out, as a writer's
  * unchecked option always gave); a caller that must refuse a value checks it first. Anything that is not a number is

@@ -1,8 +1,9 @@
 # layout/ — a flat frame, as numbers
 
 **Why:** a deck and a film both close in on a box and both set words across a width. StoryDeck wrote "zoom so the box
-fills a share of the room" three times (its zoom and fit cameras, and the room a side mover leaves), and StoryReel
-wrote "fill each line greedily, then narrow it to balance" in its title band, end card, summary cards and captions.
+fills a share of the room" three times (its zoom and fit cameras, and the room a side mover leaves) and StoryReel twice
+(its focus and its pushes on a named thing), and StoryReel wrote "fill each line greedily, then narrow it to balance"
+in its title band, end card, summary cards, captions and whiteboard titles.
 Each rule lives here once; the tools measure, draw and word messages.
 
 | file | holds |

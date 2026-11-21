@@ -16,8 +16,9 @@
  * `differs.shown`) and its own place for the rest (the notes, the voice), so the tool words the refusal; the kit says
  * which rule and with what numbers. Reading a writer's text (attributes, JSON) stays the tool's too.
  *
- * Inputs are read by their own stored fields (a getter is never run; a list with a hole is refused). The work grows
- * with the words given: each line is scanned once for its figures.
+ * Inputs are read by their own stored fields: a getter is never run and an inherited field is never read — each is
+ * refused by name, as is a list with a hole, a time that is not a number and a scale or analogy that is not words. The
+ * work grows with the words given: each line is scanned once for its figures.
  */
 import { normSpeech } from '../spoken/normSpeech.js';
 
@@ -30,24 +31,43 @@ export const DIFFERS_TIME_MOST = 1e9;
 /** What an analogy's label starts with: "An analogy: everyday things stand in for the real ones". */
 export const DIFFERS_ANALOGY = 'An analogy: ';
 
-const own = (o, key) => { const d = Object.getOwnPropertyDescriptor(o, key); return d && 'value' in d ? d.value : undefined; };
 function refuse(fix) { throw new Error(`differs: ${fix}`); }
+const kind = (v) => (v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'string' ? JSON.stringify(v.length > 40 ? `${v.slice(0, 40)}…` : v) : typeof v === 'object' ? 'an object' : String(v));
+/**
+ * A field's own stored value, or undefined when the object has no such field at all. A getter (somebody's code, never
+ * run) and a field only its prototype holds are refused by name: read as "not declared", either would drop a
+ * statement the writer meant, and a part would then say less than it should.
+ */
+function stored(o, key, what) {
+  const d = Object.getOwnPropertyDescriptor(o, key);
+  if (d && !('value' in d)) refuse(`${what} is read as a stored value, and this one is a getter (code, never run) — give the value itself`);
+  if (!d && key in o) refuse(`${what} is the object's own field, and this one is inherited — give it on the declaration itself`);
+  return d ? d.value : undefined;
+}
+/** A time factor's words need a number: anything else is refused, never printed as "Time shown 30 times …" of a text. */
+function number(time, what) {
+  if (typeof time !== 'number') refuse(`${what} is a number (30; 0.04 is 25 times slower) — not ${kind(time)}`);
+  return time;
+}
 
 /** A factor as its label prints it: whole from 10 up, else to two places, with no trailing zeros. */
 const plain = (x) => String(+x.toFixed(x >= 10 ? 0 : 2));
 
 /** A time factor in words: 30 → "Time shown 30 times faster"; 0.04 → "Time shown 25 times slower". */
-export const timeWords = (time) => (time > 1 ? `Time shown ${plain(time)} times faster` : `Time shown ${plain(1 / time)} times slower`);
+export const timeWords = (time) => (number(time, 'a time factor') > 1 ? `Time shown ${plain(time)} times faster` : `Time shown ${plain(1 / time)} times slower`);
 /** An analogy's label: the words after DIFFERS_ANALOGY. */
-export const analogyWords = (text) => `${DIFFERS_ANALOGY}${text}`;
+export const analogyWords = (text) => {
+  if (typeof text !== 'string') refuse(`an analogy is words — not ${kind(text)}`);
+  return `${DIFFERS_ANALOGY}${text}`;
+};
 /**
  * The values a written number may have and still be the declared factor: the factor as written, and as the time words
  * say it (30 and 30; 0.04 as 0.04, 25 and 25). WHY both: a label may write the factor as declared or as it reads.
  */
-export const differsFactors = (time) => (time > 1 ? [time, +plain(time)] : [time, 1 / time, +plain(1 / time)]);
+export const differsFactors = (time) => (number(time, 'a time factor') > 1 ? [time, +plain(time)] : [time, 1 / time, +plain(1 / time)]);
 
 /** Spaces and control characters made one space, the ends trimmed: a declaration's words stay on one line wherever they are printed. */
-export const foldDiffers = (text) => text.replace(/[\s\p{Cc}]+/gu, ' ').trim();
+export const foldDiffers = (text) => (typeof text === 'string' ? text : refuse(`foldDiffers folds words — not ${kind(text)}`)).replace(/[\s\p{Cc}]+/gu, ' ').trim();
 
 /**
  * Why a time factor cannot be declared, or null when it can: 'not-a-factor' (no finite number above 0), 'real-time'
@@ -61,17 +81,25 @@ export function timeProblem(time) {
   return null;
 }
 
-/** A declaration's three statements, read by their own stored fields: {time, scale, analogy}, each undefined when not declared. */
+/**
+ * A declaration's three statements, read by their own stored fields: {time, scale, analogy}, each undefined when not
+ * declared — a time a number, a scale and an analogy words; anything else refused, naming the field.
+ */
 function statements(declaration) {
   if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) refuse(`a declaration is {time?, scale?, analogy?} — not ${declaration === null ? 'null' : Array.isArray(declaration) ? 'a list' : typeof declaration}`);
-  return { time: own(declaration, 'time'), scale: own(declaration, 'scale'), analogy: own(declaration, 'analogy') };
+  const time = stored(declaration, 'time', 'the declaration\'s time'), scale = stored(declaration, 'scale', 'the declaration\'s scale'), analogy = stored(declaration, 'analogy', 'the declaration\'s analogy');
+  if (time !== undefined) number(time, 'the declaration\'s time');
+  for (const [name, v] of [['scale', scale], ['analogy', analogy]]) if (v !== undefined && typeof v !== 'string') refuse(`the declaration's ${name} is words — not ${kind(v)}`);
+  return { time, scale, analogy };
 }
-/** A list of texts, every index its own stored string (a hole refused). */
+/** A list of texts, every index its own stored string: a hole and a getter refused by index. */
 function texts(list, what) {
   if (!Array.isArray(list)) refuse(`${what} is a list of texts — not ${list === null ? 'null' : typeof list}`);
   return Array.from({ length: list.length }, (_, i) => {
-    const text = Object.hasOwn(list, i) ? own(list, i) : undefined;
-    if (typeof text !== 'string') refuse(`${what}[${i}] is a text — not ${text === undefined ? 'missing' : typeof text}`);
+    const d = Object.getOwnPropertyDescriptor(list, i);
+    if (d && !('value' in d)) refuse(`${what}[${i}] is read as a stored value, and this one is a getter (code, never run) — give the text itself`);
+    const text = d?.value;
+    if (typeof text !== 'string') refuse(`${what}[${i}] is a text — not ${d ? kind(text) : 'missing'}`);
     return text;
   });
 }

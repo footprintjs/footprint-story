@@ -14,14 +14,20 @@ tool, by its pages and frames before and after.
   `DIFFERS_SAID_MOST` (120), `DIFFERS_TIME_MOST` (1e9), `DIFFERS_ANALOGY`. From StoryDeck 0.28.0's `deck/differs.js`
   and StoryReel 0.33.0's `src/differs.mjs`, which held the same rules; codes, not sentences, so each tool words them.
 - **`footprint-story/layout`, a new door**: `frameZoom(size, room, { share, least, most, smallest })`, StoryDeck's
-  zoom, fit and side-mover rule (its exact operations, so a view rounded to 4 places rounds as before);
-  `wrapWords(words, width, measure)`, StoryReel's greedy line breaking with each line measured whole; and
+  zoom, fit and side-mover rule (its exact operations, so a view rounded to 4 places rounds as before), which
+  StoryReel 0.34.0's focus and pushes frame by too;
+  `wrapWords(words, width, measure)`, StoryReel's greedy line breaking with each line measured whole (its cost grows
+  with the words times a line's length: each word asks `measure` for the line so far); and
   `narrowestWidth(width, lines, linesAt)` with `NARROWEST_STEPS` (12), its balancing.
 - **`wordsToFit(text, room, { measure })`**: a word's width (a function or a table, read by its own stored fields; the
   space as `' '`) in place of the letter count, for a tool that can measure its face. The same rule, summed widths;
   each distinct word measured once. Refused: `measure` with `letter`, a getter for `measure`, a width that is no
   number from 0 to 1,000,000. Without `measure`, every name is set as before. The options refusal now lists `measure`.
-- Inputs are read by their own stored fields (a getter is never run; a list with a hole is refused). `frameZoom`
+- Inputs are read by their own stored fields: a getter is never run, and in a declaration or a list it is refused by
+  name, as is a declaration field only its prototype holds and a list with a hole. A time that is not a number
+  (`differsLines({ time: '30' })`, `timeWords('30')`) and a scale or analogy that is not words are refused with a
+  `differs:` message. `wrapWords` refuses a NaN width and a measure that gives no finite width from 0;
+  `narrowestWidth` refuses a width or line count that is no finite number; no words at all is `['']`. `frameZoom`
   takes any number as IEEE arithmetic answers it (a NaN in is a NaN out, as the deck's unchecked `zoom` options always
   gave) and refuses anything that is not a number.
 

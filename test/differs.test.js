@@ -51,10 +51,13 @@ test('differsEnglish: the English default words a declaration in another languag
   for (const lang of [null, undefined, '', 'en', 'en-GB', 'EN']) assert.equal(differsEnglish(d, ['Time shown 30 times faster'], lang), null);
 });
 
-test('inputs are read by their own stored fields: a getter is never run, a hole is refused', () => {
-  const d = Object.defineProperty({}, 'time', { get() { throw new Error('ran'); }, enumerable: true });
-  assert.deepEqual(differsLines(d), []);
-  assert.deepEqual(differsLines(Object.create({ time: 30 })), []);
+test('inputs are read by their own stored fields: a getter and an inherited field are refused by name, as is a hole', () => {
+  let ran = false;
+  const d = Object.defineProperty({}, 'time', { get() { ran = true; return 30; }, enumerable: true });
+  assert.throws(() => differsLines(d), /^Error: differs: the declaration's time is read as a stored value, and this one is a getter \(code, never run\)/);
+  assert.equal(ran, false);
+  assert.throws(() => differsLines(Object.create({ scale: 'x' })), /the declaration's scale is the object's own field, and this one is inherited/);
+  assert.deepEqual(differsLines(Object.create(null)), []);
   assert.throws(() => differsLines(null), /^Error: differs: a declaration is \{time\?, scale\?, analogy\?\} — not null/);
   assert.throws(() => differsLines([1]), /not a list/);
   assert.throws(() => differsStatements('x'), /not string/);
@@ -62,6 +65,17 @@ test('inputs are read by their own stored fields: a getter is never run, a hole 
   assert.throws(() => differsProblem({}, null, null), /not null/);
   // eslint-disable-next-line no-sparse-arrays
   assert.throws(() => differsProblem({}, ['a', , 'b'], null), /lines\[1\] is a text — not missing/);
-  assert.throws(() => differsProblem({}, ['a'], [3]), /phrases\[0\] is a text — not number/);
-  assert.throws(() => differsEnglish({}, Object.defineProperty(['a'], 0, { get: () => 'x' }), 'fr'), /lines\[0\] is a text — not missing/);
+  assert.throws(() => differsProblem({}, ['a'], [3]), /phrases\[0\] is a text — not 3/);
+  assert.throws(() => differsEnglish({}, Object.defineProperty(['a'], 0, { get: () => 'x' }), 'fr'), /lines\[0\] is read as a stored value, and this one is a getter/);
+});
+
+test('a time that is not a number, and a scale or analogy that is not words, are refused in differs\' words', () => {
+  assert.throws(() => differsLines({ time: '30' }), /^Error: differs: the declaration's time is a number \(30; 0.04 is 25 times slower\) — not "30"/);
+  assert.throws(() => timeWords('30'), /^Error: differs: a time factor is a number/);
+  assert.throws(() => differsFactors(null), /a time factor is a number .* — not null/);
+  assert.throws(() => differsProblem({ scale: 3 }, ['x'], null), /the declaration's scale is words — not 3/);
+  assert.throws(() => differsEnglish({ analogy: ['a'] }, [], 'fr'), /the declaration's analogy is words — not a list/);
+  assert.throws(() => analogyWords({}), /^Error: differs: an analogy is words — not an object/);
+  assert.throws(() => foldDiffers(3), /^Error: differs: foldDiffers folds words — not 3/);
+  assert.equal(timeWords(NaN), 'Time shown NaN times slower');   // a number is printed as the tools always printed it: timeProblem is what refuses it
 });
