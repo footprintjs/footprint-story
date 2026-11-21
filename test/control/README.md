@@ -18,6 +18,10 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storydeck-0.27.0-hairpins.js` | storydeck `deck/cable.js` at `2bdfff5`, lines 116–164 (`hairpins`, its constants and the unused `HAIRPIN_WORDS`) | none |
 | `storydeck-0.27.0-keepClear.js` | storydeck `deck/keepClear.js` at `2bdfff5`, lines 17–28 (the constants) and 52–108 (`floorUnder`, `crossesBox`) | none |
 | `storydeck-0.27.0-floorLabel.js` | storydeck `deck/floorLabel.js` at `2bdfff5` | its import of `wordsToFit` points at `../../isometric.js` |
+| `storydeck-0.28.0-differs.js` | storydeck `deck/differs.js` at `eef5335` (0.28.0) | its three imports replaced by the lines they import (`pieceRules.js` lines 41 and 49–77, `readAttributes`; `deck/html.js` lines 43–49, `decodeEntities` and `esc`), the kit's `normSpeech` from `../../index.js`; `export` added to `factorsOf`, `readTime`, `readSaid`, `contradicting` |
+| `storydeck-0.28.0-focus.js` | storydeck `focus.js` at `eef5335` | its import of `readTurns` points at `../../motion.js` |
+| `storyreel-0.33.0-differs.mjs` | footprint-storyreel `src/differs.mjs` at `e611fb4` (0.33.0), lines 1–140 (through `differsOf`) | `normSpeech` from `../../index.js`; the imports of `claims.mjs` and `reading.mjs` dropped (used only after line 140); `export` added to `factorsOf`, `readTime`, `readSaid`, `contradicting`, `statementsOf` |
+| `storyreel-0.33.0-wrap.mjs` | footprint-storyreel at `e611fb4`: `src/layout.mjs` lines 293–306 (`wrap`, `balancedLines`), `src/endcard.mjs` lines 11–16 (`wrap`, as `wrapEndCard`), `src/kits/paper/paper.mjs` lines 352–356 (`wrap`, as `wrapPaper`), `src/captions.mjs` lines 50–74 (`captionLines`) | `export` added, the two `wrap`s from other files renamed, a comment line naming each source |
 | `storydeck-0.27.0-groups.js` | storydeck `deck/groups.js` at `2bdfff5`, lines 20–60 (`GROUP_MARGIN`, `groupWritten`, `arrangeByGroup`) | none (`groupWritten`'s import of `ownAttribute` is left out with the lines above it; it is never called) |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and

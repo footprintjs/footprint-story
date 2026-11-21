@@ -488,7 +488,7 @@ test('wordsToFit: refuses what it cannot read, naming the fix', () => {
   assert.throws(() => wordsToFit(5, [10, 10]), /takes the words as text/);
   assert.throws(() => wordsToFit('a', [10]), /the room is \[wide, high\] in pixels/);
   assert.throws(() => wordsToFit('a', [0, 10]), /both above 0/);
-  assert.throws(() => wordsToFit('a', [10, 10], 'big'), /takes its options as \{size, least, letter, line\}/);
+  assert.throws(() => wordsToFit('a', [10, 10], 'big'), /takes its options as \{size, least, letter, line, measure\}/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 10, least: 20 }), /least no more than size/);
   assert.throws(() => wordsToFit('a', [10, 10], { letter: 0 }), /letter and line above 0/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 2000 }), /from 1 to 1000/);
@@ -798,4 +798,23 @@ test('keep: the work is counted — floor kept clear everywhere gives a reason, 
   const t0 = Date.now(), [r] = routes(things, [['a', 'b']], { keep });
   assert.ok(Date.now() - t0 < 50_000);
   assert.ok(r.points === null ? r.why === NO_ROUTE.work || r.why === NO_ROUTE.wide : Array.isArray(r.under));
+});
+
+test('wordsToFit: a measure gives each word its width — the same rule, measured; refused when it gives no width', () => {
+  const wide = { Load: 2.4, Balancer: 4.8, ' ': 0.3 };
+  assert.deepEqual(wordsToFit('Load Balancer', [173, 90], { measure: wide }), { lines: ['Load', 'Balancer'], size: 26, fits: true });   // 7.5 × 26 = 195 > 173 on one line
+  assert.deepEqual(wordsToFit('Load Balancer', [200, 90], { measure: (w) => wide[w] }), { lines: ['Load Balancer'], size: 26, fits: true });
+  let asked = 0;
+  wordsToFit('a a a a', [10, 10], { measure: () => { asked += 1; return 1; } });
+  assert.equal(asked, 2);                                                                                    // 'a' and ' ', each once
+  assert.deepEqual(wordsToFit('one', [100, 90], { measure: { one: 1 } }), { lines: ['one'], size: 26, fits: true });   // one word: no space asked
+  assert.throws(() => wordsToFit('a b', [100, 90], { measure: { a: 1, b: 1 } }), /measure gives each word's width at 1 px of size, a number from 0 to 1000000 — not undefined for " "/);
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: () => NaN }), /not NaN for "a"/);
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: () => -1 }), /not -1/);
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: Object.create({ a: 1 }) }), /not undefined for "a"/);   // an inherited width is not the caller's
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: 3 }), /measure is a function \(word\) => width or a table \{word: width\} — not 3/);
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: ['a'] }), /not \[/);
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: { a: 1 }, letter: 0.6 }), /counts letters \(letter\) or measures words \(measure\) — give one, not both/);
+  assert.throws(() => wordsToFit('a', [100, 90], Object.defineProperty({}, 'measure', { get: () => ({ a: 1 }) })), /measure is read as a stored value, and this one is a getter/);
+  assert.throws(() => wordsToFit('a', [100, 90], { measure: () => { throw new Error('mine'); } }), /^Error: mine$/);
 });

@@ -144,3 +144,18 @@ const label: FloorLabel = floorLabelPlace({ at: [0, 0], size: [8, 5] }, grid, 'P
 const grouped: IsoGrouped[] = [{ name: 'web', size: [2, 2, 1], group: 'front' }, { name: 'db', size: [2, 2, 1] }];
 export const isoDeckHelpers: unknown[] = [pins[0], HAIRPINS.length, under.why, stretch?.at[2], crossesBox([[0, 0], [5, 5]], { x: 1, y: 1, w: 2, h: 2 }), UNDER_CELL, MOST_UNDER_SQUARES, NO_UNDER.far,
   label.matrix[0], label.lines[0], MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS, arrangeByGroup(grouped, [['web', 'db']])[0][2], GROUP_MARGIN, MOST_OUTLINE_POINTS, MOST_LABEL_LOOKS, underAlone.why, onePort.length];
+
+// 0.18.0: a part that differs (the pure door), framing and line breaking (the layout door), a measured name
+import { timeWords, analogyWords, differsFactors, foldDiffers, timeProblem, differsStatements, differsLines, differsProblem, differsEnglish, DIFFERS_MOST, DIFFERS_SAID_MOST, DIFFERS_TIME_MOST, DIFFERS_ANALOGY } from 'footprint-story';
+import type { DiffersDeclaration, DiffersProblem } from 'footprint-story';
+import { frameZoom, wrapWords, narrowestWidth, NARROWEST_STEPS } from 'footprint-story/layout';
+import { wordsToFit as fitWords } from 'footprint-story/isometric';
+const declared: DiffersDeclaration = { time: 30, scale: 'drawn larger' };
+const broken: DiffersProblem | null = differsProblem(declared, differsLines(declared), null);
+if (broken?.problem === 'unstated') broken.named.join(', ');
+if (broken?.problem === 'contradicts') broken.figure.toUpperCase();
+const why: 'not-a-factor' | 'real-time' | 'past-range' | null = timeProblem(30);
+const titleLines: string[] = wrapWords(['a', 'b'], 100, (text) => text.length);
+export const shared: unknown[] = [timeWords(30), analogyWords('a'), differsFactors(30)[0], foldDiffers(' a '), differsStatements(declared), differsEnglish(declared, ['x'], 'fr'), DIFFERS_MOST, DIFFERS_SAID_MOST, DIFFERS_TIME_MOST, DIFFERS_ANALOGY, why,
+  frameZoom([1, 2], [3, 4], { share: 0.7, least: 1, most: 2.5, smallest: 1 }), narrowestWidth(100, titleLines.length, (w) => wrapWords(['a', 'b'], w, (t) => t.length).length), NARROWEST_STEPS,
+  fitWords('Load Balancer', [170, 70], { measure: (w) => w.length * 0.55 }), fitWords('Load', [170, 70], { measure: { Load: 2.2 } })];

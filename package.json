@@ -1,7 +1,7 @@
 {
   "name": "footprint-story",
-  "version": "0.17.1",
-  "description": "Shared JavaScript narration, shown/spoken text, captions, motion and drawing-grid primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
+  "version": "0.18.0",
+  "description": "Shared JavaScript narration, shown/spoken text, captions, motion, framing, line-breaking and drawing-grid primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
   "type": "module",
   "license": "MIT",
   "author": "Sanjay Krishna Anbalagan",
@@ -64,6 +64,10 @@
       "types": "./isometric.d.ts",
       "default": "./isometric.js"
     },
+    "./layout": {
+      "types": "./layout.d.ts",
+      "default": "./layout.js"
+    },
     "./record": {
       "types": "./record.d.ts",
       "default": "./record.js"
@@ -83,6 +87,8 @@
     "shot.d.ts",
     "isometric.js",
     "isometric.d.ts",
+    "layout.js",
+    "layout.d.ts",
     "record.js",
     "record.d.ts",
     "src",
@@ -92,7 +98,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=record.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=layout.js --test-coverage-include=record.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
   },
   "devDependencies": {
     "fast-check": "^4.10.2",

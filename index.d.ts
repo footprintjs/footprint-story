@@ -145,3 +145,43 @@ export function oneLine(text: unknown): string;
 export function isOneLine(text: unknown): boolean;
 /** An error as a reply says it: its message on one line — or, when it carries `rows` (the lines its tool wrote itself), each row on one line. */
 export function errorText(error: unknown): string;
+
+// ── differs ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The longest statement a label holds (70 characters): read in a glance; the rest belongs in the notes or the voice. */
+export const DIFFERS_MOST: number;
+/** The longest phrase of the narration a declaration names (120 characters). */
+export const DIFFERS_SAID_MOST: number;
+/** How far a time factor goes, faster or slower (1e9): past it no viewer reads the number. */
+export const DIFFERS_TIME_MOST: number;
+/** What an analogy's label starts with: 'An analogy: '. */
+export const DIFFERS_ANALOGY: string;
+/** How a part differs from the real thing: how many times faster it runs, what is out of scale, what stands in for what (each left out when not declared). */
+export interface DiffersDeclaration { readonly time?: number; readonly scale?: string; readonly analogy?: string }
+/** 30 → "Time shown 30 times faster"; 0.04 → "Time shown 25 times slower". */
+export function timeWords(time: number): string;
+/** "An analogy: " and the words. */
+export function analogyWords(text: string): string;
+/** The values a written number may have and still be the declared factor: as declared, and as the time words say it. */
+export function differsFactors(time: number): number[];
+/** Spaces and control characters made one space, the ends trimmed. */
+export function foldDiffers(text: string): string;
+/** Why a time factor cannot be declared: no finite number above 0, it reads as 1 (real time), or past DIFFERS_TIME_MOST either way; null when it can. */
+export function timeProblem(time: unknown): 'not-a-factor' | 'real-time' | 'past-range' | null;
+/** How many things a declaration says (one each for time, scale, analogy). */
+export function differsStatements(declaration: DiffersDeclaration): number;
+/** The labels shown when the writer gives no words: the time words, the scale, the analogy's label. */
+export function differsLines(declaration: DiffersDeclaration): string[];
+/** The first rule a declaration breaks, as data for the tool to word. */
+export type DiffersProblem =
+  | { readonly problem: 'said-twice' }
+  | { readonly problem: 'unsaid' }
+  | { readonly problem: 'unstated'; readonly named: readonly ('time' | 'scale' | 'an analogy')[]; readonly statements: number; readonly says: number }
+  | { readonly problem: 'contradicts'; readonly figure: string };
+/**
+ * The first rule broken — two phrases the same words, nothing said, a statement unstated, a number in the time's line
+ * that is not the factor — or null. `lines`: the labels' words; `phrases`: the narration's, or null for none.
+ */
+export function differsProblem(declaration: DiffersDeclaration, lines: readonly string[], phrases: readonly string[] | null): DiffersProblem | null;
+/** The default English line (time words, analogy label) a declaration in another language still shows, or null. */
+export function differsEnglish(declaration: DiffersDeclaration, lines: readonly string[], lang: string | null | undefined): string | null;

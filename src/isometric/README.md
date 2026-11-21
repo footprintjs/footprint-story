@@ -202,8 +202,17 @@ back, however long; no words at all gives no lines. It is counted in letters (`l
 face), because nothing here draws; a tool with a browser can measure after. A mark that sits on a letter and a
 character that draws nothing (a zero-width space) take no room. A name breaks at a space, a tab or a line end only: a
 no-break space keeps two words on one line. Sizes are from 1 to 1000 pixels. The count suits Latin-like letters: a
-script whose letters are wider (Chinese, Japanese, Korean) is under-counted, and wants a bigger `letter` or a measure
-in a browser.
+script whose letters are wider (Chinese, Japanese, Korean) is under-counted, and wants a bigger `letter` or a measure.
+
+**A name measured by its face.** A tool that can measure (a film's canvas) gives `measure`: each word's width at 1 px
+of size, as a function `(word) => width` or a table `{ [word]: width }` (its own stored fields; the space is the word
+`' '`). `wordsToFit('Load Balancer', [173, 90], { measure: (w) => ctx.measureText(w).width / 100 })` (with the font at
+100 px) sets the name by the same rule — one line, the most even break, a pixel smaller — each line its words' and
+spaces' widths summed. It replaces `letter` (giving both is refused); each distinct word is measured once, so the
+time still grows with the name's length; a width that is no number from 0 to 1,000,000 is refused, naming the word.
+WHY summed, not each line measured whole: the break is chosen among every place a name could break, and summing keeps
+that linear. A film's title band breaks by another rule, greedily over any number of lines measured whole
+(`footprint-story/layout` · `wrapWords`).
 
 **The room on a top face.** The top of a block is a slanted diamond, not the rectangle round it: across its middle it
 is as wide as the block's SHORTER side is long (a block 8 by 1 has a top 1 tile wide there, however long it is), and it
