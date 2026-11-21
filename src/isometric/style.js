@@ -184,14 +184,18 @@ export function paintPiece(style, piece, grid, colours = undefined) {
   const who = (c) => `the style's ${c.column} "${c.name}"`;
   if (!made || typeof made !== 'object') refuse(`${who(shape)} gives back {box, items} — not ${shown(made)}`);
   // what a tool reads of the shape besides its items: the box round it, where its name stands, the outline round it
-  const box = own(made, 'box'), centre = own(made, 'centre'), outline = own(made, 'outline');
+  const box = stored(made, 'box', `${who(shape)}'s box`), centre = stored(made, 'centre', `${who(shape)}'s centre`), outline = stored(made, 'outline', `${who(shape)}'s outline`);
   if (!box || typeof box !== 'object') refuse(`${who(shape)} gives back a box {x, y, w, h} round what it draws — not ${shown(box)}`);
-  for (const k of ['x', 'y', 'w', 'h']) { const v = own(box, k); if (!finite(v) || ('wh'.includes(k) && v < 0)) refuse(`${who(shape)}'s box ${k} is a finite number${'wh'.includes(k) ? ', from 0' : ''} — not ${shown(v)}`); }
-  const pt = (p, what) => { if (!(Array.isArray(p) && p.length === 2 && finite(p[0]) && finite(p[1]))) refuse(`${who(shape)}'s ${what} is a point [x, y], finite numbers — not ${shown(p)}`); return Object.freeze([p[0], p[1]]); };
+  for (const k of ['x', 'y', 'w', 'h']) { const v = stored(box, k, `${who(shape)}'s box ${k}`); if (!finite(v) || ('wh'.includes(k) && v < 0)) refuse(`${who(shape)}'s box ${k} is a finite number${'wh'.includes(k) ? ', from 0' : ''} — not ${shown(v)}`); }
+  const pt = (p, what) => {
+    const xy = Array.isArray(p) && p.length === 2 ? ownEntries(p, `${who(shape)}'s ${what}`) : null;   // by index: a getter never runs
+    if (!(xy && finite(xy[0]) && finite(xy[1]))) refuse(`${who(shape)}'s ${what} is a point [x, y], finite numbers — not ${shown(p)}`);
+    return Object.freeze(xy);
+  };
   if (!Array.isArray(outline) || outline.length < 3 || outline.length > MOST_PAINT_POINTS) refuse(`${who(shape)} gives back its outline, 3 to ${MOST_PAINT_POINTS} points round what it draws — not ${shown(outline)}`);
   const round = Object.freeze(ownEntries(outline, `${who(shape)}'s outline`).map((q) => pt(q, 'outline point')));
   let items = checkPaint(own(made, 'items'), who(shape), p.name);
   for (const column of ['shading', 'line', 'palette', 'texture']) items = checkPaint(picked[column].apply(items, context(column, style.options[column])), who(picked[column]), p.name);
   picked.effects.forEach((c, k) => { items = checkPaint(c.apply(items, context('effects', style.options.effects?.[k], k)), who(c), p.name); });
-  return Object.freeze({ box: Object.freeze({ x: own(box, 'x'), y: own(box, 'y'), w: own(box, 'w'), h: own(box, 'h') }), centre: pt(centre, 'centre'), outline: round, items });
+  return Object.freeze({ box: Object.freeze({ x: box.x, y: box.y, w: box.w, h: box.h }), centre: pt(centre, 'centre'), outline: round, items });
 }

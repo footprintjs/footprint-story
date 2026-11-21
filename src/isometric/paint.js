@@ -14,7 +14,8 @@
  * `#rrggbb`; null when the base is the page's to decide). A `stroke` is null or `{ colour, alpha, width, join, cap }`.
  * Points are on the frame, in px: any finite number (a far piece on a big grid is far off the frame, never refused).
  * An arc runs from angle `from` to `to` (radians, y down, as a canvas's `ellipse`), at most half a turn (π) and never
- * none, and like a canvas's it is reached by a straight line from where the pen is: an SVG painter writes that line,
+ * none, counted the way it turns (`from - to` when anticlockwise, `to - from` when not, so a canvas never goes the long
+ * way round), and like a canvas's it is reached by a straight line from where the pen is: an SVG painter writes that line,
  * then `A rx ry 0 0 (anticlockwise ? 0 : 1) endX endY`. WHY at most π: the large-arc flag is then always 0, and a
  * longer arc is two items' worth of trouble for every painter; a choice that needs more splits it.
  *
@@ -104,7 +105,7 @@ export function checkPaint(list, who, piece) {
       if (item.segments[0]?.[0] !== 'move') refuse(`${what} starts with a ['move', x, y]`);
       for (const s of item.segments) {
         const ok = Array.isArray(s) && ((s[0] === 'move' || s[0] === 'line') ? s.length === 3 && finite(s[1]) && finite(s[2])
-          : s[0] === 'arc' ? s.length === 8 && s.slice(1, 7).every(finite) && s[3] >= 0 && s[4] >= 0 && typeof s[7] === 'boolean' && Math.abs(s[6] - s[5]) > 0 && Math.abs(s[6] - s[5]) <= Math.PI
+          : s[0] === 'arc' ? s.length === 8 && s.slice(1, 7).every(finite) && s[3] >= 0 && s[4] >= 0 && typeof s[7] === 'boolean' && (s[7] ? s[5] - s[6] : s[6] - s[5]) > 0 && (s[7] ? s[5] - s[6] : s[6] - s[5]) <= Math.PI
             : s[0] === 'close' && s.length === 1);
         if (!ok) refuse(`${what}'s segment is ['move', x, y], ['line', x, y], ['arc', cx, cy, rx, ry, from, to, anticlockwise] (at most half a turn, never none) or ['close'] — not ${shown(s)}`);
       }

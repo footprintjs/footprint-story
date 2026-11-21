@@ -168,6 +168,14 @@ test('a clash names a choice there is; the shape gives its box, centre and outli
   assert.equal(arc(Math.PI, 0).items.length, 1);
   assert.throws(() => arc(0, 2 * Math.PI), /at most half a turn, never none/);
   assert.throws(() => arc(1, 1), /at most half a turn, never none/);
+  // counted the way it turns: anticlockwise from 0 to 0.5 is the long way round on a canvas, refused
+  assert.throws(() => arc(0, 0.5), /at most half a turn, never none/);
+  assert.equal(shaped({ ...good, items: [{ item: 'path', role: 'side', of: 'server', segments: [['move', 0, 0], ['arc', 0, 0, 1, 1, 0, 0.5, false]], fill: null, stroke: null }] }).items.length, 1);
+  // a getter on the box or on a point of the centre is refused, never run
+  let ran = false;
+  assert.throws(() => shaped({ ...good, centre: Object.defineProperty([0, 0], 1, { get: () => { ran = true; return 0; } }) }), /'s centre's entry 2 is read as a stored value, and this one is a getter/);
+  assert.throws(() => shaped({ ...good, box: Object.defineProperty({ x: 0, y: 0, w: 1 }, 'h', { get: () => { ran = true; return 1; }, enumerable: true }) }), /'s box h is read as a stored value, and this one is a getter/);
+  assert.equal(ran, false);
   // a far piece on a big grid is far off the frame, and drawn: frame numbers are any finite number
   const far = paintPiece(isoStyle(), { ...block, at: [3e4, 3e4] }, isometric({ tile: 200 }));
   assert.ok(far.items[0].points[0][1] > 1e6);
