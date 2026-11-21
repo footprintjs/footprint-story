@@ -102,12 +102,13 @@ function inside(outline, [x, y]) {
 /** Those of `things` (each held) whose box reaches within `far` px of the box round `at`. */
 const near = (things, at, half, far = 0) => things.filter((t) => t.right > at[0] - half[0] - far && t.left < at[0] + half[0] + far && t.bottom > at[1] - half[1] - far && t.top < at[1] + half[1] + far);
 
-/** A list of held entries, its length checked before an entry is read. */
-function heldList(v, what) {
+/** A list of held entries, its length checked (listOf) before an entry is read (heldList). */
+function listOf(v, what) {
   if (!Array.isArray(v)) refuse(`${what} is a list of points held (held()) — not ${shown(v)}`);
   if (v.length > MOST_HIDES) refuse(`${what} is at most ${MOST_HIDES} entries — not ${v.length}`);
-  return Array.from({ length: v.length }, (_, i) => heldOf(Object.hasOwn(v, i) ? own(v, i) : undefined, `${what}[${i}]`));
+  return v;
 }
+const heldList = (v, what) => Array.from({ length: v.length }, (_, i) => heldOf(Object.hasOwn(v, i) ? own(v, i) : undefined, `${what}[${i}]`));
 
 /**
  * Where a cable's label stands: on the cable itself, as near its middle as it can be with nothing in its way. A cable
@@ -128,11 +129,18 @@ function heldList(v, what) {
  */
 export function labelPlace(way, half, hides, runs = [], looks = { left: CABLE.looks }, tip = undefined) {
   const w = wayOf(way, 'labelPlace\'s way'), start = pairOf(w.start, 'labelPlace\'s way\'s start');
+  // the plate and the looks left are finite: a NaN or an Infinity there would make every place cost nothing (NaN is
+  // more than no number), and the map's labels would search past their shared budget
   const [hw, hh] = pairOf(half, 'labelPlace\'s half (labelHalf)');
-  const hiding = heldList(hides, 'labelPlace\'s hides'), lines = heldList(runs, 'labelPlace\'s runs');
+  if (!(Number.isFinite(hw) && Number.isFinite(hh) && hw >= 0 && hh >= 0)) refuse(`labelPlace's half (labelHalf) is [wide, high], two finite numbers from 0 — not ${shown([hw, hh])}`);
+  const hideList = listOf(hides, 'labelPlace\'s hides'), runList = listOf(runs, 'labelPlace\'s runs');
   if (!looks || typeof looks !== 'object' || Array.isArray(looks)) refuse(`labelPlace's looks is {left}, the looks the map has left — not ${shown(looks)}`);
-  if (typeof stored(looks, 'left', 'labelPlace\'s looks.left') !== 'number') refuse(`labelPlace's looks.left is a number, the looks the map has left — not ${shown(own(looks, 'left'))}`);
+  const left = stored(looks, 'left', 'labelPlace\'s looks.left');
+  if (!(typeof left === 'number' && Number.isFinite(left))) refuse(`labelPlace's looks.left is a finite number, the looks the map has left — not ${shown(left)}`);
   const end = pairOf(tip === undefined ? w.at(1) : tip, 'labelPlace\'s tip');
+  // finding what is near is a look at each thing: with too few left for that, no place is asked — and no entry read
+  if (hideList.length + runList.length > left) return w.at(0.5);
+  const hiding = heldList(hideList, 'labelPlace\'s hides'), lines = heldList(runList, 'labelPlace\'s runs');
   const { sample, edge, tip: tipPx } = CABLE, size = [hw, hh];
   const across = Math.max(1, Math.ceil((2 * hw) / sample)), down = Math.max(1, Math.ceil((2 * hh) / sample));
   const round = ([x, y], far) => box([[x - far, y - far], [x + far, y - far], [x + far, y + far], [x - far, y + far]]);

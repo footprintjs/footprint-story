@@ -68,9 +68,17 @@ test('labelPlace refuses what it cannot read, by name — and never runs a gette
   assert.throws(() => labelPlace(run, [30, 13], [], [null]), /labelPlace's runs\[0\] is points held/);
   assert.throws(() => labelPlace(run, [30, 13], [], [], 5), /labelPlace's looks is \{left\}, the looks the map has left — not 5/);
   assert.throws(() => labelPlace(run, [30, 13], [], [], getter({}, 'left', 5)), /labelPlace's looks\.left is read as a stored value, and this one is a getter/);
-  assert.throws(() => labelPlace(run, [30, 13], [], [], { left: '5' }), /labelPlace's looks\.left is a number, the looks the map has left — not "5"/);
+  assert.throws(() => labelPlace(run, [30, 13], [], [], { left: '5' }), /labelPlace's looks\.left is a finite number, the looks the map has left — not "5"/);
+  // a plate or a count of looks that is no finite number would switch the map's shared budget off: refused
+  for (const left of [NaN, Infinity, -Infinity]) assert.throws(() => labelPlace(run, [30, 13], [], [], { left }), /labelPlace's looks\.left is a finite number/);
+  for (const half of [[NaN, 13], [30, Infinity], [-1, 13], [30, -0.5]]) assert.throws(() => labelPlace(run, half, [square(110, 190)]), /labelPlace's half \(labelHalf\) is \[wide, high\], two finite numbers from 0/);
   assert.throws(() => labelPlace(run, [30, 13], [], [], undefined, [1]), /labelPlace's tip is \[x, y\]/);
   assert.throws(() => labelPlace(run, [30, 13], new Array(MOST_HIDES + 1)), /labelPlace's hides is at most 1000000 entries/);
+  // too few looks left to ask what is near: the middle, and no entry is read (a million unread entries cost nothing)
+  const many = new Array(MOST_HIDES).fill(null), looks = { left: 10 }, t0 = performance.now();
+  assert.deepEqual(labelPlace(run, [30, 13], many, [], looks), [150, 0]);
+  assert.equal(looks.left, 10, 'no look spent');
+  assert.ok(performance.now() - t0 < 100, 'unread');
   // a near outline's points are read when it is asked: a bad point there is refused, by its place
   const bad = { points: [[110, -50], [190, -50], [190], [110, 50]], left: 110, top: -50, right: 190, bottom: 50 };
   assert.throws(() => labelPlace(run, [30, 13], [bad]), /point 3 of labelPlace's hides\[0\] is \[x, y\], two numbers — not \[190\]/);

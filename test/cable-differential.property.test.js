@@ -5,11 +5,14 @@
 // copied and never edited but for an import (test/control/README.md). For every input a tool gave them, the door gives
 // what the tool's copy gave — the same numbers. FC_RUNS=200000 npm test runs a deep sweep.
 //
-// The one difference between the two tools' copies, named: StoryReel's labelAt asked a hiding outline only when one of
-// its points stood within 200 px of the label (StoryDeck asks every outline whose box reaches the label), and counted
-// its looks another way. The door is StoryDeck's rule; StoryReel's answer is the same wherever an outline that covers
-// the label has a point that near and the map's looks are not spent — every map a film draws at its tile sizes (its
-// before/after run over generated films changed no frame). The last test shows the case where they part.
+// Where the two tools' copies differed, named — the door is StoryDeck's rule in both:
+// 1. StoryReel's labelAt asked a hiding outline only when one of its points stood within 200 px of the label
+//    (StoryDeck asks every outline whose box reaches the label).
+// 2. It charged its looks another way, far more for the same search: every point of every other cable at every place
+//    tried, where StoryDeck charges the near ones and a look an entry. A busy map (over a hundred labelled cables) ran
+//    out of looks there, and every later label fell to its cable's middle; here they are placed by the rule.
+// Elsewhere StoryReel's answer is the same: its before/after run over its example and 1,500 generated worlds and 24
+// films at a film's tile sizes changed no frame. The last two tests show where they part.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
@@ -196,7 +199,7 @@ function reelCables(map) {
     const [lx, ly] = w.labelAt, [hx, hy] = w.labelHalf;
     hides.push(held([[lx - hx, ly - hy], [lx + hx, ly - hy], [lx + hx, ly + hy], [lx - hx, ly + hy]]));
   }
-  return wires.map((w) => ({ points: w.cable.points, length: w.cable.length, mid: w.cable.way.at(0.37), labelAt: w.labelAt ?? null, labelHalf: w.labelHalf ?? null }));
+  return wires.map((w) => ({ points: w.cable.points, length: w.cable.length, mid: w.cable.way.at(0.37), middle: w.cable.way.at(0.5), labelAt: w.labelAt ?? null, labelHalf: w.labelHalf ?? null }));
 }
 
 /** A map of blocks on a grid at a film's tile sizes, with straight wires (some labelled), as read.mjs gives it. */
@@ -225,7 +228,7 @@ test('lanesOf, straightRun, bentWire, curveWay, labelPlace: StoryReel\'s straigh
     try { const m = copy(); cables1.layCables(m); was = m.wires.map((w) => ({ points: w.cable.points, length: w.cable.length, mid: w.cable.way.at(0.37), labelAt: w.labelAt ?? null, labelHalf: w.labelHalf ?? null })); } catch (e) { was = { error: /too close|share a middle/.test(e.message) }; }
     let got;
     try { got = reelCables(copy()); } catch (e) { got = { error: /close|middle/.test(e.message) }; }
-    assert.deepEqual(flat(got), flat(was));
+    assert.deepEqual(flat(Array.isArray(got) ? got.map(({ middle, ...rest }) => rest) : got), flat(was));
     compared += Array.isArray(got) ? got.length : 0;
   }), { numRuns: RUNS });
   assert.ok(compared > RUNS / 4, `wires were laid and compared (${compared})`);
@@ -264,4 +267,19 @@ test('the one difference, named: a hiding outline with no point within 200 px of
   assert.deepEqual(here, cable0.labelPlace(way, labelHalf(5), [cable0.held(block)], [], { left: CABLE.looks }, [594, 0]), 'StoryDeck\'s answer');
   assert.deepEqual(flat(map.wires[0].labelAt), [300, 0], 'StoryReel 0.34.0 left the label at the middle, under the block');
   assert.ok(Math.abs(here[0] - 300) > 100, `here it moves to where the least of it is hidden, at the block's edge (${here})`);
+});
+
+test('the second difference, named: a busy map no longer runs out of looks — StoryReel 0.34.0\'s copy charged far more, and dropped every later label to its cable\'s middle', () => {
+  // 48 blocks on an 8 × 6 lattice, 160 labelled wires between them (drawn straight here: the kit test has no router step)
+  const grid = isometric({ tile: 64, origin: [800, 60] });
+  const blocks = Array.from({ length: 48 }, (_, k) => { const b = grid.block({ at: [(k % 8) * 4, Math.floor(k / 8) * 4], size: [1.5, 1.5, 1] }); return { name: `n${k}`, shape: { box: b.box, outline: b.outline.map(({ x, y }) => [x, y]) } }; });
+  const wiresOf = () => Array.from({ length: 160 }, (_, k) => { const a = k % 48; let b = (7 * k + 5) % 48; if (b === a) b = (k + 1) % 48; return { who: `wires[${k}]`, label: 'API gateway', head: true, route: null, arrow: { from: { block: blocks[a] }, to: { block: blocks[b] }, bend: 0 } }; });
+  const was = { grid, blocks, wires: wiresOf() };
+  cables1.layCables(was);
+  const got = reelCables({ grid, blocks, wires: wiresOf() });
+  const atMiddle = (list) => list.filter(([at, mid]) => JSON.stringify(at) === JSON.stringify(mid)).length;
+  const late = (k) => k >= 120;
+  assert.equal(atMiddle(was.wires.filter((_, k) => late(k)).map((w) => [w.labelAt, w.cable.way.at(0.5)])), 40, '0.34.0: every label from wire 120 on fell to its cable\'s middle (its looks were spent)');
+  assert.ok(atMiddle(got.filter((_, k) => late(k)).map((w) => [w.labelAt, w.middle])) < 10, 'here they are placed by the rule');
+  assert.deepEqual(flat(got.slice(0, 30).map((w) => w.labelAt)), flat(was.wires.slice(0, 30).map((w) => w.labelAt)), 'the first labels, before 0.34.0 ran short, stand where they stood');
 });

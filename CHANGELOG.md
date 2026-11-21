@@ -32,10 +32,19 @@ its iso-world film, 1,500 generated worlds and 24 generated films — none chang
   list's length is checked before an entry is read (`MOST_HIDES`, `MOST_OUTLINE`, `MOST_WIRES`, 4,096 stops or ramps),
   and a far entry of `hides` or `runs` costs one look: its points are read only when it is near the label. Any number
   is taken where a tool's arithmetic answered NaN or Infinity before (a wire through the air 3,000,000,000 px long).
-- **The one difference between the tools' copies, named:** StoryReel 0.34.0's label search asked a block only when one
-  of its corners stood within 200 px of the label, and counted its looks another way; `labelPlace` is StoryDeck's
-  rule. StoryReel's films and worlds above are unchanged; with blocks up to 7 tiles a side, one label moved in 3 of
-  1,500 worlds (out from under a block). `test/cable-differential.property.test.js` shows the case.
+- **Where the tools' copies differed, named — `labelPlace` is StoryDeck's rule in both:**
+  1. StoryReel 0.34.0's label search asked a block only when one of its corners stood within 200 px of the label; a
+     large block covering the label from further off was passed over. With blocks up to 7 tiles a side, one label
+     moved in 3 of 1,500 worlds (out from under a block).
+  2. It charged its looks far more for the same search (every point of every other cable at every place tried, where
+     StoryDeck charges the cables and blocks near the place and a look an entry), so a busy world — over about a
+     hundred labelled cables — ran out, and every later label fell to its cable's middle. Here they are placed by the
+     rule: on a lattice of 48 blocks and 160 labelled wires, 52 labels (wires 105 to 159) move.
+  StoryReel's example and its generated worlds and films at a film's tile sizes are unchanged.
+  `test/cable-differential.property.test.js` shows both cases.
+- `labelPlace` refuses a `half` that is not two finite numbers from 0, and a `looks.left` that is not a finite number
+  (either would make every place cost nothing and switch the map's shared budget off); with fewer looks left than
+  entries to look at, it gives the cable's middle without reading one.
 
 ## 0.18.0 — framing a box, breaking words, and a part that differs: written once for a deck and a film
 
