@@ -95,5 +95,8 @@ Voice the **spoken** text (`map.spoken`), never the shown text: the key is a has
 - `wordsToFit(name, room, { measure })` takes a word's width (a function or a table, the space as `' '`) in place of
   `letter`, never both; `wrapWords` instead takes a whole line's width. Two rules on purpose: a name on a face (one
   line or two, a size found) and a title over many lines at a chosen size.
+- A map's look: `isoStyle(row, {choices})` (columns shape, shading, line, palette, texture, effects; a left-out column is
+  today's look) and `paintPiece(style, piece, grid, colours)` → `{box, items}`, a paint list as plain data the tool paints.
+  A tool's own choice is named `'prefix:name'`; record `style` (it is plain data). Never draw in the story package.
 - The break rule is a NAME on both: `wrapWords(…, { break: 'fill' | 'even' })` (fill usual), `wordsToFit(…, { break:
   'even' | 'fill' })` (even usual). Pass the writer's choice through and put the name in the record; never a function.

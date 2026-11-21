@@ -34,6 +34,8 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.34.0-draw.mjs` | footprint-storyreel `src/kits/isometric/draw.mjs` at `502044a`, lines 89–94 (`drawHead`) | `export` added; its import of `ISO_CABLE` points at the cables control |
 | `storydeck-0.30.0-cableWay.js` | storydeck at `0cbd4d6` (0.30.0): `deck/cable.js` lines 160–164 (`cableWay`), `deck/transforms.js` lines 388–401 (`leadOf`) | the import of `rounded` points at `../../isometric.js`; `export` added to `leadOf` |
 | `footprint-story-0.21.0-words.js` | this package's `src/isometric/words.js` at `f348622` (npm 0.21.0), `wordsToFit` before it took `break` | its import of `./thing.js` points at `../../src/isometric/thing.js` |
+| `storyreel-0.38.0-draw.mjs` | footprint-storyreel `src/kits/isometric/draw.mjs` at `a2f08c2` (0.38.0), lines 21, 23, 25, 26, 38 and 40–87 (`ISO_LOOK`, `channels`, `mix`, `withAlpha`, `polygon`, `drawFloor`, `drawBlock`) | `export` added to `withAlpha`, `drawFloor`, `drawBlock`; a comment line naming the source |
+| `storydeck-0.32.0-shapeOf.js` | storydeck `deck/iso.js` at `fc9e4ca` (0.32.0), lines 80–81 (`fixed`, `points`) and 301–321 (`shapeOf`) | `export` added to `shapeOf`; its imports (`floorLabelPlace`, `roundOutline`) point at `../../isometric.js`; a comment line naming the source |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these

@@ -1,0 +1,126 @@
+// Styles (0.23.0): the interface a choice has, a tool's own choices, the record, and every refusal naming the fix.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { isometric, isoStyle, paintPiece, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, USUAL_STYLE, MOST_EFFECTS, MOST_OWN_CHOICES, PAINT_ITEMS, MOST_PAINT_ITEMS, mixColour } from '../isometric.js';
+
+const grid = isometric({ tile: 100, origin: [500, 100] });
+const block = { name: 'server', kind: 'block', at: [1, 1], size: [2, 2, 1] }, floor = { name: 'ground', kind: 'floor', at: [0, 0], size: [3, 2] };
+const colours = { base: '#d9e4f3', ink: '#14181f' };
+
+test('the columns, the usual style, and the choices this package ships', () => {
+  assert.deepEqual(ISO_STYLE_COLUMNS, ['shape', 'shading', 'line', 'palette', 'texture', 'effects']);
+  assert.deepEqual(USUAL_STYLE, { shape: 'box', shading: 'tones', line: 'ink', palette: 'theme', texture: 'none', effects: [] });
+  assert.deepEqual(ISO_STYLE_CHOICES, { shape: ['box'], shading: ['tones'], line: ['ink', 'none'], palette: ['theme'], texture: ['none'], effects: [] });
+  assert.deepEqual(PAINT_ITEMS, ['polygon', 'ellipse', 'path', 'lines']);
+  assert.equal(MOST_EFFECTS, 8); assert.equal(MOST_OWN_CHOICES, 64); assert.equal(MOST_PAINT_ITEMS, 512);
+  assert.equal(mixColour('#d9e4f3', '#ffffff', 0.2), '#e1e9f5');
+  for (const v of [ISO_STYLE_COLUMNS, USUAL_STYLE, USUAL_STYLE.effects, ISO_STYLE_CHOICES]) assert.ok(Object.isFrozen(v));
+});
+
+test('a style is plain data, the record of it: its row and the options written — frozen, and it clones', () => {
+  const style = isoStyle({ line: { name: 'ink', width: 5 } });
+  assert.deepEqual(style, { row: { ...USUAL_STYLE, effects: [] }, options: { line: { width: 5 } } });
+  assert.deepEqual(structuredClone(style), style);
+  assert.ok(Object.isFrozen(style) && Object.isFrozen(style.row) && Object.isFrozen(style.options.line));
+  assert.deepEqual(isoStyle(null), isoStyle());
+  // a copy of a style is its record, not a style: only what isoStyle made paints (its choices are held apart)
+  assert.throws(() => paintPiece(structuredClone(style), block, grid), /paintPiece takes a style isoStyle made/);
+});
+
+test('outlined: the ink line 5 px wide — the same faces and fills, only the strokes wider; line "none": no outline, a floor keeps its tiles', () => {
+  const usual = paintPiece(isoStyle(), block, grid, colours).items, wide = paintPiece(isoStyle({ line: { name: 'ink', width: 5 } }), block, grid, colours).items;
+  assert.deepEqual(wide.map(({ stroke, ...rest }) => rest), usual.map(({ stroke, ...rest }) => rest));
+  assert.ok(wide.every((it) => it.stroke.width === 5) && usual.every((it) => it.stroke.width === 2.5));
+  const bare = paintPiece(isoStyle({ line: 'none' }), block, grid, colours).items;
+  assert.ok(bare.every((it) => it.stroke === null));
+  const tiles = paintPiece(isoStyle({ line: 'none' }), floor, grid, colours).items;
+  assert.deepEqual(tiles.map((it) => [it.role, it.stroke && it.stroke.width]), [['ground', null], ['grid', 1.5]]);
+  assert.throws(() => isoStyle({ line: { name: 'ink', width: 50 } }), /the style's line "ink" takes a width from 0.5 to 20 px — not 50/);
+  assert.throws(() => isoStyle({ line: { name: 'none', width: 5 } }), /the style's line "none" takes no options — not "width"/);
+});
+
+test('a style refuses what it cannot read, naming the column and the fix', () => {
+  assert.throws(() => isoStyle('flat'), /isoStyle takes a row of choices \{shape, shading, line, palette, texture, effects\}, or none — not "flat"/);
+  assert.throws(() => isoStyle({ outline: 'ink' }), /a style's columns are shape, shading, line, palette, texture, effects — not "outline"/);
+  assert.throws(() => isoStyle({ line: 'thick' }), /the style's line has no choice "thick" — the line choices are "ink", "none"/);
+  assert.throws(() => isoStyle({ effects: ['shadow'] }), /the style's effects has no choice "shadow" — the effects choices are none yet/);
+  assert.throws(() => isoStyle({ effects: 'shadow' }), /the style's effects are a list of at most 8/);
+  assert.throws(() => isoStyle({ line: { width: 5 } }), /the style's line names its choice: \{name: "ink", width: 5\}/);
+  assert.throws(() => isoStyle({ line: { name: 'ink', width: [5] } }), /the style's line's width is a number, a word or true\/false/);
+  assert.throws(() => isoStyle({ line: Object.defineProperty({}, 'name', { get: () => 'ink' }) }), /is read as a stored value, and this one is a getter/);
+  assert.throws(() => isoStyle(undefined, 'mine'), /isoStyle's settings are \{choices\}, or none/);
+});
+
+// a tool's own choice: hatching over every face, the strokes placed by the seeded random numbers
+const hatch = { column: 'texture', name: 'test:hatch', options: ['lines'],
+  check: (o) => { if (o.lines !== undefined && !(Number.isInteger(o.lines) && o.lines >= 1 && o.lines <= 20)) throw new Error('test:hatch takes 1 to 20 lines'); },
+  clashes: [{ column: 'line', name: 'none', fix: 'hatching needs an outline to stop at — use line "ink"' }],
+  apply: (items, { options, random, piece }) => [...items, ...items.filter((it) => it.item === 'polygon').map((it) => ({ item: 'lines', role: 'hatch', of: piece.name,
+    segments: Array.from({ length: options.lines ?? 3 }, () => { const [x, y] = it.points[0]; return [x, y, x + random() * 10, y + random() * 10]; }), fill: null, stroke: { colour: null, alpha: 0.5, width: 1, join: 'round', cap: 'round' } }))] };
+
+test('a tool\'s own choice: named with its prefix, in the record, seeded by the style and the piece (the same every time), checked once', () => {
+  const style = isoStyle({ texture: { name: 'test:hatch', lines: 4 } }, { choices: [hatch] });
+  assert.deepEqual(style.row.texture, 'test:hatch');
+  assert.deepEqual(style.options, { texture: { lines: 4 } });
+  const a = paintPiece(style, block, grid, colours), again = paintPiece(style, block, grid, colours);
+  assert.deepEqual(a, again, 'drawn twice, the same marks');
+  assert.equal(a.items.filter((it) => it.role === 'hatch').length, 3);
+  assert.ok(a.items.filter((it) => it.role === 'hatch').every((it) => it.segments.length === 4));
+  const other = paintPiece(style, { ...block, name: 'db' }, grid, colours);
+  assert.notDeepEqual(other.items.filter((it) => it.role === 'hatch').map((it) => it.segments), a.items.filter((it) => it.role === 'hatch').map((it) => it.segments), 'another piece, other marks');
+  assert.throws(() => isoStyle({ texture: { name: 'test:hatch', lines: 99 } }, { choices: [hatch] }), /^Error: test:hatch takes 1 to 20 lines$/);
+  // a pairing that cannot work is refused before anything is drawn, with the fix
+  assert.throws(() => isoStyle({ texture: 'test:hatch', line: 'none' }, { choices: [hatch] }), /the style's texture "test:hatch" cannot sit with line "none" — hatching needs an outline to stop at — use line "ink"/);
+  // a choice not handed in is no choice
+  assert.throws(() => isoStyle({ texture: 'test:hatch' }), /the style's texture has no choice "test:hatch" — the texture choices are "none"/);
+});
+
+test('a tool\'s own choice is refused when it is not one: no prefix, twice, no apply, bad options or clashes', () => {
+  const bad = (c, re) => assert.throws(() => isoStyle(undefined, { choices: [c] }), re);
+  bad({ ...hatch, name: 'hatch' }, /choices\[0\]'s name is the tool's prefix and a name, lower case \("reel:chalk"\): a name with no prefix is this package's — not "hatch"/);
+  bad({ ...hatch, column: 'outline' }, /choices\[0\]'s column is one of shape, shading, line, palette, texture, effects — not "outline"/);
+  bad({ ...hatch, apply: 'draw' }, /choices\[0\] \(test:hatch\) gives its apply\(input, context\) — not "draw"/);
+  bad({ ...hatch, options: ['Lines'] }, /'s options are the names it reads, at most 16, lower case/);
+  bad({ ...hatch, clashes: [{ column: 'line', name: 'none' }] }, /'s clashes\[0\] is \{column, name, fix\}: a column, a choice's name and the fix in words/);
+  bad({ ...hatch, check: 1 }, /'s check is a function \(options\) that refuses what it cannot take, or none/);
+  assert.throws(() => isoStyle(undefined, { choices: [hatch, hatch] }), /choices\[1\]: texture "test:hatch" is given twice/);
+  assert.throws(() => isoStyle(undefined, { choices: Array(65).fill(hatch) }), /isoStyle's choices are a list of at most 64/);
+});
+
+test('what a choice gives back is checked before the next column reads it: plain data, known items, bounded; what it throws is its own', () => {
+  const texture = (apply) => isoStyle({ texture: 'test:t' }, { choices: [{ column: 'texture', name: 'test:t', apply }] });
+  const paint = (apply) => paintPiece(texture(apply), block, grid, colours);
+  const one = (more) => (items) => [...items, { item: 'polygon', role: 'mark', of: 'server', points: [[0, 0], [1, 0], [0, 1]], fill: null, stroke: null, ...more }];
+  assert.equal(paint(one({})).items.length, 4);
+  assert.throws(() => paint(() => 'a picture'), /the style's texture "test:t" gives back a paint list, a list of items — not "a picture"/);
+  assert.throws(() => paint(one({ item: 'circle' })), /item 4 is a polygon, a ellipse, a path, a lines — not "circle"/);
+  assert.throws(() => paint(one({ draw: () => 1 })), /item 4 holds plain data only/);
+  assert.throws(() => paint((items) => [...items, Object.defineProperty({ ...items[0] }, 'role', { get: () => 'top', enumerable: true })]), /item 4: role is read as a stored value, and this one is a getter/);
+  assert.throws(() => paint(one({ fill: { mix: null, colour: 'red' } })), /item 4's fill colour is null or "#rrggbb" — not "red"/);
+  assert.throws(() => paint(one({ stroke: { colour: null, alpha: 2, width: 1, join: 'round', cap: 'butt' } })), /item 4's stroke alpha is from 0 to 1 — not 2/);
+  assert.throws(() => paint(one({ points: [[0, 0], [1, NaN], [0, 1]] })), /item 4's point is a point \[x, y\], two finite numbers/);
+  assert.throws(() => paint(one({ colour: '#ffffff' })), /item 4 \(a polygon\) holds item, role, of, points, fill and stroke — not \["colour"\]/);
+  assert.throws(() => paint(one({ role: 'Top' })), /item 4's role is a short lower-case name/);
+  assert.throws(() => paint((items) => [...items, ...Array(600).fill(items[0])]), /gives back 603 items, and one piece holds at most 512/);
+  assert.throws(() => paint(() => { throw new Error('mine'); }), /^Error: mine$/);
+  // the list handed on shares nothing with what the choice holds: a later edit of its own object reaches nothing
+  const kept = { item: 'polygon', role: 'mark', of: 'server', points: [[0, 0], [1, 0], [0, 1]], fill: null, stroke: null };
+  const got = paint((items) => [...items, kept]);
+  kept.points[0][0] = 99;
+  assert.equal(got.items[3].points[0][0], 0);
+  assert.ok(Object.isFrozen(got.items[3].points[0]));
+});
+
+test('paintPiece refuses what it cannot read, naming the fix', () => {
+  const style = isoStyle();
+  assert.throws(() => paintPiece({ row: USUAL_STYLE, options: {} }, block, grid), /paintPiece takes a style isoStyle made/);
+  assert.throws(() => paintPiece(style, { ...block, name: '' }, grid), /a piece's name is 1 to 64 letters/);
+  assert.throws(() => paintPiece(style, { ...block, kind: 'cone' }, grid), /a piece's kind is block, cylinder, floor — not "cone"/);
+  assert.throws(() => paintPiece(style, { ...block, size: [2, 2] }, grid), /"server"'s size is \[wide, deep, high\]/);
+  assert.throws(() => paintPiece(style, { ...floor, at: [0, 0, 1] }, grid), /"ground"'s at is \[col, row\]/);
+  assert.throws(() => paintPiece(style, block, grid, { base: 'blue' }), /the colours' base is a colour, "#rgb" or "#rrggbb" — not "blue"/);
+  assert.throws(() => paintPiece(style, block, {}), /paintPiece draws on a map's grid \(isometric\(\.\.\.\)\)/);
+  assert.throws(() => paintPiece(style, { ...block, kind: 'cylinder', size: [2, 1, 1] }, grid), /a cylinder is round/);
+  // a short colour is read as its long form
+  assert.deepEqual(paintPiece(style, block, grid, { base: '#FFF', ink: '#000' }), paintPiece(style, block, grid, { base: '#ffffff', ink: '#000000' }));
+});

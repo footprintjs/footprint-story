@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.23.0 — a map's look as a row of named choices
+
+- **`footprint-story/isometric` · `isoStyle(row, {choices})`** and **`paintPiece(style, piece, grid, colours)`**: a
+  style is one named choice per column — `shape`, `shading`, `line`, `palette`, `texture`, `effects` — and a piece's
+  paint list is what the choices give, in that order: plain items (`polygon`, `ellipse`, `path`, `lines`) with a role, a
+  fill and a stroke, which each tool paints. The design: `docs/design/2026-11-iso-styles.md` (step 1 of 4).
+- This package's choices are today's look, written out: `box`, `tones`, `ink` (option `width`: an outlined look),
+  `none` (no outline), `theme`, `none`. The usual style, painted, draws what StoryReel 0.38.0 drew call for call and
+  writes what StoryDeck 0.32.0 wrote byte for byte, for any block, cylinder or floor on any grid (property tests against
+  copies of that code, `test/control/storyreel-0.38.0-draw.mjs`, `test/control/storydeck-0.32.0-shapeOf.js`). Neither
+  tool uses it yet: their painters come next.
+- A tool's own choice (`'reel:chalk'`) has the same interface: `apply`, its `options` and a `check` run once, the
+  choices it `clashes` with and the fix, and seeded `random()` so a mark is the same every time. What a choice gives
+  back is checked as plain data and copied before the next column reads it; a bad pairing is refused before anything
+  is drawn. Also `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `PAINT_ITEMS`, `MOST_*` limits and `mixColour`.
+
 ## 0.22.0 — the break rule is a named choice
 
 - **`footprint-story/layout` · `wrapWords(words, width, measure, { break })`** and **`BREAK_RULES`** (`['fill',
