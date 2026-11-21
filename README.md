@@ -440,7 +440,21 @@ line's length is the share where a packet passes onto it.
 Each refuses what it cannot read, by name; `straightRun` gives `{why: 'middle' | 'close'}` where the two pieces share a
 middle or stand too close, and the tool words it.
 
-More in [src/isometric/README.md](src/isometric/README.md).
+**Styles.** A map's look is a row of named choices, one per column — `shape`, `shading`, `line`, `palette`, `texture`,
+`effects` — and each choice gives back a **paint list**: plain items (polygons, ellipses, paths, lines) with a role, a
+fill and a stroke, which each tool paints (StoryReel on a canvas, StoryDeck as SVG). Today's look is the usual style;
+`line: {name: 'ink', width: 5}` is an outlined one, `line: 'none'` drops the outline. A tool adds its own choice under
+its own prefix (`'reel:chalk'`); the style is plain data, so a run's record says which choices drew a map.
+
+```js
+import { isometric, isoStyle, paintPiece } from 'footprint-story/isometric';
+
+const style = isoStyle({ line: { name: 'ink', width: 5 } });          // { row: {shape: 'box', …, line: 'ink', …}, options: {line: {width: 5}} }
+paintPiece(style, { name: 'server', kind: 'block', at: [2, 1], size: [2, 2, 1] }, isometric({ tile: 120 }), { base: '#d9e4f3', ink: '#14181f' });
+// → { box, items: [{ item: 'polygon', role: 'left', of: 'server', points, fill: { mix: ['#000000', 0.06], colour: '#ccd6e4' }, stroke }, …] }
+```
+
+More in [src/isometric/README.md](src/isometric/README.md) and the design, [docs/design/2026-11-iso-styles.md](docs/design/2026-11-iso-styles.md).
 
 ## A part that differs from the real thing (differs)
 
@@ -515,6 +529,7 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
+| `/isometric` `isoStyle`, `paintPiece`, `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `MOST_EFFECTS`, `MOST_OWN_CHOICES`, `PAINT_ITEMS`, `MOST_PAINT_ITEMS`, `MOST_PAINT_POINTS`, `mixColour` | a map's look as a row of named choices, and a piece's paint list in it |
 | `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `cableWay`, `stopShort`, `cableLead`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked, its line stopped for its head, a lead into a port; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
 | `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS`, `BREAK_RULES` | the zoom that frames a box; words broken across a width as drawn, by a named rule (fill or even) |

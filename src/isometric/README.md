@@ -25,6 +25,9 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `outline.js` | how far a ray runs before it leaves an outline or a box (`exitOutline`, `exitBox`); a round thing's outline (`roundOutline`) |
 | `lead.js` | a cable's lead into a port, drawn again over its block: its way rounded from that end, its pieces through the floor corner and their length (`cableLead`) — the share of the line a tool hands a packet over at |
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
+| `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
+| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`) |
+| `paint.js` | the paint list: its items, checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -302,3 +305,58 @@ an earlier one is never moved for a later one), and a label's place on a way. `g
 it goes where it is told and turns once; `arrange` places nothing by its height. A view that turns is
 `footprint-story/shot`'s camera, which has depth today; it is not changed by this. Where the ideas come from:
 [REFERENCES.md](REFERENCES.md).
+
+## Styles: a row of named choices, a paint list as data
+
+A map can be drawn flat, outlined, as line art, sketchy, on paper, in pixels. The geometry is the same in all of them;
+what changes is a handful of independent choices. So a style is a **row of named choices**, one per column, in the order
+they run — each reads only what the one before it gave (the design: `docs/design/2026-11-iso-styles.md`):
+
+| Column | Takes | Gives | This package's choices |
+|---|---|---|---|
+| `shape` | the piece and the grid | the faces, as items with a role (`top`, `left`, `right`, `side`, `ground`, `grid`) | `box` |
+| `shading` | the items, the base colour | a fill per face | `tones`: top 20% toward white, left 6% and right (a cylinder's side) 18% toward black |
+| `line` | the items, the ink | strokes | `ink` (2.5 px, round joins; option `width`, 0.5 to 20), `none` (a floor keeps its tile lines) |
+| `palette` | the items | the same, recoloured | `theme` |
+| `texture` | the items | marks over them | `none` |
+| `effects` | the items | items added to the whole, a list of choices | — |
+
+`isoStyle(row, {choices})` checks a row (a column left out is the usual one, USUAL_STYLE: today's look) and gives back
+`{row, options}` — plain, frozen data, the record of it. `paintPiece(style, piece, grid, colours)` gives a piece's
+`{box, centre, outline, items}` — the box round it, where its name stands, the outline round it — and the **paint list**, plain items in paint order (`polygon`, `ellipse`, `path`, `lines`), each with its
+`role`, the piece it is `of`, a `fill` (`{mix, colour}`: the recipe, and the colour it comes to when a base is given)
+and a `stroke` (`{colour, alpha, width, join, cap}`). Give no colours and each fill keeps its recipe with no colour, for
+a page whose CSS colours each role (StoryDeck's `iso-left`, `iso-right`, `iso-top`, …).
+
+WHY a list and not drawing here: a deck and a film paint the same list, so they draw the same picture; a test compares
+lists, not screenshots; and this package stays free of drawing code. Pinned: the usual style's list, painted by a
+small canvas painter from a fresh canvas, draws what StoryReel 0.38.0's `drawBlock`/`drawFloor` drew call for call (a
+floor's tile lines say join `miter`, where 0.38.0 kept whatever join the canvas had last: separate segments, so nothing
+differs on screen), and painted as SVG
+writes what StoryDeck 0.32.0's `shapeOf` wrote byte for byte, for any piece on any grid
+(`test/isometric-style.property.test.js`, against copies of that code in `test/control/`), with the deck's centre and
+outline too. Points are any finite numbers: a far piece on a big grid is far off the frame, never refused.
+
+**A tool's own choice** has the same interface — `{column, name, apply(input, context), options, check, clashes}` — and
+a name with the tool's prefix (`'reel:chalk'`; this package's names have none). `apply` takes the items (a `shape`
+takes `{piece, grid}` and gives `{box, centre, outline, items}`); `context` holds the piece, the colours, the options written for it,
+and `random()`: numbers seeded by the style, the piece's name and the column, so a wobble or a grain is the same every
+time it is drawn, in a deck and in a film. `check(options)` refuses a value once, when the style is made. `clashes` names
+the choices it cannot sit with and the fix: `isoStyle` refuses that pairing before anything is drawn. What a choice gives
+back is checked before the next column reads it — plain data only (no function, no getter, no live object), the items
+this package knows, each `of` its own piece, at most MOST_PAINT_ITEMS (512) a piece and MOST_PAINT_POINTS (4096) points an
+item, an arc at most half a turn — read entry by entry (never a list's own `map`, a hole or a getter) and copied, so a
+later edit of the choice's own objects reaches nothing. A Proxy's traps do run, once, as it is copied. Options are kept
+in the order of their names, so `{a, b}` and `{b, a}` are the same style, seeded the same; a clash must name a choice
+there is. What it throws comes out as it is: the tool's own code.
+
+```js
+const chalk = { column: 'texture', name: 'reel:chalk', options: ['marks'],
+  clashes: [{ column: 'line', name: 'none', fix: 'chalk needs an outline to stop at — use line "ink"' }],
+  apply: (items, { random, piece }) => [...items, …marks placed with random() …] };
+isoStyle({ texture: 'reel:chalk' }, { choices: [chalk] });   // { row: { …, texture: 'reel:chalk' }, options: {} }
+```
+
+A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
+apart, never on the style), so a record read back can be shown but must be made into a style again to draw.
+

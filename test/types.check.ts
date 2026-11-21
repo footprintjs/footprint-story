@@ -193,3 +193,14 @@ const rule: BreakRule = BREAK_RULES[1];
 export const breaking: unknown[] = [wrapWords(['a', 'b'], 100, (t) => t.length, { break: rule }), wrapWords(['a'], 1, (t) => t.length, null), fitWords('Load Balancer', [170, 70], { break: 'fill' })];
 // @ts-expect-error — a rule not in BREAK_RULES
 wrapWords(['a'], 1, (t) => t.length, { break: 'balanced' });
+
+// 0.23.0: styles — a row of named choices, a paint list as data
+import { isoStyle, paintPiece, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, USUAL_STYLE, MOST_EFFECTS, MOST_OWN_CHOICES, PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour } from 'footprint-story/isometric';
+import type { IsoStyle, IsoStyleChoice, PaintItem } from 'footprint-story/isometric';
+const chalk: IsoStyleChoice = { column: 'texture', name: 'reel:chalk', options: ['lines'], apply: (items: readonly PaintItem[], { random }) => items.map((it) => ({ ...it, role: random() > 2 ? 'x' : it.role })), clashes: [{ column: 'line', name: 'none', fix: 'use ink' }] };
+const look: IsoStyle = isoStyle({ line: { name: 'ink', width: 5 }, texture: 'reel:chalk' }, { choices: [chalk] });
+const painted = paintPiece(look, { name: 'a', kind: 'block', at: [0, 0], size: [2, 2, 1] }, isometric({ tile: 100 }), { base: '#d9e4f3', ink: '#14181f' });
+const first: PaintItem = painted.items[0];
+export const styled: unknown[] = [first.role, painted.box.w, look.row.line, ISO_STYLE_COLUMNS[0], ISO_STYLE_CHOICES.line, USUAL_STYLE.shape, MOST_EFFECTS, MOST_OWN_CHOICES, PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour('#000000', '#ffffff', 0.5)];
+// @ts-expect-error — a column that is not one
+isoStyle({ outline: 'ink' });
