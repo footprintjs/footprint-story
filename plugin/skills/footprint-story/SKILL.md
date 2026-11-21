@@ -7,7 +7,7 @@ description: What a film and a deck share (footprint-story, formerly footprint-n
 
 A voice drops or garbles digits and a forced aligner knows only letters, so a narration is **said in words and
 shown as written**. Everything here rests on one map from the shown text to the spoken text. And a move, a change of
-picture and a pace are named here once, so a film and a deck move alike. Seven doors:
+picture and a pace are named here once, so a film and a deck move alike. Eight doors:
 
 | You need | Import | Runs |
 |---|---|---|
@@ -19,6 +19,8 @@ picture and a pace are named here once, so a film and a deck move alike. Seven d
 | a story as data on a named shape, read and checked | `footprint-story/storyboard` | anywhere, no dependencies; nothing draws |
 | why a value of a run is so, from the run's record file: `whyFromRecord({file, control, key})` (the value, the stage that wrote it, the decision that let it run, what each read); `controlEdges` is what a run saves for it | `footprint-story/record` | **Node only**; needs `footprintjs` and `foottrace` (the caller's) |
 | a row of a reply kept one line whatever a project's files hold: `oneLine`, `errorText` | `footprint-story` | anywhere |
+| a part that differs from the real thing: `differsProblem(declaration, lines, phrases)` (the first rule broken, as data), `differsLines`, `timeProblem`, `timeWords`, `differsEnglish` | `footprint-story` | anywhere; the tool words the refusal |
+| a flat frame: `frameZoom([w, h], [roomW, roomH], { share, least, most, smallest })`, `wrapWords(words, width, (text) => width)` (greedy, each line measured whole), `narrowestWidth` (balance) | `footprint-story/layout` | anywhere, no dependencies; nothing draws |
 
 Never import `footprint-story/voice` into browser code. This package was `footprint-narration` until 0.3.0: replace
 the name in imports and `package.json`; the two old doors export exactly what they did.
@@ -90,3 +92,6 @@ Voice the **spoken** text (`map.spoken`), never the shown text: the key is a has
 - `captionChunks` takes tracks, each word's times from its track's start; `offset` puts the track on the video's clock.
 - `captionFile(…, 'vtt')` escapes `& < >`; read files back with `readCaptions`, which reads the escapes.
 - `unsaidDigits(map)` lists digits a voice would still read: refuse them before voicing.
+- `wordsToFit(name, room, { measure })` takes a word's width (a function or a table, the space as `' '`) in place of
+  `letter`, never both; `wrapWords` instead takes a whole line's width. Two rules on purpose: a name on a face (one
+  line or two, a size found) and a title over many lines at a chosen size.

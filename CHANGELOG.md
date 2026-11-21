@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.18.0 — framing a box, breaking words, and a part that differs: written once for a deck and a film
+
+Three rules each tool kept to itself move here, so a deck, its animation and a film work them out once. Each gives
+what the tool's own code gave, to the last bit, for every input the tool can hand it — checked by property tests
+against copies of that code (`test/control/storydeck-0.28.0-*`, `test/control/storyreel-0.33.0-*`) and, through each
+tool, by its pages and frames before and after.
+
+- **`footprint-story` · a part that differs from the real thing**: `differsProblem(declaration, lines, phrases)` (the
+  first rule broken — `said-twice`, `unsaid`, `unstated` with `named`/`statements`/`says`, `contradicts` with the
+  `figure` — or null), `differsLines`, `differsStatements`, `differsEnglish`, `timeProblem` (`not-a-factor`,
+  `real-time`, `past-range`), `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, and `DIFFERS_MOST` (70),
+  `DIFFERS_SAID_MOST` (120), `DIFFERS_TIME_MOST` (1e9), `DIFFERS_ANALOGY`. From StoryDeck 0.28.0's `deck/differs.js`
+  and StoryReel 0.33.0's `src/differs.mjs`, which held the same rules; codes, not sentences, so each tool words them.
+- **`footprint-story/layout`, a new door**: `frameZoom(size, room, { share, least, most, smallest })`, StoryDeck's
+  zoom, fit and side-mover rule (its exact operations, so a view rounded to 4 places rounds as before);
+  `wrapWords(words, width, measure)`, StoryReel's greedy line breaking with each line measured whole; and
+  `narrowestWidth(width, lines, linesAt)` with `NARROWEST_STEPS` (12), its balancing.
+- **`wordsToFit(text, room, { measure })`**: a word's width (a function or a table, read by its own stored fields; the
+  space as `' '`) in place of the letter count, for a tool that can measure its face. The same rule, summed widths;
+  each distinct word measured once. Refused: `measure` with `letter`, a getter for `measure`, a width that is no
+  number from 0 to 1,000,000. Without `measure`, every name is set as before. The options refusal now lists `measure`.
+- Inputs are read by their own stored fields (a getter is never run; a list with a hole is refused). `frameZoom`
+  takes any number as IEEE arithmetic answers it (a NaN in is a NaN out, as the deck's unchecked `zoom` options always
+  gave) and refuses anything that is not a number.
+
 ## 0.17.1 — 0.17.0, published
 
 - 0.17.0 was tagged but never published: a test that timed the router's biggest picture against the clock (5 s) ran

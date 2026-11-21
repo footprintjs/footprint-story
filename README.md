@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Seven doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Eight doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -36,8 +36,10 @@ Seven doors, nothing else. A door loads only when you import it, so a page that 
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
 | `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
 | `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in — and where things stand, worked out from what is joined to what | anywhere — browser or Node; no dependencies |
+| `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
+| `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
 new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency of its own (the record door needs none:
@@ -406,6 +408,45 @@ there. `arrangeByGroup(things, links)` places each group's things together, then
 
 More in [src/isometric/README.md](src/isometric/README.md).
 
+## A part that differs from the real thing (differs)
+
+A picture is believed: a process run 30 times faster, or a part drawn far larger than it is, reads as how the thing
+is unless the part says otherwise. A deck part (`data-differs-*`) and a film scene (`differs`) declare how they differ —
+`time` (how many times faster), `scale` (what is out of scale, in words), `analogy` (what stands in for what) — and say
+it on the picture, in the voice, or both. The rules and the default words live here; each tool reads its own fields
+and words its own refusal from the code the kit gives back.
+
+```js
+import { differsLines, differsProblem, timeProblem } from 'footprint-story';
+
+timeProblem(1.004);                                   // 'real-time': it reads as 1 time, so leave it out
+const d = { time: 30, scale: 'The dots are drawn far larger than real' };
+differsLines(d);                                      // ['Time shown 30 times faster', 'The dots are drawn far larger than real']
+differsProblem(d, ['Shown 3 times faster'], null);    // { problem: 'unstated', named: ['time', 'scale'], statements: 2, says: 1 }
+differsProblem({ time: 30 }, ['Shown 3 times faster'], null);   // { problem: 'contradicts', figure: '3' }
+```
+
+The checks, in order: two phrases that are the same words, nothing said at all, a statement with no line or phrase
+of its own, and a number in the time's line that is not the declared factor (`1,000` and `1.000` both read as a
+thousand). `differsEnglish(d, lines, lang)` names a default English line a deck or film in another language still
+shows. More in [src/differs/README.md](src/differs/README.md).
+
+## A flat frame: framing a box, breaking words (layout)
+
+```js
+import { frameZoom, wrapWords, narrowestWidth } from 'footprint-story/layout';
+
+frameZoom([400, 200], [1600, 900], { share: 0.7, least: 1, most: 2.5 });   // 2.5: the box fills 70% of the room, held at 2.5×
+const measure = (text) => ctx.measureText(text).width;
+const lines = wrapWords(words, 600, measure);                               // first fit, each line measured whole
+const even = wrapWords(words, narrowestWidth(600, lines.length, (w) => wrapWords(words, w, measure).length), measure);   // balanced
+```
+
+`frameZoom` is StoryDeck's zoom, fit and side-mover rule: contain the box in the room, take `share` of that, hold it
+between `least` and `most` (`smallest` counts a point as a pixel). `wrapWords` and `narrowestWidth` are StoryReel's
+title, end-card, summary-card and caption breaking. A name on a block's face is `wordsToFit` (isometric), which now
+takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
+
 ## API
 
 | export | does |
@@ -437,9 +478,11 @@ More in [src/isometric/README.md](src/isometric/README.md).
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
+| `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
+| `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS` | the zoom that frames a box; words broken across a width as drawn, and balanced |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -450,7 +493,10 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboa
   a rule says is final.
 - **Every move and curve StoryReel 0.23.0 drew is drawn the same**: property tests compare thousands of generated
   calls against copies of that code in `test/control/` — values and refusals alike.
-- **The main, motion, storyboard, shot and isometric doors run in a browser**: nothing they reach imports a Node module, and the main
+- **What moved from a tool frames, breaks and judges as the tool did**: the differs rules (StoryDeck 0.28.0 and
+  StoryReel 0.33.0), `frameZoom` (StoryDeck 0.28.0's cameras, to the last bit) and `wrapWords` / `narrowestWidth`
+  (StoryReel 0.33.0's line breaking) are compared against copies of that code in `test/control/`.
+- **The main, motion, storyboard, shot, isometric and layout doors run in a browser**: nothing they reach imports a Node module, and the main
   door never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).

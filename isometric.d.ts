@@ -164,9 +164,12 @@ export interface FittedWords { readonly lines: readonly string[]; readonly size:
  * space. A size is from 1 to 1000 pixels, and a room given as [wide, high] no more than 1,000,000 either way. `room`
  * may be a function for a face that narrows (`(high) => grid.room(thing, high)`): it is asked how wide a box so tall
  * may be — 0 for one line, one line's height for two. What it gives that is no finite number above 0 is read as no
- * room, and more than 1,000,000 as that; what it throws comes out as it is.
+ * room, and more than 1,000,000 as that; what it throws comes out as it is. `measure` — for a tool that can measure
+ * its face — gives each word's width at 1 px of size (a function, or a table `{ [word]: width }` read by its own stored
+ * fields; the space is the word ' ') in place of the letter count: the same rule, each line its words' and spaces'
+ * widths summed. It replaces `letter` (both is refused); a width that is no number from 0 to 1,000,000 is refused.
  */
-export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number } | null): FittedWords;
+export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number; measure?: ((word: string) => number) | Readonly<Record<string, number>> } | null): FittedWords;
 
 /** Where a way doubles back on itself: leaving its first port ('start' — the port faces away — or 'start-hook', a short loop near a good one), a tight U on the floor ('middle'), or coming into its last port ('end', 'end-hook'). */
 export type IsoHairpin = 'start' | 'start-hook' | 'middle' | 'end' | 'end-hook';

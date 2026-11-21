@@ -24,3 +24,6 @@ export { clockText, readChapters, youtubeChapters } from './src/chapters/chapter
 
 // said — a row of a reply is one line, whatever a project's files put in it
 export { oneLine, isOneLine, errorText } from './src/said/oneline.js';
+
+// differs — a part that differs from the real thing says so: the rules and default words a deck and a film share
+export { timeWords, analogyWords, differsFactors, foldDiffers, timeProblem, differsStatements, differsLines, differsProblem, differsEnglish, DIFFERS_MOST, DIFFERS_SAID_MOST, DIFFERS_TIME_MOST, DIFFERS_ANALOGY } from './src/differs/differs.js';
