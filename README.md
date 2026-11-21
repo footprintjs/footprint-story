@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Eight doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Nine doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -38,11 +38,12 @@ Eight doors, nothing else. A door loads only when you import it, so a page that 
 | `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in — and where things stand, worked out from what is joined to what | anywhere — browser or Node; no dependencies |
 | `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
+| `footprint-story/mapflow` | an isometric map built as a footprintjs chart, one stage per step, so a run's record says why each block stands where it does | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 | `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
-new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency of its own (the record door needs none:
+new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency of its own (the record and mapflow doors need none:
 `footprintjs` and `foottrace` are the caller's, optional peers that both tools already have) or a release
 pace of its own.
 
@@ -456,6 +457,21 @@ paintPiece(style, { name: 'server', kind: 'block', at: [2, 1], size: [2, 2, 1] }
 
 More in [src/isometric/README.md](src/isometric/README.md) and the design, [docs/design/2026-11-iso-styles.md](docs/design/2026-11-iso-styles.md).
 
+**A whole map, as named steps.** `buildIsoMap(spec, policy)` builds a map from the map as data (blocks, floors, wires,
+a grid or an area, a style) and a tool's numbers (`ISO_MAP_POLICIES.film` or `.deck`): place, route, fitFloors, grid,
+shape, names, order, floorLabels, style (`ISO_MAP_STEPS`), each a pure step that reads and writes plain data. The two
+that choose say why as data (`placed: 'build'`, `placedWhy: 'no block has an at: …'`). Moved from StoryReel 0.38.0 and
+pinned against a copy of it; neither tool uses it yet. `footprint-story/mapflow` runs the same steps as a footprintjs
+chart, so a run's record answers why a block stands where it does (`runMapFlow`, then `whyFromRecord`):
+[src/mapflow/README.md](src/mapflow/README.md), and the design, [docs/design/2026-11-map-flow.md](docs/design/2026-11-map-flow.md).
+
+```js
+import { buildIsoMap, ISO_MAP_POLICIES } from 'footprint-story/isometric';
+const map = buildIsoMap({ blocks: [{ name: 'web', size: [2, 2, 1] }, { name: 'db', kind: 'cylinder', size: [2, 2, 1] }],
+  wires: [{ from: { block: 'web' }, to: { block: 'db' } }], area: [0, 0, 1600, 900] }, ISO_MAP_POLICIES.film);
+map.at; map.view; map.shapes; map.order; map.paints   // where, the grid, each piece's faces, the paint order, the paint lists
+```
+
 ## A part that differs from the real thing (differs)
 
 A picture is believed: a process run 30 times faster, or a part drawn far larger than it is, reads as how the thing
@@ -530,12 +546,14 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
 | `/isometric` `isoStyle`, `paintPiece`, `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `MOST_EFFECTS`, `MOST_OWN_CHOICES`, `PAINT_ITEMS`, `MOST_PAINT_ITEMS`, `MOST_PAINT_POINTS`, `mixColour` | a map's look as a row of named choices, and a piece's paint list in it |
+| `/isometric` `buildIsoMap`, `ISO_MAP_STEPS`, `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS` | a whole map built as named, pure steps from the map as data and a tool's numbers |
 | `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `cableWay`, `stopShort`, `cableLead`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked, its line stopped for its head, a lead into a port; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
 | `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS`, `BREAK_RULES` | the zoom that frames a box; words broken across a width as drawn, by a named rule (fill or even) |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
+| `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -547,7 +565,7 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboa
 - **Every move and curve StoryReel 0.23.0 drew is drawn the same**: property tests compare thousands of generated
   calls against copies of that code in `test/control/` — values and refusals alike.
 - **What moved from a tool frames, breaks and judges as the tool did**: the differs rules (StoryDeck 0.28.0 and
-  StoryReel 0.33.0), `frameZoom` (StoryDeck 0.28.0's cameras, to the last bit) and `wrapWords` / `narrowestWidth`
+  StoryReel 0.33.0), a whole map's build (StoryReel 0.38.0), `frameZoom` (StoryDeck 0.28.0's cameras, to the last bit) and `wrapWords` / `narrowestWidth`
   (StoryReel 0.33.0's line breaking) are compared against copies of that code in `test/control/`.
 - **The main, motion, storyboard, shot, isometric and layout doors run in a browser**: nothing they reach imports a Node module, and the main
   door never loads motion (an architecture test).

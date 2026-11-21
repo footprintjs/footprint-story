@@ -235,6 +235,7 @@ export function pick(state, keys) {
   return out;
 }
 
+/** A value frozen all the way down (plain data, no cycles): a built map nobody can edit after it is made. */
 export function deepFreeze(v) {
   if (v && typeof v === 'object') { Object.freeze(v); for (const k of Object.keys(v)) deepFreeze(v[k]); }
   return v;

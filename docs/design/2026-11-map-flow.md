@@ -1,6 +1,6 @@
 # The map flow — building an isometric map as named steps, and as a footprintjs chart
 
-Status: design, 2026-11-21. Replaces steps 2–4 of `2026-11-iso-styles.md` (the painters now plug into this flow).
+Status: design, 2026-11-21; build-order step 1 done in footprint-story 0.24.0 (`ISO_MAP_STEPS`, `buildIsoMap`, `/mapflow`). Replaces steps 2–4 of `2026-11-iso-styles.md` (the painters now plug into this flow).
 
 ## Why
 
