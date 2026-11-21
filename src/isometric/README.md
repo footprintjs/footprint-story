@@ -412,7 +412,7 @@ decider for each, so a run's record says what each step read, wrote and decided 
 `usualGrid`, `area`, `style` (a row of choices) and `who` (the map). `who` is the tool's own words for where a piece was
 written: every refusal names it, with the fix, so a tool needs no rewording. Read by own stored fields (a getter is
 refused, never run), each list a plain list, bounded (`ISO_MAP_LIMITS`: 256 blocks, floors and obstacles, 1024 wires,
-512 stretches kept clear), a key a piece does not take refused. The tools' rules hold: all or none of the blocks have
+512 stretches kept clear, a block's label 2000 letters, a floor's 120), a key a piece does not take refused. The tools' rules hold: all or none of the blocks have
 an at, one name one piece, a floor fitted round a group has blocks in it, a wire to a port runs along the floor, and
 the build places blocks only when nothing on the floor is placed by hand (no obstacle, no keep).
 
@@ -425,6 +425,22 @@ data, and left out each is nothing, so a film's map is 0.24.0's:
 | `keep` | floor kept clear under words placed over the picture, `[{at, size, name}]` in tiles | handed to `routes` as `keep` (only when there are some, so a map that keeps none lays as before); a route's `under` names each words it could not keep off, once | the tool works the tiles out from where its words stand on the frame (`floorUnder`), on a grid that does not move |
 | a floor's `icon` | `true`: the tool draws an icon before the label | `floorLabelPlace(…, {icon: true})`: the label has that much less room | the icon takes room on the edge |
 | `usualGrid` | the grid the tool draws a map on when the map places its own blocks and writes none (the deck's: tile 120, its far corner at the slide's middle, 240 px down) | the `grid` step picks it (`grid: 'usual'`, said so in `gridWhy`) — not when the build placed the blocks, nor when the map writes `grid: 'fit'` | it depends on the slide's width, so it is data; and the record says honestly where the grid came from |
+
+**What a tool's adapter does that the steps leave to it.** The spec is what the steps can check; a tool reads its own
+format and hands it over. StoryDeck's adapter (sketched in `test/deckMaps.js`, which the differential runs) must:
+
+- drop a wire to a flat piece (a callout, a panel): the steps lay and place only between blocks and obstacles, and
+  placement does not change, since the build's `arrange` leaves out a link to a name it does not place;
+- hand a wire as `straight: true` when its block shares a name with another piece (the deck's "alone" rule: such a
+  wire is drawn straight, never laid), and never hand the shared name as a piece's;
+- hand its own unique names, 1 to 64 letters (a deck whose pieces share a first name, or have a longer one, names them
+  itself and maps back);
+- slice a floor's at of three numbers to its first two, and hand a sized floor with no at as `[0, 0]`;
+- keep its own refusals of what it places by its style: a footprint or kept floor beside a fitted grid (`'fit'`), or
+  beside blocks the build places (the steps refuse the second too, in their own words);
+- work its keep-clear stretches out from each box (`floorUnder`, on its written grid, else its usual one) and hand
+  them in tiles; hand a block's name as plain words (its entities decoded); hand its usual grid in numbers;
+- leave a wire past the 1024 the kit lays to itself (drawn straight), and keep its HTML, px, levels and record.
 
 Two rules changed for every tool, neither touching a map 0.24.0 built: a map may have no block (floors and obstacles on
 a written or usual grid; a fitted picture needs something to fit), and a sized floor may name a group no block has (a

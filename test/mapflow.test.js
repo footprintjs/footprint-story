@@ -66,7 +66,7 @@ test('the record keeps what each stage read when it wrote, and each decider\'s c
   const rows = Object.fromEntries(snapshot.commitLog.map((c) => [c.runtimeStageId, Object.fromEntries(c.trace.map((r) => [r.path, r.readKeys]))]));
   assert.deepEqual(rows['place#1'], { placed: ['blocks'], placedWhy: ['blocks'] });
   assert.deepEqual(rows['build#2'], { at: ['who', 'blocks', 'wires'] });
-  assert.deepEqual(rows['grid#5'], { grid: ['written', 'placed', 'usualGrid'], gridWhy: ['written', 'placed', 'usualGrid'] });
+  assert.deepEqual(rows['grid#5'], { grid: ['written', 'placed', 'usualGrid', 'blocks'], gridWhy: ['written', 'placed', 'usualGrid', 'blocks'] });
   // what each stage read is what its step says it reads (the decider and the branch apart), in the steps' own words
   for (const step of ISO_MAP_STEPS.filter((s) => !s.decides)) {
     const [id] = Object.keys(rows).filter((k) => k.startsWith(`${step.name}#`));

@@ -36,6 +36,9 @@ test('the grid: written, asked fitted, fitted where the build placed the blocks,
 test('a map with no block: floors alone on a written or usual grid; a fitted picture or a fitted floor needs something on the floor', () => {
   const alone = buildIsoMap({ floors: [{ at: [0, 0], size: [4, 3], label: 'Empty' }], usualGrid: USUAL }, DECK);
   assert.deepEqual([alone.placed, alone.placedWhy, alone.grid, alone.order], ['hand', 'the map has no blocks: nothing is placed', 'usual', []]);
+  // its grid's reason says so too: it placed no blocks (the words land in the record)
+  assert.equal(alone.gridWhy, 'no grid is written and the map has no blocks: it is the usual grid the tool handed in');
+  assert.equal(buildIsoMap({ obstacles: [{ name: 'lap', at: [0, 0], size: [2, 1, 0] }], usualGrid: USUAL }, DECK).gridWhy, alone.gridWhy);
   refused({ floors: [{ at: [0, 0], size: [4, 3] }], area: [0, 0, 10, 10] }, /the map: a fitted grid is fitted to what stands on the floor, and this map has nothing — add a block, or write the grid in numbers/);
   refused({ floors: [{ who: 'the ground' }], usualGrid: USUAL }, /the ground: a floor with no size is fitted round what stands on it, and this map has nothing — give it an at and a size/);
   refused({ blocks: [], area: [0, 0, 10, 10] }, /the map draws blocks on a floor — give it blocks/);
@@ -84,6 +87,15 @@ test('a floor\'s icon gives its label less room; the policy\'s cover says what a
   assert.equal(buildIsoMap(round, FILM).policy.cover, 'drawn');
 });
 
+test('a block\'s name as long as a page holds (2000 letters) is built and said not to fit, as a deck draws it', () => {
+  const long = Array.from({ length: 30 }, (_, i) => `word${i}`).join(' ');
+  const m = buildIsoMap({ blocks: [web({ label: long })], usualGrid: USUAL }, DECK);
+  assert.deepEqual([m.names[0].fits, m.names[0].size, m.names[0].lines.length], [false, DECK.name.least, 2]);
+  const most = buildIsoMap({ blocks: [web({ label: 'x '.repeat(1000).trim() + 'x' })], usualGrid: USUAL }, DECK);
+  assert.equal(most.names[0].fits, false);
+  assert.equal(ISO_MAP_LIMITS.label, 2000);
+});
+
 test('a group named only by a sized floor: allowed, and a map of groups (fitted down to the grouped tile)', () => {
   const far = { blocks: [web(), db({ at: [80, 0] })], area: [0, 0, 1920, 1080] };
   const area = buildIsoMap({ ...far, floors: [{ at: [0, 0], size: [9, 4], label: 'Spare', group: 'spare' }] }, DECK);
@@ -103,7 +115,9 @@ test('the new inputs are refused in words, with the fix', () => {
   refused({ floors: [{ at: [0, 0], size: [2, 2] }], wires: [{ from: { block: 'pc' }, to: { block: 'web' } }], usualGrid: USUAL }, /the blocks are none/);
   refused({ blocks: [web({ at: null })], obstacles: [{ name: 'lap', at: [0, 4], size: [1, 1, 0], who: '"lap" (data-footprint)' }], area: [0, 0, 10, 10] }, /"lap" \(data-footprint\): an obstacle stands where the map puts it, and no block has an at: the build places the blocks only when nothing on the floor is placed by hand — give every block an at/);
   refused({ blocks: [web({ at: null })], keep: [{ at: [0, 0], size: [1, 1], name: 'n' }], area: [0, 0, 10, 10] }, /the map: keep names floor in tiles, and no block has an at/);
-  refused({ ...two, keep: [{ at: [0, 0], size: [1, 1] }] }, /keep\[0\]: name says what it keeps the floor clear under/);
+  refused({ ...two, keep: [{ at: [0, 0], size: [1, 1] }] }, /keep\[0\]: name is the words it keeps the floor clear under \(a route's under names them\), 1 to 64 letters — not undefined/);
+  refused({ ...two, keep: [{ at: [0, 0], size: [1, 1], name: null }] }, /keep\[0\]: name is the words .* — not null/);
+  refused({ ...two, keep: [{ at: [0, 0], size: [1, 1], name: 'x'.repeat(65) }] }, /keep\[0\]: name is the words .*1 to 64 letters/);
   refused({ ...two, keep: [{ at: [0, 0], size: [0, 1], name: 'n' }] }, /keep\[0\]: size is \[wide, deep\] in tiles, each above 0/);
   refused({ ...two, keep: [{ at: [0, 0], size: [1, 1], name: 'n', who: 'x' }] }, /keep\[0\] takes at, size, name — not "who"/);
   refused({ ...two, keep: [{ at: 'a', size: [1, 1], name: 'n' }] }, /keep\[0\]: a stretch kept clear's at is/);

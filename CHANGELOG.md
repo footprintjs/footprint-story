@@ -40,7 +40,14 @@
   floor's `at` of `[0, 0]`, the keep-clear stretches worked out from a box on the slide (`floorUnder`, on its written or
   usual grid), the usual grid's numbers, and a block's name as plain words (its entities decoded). A wire past the
   1024 the kit lays stays the deck's (StoryDeck leaves it straight; the spec holds at most 1024 wires).
-- The record reads more: the grid's decider reads `written`, `placed` and `usualGrid`; `route`, `fitFloors`, `shape`,
+- What a tool's adapter must do that the steps leave to it (src/isometric/README.md · "What a tool's adapter does"):
+  drop a wire to a flat piece (a callout, a panel) — placement does not change; hand a wire whose block shares a name
+  with another piece as straight (the deck's "alone" rule); slice a floor's three-number at to two; hand its own unique
+  names (at most 64 letters); keep its own refusal of footprints and kept floor beside a fitted grid.
+- A block's label may run to 2000 letters (`ISO_MAP_LIMITS.label`, 120 in 0.24.0): a deck draws a long name and says it
+  does not fit, so the steps take it; a floor's label stays at 120 (`MOST_FLOOR_LABEL`).
+- A map with no blocks on the usual grid says so in `gridWhy` ("the map has no blocks"), not that it placed them.
+- The record reads more: the grid's decider reads `written`, `placed`, `usualGrid` and `blocks`; `route`, `fitFloors`, `shape`,
   `order` and `floorLabels` read `obstacles` (and `keep`, `policy`) — so a film's record names those keys too.
 
 ## 0.24.0 — a whole map as named steps, and as a footprintjs chart

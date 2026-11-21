@@ -122,7 +122,8 @@ test('refusals name the piece by its who, and the fix', () => {
   refused({ blocks: [b({ rule: 'fill' })], area: [0, 0, 10, 10] }, /rule says how its label breaks onto two lines — give it a label too/);
   refused({ blocks: [b({ label: 'x', rule: 'tidy' })], area: [0, 0, 10, 10] }, /rule is how its label breaks onto two lines, "even" or "fill" — not "tidy"/);
   refused({ blocks: [b({ label: '  ' })], area: [0, 0, 10, 10] }, /label is words/);
-  refused({ blocks: [b({ label: 'x'.repeat(121) })], area: [0, 0, 10, 10] }, /label is at most 120 letters/);
+  refused({ blocks: [b({ label: 'x'.repeat(2001) })], area: [0, 0, 10, 10] }, /label is at most 2000 letters — this one has 2001/);
+  refused({ blocks: [b()], floors: [{ at: [0, 0], size: [2, 2], label: 'x'.repeat(121) }], area: [0, 0, 10, 10] }, /floors\[0\]: label is at most 120 letters/);
   refused({ blocks: [b({ name: '' })], area: [0, 0, 10, 10] }, /blocks\[0\]'s name is 1 to 64 letters/);
   refused({ blocks: [b({ who: '' })], area: [0, 0, 10, 10] }, /'s who is the tool's words/);
   refused({ blocks: [b({ ports: [{ name: 'p', at: [5, 0, 0] }] })], area: [0, 0, 10, 10] }, /data-iso="block" \("web"\): "web"'s port "p" is at \[5,0,0\], outside/);
@@ -179,7 +180,7 @@ test('the policy is refused in words: each number, its range, the hold', () => {
 test('the numbers the policies hold, and the limits', () => {
   assert.deepEqual(DECK, { fit: { most: 160, least: 96, grouped: 64, inset: 40, margin: 1 }, name: { size: 26, least: 16 }, small: null, clear: 0.9, hold: 'groups', cover: 'block' });
   assert.ok(Object.isFrozen(ISO_MAP_POLICIES) && Object.isFrozen(FILM.fit) && Object.isFrozen(ISO_MAP_LIMITS));
-  assert.deepEqual(ISO_MAP_LIMITS, { pieces: 256, wires: 1024, keep: 512, name: 64, label: 120, group: 100, who: 200 });
+  assert.deepEqual(ISO_MAP_LIMITS, { pieces: 256, wires: 1024, keep: 512, name: 64, label: 2000, group: 100, who: 200 });
 });
 
 test('a name is counted in letters everywhere: 40 letters outside the BMP are 40, in the spec and in the style alike', async () => {

@@ -100,6 +100,11 @@ test('each case the property covers is met: the usual grid, a footprint and kept
   const far = { grid: 'fit', blocks: [block(), block({ at: [80, 0, null] })] };
   assert.equal(same(deckMap(far)).view.tile[0], 96);
   assert.equal(same(deckMap({ ...far, floors: [{ given: 'size', at: [0, 0], size: [9, 4], label: null, icon: false, group: 'spare' }] })).view.tile[0], 64);
+  // a 30-word name: the deck draws it broken and at its least size, and says it does not fit (tight); so do the steps
+  const long = same(deckMap({ blocks: [block({ label: Array.from({ length: 30 }, (_, i) => `word${i}`).join(' ') })] }));
+  assert.equal(long.names[0].fits, false);
+  // floors alone on the usual grid: the grid's reason says the map has no blocks
+  assert.match(same(deckMap({ floors: [{ given: 'size', at: [0, 0], size: [4, 4], label: null, icon: false, group: null }] })).gridWhy, /the map has no blocks: it is the usual grid/);
   // a footprint on a labelled floor's front edge: the label moves along clear of it, as the deck moves it
   const edge = { blocks: [block({ at: [30, 0, null] })], floors: [{ given: 'both', at: [0, 0], size: [6, 3], label: 'Production account', icon: false, group: null }] };
   assert.notDeepEqual(same(deckMap({ ...edge, feet: [{ at: [-1, 2], size: [2, 1, 0.3], ports: 0 }] })).floorLabels[0], same(deckMap(edge)).floorLabels[0]);

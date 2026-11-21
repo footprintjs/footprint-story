@@ -146,6 +146,8 @@ function chooseGrid(state) {
   if (written === 'fit') return { ...state, grid: 'fitted', gridWhy: 'the map asks for its grid fitted: it is fitted so the picture fills the area' };
   if (usualGrid === null) return { ...state, grid: 'fitted', gridWhy: 'no grid is written: it is fitted so the picture fills the area' };
   if (placed === 'build') return { ...state, grid: 'fitted', gridWhy: 'no grid is written and the build placed the blocks: it is fitted so the picture fills the area, not drawn on the usual grid' };
+  // a map with no block placed nothing: its reason must not say it did (it lands in the record)
+  if (!state.blocks.length) return { ...state, grid: 'usual', gridWhy: 'no grid is written and the map has no blocks: it is the usual grid the tool handed in' };
   return { ...state, grid: 'usual', gridWhy: 'no grid is written and the map placed its blocks: it is the usual grid the tool handed in' };
 }
 const viewOf = (g) => ({ tile: [...g.tile], origin: [...g.origin], rise: g.rise });
@@ -264,7 +266,7 @@ export const ISO_MAP_STEPS = Object.freeze([
   plainStep('route', 'Each wire laid along the floor, round what stands on it', ['who', 'blocks', 'at', 'obstacles', 'wires', 'keep'], ['routes'], route),
   plainStep('fitFloors', 'Each floor with no size fitted round what stands on it', ['blocks', 'at', 'obstacles', 'floors', 'routes', 'policy'], ['floorTiles'], fitFloors),
   choosing('grid', "The grid: written in numbers, fitted to the area, or the tool's usual grid",
-    { key: 'grid', why: 'gridWhy', ...part(['written', 'placed', 'usualGrid'], ['grid', 'gridWhy'], chooseGrid) },
+    { key: 'grid', why: 'gridWhy', ...part(['written', 'placed', 'usualGrid', 'blocks'], ['grid', 'gridWhy'], chooseGrid) },
     { written: part(['who', 'written'], ['view'], gridWritten), fitted: part(['who', 'blocks', 'at', 'obstacles', 'routes', 'floors', 'floorTiles', 'area', 'policy'], ['view'], gridFitted),
       usual: part(['usualGrid'], ['view'], gridUsual) }),
   plainStep('shape', "Each piece's box, centre, outline and faces: the style's shape", ['blocks', 'at', 'obstacles', 'floors', 'floorTiles', 'view', 'style'], ['shapes', 'floorShapes', 'obstacleShapes'], shape),

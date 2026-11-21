@@ -63,7 +63,7 @@ The **policy** is the tool's own numbers, where a deck and a film differ on purp
 | `place` | blocks, wires | each block's `at`; `placed: 'hand' \| 'build'` | the map placed them, or the build from its wires (by group when any has one) |
 | `route` | blocks, wires | each wire's route (its `why` when it has no way) | — |
 | `fitFloors` | blocks, routes | each floor's `at` and `size` when none was written | — |
-| `grid` | blocks, routes, floors, area, placed, usualGrid | the tile, the origin | written, fitted to the area, or the tool's usual grid |
+| `grid` | written, placed, usualGrid, blocks, obstacles, routes, floors, area | the tile, the origin | written, fitted to the area, or the tool's usual grid |
 | `shape` | grid, blocks, style | each piece's box, centre, outline, faces (the style's `shape` column) | — |
 | `names` | blocks, at, view, policy | each name's lines, size, fits, rule; the small line | — |
 | `order` | blocks | the paint order, furthest first | — |

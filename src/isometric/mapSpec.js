@@ -42,8 +42,14 @@ import { MOST_ISOMETRIC_THINGS } from './order.js';
 import { MOST_FLOOR_LABEL } from './floorLabel.js';
 import { fin, numbers, readThing, refuse, shown, stored } from './thing.js';
 
-/** How much a map holds: blocks, floors and obstacles together, wires, stretches kept clear, the letters of a name, a label, a group and a `who`. */
-export const ISO_MAP_LIMITS = Object.freeze({ pieces: MOST_ISOMETRIC_THINGS, wires: MOST_ROUTES, keep: MOST_KEEP, name: 64, label: 120, group: 100, who: 200 });
+/**
+ * How much a map holds: blocks, floors and obstacles together, wires, stretches kept clear, the letters of a name, a
+ * block's label (and its small line), a group and a `who`. WHY a block's label may run to 2000 letters (0.25.0; 120
+ * before): a deck draws whatever name its writer gives a block and says it does not fit (`fits: false`), never cuts it,
+ * so the steps take what a page can hold; bounded, because fitting a name takes time that grows with it. A floor's label
+ * stays at floorLabel.js · MOST_FLOOR_LABEL (120): both tools refuse a longer one themselves.
+ */
+export const ISO_MAP_LIMITS = Object.freeze({ pieces: MOST_ISOMETRIC_THINGS, wires: MOST_ROUTES, keep: MOST_KEEP, name: 64, label: 2000, group: 100, who: 200 });
 
 /**
  * The tools' numbers. `film`: StoryReel 0.38.0's ISO_FIT (kits/isometric/build.mjs) — StoryDeck's numbers, and a film's
@@ -192,8 +198,8 @@ function readObstacle(o, i) {
 function readKeepStretch(k, i) {
   const who = `keep[${i}]`;
   keysOf(k, KEEP_KEYS, who);
-  const name = wordsOf(stored(k, 'name', `${who}'s name`), ISO_MAP_LIMITS.name, who, 'name');
-  if (name === null) refuse(`${who}: name says what it keeps the floor clear under (a route's under names it) — give it one`);
+  const name = stored(k, 'name', `${who}'s name`);
+  if (typeof name !== 'string' || !name.trim() || [...name].length > ISO_MAP_LIMITS.name) refuse(`${who}: name is the words it keeps the floor clear under (a route's under names them), 1 to ${ISO_MAP_LIMITS.name} letters — not ${shown(name)}`);
   const size = numbers(stored(k, 'size', `${who}'s size`), [2], `${who}: size`, '[wide, deep], in tiles');
   if (!(size[0] > 0 && size[1] > 0)) refuse(`${who}: size is [wide, deep] in tiles, each above 0 — not ${shown(size)}`);
   const read = named(who, () => readThing({ at: stored(k, 'at', `${who}'s at`), size: [...size, 0] }, 'a stretch kept clear'));

@@ -411,7 +411,7 @@ export interface IsoMapPolicy {
 }
 /** The tools' numbers: `film` StoryReel's (pinned), `deck` StoryDeck's. */
 export const ISO_MAP_POLICIES: { readonly film: IsoMapPolicy; readonly deck: IsoMapPolicy };
-/** How much a map holds: blocks, floors and obstacles together, wires, stretches kept clear, the letters of a name, a label, a group and a `who`. */
+/** How much a map holds: blocks, floors and obstacles together, wires, stretches kept clear, the letters of a name, a block's label (2000) and a floor's (120), a group and a `who`. */
 export const ISO_MAP_LIMITS: { readonly pieces: number; readonly wires: number; readonly keep: number; readonly name: number; readonly label: number; readonly group: number; readonly who: number };
 /** A piece's shape: the box round it, where its name stands, its outline, and its faces (the style's shape column, no fill or stroke yet). */
 export interface IsoMapShape { readonly box: IsoBox; readonly centre: readonly [number, number]; readonly outline: readonly (readonly [number, number])[]; readonly faces: readonly PaintItem[] }

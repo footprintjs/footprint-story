@@ -40,9 +40,11 @@ the scope, `$getValue`, so the record keeps it), writing back the keys it names.
 **What the record keeps.** `runMapFlow` runs with `writeProvenance: 'reads-prefix'` (the keys each stage had read when
 it wrote). A step that chooses is a decider: it writes its choice and its reason (`placed`/`placedWhy`,
 `grid`/`gridWhy`) — a decider that wrote nothing would leave no reads — and hands footprintjs a `decide()` whose label
-is the reason, so `controlEdges` saves the words and `whyFromRecord` shows them. The grid's reason says which of four it
-was: written in numbers, asked fitted (`grid: 'fit'`), fitted because the build placed the blocks, or the usual grid
-the tool handed in (`usualGrid`, 0.25.0) — so a deck's record never says "written" of a grid nobody wrote. The spec and the policy come in as the
+is the reason, so `controlEdges` saves the words and `whyFromRecord` shows them. The grid's reason says which of five it
+was: written in numbers; asked fitted (`grid: 'fit'`); fitted, no grid being written and no usual grid handed in;
+fitted because the build placed the blocks; or the usual grid the tool handed in (`usualGrid`, 0.25.0), said apart for
+a map that placed its blocks and one that has none — so a deck's record never says "written" of a grid nobody wrote, nor
+"placed" of blocks it does not have. The spec and the policy come in as the
 run's input (`{mapSpec, mapPolicy}`), checked by the `read` stage; the record says that stage read the run's args.
 
 **What it gives.** `mapFlow()` is the chart, to run as you like (input `{mapSpec, mapPolicy}`). `runMapFlow(spec,
