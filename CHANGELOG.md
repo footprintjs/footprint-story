@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.1 — stopShort asks a way's size before it reads a point
+
+- `footprint-story/isometric` · `stopShort` and `cableWay` refuse a list of more than 4,096 points (the most a way
+  has, as `rounded` refuses) before reading any of it. 0.20.0 copied every entry first, so a huge sparse list was
+  read in full before `rounded` refused it. Found in the second read of 0.20.0.
+
 ## 0.20.0 — a cable's line stops for its head by one rule
 
 - **`footprint-story/isometric` · `stopShort(points, back)`**: a laid cable's points with the last pulled `back` px

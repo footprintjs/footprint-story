@@ -16,7 +16,7 @@
  */
 import { numbers, own, refuse, shown } from './thing.js';
 
-const MOST_WAY = 4096;   // the most points one way has
+export const MOST_WAY = 4096;   // the most points one way has (stopShort asks it too, before it reads a point)
 const CHORDS = 12;       // the straight runs a rounded corner is measured in
 const far = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 const curve = (from, corner, to, t) => [0, 1].map((k) => (1 - t) * (1 - t) * from[k] + 2 * (1 - t) * t * corner[k] + t * t * to[k]);
