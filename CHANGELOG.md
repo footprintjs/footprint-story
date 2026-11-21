@@ -4,12 +4,14 @@
 
 - **`footprint-story/layout` · `wrapWords(words, width, measure, { break })`** and **`BREAK_RULES`** (`['fill',
   'even']`): `'fill'` is the usual and sets what `wrapWords` always set; `'even'` keeps fill's line count and sets the
-  lines again at the narrowest width that keeps it (`narrowestWidth`), so no line ends with a word alone — the lines of
+  lines again at the narrowest width that keeps it (`narrowestWidth`), as alike as that many lines allow — the lines of
   StoryReel's title band, one call in place of two (a property test against StoryReel 0.33.0's `balancedLines`).
 - **`footprint-story/isometric` · `wordsToFit(…, { break })`**: `'even'` is the usual and gives every name what 0.21.0
   gave it (a property test against a copy of 0.21.0's `wordsToFit`, `test/control/footprint-story-0.21.0-words.js`);
   `'fill'` sets the first line as full as it goes at each size and the rest beneath it, never empty (checked against an
-  oracle written apart). A name not in the list, or a getter for `break`, is refused on both doors.
+  oracle written apart). A name not in the list, `null`, or a getter for `break` is refused on both doors; before
+  0.22.0 `wordsToFit` ignored a `break` field and `wrapWords` ignored a fourth argument, so a caller that passed one
+  by mistake is now told. A refusal from `footprint-story/layout` shows a function as "a function", never its source.
 - WHY names and not a function the caller hands in: each rule is tested here, and a build's record can say which one
   broke a line ("broken by even"). StoryDeck and StoryReel pass their writers' choice through next.
 

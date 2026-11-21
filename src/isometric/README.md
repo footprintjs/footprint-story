@@ -223,7 +223,9 @@ leaves the longer line shortest) or `'fill'` (the first line as full as it goes 
 top-heavy name). `wordsToFit('aaaa bb cc dddd', [200, 90])` gives `['aaaa bb', 'cc dddd']`; with `{ break: 'fill' }`
 it gives `['aaaa bb cc', 'dddd']`, both at 26. One line is tried first either way, and the sizes the same way. Under
 fill a first word too wide for the line has it to itself, and the second line is never empty; fill is never set
-bigger than even (even's break is the best a size can have). The names are `footprint-story/layout`'s `BREAK_RULES`.
+bigger than even (even's break is the best a size can have). Fill chooses its break against the width two lines have:
+a box too low for two lines still gets fill's break (with `fits: false`), and a face with no width at all for two gets
+even's. Left out is the usual; `null` or any other name is refused. The names are `footprint-story/layout`'s `BREAK_RULES`.
 Pinned: `test/break-rules.property.test.js` (even against a copy of 0.21.0's `wordsToFit`, fill against an oracle).
 
 **The room on a top face.** The top of a block is a slanted diamond, not the rectangle round it: across its middle it

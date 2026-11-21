@@ -170,7 +170,8 @@ export interface FittedWords { readonly lines: readonly string[]; readonly size:
  * widths summed. It replaces `letter` (both is refused); a width that is no number from 0 to 1,000,000 is refused.
  * `break` — the rule for two lines: `'even'` (the usual: the break that leaves the longer line shortest) or `'fill'`
  * (the first line as full as it goes at each size, the rest beneath it, never empty); the names of
- * footprint-story/layout's BREAK_RULES. Any other name is refused.
+ * footprint-story/layout's BREAK_RULES; fill's break is chosen against the width two lines have (a box too low for two
+ * still gets it; a face with no width for two gets even's). Left out is 'even'; null or any other name is refused.
  */
 export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number; measure?: ((word: string) => number) | Readonly<Record<string, number>>; break?: 'even' | 'fill' } | null): FittedWords;
 

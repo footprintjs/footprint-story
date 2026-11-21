@@ -13,8 +13,9 @@
  * line, [''] (the caller draws nothing; StoryReel's titles always had it so).
  *
  * The break rule is a choice, `options.break`, one of BREAK_RULES: `'fill'` (the usual, the rule above: each line as
- * full as it goes) or `'even'` (as many lines as `'fill'` sets, as alike as they can be: set again at the narrowest width
- * that keeps that many lines, so no line ends with a word alone — StoryReel's title band). One line is left as it is.
+ * full as it goes) or `'even'` (as many lines as `'fill'` sets, as alike as they allow: set again at the narrowest width
+ * that keeps that many lines, so the lines are as alike as that many lines allow — StoryReel's title band). One line
+ * is left as it is. Left out (or undefined) is the usual; null or any other name is refused.
  * WHY named rules and not a function the caller hands in: a rule the package owns is tested here and can be NAMED in a
  * build's record ("broken by even"); a function could be neither. `wordsToFit` (footprint-story/isometric) takes the
  * same two names, with `'even'` its usual.
@@ -40,11 +41,11 @@
 /** How many times narrowestWidth halves: 12 halvings find the width to 1/4096 of it — finer than a pixel on a 1600 px frame. */
 export const NARROWEST_STEPS = 12;
 
-/** The break rules, by name: `'fill'` each line as full as it goes, `'even'` as many lines as fill sets, as alike as they can be. */
+/** The break rules, by name: `'fill'` each line as full as it goes, `'even'` as many lines as fill sets, as alike as they allow. */
 export const BREAK_RULES = Object.freeze(['fill', 'even']);
 
 function refuse(fix) { throw new Error(`layout: ${fix}`); }
-const shown = (v) => (Array.isArray(v) ? 'a list' : v === null ? 'null' : typeof v === 'object' ? 'an object' : typeof v === 'string' ? JSON.stringify(v.slice(0, 40)) : String(v));
+const shown = (v) => (Array.isArray(v) ? 'a list' : v === null ? 'null' : typeof v === 'object' ? 'an object' : typeof v === 'function' ? 'a function' : typeof v === 'string' ? JSON.stringify(v.slice(0, 40)) : String(v));
 
 /** What `measure` gives for a line, checked: a width is a finite number from 0. */
 function widthOf(measure, line) {
@@ -59,7 +60,7 @@ function ruleOf(options) {
   if (typeof options !== 'object' || Array.isArray(options)) refuse(`wrapWords takes its options as {break}, or none — not ${shown(options)}`);
   const d = Object.getOwnPropertyDescriptor(options, 'break');
   if (d && !('value' in d)) refuse('wrapWords\'s break is read as a stored value, and this one is a getter (code, never run) — give the name itself');
-  const rule = d?.value ?? 'fill';
+  const rule = d?.value === undefined ? 'fill' : d.value;
   if (!BREAK_RULES.includes(rule)) refuse(`wrapWords breaks by ${BREAK_RULES.map((r) => `'${r}'`).join(' or ')} — not ${shown(rule)}`);
   return rule;
 }

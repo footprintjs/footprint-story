@@ -66,6 +66,15 @@ test('wrapWords {break}: fill is the usual; even keeps fill\'s line count and ev
   assert.throws(() => wrapWords(words, 150, measure, 'even'), /wrapWords takes its options as \{break\}, or none — not "even"/);
   assert.throws(() => wrapWords(words, 150, measure, ['even']), /options as \{break\}, or none — not a list/);
   assert.throws(() => wrapWords(words, 150, measure, Object.defineProperty({}, 'break', { get: () => 'even' })), /break is read as a stored value, and this one is a getter/);
+  assert.throws(() => wrapWords(words, 150, measure, { break: null }), /breaks by 'fill' or 'even' — not null/);
+  assert.deepEqual(wrapWords(words, 150, measure, { break: undefined }), ['one two three', 'four']);
+  // a function is shown as one, never its source
+  assert.throws(() => wrapWords(words, 150, measure, { break: function secret() { return 1; } }), /— not a function$/);
+  assert.throws(() => wrapWords(words, 150, measure, () => 1), /options as \{break\}, or none — not a function$/);
+  // one line under even is fill's line: nothing is set again, so measure is asked no more than fill asks it
+  let asked = 0; const counted = (t) => { asked += 1; return measure(t); };
+  wrapWords(words, 1000, counted); const fillAsked = asked; asked = 0;
+  wrapWords(words, 1000, counted, { break: 'even' }); assert.equal(asked, fillAsked);
   // an inherited break is not the caller's own: the usual rule
   assert.deepEqual(wrapWords(words, 150, measure, Object.create({ break: 'even' })), ['one two three', 'four']);
 });

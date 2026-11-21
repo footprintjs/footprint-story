@@ -473,7 +473,7 @@ import { frameZoom, wrapWords, narrowestWidth, BREAK_RULES } from 'footprint-sto
 frameZoom([400, 200], [1600, 900], { share: 0.7, least: 1, most: 2.5 });   // 2.5: the box fills 70% of the room, held at 2.5×
 const measure = (text) => ctx.measureText(text).width;
 const lines = wrapWords(words, 600, measure);                               // first fit, each line measured whole
-const even = wrapWords(words, 600, measure, { break: 'even' });            // as many lines, as alike as they can be
+const even = wrapWords(words, 600, measure, { break: 'even' });            // as many lines, as alike as they allow
 BREAK_RULES;                                                               // ['fill', 'even']: the rules, by name
 ```
 

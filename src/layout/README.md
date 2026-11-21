@@ -23,8 +23,9 @@ spacing and kerning count. **`narrowestWidth`** halves between 0 and the width 1
 narrowest width that keeps the line count: the lines set there are balanced.
 
 **The break rule, by name.** `wrapWords(words, width, measure, { break })` takes one of `BREAK_RULES`: `'fill'` (the
-usual, the rule above) or `'even'` (fill's line count, set again at `narrowestWidth`, so no line ends with a word
-alone; one line is left as it is — StoryReel's title band). `wordsToFit` (isometric) takes the same two names for a
+usual, the rule above) or `'even'` (fill's line count, set again at `narrowestWidth`, so the lines are as alike as
+that many lines allow; one line is left as it is — StoryReel's title band). Left out is the usual; null or any other
+name is refused. `wordsToFit` (isometric) takes the same two names for a
 name's two lines, with `'even'` its usual. WHY a name and not a function the caller hands in: the package tests each
 rule, and a build's record can say which one broke a line; a function could be neither. Each door keeps its own list
 of the names (a door may not import another's file); `test/break-rules.property.test.js` pins them equal.

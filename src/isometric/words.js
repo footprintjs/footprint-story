@@ -33,7 +33,9 @@
  * `break` — the rule for two lines, one of BREAKS: `'even'` (the usual: the break that leaves the longer line shortest,
  * as above) or `'fill'` (the first line as full as it goes at each size, the rest beneath it — a top-heavy name: 'Load
  * Balancer Service' as 'Load Balancer' over 'Service'). One line is tried first either way, and the sizes are tried
- * as above. Under `'fill'` a first word wider than the line has the line to itself, and the second line is never empty.
+ * as above. Under `'fill'` a first word wider than the line has the line to itself, and the second line is never empty;
+ * the break is chosen against the width two lines have, so a box too low for two lines still gets fill's break, and a
+ * face with no width at all for two gets even's. Left out (or undefined) is the usual; null or any other name is refused.
  * WHY named rules: a build's record can name the one it used, and each is tested here. footprint-story/layout's
  * `wrapWords` takes the same two names (BREAK_RULES there; one list per door, pinned equal by a test).
  */
@@ -79,7 +81,7 @@ export function wordsToFit(text, room, options = undefined) {
   const given = (key, usual) => (options ? own(options, key) ?? usual : usual);
   const measure = options ? stored(options, 'measure', "wordsToFit's measure") : undefined;
   if (measure !== undefined && options && own(options, 'letter') !== undefined) refuse('wordsToFit counts letters (letter) or measures words (measure) — give one, not both');
-  const rule = (options ? stored(options, 'break', "wordsToFit's break") : undefined) ?? 'even';
+  const asked = options ? stored(options, 'break', "wordsToFit's break") : undefined, rule = asked === undefined ? 'even' : asked;
   if (!BREAKS.includes(rule)) refuse(`wordsToFit breaks two lines by 'even' or 'fill' — not ${shown(rule)}`);
   const size = given('size', 26), least = given('least', 16), letter = given('letter', 0.6), line = given('line', 1.15);
   if (![size, least, letter, line].every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0) || least < 1 || least > size || size > MOST_SIZE) refuse(`a size is in pixels, from 1 to ${MOST_SIZE}, with least no more than size (26 and 16), letter and line above 0 — not ${shown([size, least, letter, line])}`);
@@ -106,13 +108,15 @@ export function wordsToFit(text, room, options = undefined) {
   for (let k = 0; k <= steps; k += 1) {
     const at = Math.max(least, size - k);
     // n lines at this size: in a box, as wide and as tall as the box; on a face that narrows, as wide as it is where the outer lines' middles are
-    // (no room for that many lines is a limit below any width: -1)
-    const limitFor = (n) => (narrows ? wideFor((n - 1) * line * at) : n * line * at <= high ? wide : -1);
-    if (whole * per * at <= limitFor(1)) return { lines: lines(0), size: at, fits: true };
+    // n lines at this size: how wide they may be, and whether they are not too tall (a face that narrows has no height)
+    const across = (n) => (narrows ? wideFor((n - 1) * line * at) : wide), tall = (n) => narrows || n * line * at <= high;
+    if (tall(1) && whole * per * at <= across(1)) return { lines: lines(0), size: at, fits: true };
     if (!broken) continue;   // one word: only a smaller size can help
-    const limit = limitFor(2);   // asked once a size, as the room is the caller's
-    if (prefix) { const k2 = filled(limit, at); broken = { k: k2, longest: Math.max(prefix[k2], whole - prefix[k2] - space) }; }
-    if (broken.longest * per * at <= limit) return { lines: lines(broken.k), size: at, fits: true };
+    const wideTwo = across(2);   // asked once a size, as the room is the caller's
+    // fill breaks against the width two lines have (a box too low for them still has its width); with no width at all,
+    // there is nothing to fill, and the break is even's
+    if (prefix) { const k2 = wideTwo > 0 ? filled(wideTwo, at) : two.k; broken = { k: k2, longest: Math.max(prefix[k2], whole - prefix[k2] - space) }; }
+    if (tall(2) && broken.longest * per * at <= wideTwo) return { lines: lines(broken.k), size: at, fits: true };
   }
   return { lines: lines(broken ? broken.k : 0), size: least, fits: false };
 }
@@ -120,6 +124,7 @@ export function wordsToFit(text, room, options = undefined) {
 /** The width (or letters) of the first k words and the spaces between them, for k from 0: entry 0 is -space, as nothing is. */
 function firsts(counts, space) {
   const out = [-space];
-  for (let k = 1; k <= counts.length; k += 1) out.push(out[k - 1] + counts[k - 1] + space);
+  // added as even's walk adds (a word and its space together, then onto the sum), so the two rules meet the same sums to the last bit
+  for (let k = 1; k <= counts.length; k += 1) out.push(out[k - 1] + (counts[k - 1] + space));
   return out;
 }
