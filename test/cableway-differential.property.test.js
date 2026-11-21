@@ -52,11 +52,25 @@ test('a lead rounded from either end on stopShort\'s points is StoryDeck 0.30.0\
   }), { numRuns: RUNS });
 });
 
-test('cableLead is StoryDeck\'s lead (0.30.0 leadOf) and its length (piecesLength) wherever StoryDeck\'s lead ended at its floor point', () => {
+/**
+ * The lead by an oracle of its own: the way rounded only as far as the point after the floor point (the floor
+ * point's corner is rounded by its two runs alone, so it is the same corner), all its pieces but the last — or the
+ * whole way when the floor point is its last. Nothing for a port on its floor point.
+ */
+function leadOracle(points, radius, k, count, b) {
+  const run = k ? [...points] : [...points].reverse(), from = (b ? stopShort(run, b) : run).reverse();
+  const floor = from[count - 1], same = (p, q) => p[0] === q[0] && p[1] === q[1];
+  if (from.slice(0, count - 1).every((p) => same(p, floor))) return { pieces: [], length: 0 };
+  const next = from.findIndex((p, i) => i >= count && !same(p, floor));
+  const pieces = next < 0 ? rounded(from, radius).pieces : rounded(from.slice(0, next + 1), radius).pieces.slice(0, -1);
+  return { pieces, length: rides0.piecesLength(from[0], pieces) };
+}
+
+test('cableLead is StoryDeck\'s lead (0.30.0 leadOf, 0.29.0 piecesLength) wherever StoryDeck\'s lead ended at its floor point, and the oracle\'s everywhere', () => {
   // The one difference, named: StoryDeck counted the lead's pieces (2 for a port on the floor's level, 4 with a riser)
-  // where cableLead finds the floor point itself. Where a count ran past the floor point — a riser too short for a
-  // run between its two corners (rounded leaves out a run of no length), or a floor point that is no corner — StoryDeck's
-  // lead ran on along the floor, drawn over its block far from the port; there cableLead ends at the floor point.
+  // where cableLead finds the floor point by its place. Where a count ran past the floor point — a riser too short for
+  // a run between its two corners (rounded leaves out a run of no length), or a floor point that is no corner —
+  // StoryDeck's lead took in a piece of the floor run past it; there cableLead ends at the floor point.
   const same = (p, q) => p[0] === q[0] && p[1] === q[1];
   let agreed = 0;
   fc.assert(fc.property(cable, back, fc.constantFrom(0, 1), fc.constantFrom(2, 3), (c, b, k, count) => {
@@ -65,16 +79,24 @@ test('cableLead is StoryDeck\'s lead (0.30.0 leadOf) and its length (piecesLengt
     let theirs;
     try { theirs = deck.leadOf({ points: c.points, radius, ends }, k, b); } catch { assert.throws(() => cableLead({ points: c.points, radius }, k, count, b)); return; }
     const mine = cableLead({ points: c.points, radius }, k, count, b);
+    assert.deepEqual(flat(seen(mine.way)), flat(seen(theirs.way)), 'the way is StoryDeck\'s');
+    const oracle = leadOracle(c.points, radius, k, count, b);
+    assert.deepEqual(flat({ pieces: mine.pieces, length: mine.length }), flat(oracle), 'the lead is the oracle\'s');
+    assert.deepEqual(mine.pieces, theirs.pieces.slice(0, mine.pieces.length), 'a lead StoryDeck\'s count began');
     const run = k ? c.points : [...c.points].reverse(), floor = run[run.length - count], last = theirs.pieces.at(-1);
-    if (last.corner ? same(last.corner, floor) : same(last.to, floor)) {
+    if (mine.pieces.length === theirs.pieces.length && (last.corner ? same(last.corner, floor) : same(last.to, floor))) {
       agreed += 1;
-      assert.deepEqual(flat({ way: seen(mine.way), pieces: mine.pieces, length: mine.length }), flat({ way: seen(theirs.way), pieces: theirs.pieces, length: rides0.piecesLength(theirs.way.start, theirs.pieces) }));
-    } else {
-      const end = mine.pieces.at(-1);
-      assert.ok(end ? (end.corner ? same(end.corner, floor) : same(end.to, floor)) : same(mine.way.start, floor) && mine.length === 0, 'here the lead ends at its floor point (nothing, for a port on it)');
+      assert.equal(flat(mine.length), flat(rides0.piecesLength(theirs.way.start, theirs.pieces)), 'and its length is piecesLength\'s');
     }
   }), { numRuns: RUNS });
   assert.ok(agreed > RUNS / 4, `most leads end at their floor point in StoryDeck's count too (${agreed} of ${RUNS})`);
+});
+
+test('a lead ends at its floor point by place, not where the path passes it again', () => {
+  // the floor point's coordinates come up earlier on this way (as a corner's start): found by coordinates, the lead would stop there
+  const lead = cableLead({ points: [[45, 7.5], [45, 30], [45, 45], [30, 45], [30, 30], [45, 37.5]], radius: 100 }, 0, 6);
+  assert.equal(lead.pieces.at(-1).to.join(), '45,37.5', 'it runs to the floor point, the last');
+  assert.ok(lead.length > 60, `the whole way: ${lead.length} px`);
 });
 
 test('the difference from StoryDeck, worked: a riser too short for a run between its corners', () => {

@@ -230,7 +230,7 @@ test('cableWay: the tip pulled back for a head, corners rounded — and what it 
 });
 
 test('cableLead: the lead from a port through its floor corner, its pieces and their length — and what it refuses', () => {
-  // a port at [0, -40] above the floor, out of its side to [0, 0], along the floor to [100, 0], then on to [100, 100]
+  // a port at [0, -40] down to its floor point [0, 0], along the floor to [100, 0], then on to [100, 100]
   const cable = { points: [[0, -40], [0, 0], [100, 0], [100, 100]], radius: 20 };
   const start = cableLead(cable, 0, 2);
   assert.deepEqual(start.pieces.map((p) => Boolean(p.corner)), [false, true], 'the run out of the port, then the floor corner');

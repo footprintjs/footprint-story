@@ -10,8 +10,8 @@
   wherever StoryDeck's lead ended at its floor point (a property test against copies of StoryDeck's code; a zero's
   sign aside). **Differences from the code it replaced:** StoryDeck counted the lead's pieces (2, or 4 with a riser);
   where a riser is too short for a straight run between its two corners, or the floor point is no corner, the count
-  ran on along the floor and the lead was drawn over its block far from the port. `cableLead` finds the floor point
-  itself (StoryDeck 0.30.2 takes this, a fix). StoryReel 0.36.0 took the share as the straight run of the lead's
+  ran on along the floor, and the lead took in a piece of the floor run past its corner (a few px on a map's routes).
+  `cableLead` ends it at the floor point by its place among the way's points (StoryDeck 0.31.0 takes this, a fix). StoryReel 0.36.0 took the share as the straight run of the lead's
   points, before the pull — short of the floor corner, and at a headed end counting the stretch under the head;
   StoryReel 0.37.0 takes this one.
 

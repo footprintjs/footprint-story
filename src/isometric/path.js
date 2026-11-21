@@ -27,28 +27,40 @@ const curve = (from, corner, to, t) => [0, 1].map((k) => (1 - t) * (1 - t) * fro
  * straight line between its neighbours is no corner.
  */
 export function rounded(points, radius = 0) {
+  return roundedOwned(points, radius).way;
+}
+
+/**
+ * rounded, and which point owns each piece — kept apart from the way, so a way's shape is the same for every reader:
+ * `kept[i]` is the place among the points read once of the i-th point given (a repeat is its twin's), and `owners[k]`
+ * the place of the point the k-th piece runs up to or turns at (a corner's straight run in and its curve are both the
+ * corner's). Not on the door: cableLead (lead.js) asks it, to end a lead at its floor point by place, never by
+ * counting pieces or comparing coordinates (a path can come back to a place it passed).
+ */
+export function roundedOwned(points, radius = 0) {
   if (!Array.isArray(points) || points.length < 2 || points.length > MOST_WAY) refuse(`rounded takes a way of 2 to ${MOST_WAY} points, [[x, y], …] — not ${shown(points)}`);
   if (!(typeof radius === 'number' && radius >= 0 && Number.isFinite(radius))) refuse(`rounded takes a radius of 0 or more — not ${shown(radius)}`);
-  const read = [];
+  const read = [], kept = [];
   for (let i = 0; i < points.length; i += 1) {
     const p = numbers(own(points, i), [2], `point ${i + 1} of the way`, '[x, y]');
     if (!read.length || far(read.at(-1), p) > 0) read.push(p);
+    kept.push(read.length - 1);
   }
   if (read.length < 2) refuse('rounded takes a way that goes somewhere: its points are all one place');
-  const start = read[0], pieces = [];
+  const start = read[0], pieces = [], owners = [];
   let from = start;
   for (let i = 1; i < read.length - 1; i += 1) {
     const corner = read[i], next = read[i + 1], into = far(read[i - 1], corner), out = far(corner, next);
     const r = Math.min(radius, into / 2, out / 2);
     const turn = (corner[0] - read[i - 1][0]) * (next[1] - corner[1]) - (corner[1] - read[i - 1][1]) * (next[0] - corner[0]);
-    if (!(r > 0) || turn === 0) { pieces.push({ to: corner }); from = corner; continue; }
+    if (!(r > 0) || turn === 0) { pieces.push({ to: corner }); owners.push(i); from = corner; continue; }
     const before = [corner[0] - (corner[0] - read[i - 1][0]) * r / into, corner[1] - (corner[1] - read[i - 1][1]) * r / into];
     const after = [corner[0] + (next[0] - corner[0]) * r / out, corner[1] + (next[1] - corner[1]) * r / out];
-    if (far(from, before) > 0) pieces.push({ to: before });
-    pieces.push({ corner, to: after });
+    if (far(from, before) > 0) { pieces.push({ to: before }); owners.push(i); }
+    pieces.push({ corner, to: after }); owners.push(i);
     from = after;
   }
-  pieces.push({ to: read.at(-1) });
+  pieces.push({ to: read.at(-1) }); owners.push(read.length - 1);
   // each piece's length, and for a corner the lengths along its chords: `at` walks them
   const runs = [];
   let length = 0, at = start;
@@ -72,5 +84,5 @@ export function rounded(points, radius = 0) {
     }
     return [...run.chords.at(-1)];   // not reached: every run has a chord
   };
-  return { start, pieces, length, at: place };
+  return { way: { start, pieces, length, at: place }, kept, owners };
 }
