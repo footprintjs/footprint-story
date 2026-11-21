@@ -218,6 +218,16 @@ WHY summed, not each line measured whole: the break is chosen among every place 
 that linear. A film's title band breaks by another rule, greedily over any number of lines measured whole
 (`footprint-story/layout` · `wrapWords`).
 
+**A name broken by a rule you pick.** `break` chooses where two lines part: `'even'` (the usual, above: the break that
+leaves the longer line shortest) or `'fill'` (the first line as full as it goes at each size, the rest beneath it — a
+top-heavy name). `wordsToFit('aaaa bb cc dddd', [200, 90])` gives `['aaaa bb', 'cc dddd']`; with `{ break: 'fill' }`
+it gives `['aaaa bb cc', 'dddd']`, both at 26. One line is tried first either way, and the sizes the same way. Under
+fill a first word too wide for the line has it to itself, and the second line is never empty; fill is never set
+bigger than even (even's break is the best a size can have). Fill chooses its break against the width two lines have:
+a box too low for two lines still gets fill's break (with `fits: false`), and a face with no width at all for two gets
+even's. Left out is the usual; `null` or any other name is refused. The names are `footprint-story/layout`'s `BREAK_RULES`.
+Pinned: `test/break-rules.property.test.js` (even against a copy of 0.21.0's `wordsToFit`, fill against an oracle).
+
 **The room on a top face.** The top of a block is a slanted diamond, not the rectangle round it: across its middle it
 is as wide as the block's SHORTER side is long (a block 8 by 1 has a top 1 tile wide there, however long it is), and it
 narrows above and below. `grid.room(thing, high)` gives the width of an upright box `high` pixels tall that stands on

@@ -488,8 +488,10 @@ test('wordsToFit: refuses what it cannot read, naming the fix', () => {
   assert.throws(() => wordsToFit(5, [10, 10]), /takes the words as text/);
   assert.throws(() => wordsToFit('a', [10]), /the room is \[wide, high\] in pixels/);
   assert.throws(() => wordsToFit('a', [0, 10]), /both above 0/);
-  assert.throws(() => wordsToFit('a', [10, 10], 'big'), /takes its options as \{size, least, letter, line, measure\}/);
+  assert.throws(() => wordsToFit('a', [10, 10], 'big'), /takes its options as \{size, least, letter, line, measure, break\}/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 10, least: 20 }), /least no more than size/);
+  assert.throws(() => wordsToFit('a', [10, 10], { break: 'balanced' }), /wordsToFit breaks two lines by 'even' or 'fill' — not "balanced"/);
+  assert.throws(() => wordsToFit('a', [10, 10], Object.defineProperty({}, 'break', { get: () => 'fill' })), /wordsToFit's break is read as a stored value, and this one is a getter/);
   assert.throws(() => wordsToFit('a', [10, 10], { letter: 0 }), /letter and line above 0/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 2000 }), /from 1 to 1000/);
   assert.throws(() => wordsToFit('a', [10, 10], { size: 1e-300, least: 1e-300 }), /from 1 to 1000/);

@@ -29,9 +29,20 @@
  * so the time still grows with the name's length. A width that is no finite number from 0 to 1,000,000 is refused,
  * naming the word; what the function throws comes out as it is. WHY summed and not a whole line measured: the break
  * is chosen among every place a name could break, and summing each word once keeps that linear in the name's length.
+ *
+ * `break` — the rule for two lines, one of BREAKS: `'even'` (the usual: the break that leaves the longer line shortest,
+ * as above) or `'fill'` (the first line as full as it goes at each size, the rest beneath it — a top-heavy name: 'Load
+ * Balancer Service' as 'Load Balancer' over 'Service'). One line is tried first either way, and the sizes are tried
+ * as above. Under `'fill'` a first word wider than the line has the line to itself, and the second line is never empty;
+ * the break is chosen against the width two lines have, so a box too low for two lines still gets fill's break, and a
+ * face with no width at all for two gets even's. Left out (or undefined) is the usual; null or any other name is refused.
+ * WHY named rules: a build's record can name the one it used, and each is tested here. footprint-story/layout's
+ * `wrapWords` takes the same two names (BREAK_RULES there; one list per door, pinned equal by a test).
  */
 import { FAR, numbers, own, refuse, shown, stored } from './thing.js';
 
+/** The break rules for two lines, by name: footprint-story/layout's BREAK_RULES (a door may not import another's file). */
+const BREAKS = ['fill', 'even'];
 const MOST_SIZE = 1000;   // the biggest size, in pixels: the sizes tried are counted from it
 const BREAK = /[ \t\n\r\f\v]+/;   // where a name may break
 const NO_ROOM = /[\p{M}\p{Cf}]/gu;   // a mark on a letter, a character that draws nothing
@@ -66,10 +77,12 @@ export function wordsToFit(text, room, options = undefined) {
   const narrows = typeof room === 'function', [wide, high] = narrows ? [0, 0] : numbers(room, [2], 'the room', '[wide, high] in pixels, or a function (high) => wide');
   if (!narrows && !(wide > 0 && high > 0)) refuse(`the room is [wide, high] in pixels, both above 0 — not ${shown(room)}`);
   const wideFor = (tall) => { const n = room(tall); return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.min(n, FAR) : 0; };
-  if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) refuse(`wordsToFit takes its options as {size, least, letter, line, measure}, or none — not ${shown(options)}`);
+  if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) refuse(`wordsToFit takes its options as {size, least, letter, line, measure, break}, or none — not ${shown(options)}`);
   const given = (key, usual) => (options ? own(options, key) ?? usual : usual);
   const measure = options ? stored(options, 'measure', "wordsToFit's measure") : undefined;
   if (measure !== undefined && options && own(options, 'letter') !== undefined) refuse('wordsToFit counts letters (letter) or measures words (measure) — give one, not both');
+  const asked = options ? stored(options, 'break', "wordsToFit's break") : undefined, rule = asked === undefined ? 'even' : asked;
+  if (!BREAKS.includes(rule)) refuse(`wordsToFit breaks two lines by 'even' or 'fill' — not ${shown(rule)}`);
   const size = given('size', 26), least = given('least', 16), letter = given('letter', 0.6), line = given('line', 1.15);
   if (![size, least, letter, line].every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0) || least < 1 || least > size || size > MOST_SIZE) refuse(`a size is in pixels, from 1 to ${MOST_SIZE}, with least no more than size (26 and 16), letter and line above 0 — not ${shown([size, least, letter, line])}`);
   const widthOf = measure === undefined ? null : measured(measure);
@@ -85,14 +98,33 @@ export function wordsToFit(text, room, options = undefined) {
     if (!two || longest < two.longest) two = { k, longest };
   }
   const per = widthOf ? 1 : letter;   // a measured width is already the face's own
-  const lines = (broken) => (broken ? [words.slice(0, two.k).join(' '), words.slice(two.k).join(' ')] : [words.join(' ')]);
+  const lines = (k) => (k ? [words.slice(0, k).join(' '), words.slice(k).join(' ')] : [words.join(' ')]);
+  // fill: the first k words and the spaces between them, for each k — so the fullest first line at a size is a search, not a walk
+  const prefix = rule === 'fill' && two ? firsts(counts, space) : null;
+  // the most words, from 1 to all but one, whose line fits `limit` at size `at` (a first word too wide still takes the line)
+  const filled = (limit, at) => { let lo = 1, hi = words.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (prefix[mid] * per * at <= limit) lo = mid; else hi = mid - 1; } return lo; };
   const steps = Math.ceil(size - least);
+  let broken = two;
   for (let k = 0; k <= steps; k += 1) {
     const at = Math.max(least, size - k);
     // n lines at this size: in a box, as wide and as tall as the box; on a face that narrows, as wide as it is where the outer lines' middles are
-    const fit = (longest, n) => (narrows ? longest * per * at <= wideFor((n - 1) * line * at) : longest * per * at <= wide && n * line * at <= high);
-    if (fit(whole, 1)) return { lines: lines(false), size: at, fits: true };
-    if (two && fit(two.longest, 2)) return { lines: lines(true), size: at, fits: true };
+    // n lines at this size: how wide they may be, and whether they are not too tall (a face that narrows has no height)
+    const across = (n) => (narrows ? wideFor((n - 1) * line * at) : wide), tall = (n) => narrows || n * line * at <= high;
+    if (tall(1) && whole * per * at <= across(1)) return { lines: lines(0), size: at, fits: true };
+    if (!broken) continue;   // one word: only a smaller size can help
+    const wideTwo = across(2);   // asked once a size, as the room is the caller's
+    // fill breaks against the width two lines have (a box too low for them still has its width); with no width at all,
+    // there is nothing to fill, and the break is even's
+    if (prefix) { const k2 = wideTwo > 0 ? filled(wideTwo, at) : two.k; broken = { k: k2, longest: Math.max(prefix[k2], whole - prefix[k2] - space) }; }
+    if (tall(2) && broken.longest * per * at <= wideTwo) return { lines: lines(broken.k), size: at, fits: true };
   }
-  return { lines: lines(Boolean(two)), size: least, fits: false };
+  return { lines: lines(broken ? broken.k : 0), size: least, fits: false };
+}
+
+/** The width (or letters) of the first k words and the spaces between them, for k from 0: entry 0 is -space, as nothing is. */
+function firsts(counts, space) {
+  const out = [-space];
+  // added as even's walk adds (a word and its space together, then onto the sum), so the two rules meet the same sums to the last bit
+  for (let k = 1; k <= counts.length; k += 1) out.push(out[k - 1] + (counts[k - 1] + space));
+  return out;
 }

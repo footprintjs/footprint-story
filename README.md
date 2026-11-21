@@ -468,18 +468,21 @@ shows. More in [src/differs/README.md](src/differs/README.md).
 ## A flat frame: framing a box, breaking words (layout)
 
 ```js
-import { frameZoom, wrapWords, narrowestWidth } from 'footprint-story/layout';
+import { frameZoom, wrapWords, narrowestWidth, BREAK_RULES } from 'footprint-story/layout';
 
 frameZoom([400, 200], [1600, 900], { share: 0.7, least: 1, most: 2.5 });   // 2.5: the box fills 70% of the room, held at 2.5×
 const measure = (text) => ctx.measureText(text).width;
 const lines = wrapWords(words, 600, measure);                               // first fit, each line measured whole
-const even = wrapWords(words, narrowestWidth(600, lines.length, (w) => wrapWords(words, w, measure).length), measure);   // balanced
+const even = wrapWords(words, 600, measure, { break: 'even' });            // as many lines, as alike as they allow
+BREAK_RULES;                                                               // ['fill', 'even']: the rules, by name
 ```
 
 `frameZoom` is the one framing rule: StoryDeck's zoom, fit and side movers and StoryReel's focus and pushes contain the
 box in the room, take `share` of that and hold it between `least` and `most` (`smallest` counts a point as a pixel).
 `wrapWords` and `narrowestWidth` are StoryReel's title, end-card, summary-card, whiteboard-title and caption breaking. A name on a block's face is `wordsToFit` (isometric), which now
-takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
+takes a `measure` too. The break rule is a named choice on both: `wrapWords(…, { break: 'fill' | 'even' })` (fill the usual)
+and `wordsToFit(…, { break: 'even' | 'fill' })` (even the usual), so a deck or film can let its writer pick and its
+record can name the rule used. More in [src/layout/README.md](src/layout/README.md).
 
 ## API
 
@@ -514,7 +517,7 @@ takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
 | `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `cableWay`, `stopShort`, `cableLead`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked, its line stopped for its head, a lead into a port; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
-| `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS` | the zoom that frames a box; words broken across a width as drawn, and balanced |
+| `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS`, `BREAK_RULES` | the zoom that frames a box; words broken across a width as drawn, by a named rule (fill or even) |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`). Each `src/` folder has a README saying why it exists.

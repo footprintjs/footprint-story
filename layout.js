@@ -4,7 +4,8 @@
 //
 //   frameZoom([w, h], [roomW, roomH], { share, least, most })   → the zoom at which the box fills that share of the room
 //   wrapWords(words, width, (text) => width)                     → the words greedily on lines no wider than width
+//   wrapWords(words, width, measure, { break: 'even' })          → as many lines, as alike as they can be (BREAK_RULES)
 //   narrowestWidth(width, lines, (w) => lineCount)               → the narrowest width that keeps that many lines
 
 export { frameZoom } from './src/layout/frame.js';
-export { wrapWords, narrowestWidth, NARROWEST_STEPS } from './src/layout/wrap.js';
+export { wrapWords, narrowestWidth, NARROWEST_STEPS, BREAK_RULES } from './src/layout/wrap.js';

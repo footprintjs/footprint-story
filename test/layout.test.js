@@ -2,7 +2,7 @@
 // holds them to the tools' own code; these pin the rule and the refusals.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { frameZoom, wrapWords, narrowestWidth, NARROWEST_STEPS } from '../layout.js';
+import { frameZoom, wrapWords, narrowestWidth, NARROWEST_STEPS, BREAK_RULES } from '../layout.js';
 
 test('frameZoom: contained, then the share, then held between least and most', () => {
   assert.equal(frameZoom([400, 200], [1600, 900]), 4);                                    // 1600/400 = 4 across, 900/200 = 4.5 up: the smaller
@@ -52,6 +52,31 @@ test('wrapWords refuses what it cannot read; what measure throws is the caller\'
   assert.throws(() => wrapWords(['a'], NaN, measure), /width as a number — not NaN/);
   for (const bad of [NaN, -1, Infinity, '3', undefined]) assert.throws(() => wrapWords(['a', 'b'], 10, () => bad), /measure gives a line's width, a finite number from 0 — not .* for "a b"/);
   assert.throws(() => wrapWords(['a', 'b'], 10, () => { throw new Error('mine'); }), /^Error: mine$/);
+});
+
+test('wrapWords {break}: fill is the usual; even keeps fill\'s line count and evens the lines; the options are refused by name', () => {
+  const words = ['one', 'two', 'three', 'four'];
+  assert.deepEqual(wrapWords(words, 150, measure, { break: 'fill' }), ['one two three', 'four']);
+  assert.deepEqual(wrapWords(words, 150, measure, { break: 'even' }), ['one two', 'three four']);   // no word left alone
+  assert.deepEqual(wrapWords(words, 1000, measure, { break: 'even' }), ['one two three four']);    // one line is left as it is
+  assert.deepEqual(wrapWords([], 50, measure, { break: 'even' }), ['']);
+  assert.deepEqual(wrapWords(['Supercalifragilistic', 'a'], 50, measure, { break: 'even' }), ['Supercalifragilistic', 'a']);
+  assert.deepEqual(BREAK_RULES, ['fill', 'even']);
+  assert.throws(() => wrapWords(words, 150, measure, { break: 'balanced' }), /^Error: layout: wrapWords breaks by 'fill' or 'even' — not "balanced"/);
+  assert.throws(() => wrapWords(words, 150, measure, 'even'), /wrapWords takes its options as \{break\}, or none — not "even"/);
+  assert.throws(() => wrapWords(words, 150, measure, ['even']), /options as \{break\}, or none — not a list/);
+  assert.throws(() => wrapWords(words, 150, measure, Object.defineProperty({}, 'break', { get: () => 'even' })), /break is read as a stored value, and this one is a getter/);
+  assert.throws(() => wrapWords(words, 150, measure, { break: null }), /breaks by 'fill' or 'even' — not null/);
+  assert.deepEqual(wrapWords(words, 150, measure, { break: undefined }), ['one two three', 'four']);
+  // a function is shown as one, never its source
+  assert.throws(() => wrapWords(words, 150, measure, { break: function secret() { return 1; } }), /— not a function$/);
+  assert.throws(() => wrapWords(words, 150, measure, () => 1), /options as \{break\}, or none — not a function$/);
+  // one line under even is fill's line: nothing is set again, so measure is asked no more than fill asks it
+  let asked = 0; const counted = (t) => { asked += 1; return measure(t); };
+  wrapWords(words, 1000, counted); const fillAsked = asked; asked = 0;
+  wrapWords(words, 1000, counted, { break: 'even' }); assert.equal(asked, fillAsked);
+  // an inherited break is not the caller's own: the usual rule
+  assert.deepEqual(wrapWords(words, 150, measure, Object.create({ break: 'even' })), ['one two three', 'four']);
 });
 
 test('narrowestWidth: halves NARROWEST_STEPS times and gives the upper end', () => {
