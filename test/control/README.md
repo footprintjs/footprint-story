@@ -32,7 +32,7 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.34.0-ride.mjs` | footprint-storyreel `src/kits/isometric/ride.mjs` at `502044a`, lines 18–26 and 51–59 (`onStops`, `seenAt`) | `export` added to `seenAt` |
 | `storyreel-0.34.0-build.mjs` | footprint-storyreel `src/kits/isometric/build.mjs` at `502044a`, lines 87–91 (`roundOutline`) | `export` added |
 | `storyreel-0.34.0-draw.mjs` | footprint-storyreel `src/kits/isometric/draw.mjs` at `502044a`, lines 89–94 (`drawHead`) | `export` added; its import of `ISO_CABLE` points at the cables control |
-| `storydeck-0.30.0-cableWay.js` | storydeck `deck/cable.js` at `0cbd4d6` (0.30.0), lines 160–164 (`cableWay`) | its import of `rounded` points at `../../isometric.js` |
+| `storydeck-0.30.0-cableWay.js` | storydeck at `0cbd4d6` (0.30.0): `deck/cable.js` lines 160–164 (`cableWay`), `deck/transforms.js` lines 388–401 (`leadOf`) | the import of `rounded` points at `../../isometric.js`; `export` added to `leadOf` |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these

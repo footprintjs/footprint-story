@@ -161,7 +161,7 @@ export const shared: unknown[] = [timeWords(30), analogyWords('a'), differsFacto
   fitWords('Load Balancer', [170, 70], { measure: (w) => w.length * 0.55 }), fitWords('Load', [170, 70], { measure: { Load: 2.2 } })];
 
 // 0.19.0: a cable on the frame (from StoryDeck and StoryReel), a value on stops, how much of a packet shows
-import { CABLE, LABEL_PLACES, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, labelHalf, walkWay, held, labelPlace, exitOutline, exitBox, roundOutline, lanesOf, straightRun, bentWire, curveWay, headingOf, arrowHead, cableWay as headWay, rounded as roundWay } from 'footprint-story/isometric';
+import { CABLE, LABEL_PLACES, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, labelHalf, walkWay, held, labelPlace, exitOutline, exitBox, roundOutline, lanesOf, straightRun, bentWire, curveWay, headingOf, arrowHead, cableWay as headWay, stopShort, rounded as roundWay } from 'footprint-story/isometric';
 import type { HeldPoints, HeldRun, StraightLane, StraightEnd } from 'footprint-story/isometric';
 import { onStops, seenTerms, seenAt } from 'footprint-story/motion';
 import type { SeenTerm } from 'footprint-story/motion';
@@ -173,6 +173,8 @@ const labelAt: [number, number] = labelPlace(cableWay, halfPlate, [hiding], [cro
 const stopped = headWay({ points: [[0, 0], [200, 0], [200, 20]], radius: 30 }, CABLE.head * CABLE.headShort);
 const stoppedLength: number = stopped.length;
 void stoppedLength;
+const pulled: [number, number][] = stopShort([[0, 0], [200, 0]], 14.4);
+void pulled;
 const lanes: (StraightLane | null)[] = lanesOf([['a', 'b'], null]);
 const fromEnd: StraightEnd = { middle: [50, 50], box: { x: 0, y: 0, w: 100, h: 100 } }, toEnd: StraightEnd = { middle: [350, 50], outline: [[300, 0], [400, 0], [400, 100], [300, 100]] };
 const ran = straightRun(fromEnd, toEnd, lanes[0] ?? undefined);

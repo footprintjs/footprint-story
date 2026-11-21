@@ -2,12 +2,14 @@
 
 ## 0.20.0 — a cable's line stops for its head by one rule
 
-- **`footprint-story/isometric` · `cableWay({points, radius}, back)`**: a laid cable's line — its last point pulled
-  `back` px towards the one before (where an arrow's head begins: `CABLE.head * CABLE.headShort`), never past 1 px
-  short of that run's start and never forwards, its corners rounded `radius` px (`rounded`). From StoryDeck 0.30.0's
-  `deck/cable.js · cableWay`, the same way to the last bit for every cable a deck hands it (a property test against a
-  copy of StoryDeck's code, `test/control/storydeck-0.30.0-cableWay.js`). **Difference from the code it replaced:**
-  StoryReel 0.35.0's `cableOf` pulled the tip back at most half its last run, so on a last run under 28.8 px the
+- **`footprint-story/isometric` · `stopShort(points, back)`**: a laid cable's points with the last pulled `back` px
+  towards the one before (where an arrow's head begins: `CABLE.head * CABLE.headShort`), never past 1 px short of that
+  run's start and never forwards — a new list. **`cableWay({points, radius}, back)`**: that, its corners rounded
+  `radius` px (`rounded`). From StoryDeck 0.30.0's `deck/cable.js · cableWay` and `deck/transforms.js · leadOf` (a lead
+  into a port, rounded from its end), the same way to the last bit for every cable a deck hands them (property tests
+  against a copy of StoryDeck's code, `test/control/storydeck-0.30.0-cableWay.js`). **Differences from the code it
+  replaced:** a `back` below 0 or not a number is refused (StoryDeck pulled none for one below 0, and never passed
+  one). StoryReel 0.35.0's `cableOf` pulled the tip back at most half its last run, so on a last run under 28.8 px the
   film's line ran on nearer the tip, under the head; StoryReel 0.36.0 takes this rule.
 
 ## 0.19.0 — a cable on the frame: its label, a straight wire, its head — written once for a deck and a film

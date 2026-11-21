@@ -18,6 +18,7 @@
 //   arrangeByGroup(things, links)                      → each group arranged, then the groups
 //   labelPlace(way, labelHalf(n), hides, runs, looks)  → where a cable's label stands on it (CABLE: the cable's numbers)
 //   cableWay({points, radius}, back)                   → a cable's line, its tip pulled back for its head, corners rounded
+//   stopShort(points, back)                            → just the points, the last pulled back (a lead rounded from one end)
 //   lanesOf(pairs) · straightRun(a, b, lane)           → a straight wire's lane, and where it starts and ends
 //   bentWire · curveWay · arrowHead · headingOf        → its bend, its curve as a way, its head
 //   exitOutline · exitBox · roundOutline · walkWay     → a ray leaving a shape, a cylinder's outline, a way walked
@@ -35,6 +36,6 @@ export { hairpins, HAIRPINS } from './src/isometric/hairpins.js';
 export { floorUnder, crossesBox, UNDER_CELL, MOST_UNDER_SQUARES, NO_UNDER } from './src/isometric/under.js';
 export { floorLabelPlace, MOST_FLOOR_LABEL, FLOOR_LABEL_ICON, MOST_COVER_POINTS, MOST_OUTLINE_POINTS, MOST_LABEL_LOOKS } from './src/isometric/floorLabel.js';
 export { arrangeByGroup, GROUP_MARGIN } from './src/isometric/groups.js';
-export { CABLE, LABEL_PLACES, MOST_HIDES, labelHalf, walkWay, held, labelPlace, cableWay } from './src/isometric/cable.js';
+export { CABLE, LABEL_PLACES, MOST_HIDES, labelHalf, walkWay, held, labelPlace, stopShort, cableWay } from './src/isometric/cable.js';
 export { exitOutline, exitBox, roundOutline, MOST_OUTLINE } from './src/isometric/outline.js';
 export { lanesOf, straightRun, bentWire, curveWay, headingOf, arrowHead, MOST_WIRES } from './src/isometric/straight.js';

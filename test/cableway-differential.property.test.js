@@ -1,7 +1,12 @@
-// The differential property of cableWay, which moved here in 0.20.0 from StoryDeck 0.30.0 (deck/cable.js · cableWay):
-// a cable's line with its tip pulled back for its head, its corners rounded. The CONTROL is StoryDeck's code, copied
-// and never edited but for an import (test/control/storydeck-0.30.0-cableWay.js). For every cable StoryDeck could hand
-// it, the door gives the way StoryDeck's copy gave — the same start, pieces, length and points along it.
+// The differential properties of stopShort and cableWay, which moved here in 0.20.0 from StoryDeck 0.30.0
+// (deck/cable.js · cableWay, deck/transforms.js · leadOf): a cable's points with the tip pulled back for its head, and
+// its line rounded. The CONTROL is StoryDeck's code, copied and never edited but for an import and an export
+// (test/control/storydeck-0.30.0-cableWay.js). For every cable StoryDeck could hand them, the door gives the way
+// StoryDeck's copy gave — the same start, pieces, length and points along it — and a lead rounded from either end is
+// the lead leadOf gave.
+//
+// What it refuses that StoryDeck's copy took, left out of the generator: a `back` below 0 (StoryDeck pulled none; it
+// only ever passes 0 or the head's 14.4 px) and a `back` that is not a number.
 // FC_RUNS=200000 npm test runs a deep sweep.
 //
 // The one difference, named: StoryReel 0.35.0 (kits/isometric/cables.mjs · cableOf) pulled the tip back at most half
@@ -11,7 +16,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import * as deck from './control/storydeck-0.30.0-cableWay.js';
-import { CABLE, cableWay } from '../isometric.js';
+import { CABLE, cableWay, rounded, stopShort } from '../isometric.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 2000;
 const SHORT = CABLE.head * CABLE.headShort;
@@ -31,6 +36,16 @@ const back = fc.oneof(fc.constant(0), fc.constant(SHORT), fc.double({ min: 0, ma
 test('cableWay gives StoryDeck 0.30.0\'s way for every cable and pull it could be handed', () => {
   fc.assert(fc.property(cable, back, (c, b) => {
     assert.deepEqual(outcome(() => cableWay(c, b)), outcome(() => deck.cableWay(c, b)));
+  }), { numRuns: RUNS });
+});
+
+test('a lead rounded from either end on stopShort\'s points is StoryDeck 0.30.0\'s leadOf', () => {
+  fc.assert(fc.property(cable, back, fc.constantFrom(0, 1), fc.constantFrom(2, 3), (c, b, k, count) => {
+    const ends = [{ seen: true, count }, { seen: true, count }], radius = c.radius ?? 0;
+    const toEnd = k ? [...c.points] : [...c.points].reverse();   // StoryDeck's leadOf as it is written from 0.30.1
+    const mine = () => { const way = rounded((b ? stopShort(toEnd, b) : toEnd).reverse(), radius); return way; };
+    const theirs = () => deck.leadOf({ points: c.points, radius, ends }, k, b).way;
+    assert.deepEqual(outcome(mine), outcome(theirs));
   }), { numRuns: RUNS });
 });
 

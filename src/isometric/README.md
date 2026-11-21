@@ -21,7 +21,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `under.js` | the floor under a box of the frame, as `routes`' keep takes it (`floorUnder`); whether a way on the frame passes through a box (`crossesBox`) |
 | `floorLabel.js` | where a floor's name lies, flat along its front edge, clear of what stands there (`floorLabelPlace`) |
 | `groups.js` | placing things by group: each group arranged, then the groups (`arrangeByGroup`) |
-| `cable.js` | a cable on the frame: its numbers (`CABLE`), a label's plate (`labelHalf`) and its place on the cable (`labelPlace`, `LABEL_PLACES`), a way walked (`walkWay`), points held in their box (`held`), its line stopped short for its head and rounded (`cableWay`) |
+| `cable.js` | a cable on the frame: its numbers (`CABLE`), a label's plate (`labelHalf`) and its place on the cable (`labelPlace`, `LABEL_PLACES`), a way walked (`walkWay`), points held in their box (`held`), its line stopped short for its head and rounded (`cableWay`; the points alone: `stopShort`) |
 | `outline.js` | how far a ray runs before it leaves an outline or a box (`exitOutline`, `exitBox`); a round thing's outline (`roundOutline`) |
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |

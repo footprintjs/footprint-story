@@ -8,7 +8,8 @@
  *   walkWay(way, from?, to?)                  a way walked: points CABLE.sample px apart at most
  *   held(points)                              points with the box round them: what a label is asked against
  *   labelPlace(way, half, hides, runs, looks, tip)   → [x, y], the label's middle on its cable
- *   cableWay({points, radius}, back?)         the cable's line: its last point pulled `back` px for a head, corners rounded
+ *   stopShort(points, back?)                  a cable's points, the last pulled `back` px for a head
+ *   cableWay({points, radius}, back?)         the cable's line: stopShort, its corners rounded
  *
  * WHY here: a deck and a film draw the same cable, so its label must stand in the same place on it, its plate be the
  * same size and its line walked the same way. They came from StoryDeck 0.29.0 (deck/cable.js · labelPlace, cableWalk,
@@ -171,24 +172,35 @@ export function labelPlace(way, half, hides, runs = [], looks = { left: CABLE.lo
 }
 
 /**
- * A cable's line on the frame: its `points` ([[x, y], …], two or more) with the last pulled `back` px towards the one
- * before it — where an arrow's head begins (CABLE.head * CABLE.headShort, or 0 for none) — and its corners rounded
- * `radius` px (rounded). The pull never passes 1 px short of the last run's own start, and never goes forwards: a last
- * run shorter than the pull keeps a sliver of line under its head.
+ * A cable's points with the last pulled `back` px towards the one before it — where an arrow's head begins
+ * (CABLE.head * CABLE.headShort, or 0 for none): never past 1 px short of the last run's own start, never forwards, so
+ * a last run shorter than the pull keeps a sliver of line under its head. A new list; the points are read once each.
+ * cableWay rounds what this gives; a tool that rounds a lead from one end (StoryDeck's lead into a port) reverses it.
  *
  * WHY here: a deck and a film draw the same cable, so its line must stop at the same place. StoryDeck 0.30.0
- * (deck/cable.js · cableWay) stopped it by this rule; StoryReel 0.35.0 (kits/isometric/cables.mjs · cableOf) stopped
- * it back at most half the last run, so on a last run under twice the pull (28.8 px) the film's line ran on nearer the
- * tip, under the head, than the deck's.
+ * (deck/cable.js · cableWay, deck/transforms.js · leadOf) stopped it by this rule; StoryReel 0.35.0
+ * (kits/isometric/cables.mjs · cableOf) pulled it back at most half the last run, so on a last run under twice the
+ * pull (28.8 px) the film's line ran on nearer the tip, under the head, than the deck's.
  * test/control/storydeck-0.30.0-cableWay.js holds StoryDeck's copy; a property test holds this to it.
+ */
+export function stopShort(points, back = 0) {
+  if (!Array.isArray(points) || points.length < 2) refuse(`stopShort takes a cable's points, a way of 2 or more points, [[x, y], …] — not ${shown(points)}`);
+  if (!(typeof back === 'number' && back >= 0)) refuse(`stopShort pulls the cable's tip back a number of px, 0 or more — not ${shown(back)}`);
+  const list = Array.from({ length: points.length }, (_, k) => own(points, k));
+  const tip = numbers(list.at(-1), [2], 'the cable\'s last point', '[x, y]');
+  const before = numbers(list.at(-2), [2], 'the point before the cable\'s last', '[x, y]');
+  const far = Math.hypot(tip[0] - before[0], tip[1] - before[1]) || 1, by = Math.max(0, Math.min(back, far - 1));   // never past the run's own start, never forwards
+  return [...list.slice(0, -1), [tip[0] - (tip[0] - before[0]) * by / far, tip[1] - (tip[1] - before[1]) * by / far]];
+}
+
+/**
+ * A cable's line on the frame: its `points` ([[x, y], …], two or more) stopped short for its head (stopShort) and its
+ * corners rounded `radius` px (rounded; absent, 0). What StoryDeck draws as a cable's path and both tools ride a packet on.
  */
 export function cableWay(cable, back = 0) {
   if (!cable || typeof cable !== 'object' || Array.isArray(cable)) refuse(`cableWay takes a cable, {points, radius} — not ${shown(cable)}`);
-  const points = own(cable, 'points'), radius = own(cable, 'radius') ?? 0;
+  const points = own(cable, 'points'), radius = own(cable, 'radius');
   if (!Array.isArray(points) || points.length < 2) refuse(`cableWay takes a cable whose points are a way of 2 or more points, [[x, y], …] — not ${shown(points)}`);
   if (!(typeof back === 'number' && back >= 0)) refuse(`cableWay pulls the cable's tip back a number of px, 0 or more — not ${shown(back)}`);
-  const tip = numbers(own(points, points.length - 1), [2], 'the cable\'s last point', '[x, y]');
-  const before = numbers(own(points, points.length - 2), [2], 'the point before the cable\'s last', '[x, y]');
-  const far = Math.hypot(tip[0] - before[0], tip[1] - before[1]) || 1, by = Math.max(0, Math.min(back, far - 1));   // never past the run's own start, never forwards
-  return rounded([...points.slice(0, -1), [tip[0] - (tip[0] - before[0]) * by / far, tip[1] - (tip[1] - before[1]) * by / far]], radius);
+  return rounded(stopShort(points, back), radius === undefined ? 0 : radius);
 }
