@@ -411,7 +411,7 @@ drawn straight where there is no way along the floor, are worked out here too, s
 same place:
 
 ```js
-import { CABLE, labelHalf, labelPlace, held, lanesOf, straightRun, bentWire, curveWay, arrowHead } from 'footprint-story/isometric';
+import { CABLE, labelHalf, labelPlace, held, lanesOf, straightRun, bentWire, curveWay, arrowHead, cableWay } from 'footprint-story/isometric';
 
 const api = { middle: [300, 200], outline: [[240, 150], [360, 150], [360, 250], [240, 250]] };   // what a block draws
 const db = { middle: [700, 260], box: { x: 640, y: 200, w: 120, h: 120 } };                     // a flat piece's box
@@ -422,6 +422,14 @@ const line = curveWay(run.start, bend.corner, bend.tip);    // a way, as rounded
 const head = arrowHead(run.end, bend.heading);              // [tip, left, right]
 const plate = labelHalf('SQL'.length);                      // [22, 13]: half the label's plate
 const at = labelPlace(line, plate, [held(api.outline)], [], { left: CABLE.looks }, run.end);   // its middle, clear of the block
+```
+
+A laid cable's line, its tip pulled back for its head (never past 1 px short of its last run's start) and its corners
+rounded, is `cableWay({points, radius}, back)` — so a deck's line and a film's stop at the same place:
+
+```js
+const cable = cableWay({ points: [[0, 0], [200, 0], [200, 20]], radius: 30 }, CABLE.head * CABLE.headShort);
+cable.at(1);                                                // [200, 5.6]: where the head begins
 ```
 
 Each refuses what it cannot read, by name; `straightRun` gives `{why: 'middle' | 'close'}` where the two pieces share a
@@ -499,7 +507,7 @@ takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
-| `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
+| `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `cableWay`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked, its line stopped for its head; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
 | `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS` | the zoom that frames a box; words broken across a width as drawn, and balanced |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |

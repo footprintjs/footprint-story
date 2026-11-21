@@ -8,6 +8,7 @@
  *   walkWay(way, from?, to?)                  a way walked: points CABLE.sample px apart at most
  *   held(points)                              points with the box round them: what a label is asked against
  *   labelPlace(way, half, hides, runs, looks, tip)   → [x, y], the label's middle on its cable
+ *   cableWay({points, radius}, back?)         the cable's line: its last point pulled `back` px for a head, corners rounded
  *
  * WHY here: a deck and a film draw the same cable, so its label must stand in the same place on it, its plate be the
  * same size and its line walked the same way. They came from StoryDeck 0.29.0 (deck/cable.js · labelPlace, cableWalk,
@@ -15,7 +16,8 @@
  * (kits/isometric/cables.mjs · labelAt, walk, labelHalf, ISO_CABLE); a property test holds each to those copies
  * (test/control/). The label's place is a candidate-position search: Christensen, Marks and Shieber (REFERENCES.md).
  */
-import { own, refuse, shown, stored } from './thing.js';
+import { numbers, own, refuse, shown, stored } from './thing.js';
+import { rounded } from './path.js';
 import { pairOf } from './outline.js';
 
 /**
@@ -166,4 +168,27 @@ export function labelPlace(way, half, hides, runs = [], looks = { left: CABLE.lo
     if (!best || hidden < best.hidden || (hidden === best.hidden && crossed < best.crossed)) best = { at, hidden, crossed };
   }
   return best ? best.at : w.at(0.5);
+}
+
+/**
+ * A cable's line on the frame: its `points` ([[x, y], …], two or more) with the last pulled `back` px towards the one
+ * before it — where an arrow's head begins (CABLE.head * CABLE.headShort, or 0 for none) — and its corners rounded
+ * `radius` px (rounded). The pull never passes 1 px short of the last run's own start, and never goes forwards: a last
+ * run shorter than the pull keeps a sliver of line under its head.
+ *
+ * WHY here: a deck and a film draw the same cable, so its line must stop at the same place. StoryDeck 0.30.0
+ * (deck/cable.js · cableWay) stopped it by this rule; StoryReel 0.35.0 (kits/isometric/cables.mjs · cableOf) stopped
+ * it back at most half the last run, so on a last run under twice the pull (28.8 px) the film's line ran on nearer the
+ * tip, under the head, than the deck's.
+ * test/control/storydeck-0.30.0-cableWay.js holds StoryDeck's copy; a property test holds this to it.
+ */
+export function cableWay(cable, back = 0) {
+  if (!cable || typeof cable !== 'object' || Array.isArray(cable)) refuse(`cableWay takes a cable, {points, radius} — not ${shown(cable)}`);
+  const points = own(cable, 'points'), radius = own(cable, 'radius') ?? 0;
+  if (!Array.isArray(points) || points.length < 2) refuse(`cableWay takes a cable whose points are a way of 2 or more points, [[x, y], …] — not ${shown(points)}`);
+  if (!(typeof back === 'number' && back >= 0)) refuse(`cableWay pulls the cable's tip back a number of px, 0 or more — not ${shown(back)}`);
+  const tip = numbers(own(points, points.length - 1), [2], 'the cable\'s last point', '[x, y]');
+  const before = numbers(own(points, points.length - 2), [2], 'the point before the cable\'s last', '[x, y]');
+  const far = Math.hypot(tip[0] - before[0], tip[1] - before[1]) || 1, by = Math.max(0, Math.min(back, far - 1));   // never past the run's own start, never forwards
+  return rounded([...points.slice(0, -1), [tip[0] - (tip[0] - before[0]) * by / far, tip[1] - (tip[1] - before[1]) * by / far]], radius);
 }

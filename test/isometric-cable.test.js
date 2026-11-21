@@ -4,7 +4,7 @@
 // the worked cases and the refusals, which are new — every value is read by its own stored value, a getter is never run.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CABLE, LABEL_PLACES, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, arrowHead, bentWire, curveWay, exitBox, exitOutline, headingOf, held, isometric, labelHalf, labelPlace, lanesOf, rounded, roundOutline, straightRun, walkWay } from '../isometric.js';
+import { CABLE, LABEL_PLACES, cableWay, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, arrowHead, bentWire, curveWay, exitBox, exitOutline, headingOf, held, isometric, labelHalf, labelPlace, lanesOf, rounded, roundOutline, straightRun, walkWay } from '../isometric.js';
 import { onStops, seenAt, seenTerms } from '../motion.js';
 
 const getter = (o, key, value) => Object.defineProperty(o, key, { get: () => value, enumerable: true });
@@ -194,4 +194,21 @@ test('the README example runs as written', () => {
   assert.deepEqual(labelHalf('SQL'.length), [22, 13]);
   const at = labelPlace(line, labelHalf(3), [held(api.outline)], [], { left: CABLE.looks }, run.end);
   assert.deepEqual(at, line.at(0.5), 'nothing in its way: the middle');
+});
+
+test('cableWay: the tip pulled back for a head, corners rounded — and what it refuses', () => {
+  const way = cableWay({ points: [[0, 0], [100, 0], [100, 100]], radius: 20 }, 10);
+  assert.deepEqual(way.at(1), [100, 90]);
+  assert.deepEqual(way.pieces[1].corner, [100, 0], 'its corner is rounded as rounded() rounds it');
+  assert.deepEqual(cableWay({ points: [[0, 0], [200, 0], [200, 20]], radius: 30 }, CABLE.head * CABLE.headShort).at(1), [200, 5.6], 'the README\'s example');
+  assert.deepEqual(cableWay({ points: [[0, 0], [100, 0]] }).at(1), [100, 0], 'no pull, no radius: the points as they are');
+  assert.deepEqual(cableWay({ points: [[0, 0], [0.5, 0]] }, 10).at(1), [0.5, 0], 'a last run under 1 px is never pulled');
+  assert.deepEqual(cableWay({ points: [[0, 0], [100, 0]] }, Infinity).at(1), [1, 0], 'at most to 1 px past the run\'s start');
+  for (const bad of [null, [], 'a', 5]) assert.throws(() => cableWay(bad), /^Error: isometric: cableWay takes a cable, \{points, radius\}/);
+  for (const bad of [undefined, [[0, 0]], 'ab']) assert.throws(() => cableWay({ points: bad }), /^Error: isometric: cableWay takes a cable whose points are a way of 2 or more points/);
+  for (const bad of [-1, NaN, '3', null]) assert.throws(() => cableWay({ points: [[0, 0], [9, 0]] }, bad), /^Error: isometric: cableWay pulls the cable's tip back a number of px, 0 or more/);
+  assert.throws(() => cableWay({ points: [[0, 0], [9, NaN]] }), /the cable's last point/);
+  assert.throws(() => cableWay({ points: [[0, 0], [0, 0]] }), /^Error: isometric: rounded takes a way that goes somewhere/);
+  // read by its own stored values: a getter is never run
+  assert.throws(() => cableWay(getter({}, 'points', [[0, 0], [9, 0]])), /points are a way of 2 or more/);
 });
