@@ -104,6 +104,8 @@ Voice the **spoken** text (`map.spoken`), never the shown text: the key is a has
   It runs `ISO_MAP_STEPS` (place, route, fitFloors, grid, shape, names, order, floorLabels, style; pure, plain data) and
   gives the last state, frozen: `at`, `routes`, `floorTiles`, `view`, `shapes`, `names`, `order`, `floorLabels`, `paints`,
   and `placed`/`placedWhy`, `grid`/`gridWhy`. Draw from it on the synchronous path; run `footprint-story/mapflow`'s
-  `runMapFlow` in the run chart for the record. Never copy a step into a tool.
+  `runMapFlow` in the run chart for the record. Never copy a step into a tool. A deck also hands `obstacles` (pictures
+  standing on the floor by their footprint), `keep` (floor kept clear, in tiles), a floor's `icon: true`, `grid: 'fit'`
+  and its `usualGrid`; `.deck` covers a floor's label by each block's box (`cover: 'block'`).
 - The break rule is a NAME on both: `wrapWords(…, { break: 'fill' | 'even' })` (fill usual), `wordsToFit(…, { break:
   'even' | 'fill' })` (even usual). Pass the writer's choice through and put the name in the record; never a function.
