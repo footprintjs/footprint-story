@@ -3,7 +3,8 @@
  * tool's own choice has (style.js). These are today's look, written out: what StoryDeck 0.32.0 and StoryReel 0.38.0
  * draw for a block, a cylinder and a floor.
  *
- *   shape   box     the faces `grid.block` / `grid.cylinder` / `grid.floor` give, as items (no fill, no stroke yet)
+ *   shape   box     the faces `grid.block` / `grid.cylinder` / `grid.floor` give, as items (no fill, no stroke yet),
+ *                   with the box, the centre (where a name stands) and the outline round the piece
  *   shading tones   top 20% toward white, left 6% toward black, right and a cylinder's side 18% toward black
  *                   (StoryReel's `mix`, StoryDeck's CSS `color-mix`); a floor's ground is its own colour
  *   line    ink     the ink round every face, 2.5 px, round joins (StoryReel's ISO_LOOK.line); a floor's tile lines
@@ -13,6 +14,7 @@
  *   texture none    nothing over the faces
  */
 import { mixColour } from './paint.js';
+import { roundOutline } from './outline.js';
 import { refuse, shown } from './thing.js';
 
 const xy = (p) => [p.x, p.y];
@@ -23,7 +25,9 @@ function boxShape({ piece, grid }) {
   const of = piece.name;
   if (piece.kind === 'floor') {
     const f = grid.floor({ cols: piece.size[0], rows: piece.size[1], at: piece.at.slice(0, 2) });
-    return { box: f.box, items: [
+    // a floor's centre: the middle of its four corners (it holds no name; a tool may frame it)
+    const centre = [f.outline.reduce((s, q) => s + q.x, 0) / 4, f.outline.reduce((s, q) => s + q.y, 0) / 4];
+    return { box: f.box, centre, outline: f.outline.map(xy), items: [
       { item: 'polygon', role: 'ground', of, points: f.outline.map(xy), fill: null, stroke: null },
       { item: 'lines', role: 'grid', of, segments: f.lines.map((l) => [...l]), fill: null, stroke: null },
     ] };
@@ -32,13 +36,14 @@ function boxShape({ piece, grid }) {
     const c = grid.cylinder({ at: piece.at, size: piece.size }), t = c.top, b = c.bottom;
     // the side: down the left edge, round the front of the foot (half its ellipse, through its nearest point), up the right edge
     const side = [['move', t.cx - t.rx, t.cy], ['line', b.cx - b.rx, b.cy], ['arc', b.cx, b.cy, b.rx, b.ry, Math.PI, 0, true], ['line', t.cx + t.rx, t.cy], ['close']];
-    return { box: c.box, items: [
+    // its outline: the upper half of its top, then the lower half of its foot (outline.js · roundOutline, as both tools have it)
+    return { box: c.box, centre: xy(c.centre), outline: roundOutline(t, b).map(xy), items: [
       { item: 'path', role: 'side', of, segments: side, fill: null, stroke: null },
       { item: 'ellipse', role: 'top', of, cx: t.cx, cy: t.cy, rx: t.rx, ry: t.ry, fill: null, stroke: null },
     ] };
   }
   const k = grid.block({ at: piece.at, size: piece.size });
-  return { box: k.box, items: ['left', 'right', 'top'].map((role) => ({ item: 'polygon', role, of, points: k[role].map(xy), fill: null, stroke: null })) };
+  return { box: k.box, centre: xy(k.centre), outline: k.outline.map(xy), items: ['left', 'right', 'top'].map((role) => ({ item: 'polygon', role, of, points: k[role].map(xy), fill: null, stroke: null })) };
 }
 
 /** How far each face's colour moves from the base, and toward what: today's three tones. */

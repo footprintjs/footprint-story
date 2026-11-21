@@ -14,7 +14,8 @@
 - A tool's own choice (`'reel:chalk'`) has the same interface: `apply`, its `options` and a `check` run once, the
   choices it `clashes` with and the fix, and seeded `random()` so a mark is the same every time. What a choice gives
   back is checked as plain data and copied before the next column reads it; a bad pairing is refused before anything
-  is drawn. Also `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `PAINT_ITEMS`, `MOST_*` limits and `mixColour`.
+  is drawn. `paintPiece` also gives the shape's `centre` (where a name stands) and `outline` (what a cable's end keeps
+  clear of), which a later shape choice must give too. Also `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `PAINT_ITEMS`, `MOST_*` limits and `mixColour`.
 
 ## 0.22.0 — the break rule is a named choice
 

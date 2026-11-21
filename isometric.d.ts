@@ -309,7 +309,7 @@ export interface PaintStroke { readonly colour: string | null; readonly alpha: n
 interface PaintBase { readonly role: string; readonly of: string; readonly fill: PaintFill | null; readonly stroke: PaintStroke | null }
 /** One segment of a path: move, line, an arc of an ellipse from angle `from` to `to` (radians, y down, as a canvas's `ellipse`), or close. */
 export type PaintSegment = readonly ['move', number, number] | readonly ['line', number, number] | readonly ['arc', number, number, number, number, number, number, boolean] | readonly ['close'];
-/** One item of a paint list: what a painter draws, in order. `role` says what it is (`top`, `left`, `right`, `side`, `ground`, `grid`, or a style's own); `of` names the piece. */
+/** One item of a paint list: what a painter draws, in order. Points are any finite numbers; an arc spans more than 0 and at most π, reached by a line from the pen. `role` says what it is (`top`, `left`, `right`, `side`, `ground`, `grid`, or a style's own); `of` names the piece. */
 export type PaintItem =
   | (PaintBase & { readonly item: 'polygon'; readonly points: readonly (readonly [number, number])[] })
   | (PaintBase & { readonly item: 'ellipse'; readonly cx: number; readonly cy: number; readonly rx: number; readonly ry: number })
@@ -347,7 +347,7 @@ export interface IsoStylePiece { readonly name: string; readonly kind?: 'block' 
 export interface IsoStyleContext { readonly piece: Required<IsoStylePiece>; readonly colours: { readonly base: string | null; readonly ink: string | null }; readonly options: Readonly<Record<string, number | string | boolean>>; random(): number }
 /**
  * A tool's own choice, named with its prefix (`'reel:chalk'`). A `shape` choice's apply takes `{piece, grid}` and gives
- * `{box, items}`; every other column's takes the items and gives items. `check` refuses an option it cannot take, once,
+ * `{box, centre, outline, items}`; every other column's takes the items and gives items. `check` refuses an option it cannot take, once,
  * when the style is made; `clashes` names the choices it cannot sit with, and the fix.
  */
 export interface IsoStyleChoice {
@@ -365,8 +365,9 @@ export interface IsoStyleChoice {
  */
 export function isoStyle(row?: IsoStyleRow | null, settings?: { readonly choices?: readonly IsoStyleChoice[] } | null): IsoStyle;
 /**
- * A piece's paint list in a style: `{box, items}`, frozen plain data. `grid` is the map's; `colours` the base and the
+ * A piece's paint list in a style: `{box, centre, outline, items}`, frozen plain data — the box round it, where its
+ * name stands, the outline round it (what a cable's end and a label keep clear of), and the items. A floor's lift is dropped. `grid` is the map's; `colours` the base and the
  * ink, or none (each fill then carries its recipe and no colour, for a page whose CSS colours by role). Each column's
  * output is checked before the next reads it.
  */
-export function paintPiece(style: IsoStyle, piece: IsoStylePiece, grid: IsoGrid, colours?: { readonly base?: string | null; readonly ink?: string | null } | null): { readonly box: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }; readonly items: readonly PaintItem[] };
+export function paintPiece(style: IsoStyle, piece: IsoStylePiece, grid: IsoGrid, colours?: { readonly base?: string | null; readonly ink?: string | null } | null): { readonly box: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }; readonly centre: readonly [number, number]; readonly outline: readonly (readonly [number, number])[]; readonly items: readonly PaintItem[] };

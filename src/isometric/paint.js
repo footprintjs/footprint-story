@@ -12,12 +12,16 @@
  * `{ mix: [toward, share], colour }` — the recipe a shading gave (the base colour mixed `share` of the way toward
  * `toward`, as CSS `color-mix` in srgb) and, when the caller gave a base colour, the colour it comes to (`colour`, a
  * `#rrggbb`; null when the base is the page's to decide). A `stroke` is null or `{ colour, alpha, width, join, cap }`.
- * Points are on the frame, in px. An arc runs from angle `from` to `to` (radians, y down, as a canvas's `ellipse`).
+ * Points are on the frame, in px: any finite number (a far piece on a big grid is far off the frame, never refused).
+ * An arc runs from angle `from` to `to` (radians, y down, as a canvas's `ellipse`), at most half a turn (π) and never
+ * none, and like a canvas's it is reached by a straight line from where the pen is: an SVG painter writes that line,
+ * then `A rx ry 0 0 (anticlockwise ? 0 : 1) endX endY`. WHY at most π: the large-arc flag is then always 0, and a
+ * longer arc is two items' worth of trouble for every painter; a choice that needs more splits it.
  *
  * WHY data: a deck and a film paint the same list, so they draw the same picture; a test compares lists, not
  * screenshots; and this package stays free of drawing code.
  */
-import { fin, refuse, shown } from './thing.js';
+import { fin, finite, refuse, shown } from './thing.js';
 
 /** The kinds of item a painter must draw, the most items one piece's list may hold, and the most points or segments in one item. */
 export const PAINT_ITEMS = Object.freeze(['polygon', 'ellipse', 'path', 'lines']);
@@ -44,7 +48,7 @@ export function readColour(v, what) {
   return h.length === 4 ? `#${[...h.slice(1)].map((c) => c + c).join('')}` : h;
 }
 
-const point = (p, what) => { if (!(Array.isArray(p) && p.length === 2 && fin(p[0]) && fin(p[1]))) refuse(`${what} is a point [x, y], two finite numbers — not ${shown(p)}`); };
+const point = (p, what) => { if (!(Array.isArray(p) && p.length === 2 && finite(p[0]) && finite(p[1]))) refuse(`${what} is a point [x, y], two finite numbers — not ${shown(p)}`); };
 const count = (list, what) => { if (!Array.isArray(list) || list.length > MOST_PAINT_POINTS) refuse(`${what} is a list of at most ${MOST_PAINT_POINTS} — not ${Array.isArray(list) ? `${list.length} long` : shown(list)}`); };
 
 function checkFill(fill, what) {
@@ -74,10 +78,10 @@ function checkStroke(stroke, what) {
  * colours as `#rrggbb`), at most MOST_PAINT_ITEMS items and MOST_PAINT_POINTS points in each. `who` names the choice
  * that gave it, for the refusal. A function, a getter or a live object anywhere is refused: a record must clone.
  */
-export function checkPaint(list, who) {
+export function checkPaint(list, who, piece) {
   if (!Array.isArray(list)) refuse(`${who} gives back a paint list, a list of items — not ${shown(list)}`);
   if (list.length > MOST_PAINT_ITEMS) refuse(`${who} gives back ${list.length} items, and one piece holds at most ${MOST_PAINT_ITEMS}`);
-  return Object.freeze(list.map((raw, i) => {
+  return Object.freeze(ownEntries(list, `${who}'s paint list`).map((raw, i) => {
     const what = `${who}'s item ${i + 1}`;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) refuse(`${what} is a plain object — not ${shown(raw)}`);
     // a deep copy of the plain data, read by own stored fields, so the list handed on shares nothing with the choice
@@ -85,7 +89,7 @@ export function checkPaint(list, who) {
     const item = plainCopy(raw, what, 0);
     if (!PAINT_ITEMS.includes(item.item)) refuse(`${what} is a ${PAINT_ITEMS.join(', a ')} — not ${shown(item.item)}`);
     if (typeof item.role !== 'string' || !NAME.test(item.role)) refuse(`${what}'s role is a short lower-case name ("top", "hatch") — not ${shown(item.role)}`);
-    if (typeof item.of !== 'string' || !item.of) refuse(`${what}'s of names its piece — not ${shown(item.of)}`);
+    if (item.of !== piece) refuse(`${what}'s of names its piece, ${shown(piece)} — not ${shown(item.of)}`);
     const allowed = { polygon: ['points'], ellipse: ['cx', 'cy', 'rx', 'ry'], path: ['segments'], lines: ['segments'] }[item.item];
     const extra = Object.keys(item).filter((k) => !['item', 'role', 'of', 'fill', 'stroke', ...allowed].includes(k));
     if (extra.length) refuse(`${what} (a ${item.item}) holds item, role, of, ${allowed.join(', ')}, fill and stroke — not ${shown(extra)}`);
@@ -93,20 +97,34 @@ export function checkPaint(list, who) {
     checkFill(item.fill, what);
     checkStroke(item.stroke, what);
     if (item.item === 'polygon') { count(item.points, `${what}'s points`); if (item.points.length < 3) refuse(`${what} is a polygon of at least 3 points — not ${item.points.length}`); item.points.forEach((p) => point(p, `${what}'s point`)); }
-    if (item.item === 'ellipse' && !(['cx', 'cy', 'rx', 'ry'].every((k) => fin(item[k])) && item.rx >= 0 && item.ry >= 0)) refuse(`${what} is an ellipse {cx, cy, rx, ry}, finite numbers, rx and ry from 0 — not ${shown([item.cx, item.cy, item.rx, item.ry])}`);
-    if (item.item === 'lines') { count(item.segments, `${what}'s segments`); for (const s of item.segments) if (!(Array.isArray(s) && s.length === 4 && s.every(fin))) refuse(`${what}'s segment is [x1, y1, x2, y2], finite numbers — not ${shown(s)}`); }
+    if (item.item === 'ellipse' && !(['cx', 'cy', 'rx', 'ry'].every((k) => finite(item[k])) && item.rx >= 0 && item.ry >= 0)) refuse(`${what} is an ellipse {cx, cy, rx, ry}, finite numbers, rx and ry from 0 — not ${shown([item.cx, item.cy, item.rx, item.ry])}`);
+    if (item.item === 'lines') { count(item.segments, `${what}'s segments`); for (const s of item.segments) if (!(Array.isArray(s) && s.length === 4 && s.every(finite))) refuse(`${what}'s segment is [x1, y1, x2, y2], finite numbers — not ${shown(s)}`); }
     if (item.item === 'path') {
       count(item.segments, `${what}'s segments`);
       if (item.segments[0]?.[0] !== 'move') refuse(`${what} starts with a ['move', x, y]`);
       for (const s of item.segments) {
-        const ok = Array.isArray(s) && ((s[0] === 'move' || s[0] === 'line') ? s.length === 3 && fin(s[1]) && fin(s[2])
-          : s[0] === 'arc' ? s.length === 8 && s.slice(1, 7).every(fin) && s[3] >= 0 && s[4] >= 0 && typeof s[7] === 'boolean'
+        const ok = Array.isArray(s) && ((s[0] === 'move' || s[0] === 'line') ? s.length === 3 && finite(s[1]) && finite(s[2])
+          : s[0] === 'arc' ? s.length === 8 && s.slice(1, 7).every(finite) && s[3] >= 0 && s[4] >= 0 && typeof s[7] === 'boolean' && Math.abs(s[6] - s[5]) > 0 && Math.abs(s[6] - s[5]) <= Math.PI
             : s[0] === 'close' && s.length === 1);
-        if (!ok) refuse(`${what}'s segment is ['move', x, y], ['line', x, y], ['arc', cx, cy, rx, ry, from, to, anticlockwise] or ['close'] — not ${shown(s)}`);
+        if (!ok) refuse(`${what}'s segment is ['move', x, y], ['line', x, y], ['arc', cx, cy, rx, ry, from, to, anticlockwise] (at most half a turn, never none) or ['close'] — not ${shown(s)}`);
       }
     }
     return deepFreeze(item);
   }));
+}
+
+/**
+ * A list's entries, read as a plain list is read: its own stored value at each index, never its own `map` or a species,
+ * a hole or a getter refused. WHY: a list handed in can carry its own methods; reading by index is what a record does.
+ */
+export function ownEntries(list, what) {
+  if (!Array.isArray(list) || Object.getPrototypeOf(list) !== Array.prototype) refuse(`${what} is a plain list — not ${shown(list)}`);
+  return Array.from({ length: list.length }, (_, i) => {
+    const d = Object.getOwnPropertyDescriptor(list, i);
+    if (!d) refuse(`${what} has a hole at ${i + 1} — give every entry`);
+    if (!('value' in d)) refuse(`${what}'s entry ${i + 1} is read as a stored value, and this one is a getter (code, never run) — give the value itself`);
+    return d.value;
+  });
 }
 
 /** A copy of plain data — numbers, texts, booleans, null, plain lists and objects, at most 4 deep — or a refusal naming the fault. */

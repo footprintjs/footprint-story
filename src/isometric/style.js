@@ -4,7 +4,7 @@
  *
  *   const style = isoStyle({ line: { name: 'ink', width: 5 } })   → { row: {shape: 'box', shading: 'tones', line: 'ink', …}, options: {line: {width: 5}} }
  *   paintPiece(style, { name: 'server', kind: 'block', at: [2, 1], size: [2, 2, 1] }, grid, { base: '#d9e4f3', ink: '#14181f' })
- *                                                                  → { box, items }: the piece's paint list (paint.js)
+ *                                                                  → { box, centre, outline, items }: the piece's paint list (paint.js)
  *
  * The columns run in order, each reading only what the one before gave: `shape` (the faces) → `shading` (a fill per
  * face) → `line` (strokes) → `palette` (recoloured) → `texture` (marks over the faces) → `effects` (a list, each adding
@@ -12,7 +12,8 @@
  *
  * A choice is `{ column, name, apply(input, context), options: [names it reads], check(options)?, clashes: [{column, name, fix}] }`;
  * `check` refuses an option value it cannot take, once, when the style is made.
- * `shape`'s apply takes `{piece, grid}` and gives `{box, items}`; every other apply takes the items and gives items.
+ * `shape`'s apply takes `{piece, grid}` and gives `{box, centre, outline, items}` — the box round it, where its name
+ * stands, the outline round it (what a cable's end and a label keep clear of) — every other apply takes the items and gives items.
  * `context` is `{piece, colours, options, random}`: the piece (`name`, `kind`, `at`, `size`), the colours the caller
  * gave (`base`, `ink`: `#rrggbb`, or null when the page decides), the options written for this choice, and `random()`
  * — numbers from 0 to 1 seeded by the style, the piece's name and the column, so a wobble or a grain is the same every
@@ -26,8 +27,8 @@
  * the fix, before anything is drawn — never found in the frames.
  */
 import { BUILT_IN_CHOICES } from './styleChoices.js';
-import { checkPaint, readColour } from './paint.js';
-import { FAR, fin, own, refuse, shown, stored } from './thing.js';
+import { checkPaint, ownEntries, readColour, MOST_PAINT_POINTS } from './paint.js';
+import { FAR, fin, finite, own, refuse, shown, stored } from './thing.js';
 
 /** The columns, in the order they run; the look a column takes when none is written; the most effects and own choices. */
 export const ISO_STYLE_COLUMNS = Object.freeze(['shape', 'shading', 'line', 'palette', 'texture', 'effects']);
@@ -49,10 +50,12 @@ function readOwn(c, i) {
   if (!ISO_STYLE_COLUMNS.includes(column)) refuse(`${what}'s column is one of ${ISO_STYLE_COLUMNS.join(', ')} — not ${shown(column)}`);
   if (typeof name !== 'string' || !OWN.test(name)) refuse(`${what}'s name is the tool's prefix and a name, lower case ("reel:chalk"): a name with no prefix is this package's — not ${shown(name)}`);
   if (typeof apply !== 'function') refuse(`${what} (${name}) gives its apply(input, context) — not ${shown(apply)}`);
-  const options = stored(c, 'options', `${what}'s options`) ?? [], clashes = stored(c, 'clashes', `${what}'s clashes`) ?? [], check = stored(c, 'check', `${what}'s check`) ?? null;
+  const rawOptions = stored(c, 'options', `${what}'s options`) ?? [], rawClashes = stored(c, 'clashes', `${what}'s clashes`) ?? [], check = stored(c, 'check', `${what}'s check`) ?? null;
+  if (!Array.isArray(rawOptions) || rawOptions.length > 16) refuse(`${what} (${name})'s options are the names it reads, at most 16, lower case — not ${shown(rawOptions)}`);
+  if (!Array.isArray(rawClashes) || rawClashes.length > 32) refuse(`${what} (${name})'s clashes are a list of at most 32 {column, name, fix} — not ${shown(rawClashes)}`);
+  const options = ownEntries(rawOptions, `${what} (${name})'s options`), clashes = ownEntries(rawClashes, `${what} (${name})'s clashes`);
   if (check !== null && typeof check !== 'function') refuse(`${what} (${name})'s check is a function (options) that refuses what it cannot take, or none — not ${shown(check)}`);
-  if (!Array.isArray(options) || options.length > 16 || options.some((o) => typeof o !== 'string' || !BUILT_IN.test(o))) refuse(`${what} (${name})'s options are the names it reads, at most 16, lower case — not ${shown(options)}`);
-  if (!Array.isArray(clashes) || clashes.length > 32) refuse(`${what} (${name})'s clashes are a list of at most 32 {column, name, fix} — not ${shown(clashes)}`);
+  if (options.some((o) => typeof o !== 'string' || !BUILT_IN.test(o))) refuse(`${what} (${name})'s options are the names it reads, at most 16, lower case — not ${shown(options)}`);
   const read = clashes.map((x, k) => {
     const w = `${what} (${name})'s clashes[${k}]`;
     if (!x || typeof x !== 'object') refuse(`${w} is {column, name, fix} — not ${shown(x)}`);
@@ -68,15 +71,16 @@ function readEntry(entry, column) {
   const what = `the style's ${column}`;
   if (typeof entry === 'string') return { name: entry, options: {} };
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) refuse(`${what} is a choice's name, or {name, …its options} — not ${shown(entry)}`);
-  const name = stored(entry, 'name', `${what}'s name`), options = {};
+  const name = stored(entry, 'name', `${what}'s name`);
   if (typeof name !== 'string') refuse(`${what} names its choice: {name: "ink", width: 5} — not ${shown(name)}`);
-  for (const key of Object.keys(entry)) {
-    if (key === 'name') continue;
+  // in the order of their names, so a style written {a, b} and one written {b, a} are the same style, seeded the same;
+  // made with fromEntries, so a key "__proto__" (from JSON) is an own key, refused as an option the choice does not take
+  const entries = Object.keys(entry).filter((k) => k !== 'name').sort().map((key) => {
     const v = stored(entry, key, `${what}'s ${key}`);
     if (!((typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= FAR) || typeof v === 'boolean' || (typeof v === 'string' && v.length <= 64))) refuse(`${what}'s ${key} is a number, a word or true/false — not ${shown(v)}`);
-    options[key] = v;
-  }
-  return { name, options };
+    return [key, v];
+  });
+  return { name, options: Object.fromEntries(entries) };
 }
 
 /**
@@ -89,11 +93,13 @@ export function isoStyle(row = undefined, settings = undefined) {
   const ownList = (settings ? stored(settings, 'choices', "isoStyle's choices") : undefined) ?? [];
   if (!Array.isArray(ownList) || ownList.length > MOST_OWN_CHOICES) refuse(`isoStyle's choices are a list of at most ${MOST_OWN_CHOICES} — not ${Array.isArray(ownList) ? `${ownList.length}` : shown(ownList)}`);
   const all = [...BUILT_IN_CHOICES], seen = new Set(all.map((c) => `${c.column}:${c.name}`));
-  ownList.forEach((c, i) => {
+  ownEntries(ownList, "isoStyle's choices").forEach((c, i) => {
     const read = readOwn(c, i), key = `${read.column}:${read.name}`;
     if (seen.has(key)) refuse(`isoStyle's choices[${i}]: ${read.column} "${read.name}" is given twice`);
     seen.add(key); all.push(read);
   });
+  // a clash names a choice there is: a misspelt one would never fire
+  for (const c of all) for (const x of c.clashes) if (!seen.has(`${x.column}:${x.name}`)) refuse(`${c.column} "${c.name}" clashes with ${x.column} ${shown(x.name)}, which is no choice — the ${x.column} choices are ${all.filter((y) => y.column === x.column).map((y) => `"${y.name}"`).join(', ') || 'none yet'}`);
   const keys = row ? Object.keys(row) : [];
   for (const k of keys) if (!ISO_STYLE_COLUMNS.includes(k)) refuse(`a style's columns are ${ISO_STYLE_COLUMNS.join(', ')} — not ${shown(k)}`);
   const find = (column, name) => {
@@ -107,7 +113,7 @@ export function isoStyle(row = undefined, settings = undefined) {
     if (column === 'effects') {
       const list = written ?? [];
       if (!Array.isArray(list) || list.length > MOST_EFFECTS) refuse(`the style's effects are a list of at most ${MOST_EFFECTS} — not ${shown(list)}`);
-      const read = list.map((e) => readEntry(e, 'effects'));
+      const read = ownEntries(list, "the style's effects").map((e) => readEntry(e, 'effects'));
       picked.effects = read.map((e) => find('effects', e.name));
       out.effects = Object.freeze(read.map((e) => e.name));
       read.forEach((e, i) => { checkOptions(picked.effects[i], e.options, 'effects'); });
@@ -151,7 +157,8 @@ function readPiece(p) {
   if (!KINDS.includes(kind)) refuse(`a piece's kind is ${KINDS.join(', ')} — not ${shown(kind)}`);
   const list = (v, n, what) => { if (!(Array.isArray(v) && n.includes(v.length) && v.every(fin))) refuse(`"${name}"'s ${what} — not ${shown(v)}`); return Object.freeze([...v]); };
   return Object.freeze({ name, kind,
-    at: list(at, kind === 'floor' ? [2] : [2, 3], kind === 'floor' ? 'at is [col, row]' : 'at is [col, row] or [col, row, lift]'),
+    // a floor lies on the ground: a lift written on its at is dropped, as StoryDeck reads it
+    at: kind === 'floor' ? list(at, [2, 3], 'at is [col, row]').slice(0, 2) : list(at, [2, 3], 'at is [col, row] or [col, row, lift]'),
     size: list(size, kind === 'floor' ? [2] : [3], kind === 'floor' ? 'size is [cols, rows]' : 'size is [wide, deep, high]') });
 }
 
@@ -163,7 +170,7 @@ function readColours(c) {
 }
 
 /**
- * A piece's paint list, by a style: {box, items}, frozen. `grid` is the map's (`isometric(...)`); `colours` the base
+ * A piece's paint list, by a style: {box, centre, outline, items}, frozen. `grid` is the map's (`isometric(...)`); `colours` the base
  * and the ink, or none (each item then carries its recipe and no colour, and a page's CSS colours it by role).
  */
 export function paintPiece(style, piece, grid, colours = undefined) {
@@ -176,10 +183,15 @@ export function paintPiece(style, piece, grid, colours = undefined) {
   const shape = picked.shape, made = shape.apply(Object.freeze({ piece: p, grid }), context('shape', style.options.shape));
   const who = (c) => `the style's ${c.column} "${c.name}"`;
   if (!made || typeof made !== 'object') refuse(`${who(shape)} gives back {box, items} — not ${shown(made)}`);
-  const box = own(made, 'box');
-  if (!(box && ['x', 'y', 'w', 'h'].every((k) => fin(own(box, k))) && box.w >= 0 && box.h >= 0)) refuse(`${who(shape)} gives back a box {x, y, w, h} round what it draws — not ${shown(box)}`);
-  let items = checkPaint(own(made, 'items'), who(shape));
-  for (const column of ['shading', 'line', 'palette', 'texture']) items = checkPaint(picked[column].apply(items, context(column, style.options[column])), who(picked[column]));
-  picked.effects.forEach((c, k) => { items = checkPaint(c.apply(items, context('effects', style.options.effects?.[k], k)), who(c)); });
-  return Object.freeze({ box: Object.freeze({ x: box.x, y: box.y, w: box.w, h: box.h }), items });
+  // what a tool reads of the shape besides its items: the box round it, where its name stands, the outline round it
+  const box = own(made, 'box'), centre = own(made, 'centre'), outline = own(made, 'outline');
+  if (!box || typeof box !== 'object') refuse(`${who(shape)} gives back a box {x, y, w, h} round what it draws — not ${shown(box)}`);
+  for (const k of ['x', 'y', 'w', 'h']) { const v = own(box, k); if (!finite(v) || ('wh'.includes(k) && v < 0)) refuse(`${who(shape)}'s box ${k} is a finite number${'wh'.includes(k) ? ', from 0' : ''} — not ${shown(v)}`); }
+  const pt = (p, what) => { if (!(Array.isArray(p) && p.length === 2 && finite(p[0]) && finite(p[1]))) refuse(`${who(shape)}'s ${what} is a point [x, y], finite numbers — not ${shown(p)}`); return Object.freeze([p[0], p[1]]); };
+  if (!Array.isArray(outline) || outline.length < 3 || outline.length > MOST_PAINT_POINTS) refuse(`${who(shape)} gives back its outline, 3 to ${MOST_PAINT_POINTS} points round what it draws — not ${shown(outline)}`);
+  const round = Object.freeze(ownEntries(outline, `${who(shape)}'s outline`).map((q) => pt(q, 'outline point')));
+  let items = checkPaint(own(made, 'items'), who(shape), p.name);
+  for (const column of ['shading', 'line', 'palette', 'texture']) items = checkPaint(picked[column].apply(items, context(column, style.options[column])), who(picked[column]), p.name);
+  picked.effects.forEach((c, k) => { items = checkPaint(c.apply(items, context('effects', style.options.effects?.[k], k)), who(c), p.name); });
+  return Object.freeze({ box: Object.freeze({ x: own(box, 'x'), y: own(box, 'y'), w: own(box, 'w'), h: own(box, 'h') }), centre: pt(centre, 'centre'), outline: round, items });
 }

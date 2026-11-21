@@ -51,8 +51,8 @@ function svgArt(items, { x, y }) {
   }).join('');
 }
 
-const half = fc.integer({ min: 0, max: 20 }).map((n) => n / 2);
-const grid = fc.record({ w: fc.integer({ min: 20, max: 200 }), h: fc.option(fc.double({ min: 0.2, max: 0.95, noNaN: true }), { nil: undefined }), ox: fc.integer({ min: -500, max: 1500 }), oy: fc.integer({ min: -500, max: 900 }), rise: fc.option(fc.integer({ min: 10, max: 150 }), { nil: undefined }) })
+const half = fc.oneof(fc.integer({ min: 0, max: 20 }).map((n) => n / 2), fc.integer({ min: 0, max: 20000 }).map((n) => n / 2));
+const grid = fc.record({ w: fc.integer({ min: 20, max: 200 }), h: fc.option(fc.double({ min: 0.2, max: 0.95, noNaN: true }), { nil: undefined }), ox: fc.oneof(fc.integer({ min: -500, max: 1500 }), fc.integer({ min: -200000, max: 200000 })), oy: fc.oneof(fc.integer({ min: -500, max: 900 }), fc.integer({ min: -200000, max: 200000 })), rise: fc.option(fc.integer({ min: 10, max: 150 }), { nil: undefined }) })
   .map(({ w, h, ox, oy, rise }) => isometric({ tile: h === undefined ? w : [w, Math.max(5, Math.round(w * h))], origin: [ox, oy], ...(rise === undefined ? {} : { rise }) }));
 const solidPiece = fc.oneof(
   fc.record({ kind: fc.constant('block'), at: fc.tuple(half, half, half), size: fc.tuple(half.map((n) => n + 0.5), half.map((n) => n + 0.5), half) }),
@@ -85,6 +85,8 @@ test('the usual style, painted as SVG, writes what StoryDeck 0.32.0 wrote for a 
     const was = deck0.shapeOf({ ...p, where: 'p' }, g), now = paintPiece(style, { name: 'p', ...p }, g);
     assert.equal(svgArt(now.items, now.box), was.art);
     assert.deepEqual({ ...now.box }, { ...was.box });
+    // what the deck reads of the shape besides its art: where the name stands, and the outline round it
+    if (p.kind !== 'floor') { assert.deepEqual(now.centre, [was.say.x, was.say.y]); assert.deepEqual(now.outline, was.outline.map(({ x, y }) => [x, y])); }
   }), { numRuns: RUNS });
 });
 

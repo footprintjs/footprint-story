@@ -117,10 +117,58 @@ test('paintPiece refuses what it cannot read, naming the fix', () => {
   assert.throws(() => paintPiece(style, { ...block, name: '' }, grid), /a piece's name is 1 to 64 letters/);
   assert.throws(() => paintPiece(style, { ...block, kind: 'cone' }, grid), /a piece's kind is block, cylinder, floor — not "cone"/);
   assert.throws(() => paintPiece(style, { ...block, size: [2, 2] }, grid), /"server"'s size is \[wide, deep, high\]/);
-  assert.throws(() => paintPiece(style, { ...floor, at: [0, 0, 1] }, grid), /"ground"'s at is \[col, row\]/);
+  // a floor lies on the ground: a lift on its at is dropped, as StoryDeck reads it
+  assert.deepEqual(paintPiece(style, { ...floor, at: [0, 0, 1] }, grid), paintPiece(style, floor, grid));
+  assert.throws(() => paintPiece(style, { ...floor, at: [0] }, grid), /"ground"'s at is \[col, row\]/);
   assert.throws(() => paintPiece(style, block, grid, { base: 'blue' }), /the colours' base is a colour, "#rgb" or "#rrggbb" — not "blue"/);
   assert.throws(() => paintPiece(style, block, {}), /paintPiece draws on a map's grid \(isometric\(\.\.\.\)\)/);
   assert.throws(() => paintPiece(style, { ...block, kind: 'cylinder', size: [2, 1, 1] }, grid), /a cylinder is round/);
   // a short colour is read as its long form
   assert.deepEqual(paintPiece(style, block, grid, { base: '#FFF', ink: '#000' }), paintPiece(style, block, grid, { base: '#ffffff', ink: '#000000' }));
+});
+
+test('lists are read entry by entry, as a record reads them: never their own map, a species, a hole or a getter', () => {
+  const texture = (apply) => paintPiece(isoStyle({ texture: 'test:t' }, { choices: [{ column: 'texture', name: 'test:t', apply }] }), block, grid, colours);
+  // a list's own map is never asked: it is read by index (this one has none)
+  let mapped = false;
+  assert.deepEqual(texture(() => Object.assign([], { map: () => { mapped = true; return [{ item: 'blob', fn: () => 1, of: 7 }]; } })).items, []);
+  assert.equal(mapped, false);
+  assert.throws(() => texture((items) => { const a = [...items]; a.length = 5; return a; }), /'s paint list has a hole at 4 — give every entry/);
+  let ran = false;
+  assert.throws(() => texture((items) => Object.defineProperty([...items], 0, { get: () => { ran = true; return items[0]; } })), /'s paint list's entry 1 is read as a stored value, and this one is a getter/);
+  assert.equal(ran, false, 'the getter never ran');
+  class Odd extends Array { static get [Symbol.species]() { return Object; } }
+  assert.throws(() => texture((items) => Odd.from(items)), /'s paint list is a plain list/);
+  // the same reading for every list a caller hands isoStyle
+  assert.throws(() => isoStyle(undefined, { choices: Object.defineProperty([], 0, { get: () => hatch, enumerable: true }) }), /isoStyle's choices's entry 1 is read as a stored value/);
+  assert.throws(() => isoStyle({ effects: Object.defineProperty([], 0, { get: () => 'x', enumerable: true }) }), /the style's effects's entry 1 is read as a stored value/);
+  assert.throws(() => isoStyle(undefined, { choices: [{ ...hatch, options: Odd.from(['lines']) }] }), /options is a plain list/);
+});
+
+test('a style written with its options in another order is the same style, seeded the same; a key "__proto__" is refused, not swallowed', () => {
+  const grain = { column: 'texture', name: 'test:grain', options: ['a', 'b'], apply: (items, { random, piece }) => [...items, { item: 'lines', role: 'grain', of: piece.name, segments: [[random(), random(), random(), random()]], fill: null, stroke: null }] };
+  const one = isoStyle({ texture: { name: 'test:grain', a: 1, b: 2 } }, { choices: [grain] }), two = isoStyle({ texture: { name: 'test:grain', b: 2, a: 1 } }, { choices: [grain] });
+  assert.deepEqual(Object.keys(two.options.texture), ['a', 'b']);
+  assert.deepEqual(paintPiece(one, block, grid), paintPiece(two, block, grid));
+  assert.throws(() => isoStyle(JSON.parse('{"line": {"name": "ink", "__proto__": 9}}')), /the style's line "ink" takes width — not "__proto__"/);
+});
+
+test('a clash names a choice there is; the shape gives its box, centre and outline, each checked by name; an item is of its own piece', () => {
+  assert.throws(() => isoStyle(undefined, { choices: [{ ...hatch, clashes: [{ column: 'line', name: 'nonexistent', fix: 'x' }] }] }), /texture "test:hatch" clashes with line "nonexistent", which is no choice — the line choices are "ink", "none"/);
+  const shaped = (made) => paintPiece(isoStyle({ shape: 'test:s' }, { choices: [{ column: 'shape', name: 'test:s', apply: () => made }] }), block, grid);
+  const good = { box: { x: 0, y: 0, w: 1, h: 1 }, centre: [0, 0], outline: [[0, 0], [1, 0], [0, 1]], items: [] };
+  assert.deepEqual(shaped(good).centre, [0, 0]);
+  assert.throws(() => shaped({ ...good, box: { x: NaN, y: 0, w: 1, h: 1 } }), /the style's shape "test:s"'s box x is a finite number — not NaN/);
+  assert.throws(() => shaped({ ...good, box: { x: 0, y: 0, w: -1, h: 1 } }), /'s box w is a finite number, from 0 — not -1/);
+  assert.throws(() => shaped({ ...good, centre: [0] }), /'s centre is a point \[x, y\], finite numbers/);
+  assert.throws(() => shaped({ ...good, outline: [[0, 0]] }), /gives back its outline, 3 to 4096 points round what it draws/);
+  assert.throws(() => shaped({ ...good, items: [{ item: 'polygon', role: 'top', of: 'other', points: [[0, 0], [1, 0], [0, 1]], fill: null, stroke: null }] }), /item 1's of names its piece, "server" — not "other"/);
+  // an arc is at most half a turn, and never none
+  const arc = (from, to) => shaped({ ...good, items: [{ item: 'path', role: 'side', of: 'server', segments: [['move', 0, 0], ['arc', 0, 0, 1, 1, from, to, true]], fill: null, stroke: null }] });
+  assert.equal(arc(Math.PI, 0).items.length, 1);
+  assert.throws(() => arc(0, 2 * Math.PI), /at most half a turn, never none/);
+  assert.throws(() => arc(1, 1), /at most half a turn, never none/);
+  // a far piece on a big grid is far off the frame, and drawn: frame numbers are any finite number
+  const far = paintPiece(isoStyle(), { ...block, at: [3e4, 3e4] }, isometric({ tile: 200 }));
+  assert.ok(far.items[0].points[0][1] > 1e6);
 });
