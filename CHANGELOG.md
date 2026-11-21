@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.22.0 — the break rule is a named choice
+
+- **`footprint-story/layout` · `wrapWords(words, width, measure, { break })`** and **`BREAK_RULES`** (`['fill',
+  'even']`): `'fill'` is the usual and sets what `wrapWords` always set; `'even'` keeps fill's line count and sets the
+  lines again at the narrowest width that keeps it (`narrowestWidth`), so no line ends with a word alone — the lines of
+  StoryReel's title band, one call in place of two (a property test against StoryReel 0.33.0's `balancedLines`).
+- **`footprint-story/isometric` · `wordsToFit(…, { break })`**: `'even'` is the usual and gives every name what 0.21.0
+  gave it (a property test against a copy of 0.21.0's `wordsToFit`, `test/control/footprint-story-0.21.0-words.js`);
+  `'fill'` sets the first line as full as it goes at each size and the rest beneath it, never empty (checked against an
+  oracle written apart). A name not in the list, or a getter for `break`, is refused on both doors.
+- WHY names and not a function the caller hands in: each rule is tested here, and a build's record can say which one
+  broke a line ("broken by even"). StoryDeck and StoryReel pass their writers' choice through next.
+
 ## 0.21.0 — a lead into a port, worked out once
 
 - **`footprint-story/isometric` · `cableLead(cable, end, count, back)`**: a cable's lead into a port — the stretch a

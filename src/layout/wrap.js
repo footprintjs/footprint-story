@@ -12,6 +12,13 @@
  * then '' is 'a '), and a line that is still empty takes the next word in its place. No words at all is one empty
  * line, [''] (the caller draws nothing; StoryReel's titles always had it so).
  *
+ * The break rule is a choice, `options.break`, one of BREAK_RULES: `'fill'` (the usual, the rule above: each line as
+ * full as it goes) or `'even'` (as many lines as `'fill'` sets, as alike as they can be: set again at the narrowest width
+ * that keeps that many lines, so no line ends with a word alone — StoryReel's title band). One line is left as it is.
+ * WHY named rules and not a function the caller hands in: a rule the package owns is tested here and can be NAMED in a
+ * build's record ("broken by even"); a function could be neither. `wordsToFit` (footprint-story/isometric) takes the
+ * same two names, with `'even'` its usual.
+ *
  * `narrowestWidth(width, lines, linesAt)` is the narrowest width that still sets the words on `lines` lines, found by
  * halving between 0 and `width` NARROWEST_STEPS times (a line count only falls as the width grows): the words set at it
  * are balanced, no line left with a word alone. `linesAt(w)` counts the lines at width w. It is asked
@@ -25,13 +32,16 @@
  *
  * Cost: `wrapWords` asks `measure` once per word (but the first on a line), with the line so far and that word, so the
  * work grows with the words times the length of a line (a canvas measures the whole text it is given);
- * `narrowestWidth` asks `linesAt` NARROWEST_STEPS times, each a whole wrap. What `measure` gives must be a width, a
+ * `narrowestWidth` asks `linesAt` NARROWEST_STEPS times, each a whole wrap, and `'even'` is NARROWEST_STEPS + 2 wraps. What `measure` gives must be a width, a
  * finite number from 0 (else refused, naming the line); what `measure` or `linesAt` throws is the caller's own and
  * comes out as it is.
  */
 
 /** How many times narrowestWidth halves: 12 halvings find the width to 1/4096 of it — finer than a pixel on a 1600 px frame. */
 export const NARROWEST_STEPS = 12;
+
+/** The break rules, by name: `'fill'` each line as full as it goes, `'even'` as many lines as fill sets, as alike as they can be. */
+export const BREAK_RULES = Object.freeze(['fill', 'even']);
 
 function refuse(fix) { throw new Error(`layout: ${fix}`); }
 const shown = (v) => (Array.isArray(v) ? 'a list' : v === null ? 'null' : typeof v === 'object' ? 'an object' : typeof v === 'string' ? JSON.stringify(v.slice(0, 40)) : String(v));
@@ -43,11 +53,30 @@ function widthOf(measure, line) {
   return n;
 }
 
-/** Words set greedily into lines no wider than `width`, each line measured whole (see the module's header). */
-export function wrapWords(words, width, measure) {
+/** The break rule asked for: `options.break`, read as its own stored field, `'fill'` when none is given. */
+function ruleOf(options) {
+  if (options === undefined || options === null) return 'fill';
+  if (typeof options !== 'object' || Array.isArray(options)) refuse(`wrapWords takes its options as {break}, or none — not ${shown(options)}`);
+  const d = Object.getOwnPropertyDescriptor(options, 'break');
+  if (d && !('value' in d)) refuse('wrapWords\'s break is read as a stored value, and this one is a getter (code, never run) — give the name itself');
+  const rule = d?.value ?? 'fill';
+  if (!BREAK_RULES.includes(rule)) refuse(`wrapWords breaks by ${BREAK_RULES.map((r) => `'${r}'`).join(' or ')} — not ${shown(rule)}`);
+  return rule;
+}
+
+/** Words set into lines no wider than `width` by a break rule, each line measured whole (see the module's header). */
+export function wrapWords(words, width, measure, options = undefined) {
   if (!Array.isArray(words)) refuse(`wrapWords takes the words as a list of texts — not ${shown(words)}`);
   if (typeof width !== 'number' || Number.isNaN(width)) refuse(`wrapWords takes the width as a number — not ${shown(width)}`);
   if (typeof measure !== 'function') refuse(`wrapWords measures a line with a function (text) => width — not ${shown(measure)}`);
+  const rule = ruleOf(options), lines = fill(words, width, measure);
+  if (rule === 'fill' || lines.length < 2) return lines;
+  // even: set again at the narrowest width that keeps this many lines (the words were read once already, so each is a text)
+  return fill(words, narrowestWidth(width, lines.length, (at) => fill(words, at, measure).length), measure);
+}
+
+/** The fill rule: each line takes as many words as fit `width` (first fit); a word that does not starts the next. */
+function fill(words, width, measure) {
   const lines = [''];
   for (let i = 0; i < words.length; i += 1) {
     const d = Object.getOwnPropertyDescriptor(words, i);

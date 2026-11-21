@@ -185,3 +185,11 @@ const bentCurve = bent ? curveWay([0, 0], bent.corner, bent.tip) : cableWay;
 const term: SeenTerm | undefined = seenTerms([[0.2, 0.3, 0.5, 0.6]])[0][0];
 export const cablePieces: unknown[] = [labelAt[0], LABEL_PLACES[0], MOST_HIDES, MOST_OUTLINE, MOST_WIRES, exitOutline([[0, 0], [1, 0], [1, 1]], [0.5, 0.2], [1, 0]), exitBox({ x: 0, y: 0, w: 1, h: 1 }, [0.5, 0.5], [0, 1]),
   roundOutline({ cx: 0, cy: 0, rx: 2, ry: 1 }, { cx: 0, cy: 3, rx: 2, ry: 1 })[0].x, bentCurve.at(0.5), arrowHead([1, 0], headingOf([0, 0], [1, 0]))[2][1], onStops([[0, 0], [1, 1]], 0.5), seenAt([[0.2, 0.3, 0.5, 0.6]], 0.4), term?.falling, ran.why];
+
+// 0.22.0: the break rule is a named choice, the same two names on both doors
+import { BREAK_RULES } from 'footprint-story/layout';
+import type { BreakRule } from 'footprint-story/layout';
+const rule: BreakRule = BREAK_RULES[1];
+export const breaking: unknown[] = [wrapWords(['a', 'b'], 100, (t) => t.length, { break: rule }), wrapWords(['a'], 1, (t) => t.length, null), fitWords('Load Balancer', [170, 70], { break: 'fill' })];
+// @ts-expect-error — a rule not in BREAK_RULES
+wrapWords(['a'], 1, (t) => t.length, { break: 'balanced' });

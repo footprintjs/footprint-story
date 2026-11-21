@@ -168,8 +168,11 @@ export interface FittedWords { readonly lines: readonly string[]; readonly size:
  * its face — gives each word's width at 1 px of size (a function, or a table `{ [word]: width }` read by its own stored
  * fields; the space is the word ' ') in place of the letter count: the same rule, each line its words' and spaces'
  * widths summed. It replaces `letter` (both is refused); a width that is no number from 0 to 1,000,000 is refused.
+ * `break` — the rule for two lines: `'even'` (the usual: the break that leaves the longer line shortest) or `'fill'`
+ * (the first line as full as it goes at each size, the rest beneath it, never empty); the names of
+ * footprint-story/layout's BREAK_RULES. Any other name is refused.
  */
-export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number; measure?: ((word: string) => number) | Readonly<Record<string, number>> } | null): FittedWords;
+export function wordsToFit(text: string, room: readonly [number, number] | ((high: number) => number), options?: { size?: number; least?: number; letter?: number; line?: number; measure?: ((word: string) => number) | Readonly<Record<string, number>>; break?: 'even' | 'fill' } | null): FittedWords;
 
 /** Where a way doubles back on itself: leaving its first port ('start' — the port faces away — or 'start-hook', a short loop near a good one), a tight U on the floor ('middle'), or coming into its last port ('end', 'end-hook'). */
 export type IsoHairpin = 'start' | 'start-hook' | 'middle' | 'end' | 'end-hook';
