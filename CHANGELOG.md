@@ -30,6 +30,7 @@ tool, by its pages and frames before and after.
   `narrowestWidth` refuses a width or line count that is no finite number; no words at all is `['']`. `frameZoom`
   takes any number as IEEE arithmetic answers it (a NaN in is a NaN out, as the deck's unchecked `zoom` options always
   gave) and refuses anything that is not a number.
+- `differsLines` refuses a time that is no factor (NaN, 0, a negative or an infinite one) rather than printing "NaN times".
 
 ## 0.17.1 — 0.17.0, published
 

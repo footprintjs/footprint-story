@@ -24,6 +24,8 @@ test('timeProblem: no factor, real time, past the range — else null', () => {
 test('differsLines, differsStatements: in the order time, scale, analogy', () => {
   const d = { time: 30, scale: 'Dots drawn far larger', analogy: 'cars for packets' };
   assert.deepEqual(differsLines(d), ['Time shown 30 times faster', 'Dots drawn far larger', 'An analogy: cars for packets']);
+  // a time a label cannot say is refused, never printed as "NaN times"
+  for (const time of [NaN, 0, -2, Infinity]) assert.throws(() => differsLines({ time }), /differs: a declaration's time is a factor above 0/);
   assert.equal(differsStatements(d), 3);
   assert.deepEqual(differsLines({ scale: 'x' }), ['x']);
   assert.equal(differsStatements({}), 0);

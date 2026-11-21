@@ -113,6 +113,8 @@ export function differsStatements(declaration) {
 /** The labels a declaration shows when its writer gives no words of their own: the time words, the scale, the analogy's label, in that order. */
 export function differsLines(declaration) {
   const { time, scale, analogy } = statements(declaration);
+  // a time is printed only when it is a factor a label can say: NaN, 0, Infinity or a negative one would print "NaN times"
+  if (time !== undefined && timeProblem(time) === 'not-a-factor') refuse(`a declaration's time is a factor above 0 (30; 0.04 is 25 times slower) — not ${String(time)}`);
   return [...(time === undefined ? [] : [timeWords(time)]), ...(scale === undefined ? [] : [scale]), ...(analogy === undefined ? [] : [analogyWords(analogy)])];
 }
 
