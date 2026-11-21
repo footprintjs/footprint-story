@@ -205,7 +205,7 @@ test('cableWay: the tip pulled back for a head, corners rounded — and what it 
   assert.deepEqual(cableWay({ points: [[0, 0], [0.5, 0]] }, 10).at(1), [0.5, 0], 'a last run under 1 px is never pulled');
   assert.deepEqual(cableWay({ points: [[0, 0], [100, 0]] }, Infinity).at(1), [1, 0], 'at most to 1 px past the run\'s start');
   for (const bad of [null, [], 'a', 5]) assert.throws(() => cableWay(bad), /^Error: isometric: cableWay takes a cable, \{points, radius\}/);
-  for (const bad of [undefined, [[0, 0]], 'ab']) assert.throws(() => cableWay({ points: bad }), /^Error: isometric: cableWay takes a cable whose points are a way of 2 or more points/);
+  for (const bad of [undefined, [[0, 0]], 'ab']) assert.throws(() => cableWay({ points: bad }), /^Error: isometric: cableWay takes a cable whose points are a way of 2 to 4096 points/);
   for (const bad of [-1, NaN, '3', null]) assert.throws(() => cableWay({ points: [[0, 0], [9, 0]] }, bad), /^Error: isometric: cableWay pulls the cable's tip back a number of px, 0 or more/);
   assert.throws(() => cableWay({ points: [[0, 0], [9, NaN]] }), /the cable's last point/);
   assert.throws(() => cableWay({ points: [[0, 0], [0, 0]] }), /^Error: isometric: rounded takes a way that goes somewhere/);
@@ -214,9 +214,17 @@ test('cableWay: the tip pulled back for a head, corners rounded — and what it 
   assert.deepEqual(stopShort(points, 10), [[0, 0], [100, 0], [100, 90]], 'stopShort: the points, the last pulled back');
   assert.deepEqual(points, [[0, 0], [100, 0], [100, 100]], 'a new list: the cable\'s own points are left as they were');
   for (const bad of [-1, NaN, '3']) assert.throws(() => stopShort(points, bad), /^Error: isometric: stopShort pulls the cable's tip back a number of px, 0 or more/);
-  for (const bad of [null, [[0, 0]]]) assert.throws(() => stopShort(bad), /^Error: isometric: stopShort takes a cable's points, a way of 2 or more points/);
+  for (const bad of [null, [[0, 0]]]) assert.throws(() => stopShort(bad), /^Error: isometric: stopShort takes a cable's points, a way of 2 to 4096 points/);
   assert.throws(() => stopShort([undefined, [9, 0]]), /the point before the cable's last/);
+  // the size is asked before any point is read: a sparse list of ten million is refused at once, never copied
+  const huge = new Array(10_000_000); huge[0] = [0, 0]; huge[9_999_999] = [9, 0];
+  let read = 0;
+  const counted = new Proxy(huge, { get: (o, k) => { if (/^\d+$/.test(String(k))) read += 1; return o[k]; }, getOwnPropertyDescriptor: (o, k) => { if (/^\d+$/.test(String(k))) read += 1; return Reflect.getOwnPropertyDescriptor(o, k); } });
+  assert.throws(() => stopShort(counted), /a way of 2 to 4096 points/);
+  assert.throws(() => cableWay({ points: counted }), /a way of 2 to 4096 points/);
+  assert.ok(read <= 32, `refused before the points are read: only the eight its message shows, each time (${read})`);
+  assert.equal(stopShort(Array.from({ length: 4096 }, (_, k) => [k, 0]), 10).length, 4096, '4096 points, the most a way has, are taken');
   assert.throws(() => stopShort(getter([[0, 0], [9, 0]], 1, [9, 0])), /the cable's last point/, 'a point behind a getter is never read');
   // read by its own stored values: a getter is never run
-  assert.throws(() => cableWay(getter({}, 'points', [[0, 0], [9, 0]])), /points are a way of 2 or more/);
+  assert.throws(() => cableWay(getter({}, 'points', [[0, 0], [9, 0]])), /points are a way of 2 to 4096 points/);
 });

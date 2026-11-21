@@ -18,7 +18,7 @@
  * (test/control/). The label's place is a candidate-position search: Christensen, Marks and Shieber (REFERENCES.md).
  */
 import { numbers, own, refuse, shown, stored } from './thing.js';
-import { rounded } from './path.js';
+import { rounded, MOST_WAY } from './path.js';
 import { pairOf } from './outline.js';
 
 /**
@@ -184,7 +184,8 @@ export function labelPlace(way, half, hides, runs = [], looks = { left: CABLE.lo
  * test/control/storydeck-0.30.0-cableWay.js holds StoryDeck's copy; a property test holds this to it.
  */
 export function stopShort(points, back = 0) {
-  if (!Array.isArray(points) || points.length < 2) refuse(`stopShort takes a cable's points, a way of 2 or more points, [[x, y], …] — not ${shown(points)}`);
+  // the size first: no entry is read of a list longer than a way may be (a sparse list of millions is refused at once)
+  if (!Array.isArray(points) || points.length < 2 || points.length > MOST_WAY) refuse(`stopShort takes a cable's points, a way of 2 to ${MOST_WAY} points, [[x, y], …] — not ${shown(points)}`);
   if (!(typeof back === 'number' && back >= 0)) refuse(`stopShort pulls the cable's tip back a number of px, 0 or more — not ${shown(back)}`);
   const list = Array.from({ length: points.length }, (_, k) => own(points, k));
   const tip = numbers(list.at(-1), [2], 'the cable\'s last point', '[x, y]');
@@ -200,7 +201,7 @@ export function stopShort(points, back = 0) {
 export function cableWay(cable, back = 0) {
   if (!cable || typeof cable !== 'object' || Array.isArray(cable)) refuse(`cableWay takes a cable, {points, radius} — not ${shown(cable)}`);
   const points = own(cable, 'points'), radius = own(cable, 'radius');
-  if (!Array.isArray(points) || points.length < 2) refuse(`cableWay takes a cable whose points are a way of 2 or more points, [[x, y], …] — not ${shown(points)}`);
+  if (!Array.isArray(points) || points.length < 2 || points.length > MOST_WAY) refuse(`cableWay takes a cable whose points are a way of 2 to ${MOST_WAY} points, [[x, y], …] — not ${shown(points)}`);
   if (!(typeof back === 'number' && back >= 0)) refuse(`cableWay pulls the cable's tip back a number of px, 0 or more — not ${shown(back)}`);
   return rounded(stopShort(points, back), radius === undefined ? 0 : radius);
 }
