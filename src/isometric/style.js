@@ -151,9 +151,10 @@ function seeded(text) {
 
 /** The piece as a style reads it, checked: {name, kind, at, size}. */
 function readPiece(p) {
-  if (!p || typeof p !== 'object' || Array.isArray(p)) refuse(`paintPiece takes a piece {name, kind, at, size} — not ${shown(p)}`);
+  if (!p || typeof p !== 'object' || Array.isArray(p)) refuse(`a style paints a piece {name, kind, at, size} — not ${shown(p)}`);
   const name = own(p, 'name'), kind = own(p, 'kind') ?? 'block', at = own(p, 'at'), size = own(p, 'size');
-  if (typeof name !== 'string' || !name || name.length > 64) refuse(`a piece's name is 1 to 64 letters (its paint items carry it) — not ${shown(name)}`);
+  // counted in letters (code points), as the map's spec counts a name: a name of 40 letters outside the BMP is 40, not 80
+  if (typeof name !== 'string' || !name || [...name].length > 64) refuse(`a piece's name is 1 to 64 letters (its paint items carry it) — not ${shown(name)}`);
   if (!KINDS.includes(kind)) refuse(`a piece's kind is ${KINDS.join(', ')} — not ${shown(kind)}`);
   const list = (v, n, what) => { if (!(Array.isArray(v) && n.includes(v.length) && v.every(fin))) refuse(`"${name}"'s ${what} — not ${shown(v)}`); return Object.freeze([...v]); };
   return Object.freeze({ name, kind,
@@ -246,9 +247,11 @@ export function paintShaped(style, piece, items, colours = undefined) {
 /**
  * A style made again from its record (the frozen {row, options} isoStyle gave): the same choices, the same seeds.
  * WHY: a step of the map flow holds only plain data — a record keeps it, and a structured copy loses what made the style
- * (the choices are held apart, never on it). Only this package's choices: a tool's own are code, which no record holds.
+ * (the choices are held apart, never on it). A tool's own choices are code, which no record holds: hand them again in
+ * `settings.choices` (as to isoStyle), and a record that names one is made again with it. A tool painting what the map
+ * flow does not (a cable) gets the map's style back this way: `restyle(map.style, {choices})`.
  */
-export function restyle(record) {
+export function restyle(record, settings = undefined) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) refuse(`a style's record is {row, options}, as isoStyle gives it — not ${shown(record)}`);
   const row = stored(record, 'row', "the style's row"), options = stored(record, 'options', "the style's options") ?? {};
   if (!row || typeof row !== 'object' || Array.isArray(row) || !options || typeof options !== 'object' || Array.isArray(options)) refuse(`a style's record is {row, options}, as isoStyle gives it — not ${shown([row, options])}`);
@@ -259,5 +262,5 @@ export function restyle(record) {
     if (name === undefined) continue;
     written[column] = column === 'effects' ? (Array.isArray(name) ? ownEntries(name, "the style's effects").map((n, k) => entry(n, Array.isArray(o) ? o[k] : undefined)) : name) : entry(name, o);
   }
-  return isoStyle(written);
+  return isoStyle(written, settings);
 }

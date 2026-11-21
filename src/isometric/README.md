@@ -395,7 +395,7 @@ map.order       // ['web', 'db'] — the furthest first
 | `names` | blocks, at, view, policy | `names`, `smalls` (each fitted to its top) | — |
 | `order` | blocks, at, view | `order` (block names, the furthest first) | — |
 | `floorLabels` | floors, floorTiles, shapes, routes, view | `floorLabels` (each label's place, fits, covered) | — |
-| `style` | shapes, style, colours | `paints`, `floorPaints` (the style's other columns) | — |
+| `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | `paints`, `floorPaints` (the style's other columns) | — |
 
 Each step is `{name, about, reads, writes, run}`: `run(state)` reads only the keys it names and gives back a new state
 with the keys it writes. It never edits what it was handed and never puts a function in the state — a block's room is

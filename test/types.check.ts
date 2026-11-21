@@ -217,3 +217,6 @@ export const mapped: unknown[] = [builtMap.placed === 'build', builtMap.view.til
 runMapFlow(mapSpec, ISO_MAP_POLICIES.deck, { recorders: [] }).then(({ map, snapshot }) => [map.gridWhy, snapshot.commitLog.length]);
 // @ts-expect-error — a hold that is not one
 buildIsoMap(mapSpec, { ...filmPolicy, hold: 'everything' });
+// 0.24.0: a style made again from a built map's record
+import { restyle } from 'footprint-story/isometric';
+export const again: unknown = restyle(isoStyle({ line: 'none' }), { choices: [] });

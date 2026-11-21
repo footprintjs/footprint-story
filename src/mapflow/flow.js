@@ -52,6 +52,23 @@ export function mapFlow() {
 }
 
 /**
+ * A copy of plain data read by own stored values only — lists by index, objects by own keys — so no getter runs.
+ * Called once readIsoMap has accepted the spec (which refuses a getter in what it reads, in its own words); a getter
+ * anywhere else is refused here. Bounded by the spec's own limits (readIsoMap checked the sizes).
+ */
+function ownCopy(v, depth = 0) {
+  if (v === null || v === undefined || typeof v !== 'object') return v;
+  if (depth > 8) throw new TypeError('isometric: a map spec is plain data at most 8 deep');
+  const list = Array.isArray(v), out = list ? [] : {};
+  for (const key of list ? Array.from({ length: v.length }, (_, i) => String(i)) : Object.keys(v)) {
+    const d = Object.getOwnPropertyDescriptor(v, key);
+    if (d && !('value' in d)) throw new TypeError(`isometric: a map spec's ${key} is read as a stored value, and this one is a getter (code, never run) — give the value itself`);
+    out[list ? Number(key) : key] = ownCopy(d?.value, depth + 1);
+  }
+  return out;
+}
+
+/**
  * The map flow run: `spec` and `policy` as buildIsoMap takes them; `options.sink` a record sink (footprintjs/sinks ·
  * fileSink — the caller closes it), `options.recorders` combined recorders to attach (footprintjs/trace ·
  * controlDepRecorder). Run with `writeProvenance: 'reads-prefix'`, so the record keeps the keys each stage had read when
@@ -62,9 +79,12 @@ export async function runMapFlow(spec, policy, options = undefined) {
   for (const k of Object.keys(options ?? {})) if (!RUN_KEYS.includes(k)) throw new TypeError(`runMapFlow's options are ${RUN_KEYS.join(', ')} — not ${JSON.stringify(k)}`);
   const { sink, recorders = [] } = options ?? {};
   if (!Array.isArray(recorders)) throw new TypeError('runMapFlow\'s recorders are a list of combined recorders (controlDepRecorder(), …)');
+  // read here first, by own stored fields, as buildIsoMap reads it: footprintjs copies a run's input before any stage
+  // sees it, and that copy would run a getter — so the run is handed the plain copy (and a refusal has buildIsoMap's words)
+  readIsoMap(spec, policy);
   const executor = new FlowChartExecutor(mapFlow(), { writeProvenance: 'reads-prefix', ...(sink ? { sink } : {}) });
   for (const r of recorders) executor.attachCombinedRecorder(r);
-  await executor.run({ input: { mapSpec: spec, mapPolicy: policy } });
+  await executor.run({ input: { mapSpec: ownCopy(spec), mapPolicy: ownCopy(policy) } });
   const snapshot = executor.getSnapshot();
   return { map: deepFreeze(structuredClone(pick(snapshot.sharedState, MAP_KEYS))), snapshot };
 }

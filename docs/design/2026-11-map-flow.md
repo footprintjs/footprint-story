@@ -61,10 +61,10 @@ The **policy** is the tool's own numbers, where a deck and a film differ on purp
 | `fitFloors` | blocks, routes | each floor's `at` and `size` when none was written | — |
 | `grid` | blocks, routes, floors, area | the tile, the origin | written, or fitted to the area |
 | `shape` | grid, blocks, style | each piece's box, centre, outline, faces (the style's `shape` column) | — |
-| `names` | shapes, labels, policy | each name's lines, size, fits, rule; the small line | — |
+| `names` | blocks, at, view, policy | each name's lines, size, fits, rule; the small line | — |
 | `order` | blocks | the paint order, furthest first | — |
 | `floorLabels` | floors, shapes, routes | each label's place, fits, covered | — |
-| `style` | shapes, colours | each piece's paint list (the style's other columns) | — |
+| `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | each piece's paint list (the style's other columns) | — |
 
 Cables on the frame (their line, label, head, lead, packets) come in a later step: the two tools differ most there.
 
@@ -76,4 +76,13 @@ Cables on the frame (their line, label, head, lead, packets) come in a later ste
    unchanged. Then the canvas painter and `style` in a world's recipe.
 3. **StoryDeck** feeds its read map to `buildIsoMap` (its policy: `hold: 'groups'`); its deck-only parts (footprints,
    keep-clear, callouts) stay its own, around the steps; pages unchanged. Then the SVG painter and `data-style`.
+   What the steps must take first (found in the second read of step 1), each a spec input or a policy field:
+   - **floor-label covers:** the deck covers a cylinder with its block outline, not its round one; it adds its
+     footprints to the covers; and it hands `floorLabelPlace` an `{icon}` option;
+   - **routes:** the deck lays them with keep-clear stretches (`lay`, `MOST_KEEP`);
+   - **its usual grid:** a hand-placed map with no `fit` gets tile 120 at [width / 2, 240], handed in as a grid, so
+     `gridWhy` must be able to say "the deck's usual grid" rather than "the map writes its grid in numbers";
+   - **groups:** the deck's `grouped` counts floors too, and a sized group floor with no block on it is allowed.
+   Both tools hand a floor with a size and no place at [0, 0] themselves (StoryDeck's `floor.at ??= [0, 0]`, StoryReel's
+   read): the spec takes a floor's place and size together.
 4. New looks, one or two per pull request, each with a still from a real map.

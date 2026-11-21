@@ -45,7 +45,9 @@ run's input (`{mapSpec, mapPolicy}`), checked by the `read` stage; the record sa
 
 **What it gives.** `mapFlow()` is the chart, to run as you like (input `{mapSpec, mapPolicy}`). `runMapFlow(spec,
 policy, {sink, recorders})` runs it and gives `{map, snapshot}`: the map (frozen plain data, as `buildIsoMap` gives it)
-and the run's snapshot. A spec or a policy it refuses rejects the run with `buildIsoMap`'s words. The sink is the
+and the run's snapshot. A spec or a policy it refuses rejects the run with `buildIsoMap`'s words; it reads the spec
+itself before the run and hands footprintjs a plain copy, because footprintjs copies a run's input before any stage sees
+it, and that copy would run a getter. `mapFlow()` run by hand has that gap: hand it plain data. The sink is the
 caller's to close.
 
 `footprintjs` (14) is a peer dependency, optional: only this door and `/record` need it, and both tools have it. This

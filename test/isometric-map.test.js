@@ -181,3 +181,19 @@ test('the numbers the policies hold, and the limits', () => {
   assert.ok(Object.isFrozen(ISO_MAP_POLICIES) && Object.isFrozen(FILM.fit) && Object.isFrozen(ISO_MAP_LIMITS));
   assert.deepEqual(ISO_MAP_LIMITS, { pieces: 256, wires: 1024, name: 64, label: 120, group: 100, who: 200 });
 });
+
+test('a name is counted in letters everywhere: 40 letters outside the BMP are 40, in the spec and in the style alike', async () => {
+  const { buildIsoMap: build, ISO_MAP_POLICIES: P } = await import('../isometric.js');
+  const long = '\u{1D49C}'.repeat(40);
+  const map = build({ blocks: [{ name: long, size: [2, 2, 1] }], floors: [{ name: `f${long}`.slice(0, 1) + long.slice(2), at: [0, 0], size: [3, 3] }], area: [0, 0, 1600, 900] }, P.film);
+  assert.equal(map.paints[0][0].of, long);
+});
+
+test('restyle makes a style again from a built map\'s record, with a tool\'s own choices handed again', async () => {
+  const { isoStyle: style, restyle: again, paintPiece: paint, isometric: iso } = await import('../isometric.js');
+  const mark = { column: 'texture', name: 'test:mark', apply: (items, { piece }) => [...items, { item: 'lines', role: 'mark', of: piece.name, segments: [[0, 0, 1, 1]], fill: null, stroke: null }] };
+  const made = style({ texture: 'test:mark' }, { choices: [mark] }), record = structuredClone(made);
+  assert.throws(() => again(record), /the style's texture has no choice "test:mark"/);
+  const piece = { name: 'a', kind: 'block', at: [0, 0], size: [1, 1, 1] }, grid = iso({ tile: 100 });
+  assert.deepEqual(paint(again(record, { choices: [mark] }), piece, grid), paint(made, piece, grid));
+});

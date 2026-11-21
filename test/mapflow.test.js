@@ -93,3 +93,13 @@ test('runMapFlow\'s options are checked', async () => {
   await assert.rejects(runMapFlow(SPEC, FILM, { recorders: {} }), /runMapFlow's recorders are a list of combined recorders/);
   assert.equal((await runMapFlow(SPEC, FILM, null)).map.placed, 'build');
 });
+
+test('runMapFlow reads the spec itself first: a getter is refused in buildIsoMap\'s words and never runs (footprintjs would copy it)', async () => {
+  let ran = 0;
+  const spec = { blocks: [{ name: 'a', size: [1, 1, 1], get label() { ran += 1; return 'G'; } }], area: [0, 0, 1600, 900] };
+  let words;
+  try { buildIsoMap(spec, FILM); } catch (e) { words = e.message; }
+  assert.match(words, /label is read as a stored value, and this one is a getter/);
+  await assert.rejects(runMapFlow(spec, FILM), (e) => e.message === words);
+  assert.equal(ran, 0);
+});

@@ -43,7 +43,7 @@ export { CABLE, LABEL_PLACES, MOST_HIDES, labelHalf, walkWay, held, labelPlace, 
 export { exitOutline, exitBox, roundOutline, MOST_OUTLINE } from './src/isometric/outline.js';
 export { cableLead } from './src/isometric/lead.js';
 export { lanesOf, straightRun, bentWire, curveWay, headingOf, arrowHead, MOST_WIRES } from './src/isometric/straight.js';
-export { isoStyle, paintPiece, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, USUAL_STYLE, MOST_EFFECTS, MOST_OWN_CHOICES } from './src/isometric/style.js';
+export { isoStyle, paintPiece, restyle, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, USUAL_STYLE, MOST_EFFECTS, MOST_OWN_CHOICES } from './src/isometric/style.js';
 export { PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour } from './src/isometric/paint.js';
 export { ISO_MAP_STEPS, buildIsoMap } from './src/isometric/mapSteps.js';
 export { ISO_MAP_POLICIES, ISO_MAP_LIMITS } from './src/isometric/mapSpec.js';

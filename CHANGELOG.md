@@ -42,6 +42,13 @@
   ("the map" when it gives none), in place of StoryReel's `<where>: the isometric …`.
 - A floor with no name is named by its place (`floors[0]`) as a piece of the style, and that name is one a block may not take.
 - The spec's style is a row of this package's choices only: a tool's own choice is code, which no record holds.
+- **`restyle(record, {choices})`**: a style made again from its record (`map.style`, `{row, options}`), the same
+  choices and seeds; a tool's own choices are handed again, as no record holds code. A tool painting what the map flow
+  does not (a cable) gets the map's style back this way.
+- `runMapFlow` reads the spec itself before the run (footprintjs copies a run's input, and that copy would run a getter),
+  so a refusal has `buildIsoMap`'s words and no getter runs. A piece's name is counted in letters (code points) in the
+  style as in the spec: 0.23.0's `paintPiece` counted UTF-16 units, so a name of 33–64 letters outside the BMP was
+  refused there.
 
 ## 0.23.0 — a map's look as a row of named choices
 

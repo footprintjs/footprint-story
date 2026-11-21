@@ -365,6 +365,11 @@ export interface IsoStyleChoice {
  */
 export function isoStyle(row?: IsoStyleRow | null, settings?: { readonly choices?: readonly IsoStyleChoice[] } | null): IsoStyle;
 /**
+ * A style made again from its record (`{row, options}`, as isoStyle gives it and a built map keeps it): the same
+ * choices, the same seeds. A tool's own choices are code, which no record holds: hand them again in `settings.choices`.
+ */
+export function restyle(record: IsoStyle, settings?: { readonly choices?: readonly IsoStyleChoice[] } | null): IsoStyle;
+/**
  * A piece's paint list in a style: `{box, centre, outline, items}`, frozen plain data — the box round it, where its
  * name stands, the outline round it (what a cable's end and a label keep clear of), and the items. A floor's lift is dropped. `grid` is the map's; `colours` the base and the
  * ink, or none (each fill then carries its recipe and no colour, for a page whose CSS colours by role). Each column's
