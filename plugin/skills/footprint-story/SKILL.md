@@ -7,7 +7,7 @@ description: What a film and a deck share (footprint-story, formerly footprint-n
 
 A voice drops or garbles digits and a forced aligner knows only letters, so a narration is **said in words and
 shown as written**. Everything here rests on one map from the shown text to the spoken text. And a move, a change of
-picture and a pace are named here once, so a film and a deck move alike. Eight doors:
+picture and a pace are named here once, so a film and a deck move alike. Nine doors:
 
 | You need | Import | Runs |
 |---|---|---|
@@ -17,6 +17,7 @@ picture and a pace are named here once, so a film and a deck move alike. Eight d
 | a camera in 3D as data, projection, a check of what it sees in one line of text | `footprint-story/shot` | anywhere, no dependencies; nothing draws |
 | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in; `arrange(things, links)` places things from what is joined to what, `gridFor(things, box)` fits the grid to a box, `routes(things, links)` lays each link along the floor round what stands in its way (and says what happened: `behind`, `why`; `routeNote` in words); a thing's `ports` (named points on its sides) and a link end `{thing, port}` plug a link in where you say, and `path` is the whole way in 3D, `routes(things, links, { keep })` keeps routes off floor under words where it can (`under` names what it could not), `rounded(points, radius)` rounds a way's corners and gives the point a share along it, `gridFor(things, box, { also })` fits the picture to links' points too, `wordsToFit(name, [wide, high])` puts a name on one line or two as big as fits (and says when it cannot); `grid.room(thing, high)` is the true room on a thing's top (a block's top is a diamond, as wide as its shorter side) and goes to `wordsToFit` in place of `[wide, high]`: `(high) => grid.room(thing, high)`; `hairpins(route.path, route.ports)` says where a way doubles back (`'start'`, `'middle'`, …), `floorUnder(box, grid, { lift })` is the floor under words as `routes`' keep takes it (or `why` there is none: `NO_UNDER`) and `crossesBox(points, box)` whether a way runs through them, `floorLabelPlace(floor, grid, name, covers)` lays a floor's name along its front edge clear of what stands there, `arrangeByGroup(things, links)` arranges each group then the groups; a cable's label on its cable: `labelPlace(way, labelHalf(letters), hides, runs, looks, tip)` (`CABLE` its numbers, `held`, `walkWay`), and its line stopped for its head: `cableWay({points, radius}, CABLE.head * CABLE.headShort)` (`stopShort(points, back)` for the points alone), and a lead into a port drawn again over its block: `cableLead(cable, end, count, back)` (`{way, pieces, length}`; its share of the line is `length / cableWay(cable, back).length`, the line as drawn); a wire drawn straight between two pieces: `lanesOf(pairs)`, `straightRun(a, b, lane)` (`{why}` when it cannot be), `bentWire`, `curveWay` (a curve as a way), `arrowHead(tip, headingOf(before, tip))`; `exitOutline`, `exitBox`, `roundOutline` (a cylinder's outline) | `footprint-story/isometric` | anywhere, no dependencies; nothing draws |
 | a story as data on a named shape, read and checked | `footprint-story/storyboard` | anywhere, no dependencies; nothing draws |
+| an isometric map built as a footprintjs chart (one stage per step of `ISO_MAP_STEPS`): `runMapFlow(spec, policy, {sink, recorders})` → `{map, snapshot}`, the map equal to `buildIsoMap`'s; then `whyFromRecord` says why a block stands where it does | `footprint-story/mapflow` | wherever footprintjs runs; needs `footprintjs` (the caller's) |
 | why a value of a run is so, from the run's record file: `whyFromRecord({file, control, key})` (the value, the stage that wrote it, the decision that let it run, what each read); `controlEdges` is what a run saves for it | `footprint-story/record` | **Node only**; needs `footprintjs` and `foottrace` (the caller's) |
 | a row of a reply kept one line whatever a project's files hold: `oneLine`, `errorText` | `footprint-story` | anywhere |
 | a part that differs from the real thing: `differsProblem(declaration, lines, phrases)` (the first rule broken, as data), `differsLines`, `timeProblem`, `timeWords`, `differsEnglish` | `footprint-story` | anywhere; the tool words the refusal |
@@ -98,5 +99,11 @@ Voice the **spoken** text (`map.spoken`), never the shown text: the key is a has
 - A map's look: `isoStyle(row, {choices})` (columns shape, shading, line, palette, texture, effects; a left-out column is
   today's look) and `paintPiece(style, piece, grid, colours)` → `{box, items}`, a paint list as plain data the tool paints.
   A tool's own choice is named `'prefix:name'`; record `style` (it is plain data). Never draw in the story package.
+- A whole map: `buildIsoMap(spec, ISO_MAP_POLICIES.film | .deck)` — the spec is the map as data (blocks, floors, wires,
+  grid or area, style; each piece's `who` is the tool's words, named in every refusal), the policy the tool's numbers.
+  It runs `ISO_MAP_STEPS` (place, route, fitFloors, grid, shape, names, order, floorLabels, style; pure, plain data) and
+  gives the last state, frozen: `at`, `routes`, `floorTiles`, `view`, `shapes`, `names`, `order`, `floorLabels`, `paints`,
+  and `placed`/`placedWhy`, `grid`/`gridWhy`. Draw from it on the synchronous path; run `footprint-story/mapflow`'s
+  `runMapFlow` in the run chart for the record. Never copy a step into a tool.
 - The break rule is a NAME on both: `wrapWords(…, { break: 'fill' | 'even' })` (fill usual), `wordsToFit(…, { break:
   'even' | 'fill' })` (even usual). Pass the writer's choice through and put the name in the record; never a function.

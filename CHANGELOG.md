@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.24.0 — a whole map as named steps, and as a footprintjs chart
+
+- **`footprint-story/isometric` · `buildIsoMap(spec, policy)`** and **`ISO_MAP_STEPS`**: an isometric map built as
+  named, pure steps — `place`, `route`, `fitFloors`, `grid`, `shape`, `names`, `order`, `floorLabels`, `style` — each
+  reading only the keys it names and giving back new plain data (never editing what it was handed, never a function in
+  the state). The spec is the map as data (blocks, floors, wires, a grid or an area, a style; each piece's `who` named in
+  every refusal with the fix); the policy is the tool's numbers, `ISO_MAP_POLICIES.film` and `.deck` (also
+  `ISO_MAP_LIMITS`). The built map is the last state, frozen: `at`, `routes`, `floorTiles`, `view`, `shapes`,
+  `floorShapes`, `names`, `smalls`, `order`, `floorLabels`, `paints`, `floorPaints`, and the two choices with their
+  reasons, `placed`/`placedWhy` (the map placed the blocks, or the build from its wires) and `grid`/`gridWhy` (written,
+  or fitted to the area). The design: `docs/design/2026-11-map-flow.md` (step 1 of 4).
+- **Moved from StoryReel 0.38.0** (`src/kits/isometric/build.mjs` · `buildMap`, itself StoryDeck's `deck/iso.js`
+  order); its `ISO_FIT` is the film's policy. **Pinned** against a verbatim copy (`test/control/storyreel-0.38.0-build.mjs`):
+  for random maps — placed by build with and without groups and by hand, written and fitted grids, ports, straight
+  wires, labelled and fitted floors, cylinders — every block's at, box, centre, outline and faces, its fitted name and
+  small line, every floor's at, size, shape and label, every route, the grid and the paint order are the same numbers,
+  and a map it refused is refused. The deck's policy (StoryDeck 0.32.0's numbers; the small line left as written; only
+  a group's floor held) is pinned when StoryDeck builds its maps here. **Neither tool uses it yet** (steps 2 and 3).
+- A piece's shape is now the style's `shape` column: `paintPiece` is split into its two halves inside the package
+  (`style.js` · `shapePiece`, `paintShaped`; `restyle` makes a style again from its record), and paints the same list
+  as before (the 0.23.0 property tests are unchanged).
+- **A new door, `footprint-story/mapflow`** · `mapFlow()` and `runMapFlow(spec, policy, {sink, recorders})`: the same
+  step functions as a footprintjs chart — a stage per step, a decider for `place` and for `grid` that writes its choice
+  and reason and labels its decision with the reason — run with `writeProvenance: 'reads-prefix'`, so
+  `footprint-story/record` · `whyFromRecord` answers why a block's `at` is what it is, through the decision, from the
+  record file alone. Its map equals `buildIsoMap`'s for random maps, styles and both policies (a property test).
+  `footprintjs` stays an optional peer; this door reaches only its own folder and the isometric files the steps compose
+  (`test/doors.test.js`).
+
+### Differences from the code it replaced
+
+- The map handed in is never mutated, and the built map holds no closure: a block's room is asked of the grid where a
+  name is fitted, the grid is kept as its numbers (`view`: tile, origin, rise), the paint order is by name. A
+  block's faces are the style's `shape` items (a block's `top`/`left`/`right` polygons; a cylinder's `top` ellipse and
+  `side` path, whose arc is its foot's ellipse) — the same points StoryReel kept as `shape.top`/`left`/`right`/`bottom`.
+- What a tool's read decided is the tool's: a floor gives its `at` and `size`, or neither (StoryReel's read put a floor
+  with a size alone at `[0, 0]`), and a written grid gives its `origin`. A cylinder's width and depth are equal exactly
+  (StoryReel's read let them differ by a billionth, which its grid then refused).
+- A refusal is said in the spec's own words: `isometric: <who>: … — <fix>`, the map-wide ones in the spec's `who`
+  ("the map" when it gives none), in place of StoryReel's `<where>: the isometric …`.
+- A floor with no name is named by its place (`floors[0]`) as a piece of the style, and that name is one a block may not take.
+- The spec's style is a row of this package's choices only: a tool's own choice is code, which no record holds.
+
 ## 0.23.0 — a map's look as a row of named choices
 
 - **`footprint-story/isometric` · `isoStyle(row, {choices})`** and **`paintPiece(style, piece, grid, colours)`**: a
