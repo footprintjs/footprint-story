@@ -71,6 +71,10 @@ test('a fall lands on the floor when the closed form says; a bounce never gains 
         const h = (s.velocity[1] * s.velocity[1]) / (2 * g);
         assert.ok(h <= height * (1 + 1e-12)); height = h; speed = e;
         assert.equal(s.from[1], floor);
+        // the restitution law itself: up at `restitution` of the speed it came down with, `keep` of its speed across
+        const prev = plan.segments[k - 1], down = prev.velocity[1] + g * prev.seconds;
+        assert.ok(close(s.velocity[1], -restitution * down, 1e-12, down));
+        assert.equal(s.velocity[0], prev.velocity[0] * keep);
       }
     });
     const end = fallBounce.sample(plan, plan.duration);
@@ -105,6 +109,8 @@ test('a chain keeps every link within LENGTH_TOLERANCE of its length, its pin ex
         assert.ok(err <= LENGTH_TOLERANCE, `link ${i / 2}: ${err}`);
       }
     }
+    // the end is the last kept frame to the bit
+    assert.deepEqual(hang.sample(plan, plan.duration).points.flat(), [...plan.frames.at(-1)]);
   }), { numRuns: HEAVY });
 });
 

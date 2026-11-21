@@ -50,7 +50,7 @@ export const MOST_LINKS: number;
 export const MOST_CHAIN_SECONDS: number;
 
 /** Any plan a model made: a duration (s) and whatever its sampler reads. */
-export interface AnyPlan { readonly duration: number; readonly who?: string; readonly [key: string]: unknown }
+export interface AnyPlan { readonly duration: number; readonly who?: string }
 export type WrapperName = 'anticipate' | 'follow-through' | 'hold' | 'overshoot';
 export type Feel = 'snappy' | 'default' | 'heavy' | 'playful' | { readonly k: number; readonly d: number };
 /** A wrapped plan: the inner plan unchanged, the wrapper's name and numbers, the new duration. */
