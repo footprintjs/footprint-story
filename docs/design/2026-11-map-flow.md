@@ -1,6 +1,7 @@
 # The map flow — building an isometric map as named steps, and as a footprintjs chart
 
-Status: design, 2026-11-21; build-order step 1 done in footprint-story 0.24.0 (`ISO_MAP_STEPS`, `buildIsoMap`, `/mapflow`). Replaces steps 2–4 of `2026-11-iso-styles.md` (the painters now plug into this flow).
+Status: design, 2026-11-21; build-order step 1 done in footprint-story 0.24.0 (`ISO_MAP_STEPS`, `buildIsoMap`, `/mapflow`);
+step 3's prerequisites done in 0.25.0 (the deck's inputs, pinned against StoryDeck 0.32.0's map code). Replaces steps 2–4 of `2026-11-iso-styles.md` (the painters now plug into this flow).
 
 ## Why
 
@@ -37,9 +38,11 @@ The **spec** is the map as data, already read by the tool from its own format (a
 
 ```js
 { blocks: [{ name, kind: 'block'|'cylinder', at: [c, r, lift]|null, size, label, small, rule, group, ports, who }],
-  floors: [{ name, at|null, size|null, label, group, who }],
+  floors: [{ name, at|null, size|null, label, icon, group, who }],
   wires:  [{ name, from: { block, port? }, to: { block, port? }, straight, who }],
-  grid:   { tile, origin, rise } | null,   area: [x0, y0, x1, y1],   style: a row of choices }
+  obstacles: [{ name, at, size, ports, who }],   keep: [{ at, size, name }],          // 0.25.0
+  grid:   { tile, origin, rise } | 'fit' | null,   usualGrid: { tile, origin, rise } | null,   // usualGrid 0.25.0
+  area: [x0, y0, x1, y1],   style: a row of choices }
 ```
 
 `who` is the tool's own words for where a piece was written (`blocks[2] ("db")`, `data-iso="block" ("db")`): every
@@ -49,7 +52,8 @@ The **policy** is the tool's own numbers, where a deck and a film differ on purp
 
 ```js
 { fit: { most, least, grouped, inset, margin }, name: { size, least }, small: { size, least } | null, clear,
-  hold: 'groups' | 'groups-and-labels' }   // which floors a fitted picture must hold
+  hold: 'groups' | 'groups-and-labels',    // which floors a fitted picture must hold
+  cover: 'drawn' | 'block' }               // what a block covers of a floor's label (0.25.0; left out: 'drawn')
 ```
 
 ## The steps
@@ -59,7 +63,7 @@ The **policy** is the tool's own numbers, where a deck and a film differ on purp
 | `place` | blocks, wires | each block's `at`; `placed: 'hand' \| 'build'` | the map placed them, or the build from its wires (by group when any has one) |
 | `route` | blocks, wires | each wire's route (its `why` when it has no way) | — |
 | `fitFloors` | blocks, routes | each floor's `at` and `size` when none was written | — |
-| `grid` | blocks, routes, floors, area | the tile, the origin | written, or fitted to the area |
+| `grid` | written, placed, usualGrid, blocks, obstacles, routes, floors, area | the tile, the origin | written, fitted to the area, or the tool's usual grid |
 | `shape` | grid, blocks, style | each piece's box, centre, outline, faces (the style's `shape` column) | — |
 | `names` | blocks, at, view, policy | each name's lines, size, fits, rule; the small line | — |
 | `order` | blocks | the paint order, furthest first | — |
@@ -76,13 +80,22 @@ Cables on the frame (their line, label, head, lead, packets) come in a later ste
    unchanged. Then the canvas painter and `style` in a world's recipe.
 3. **StoryDeck** feeds its read map to `buildIsoMap` (its policy: `hold: 'groups'`); its deck-only parts (footprints,
    keep-clear, callouts) stay its own, around the steps; pages unchanged. Then the SVG painter and `data-style`.
-   What the steps must take first (found in the second read of step 1), each a spec input or a policy field:
-   - **floor-label covers:** the deck covers a cylinder with its block outline, not its round one; it adds its
-     footprints to the covers; and it hands `floorLabelPlace` an `{icon}` option;
-   - **routes:** the deck lays them with keep-clear stretches (`lay`, `MOST_KEEP`);
-   - **its usual grid:** a hand-placed map with no `fit` gets tile 120 at [width / 2, 240], handed in as a grid, so
-     `gridWhy` must be able to say "the deck's usual grid" rather than "the map writes its grid in numbers";
-   - **groups:** the deck's `grouped` counts floors too, and a sized group floor with no block on it is allowed.
+   What the steps must take first (found in the second read of step 1), each a spec input or a policy field — **done
+   in footprint-story 0.25.0**, pinned against a verbatim copy of StoryDeck 0.32.0's `deck/iso.js` and its siblings run
+   on random deck maps (`test/deck-map-differential.property.test.js`):
+   - **floor-label covers:** the deck covers a cylinder with its block outline, not its round one (policy `cover:
+     'block'`); it adds its footprints to the covers (spec `obstacles`, which also route, fit floors and paint in order);
+     and it hands `floorLabelPlace` an `{icon}` option (a floor's `icon: true`);
+   - **routes:** the deck lays them with keep-clear stretches (`lay`, `MOST_KEEP`) — spec `keep`, in tiles — and its
+     footprints as obstacles;
+   - **its usual grid:** a hand-placed map with no `fit` gets tile 120 at [width / 2, 240], handed in as a grid — spec
+     `usualGrid`, and `grid: 'fit'` for the map that asks — so `gridWhy` says "it is the usual grid the tool handed in";
+   - **groups:** the deck's `grouped` counts floors too, and a sized group floor with no block on it is allowed — for
+     every tool (no map 0.24.0 built changes), so no policy field.
    Both tools hand a floor with a size and no place at [0, 0] themselves (StoryDeck's `floor.at ??= [0, 0]`, StoryReel's
    read): the spec takes a floor's place and size together.
+   **Left to the deck** (it reads or writes HTML): its pieces and their names (shared first names, names past 64
+   letters: it hands names of its own), a block's name as plain words, a footprint's box on the slide, the keep-clear
+   stretches worked out from a box (`floorUnder`, on its written or usual grid), the icon's drawing, the px, levels and
+   `made` record it writes, a wire past the 1024 the kit lays. `test/deckMaps.js` is a sketch of the adapter.
 4. New looks, one or two per pull request, each with a still from a real map.

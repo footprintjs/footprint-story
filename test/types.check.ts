@@ -215,6 +215,16 @@ const builtMap: IsoMap = buildIsoMap(mapSpec, filmPolicy);
 const firstStep: IsoMapStep = ISO_MAP_STEPS[0];
 export const mapped: unknown[] = [builtMap.placed === 'build', builtMap.view.tile[0], builtMap.order[0], builtMap.names[0]?.lines, builtMap.shapes[0].faces[0].role, firstStep.decides?.key, firstStep.run({ blocks: builtMap.blocks }).placed, ISO_MAP_LIMITS.pieces, mapFlow()];
 runMapFlow(mapSpec, ISO_MAP_POLICIES.deck, { recorders: [] }).then(({ map, snapshot }) => [map.gridWhy, snapshot.commitLog.length]);
+// a deck's inputs (0.25.0): obstacles, keep, a floor's icon, the usual grid, the grid word 'fit', the policy's cover
+const deckSpec: IsoMapSpec = { blocks: [{ name: 'web', at: [0, 0], size: [2, 2, 1] }], floors: [{ at: [0, 0], size: [6, 3], label: 'Prod', icon: true }],
+  obstacles: [{ name: 'lap', at: [0, 4], size: [2, 1, 0.3], ports: [{ name: 'rj45', at: [2, 0.5, 0] }] }], keep: [{ at: [3, 0, 0], size: [1, 1], name: 'note' }],
+  wires: [{ from: { block: 'lap', port: 'rj45' }, to: { block: 'web' } }], usualGrid: { tile: 120, origin: [960, 240] } };
+const deckMap: IsoMap = buildIsoMap(deckSpec, { ...ISO_MAP_POLICIES.deck, cover: 'block' });
+export const decked: unknown[] = [deckMap.grid === 'usual', deckMap.obstacleShapes[0].outline[0][0], deckMap.policy.cover, deckMap.floors[0].icon, ISO_MAP_LIMITS.keep, buildIsoMap({ ...deckSpec, grid: 'fit', area: [0, 0, 1920, 1080] }, ISO_MAP_POLICIES.deck).gridWhy];
+// @ts-expect-error a policy's cover is 'drawn' or 'block'
+buildIsoMap(deckSpec, { ...ISO_MAP_POLICIES.deck, cover: 'round' });
+// @ts-expect-error the grid word is 'fit'
+buildIsoMap({ ...deckSpec, grid: 'fitted' }, ISO_MAP_POLICIES.deck);
 // @ts-expect-error — a hold that is not one
 buildIsoMap(mapSpec, { ...filmPolicy, hold: 'everything' });
 // 0.24.0: a style made again from a built map's record

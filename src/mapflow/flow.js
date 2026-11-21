@@ -1,6 +1,6 @@
 // flow — the map's steps as a footprintjs chart, and a run of it.
 //
-//   const chart = mapFlow()                                         → read → place? (hand | build) → route → fitFloors → grid? (written | fitted) → shape → names → order → floorLabels → style
+//   const chart = mapFlow()                                         → read → place? (hand | build) → route → fitFloors → grid? (written | fitted | usual) → shape → names → order → floorLabels → style
 //   const { map, snapshot } = await runMapFlow(spec, ISO_MAP_POLICIES.film, { sink, recorders: [controlDepRecorder()] })
 //
 // WHY a chart of the same functions: a run's record is its debug log. Each stage runs one step of

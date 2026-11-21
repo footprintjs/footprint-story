@@ -21,9 +21,9 @@ test('the steps run in the design\'s order, each naming what it reads and writes
   assert.ok(Object.isFrozen(ISO_MAP_STEPS) && ISO_MAP_STEPS.every((s) => Object.isFrozen(s) && typeof s.about === 'string' && s.reads.length && s.writes.length));
   const [place, , , grid] = ISO_MAP_STEPS;
   assert.deepEqual([place.decides.key, Object.keys(place.branches)], ['placed', ['hand', 'build']]);
-  assert.deepEqual([grid.decides.key, Object.keys(grid.branches)], ['grid', ['written', 'fitted']]);
+  assert.deepEqual([grid.decides.key, Object.keys(grid.branches)], ['grid', ['written', 'fitted', 'usual']]);
   // every key a step reads is the input's or an earlier step's: the order cannot be shuffled without a step finding nothing
-  const known = new Set(['who', 'blocks', 'floors', 'wires', 'written', 'area', 'style', 'policy']);
+  const known = new Set(['who', 'blocks', 'floors', 'wires', 'obstacles', 'keep', 'written', 'usualGrid', 'area', 'style', 'policy']);
   for (const step of ISO_MAP_STEPS) {
     for (const k of step.reads) assert.ok(known.has(k), `${step.name} reads ${k} before anything writes it`);
     for (const k of step.writes) { assert.ok(!known.has(k), `${step.name} writes ${k} again`); known.add(k); }
@@ -111,9 +111,9 @@ test('the deck\'s policy: the small line left as written, and only a group\'s fl
 test('refusals name the piece by its who, and the fix', () => {
   const refused = (spec, re, policy = FILM) => assert.throws(() => buildIsoMap(spec, policy), (e) => { assert.match(e.message, /^isometric: /); assert.match(e.message, re); return true; });
   const b = (extra = {}) => ({ name: 'web', size: [2, 2, 1], who: 'data-iso="block" ("web")', ...extra });
-  refused(null, /a map is \{blocks, floors, wires, grid, area, style, who\}/);
+  refused(null, /a map is \{blocks, floors, wires, obstacles, keep, grid, usualGrid, area, style, who\}/);
   refused({ blocks: [], area: [0, 0, 10, 10] }, /the map draws blocks on a floor — give it blocks/);
-  refused({ blocks: [b()], area: [0, 0, 10, 10], who: 'stage map', colour: 1 }, /^isometric: stage map takes blocks, floors, wires, grid, area, style, who — not "colour"/);
+  refused({ blocks: [b()], area: [0, 0, 10, 10], who: 'stage map', colour: 1 }, /^isometric: stage map takes blocks, floors, wires, obstacles, keep, grid, usualGrid, area, style, who — not "colour"/);
   refused({ blocks: [b({ lable: 'x' })], area: [0, 0, 10, 10] }, /blocks\[0\] takes name, kind, at, size, label/);
   refused({ blocks: [b({ size: [2, 2] })], area: [0, 0, 10, 10] }, /data-iso="block" \("web"\): a block's size is \[wide, deep, high\]/);
   refused({ blocks: [b({ kind: 'cone' })], area: [0, 0, 10, 10] }, /\("web"\): kind is block or cylinder — not "cone"/);
@@ -122,7 +122,8 @@ test('refusals name the piece by its who, and the fix', () => {
   refused({ blocks: [b({ rule: 'fill' })], area: [0, 0, 10, 10] }, /rule says how its label breaks onto two lines — give it a label too/);
   refused({ blocks: [b({ label: 'x', rule: 'tidy' })], area: [0, 0, 10, 10] }, /rule is how its label breaks onto two lines, "even" or "fill" — not "tidy"/);
   refused({ blocks: [b({ label: '  ' })], area: [0, 0, 10, 10] }, /label is words/);
-  refused({ blocks: [b({ label: 'x'.repeat(121) })], area: [0, 0, 10, 10] }, /label is at most 120 letters/);
+  refused({ blocks: [b({ label: 'x'.repeat(2001) })], area: [0, 0, 10, 10] }, /label is at most 2000 letters — this one has 2001/);
+  refused({ blocks: [b()], floors: [{ at: [0, 0], size: [2, 2], label: 'x'.repeat(121) }], area: [0, 0, 10, 10] }, /floors\[0\]: label is at most 120 letters/);
   refused({ blocks: [b({ name: '' })], area: [0, 0, 10, 10] }, /blocks\[0\]'s name is 1 to 64 letters/);
   refused({ blocks: [b({ who: '' })], area: [0, 0, 10, 10] }, /'s who is the tool's words/);
   refused({ blocks: [b({ ports: [{ name: 'p', at: [5, 0, 0] }] })], area: [0, 0, 10, 10] }, /data-iso="block" \("web"\): "web"'s port "p" is at \[5,0,0\], outside/);
@@ -148,7 +149,7 @@ test('refusals name the piece by its who, and the fix', () => {
   refused({ blocks: [b()], grid: { tile: 10 } }, /the map's grid gives its origin too/);
   refused({ blocks: [b()], grid: { tile: 10, origin: [0] } }, /the map's grid: origin is/);
   refused({ blocks: [b()], area: [0, 0, 10, 10], style: { line: 'chalk' } }, /the map's style: the style's line has no choice "chalk"/);
-  refused({ blocks: Array.from({ length: 200 }, (_, i) => b({ name: `b${i}` })), floors: Array.from({ length: 57 }, () => ({})), area: [0, 0, 10, 10] }, /holds at most 256 blocks and floors, and this one has 257 — split it into two maps/);
+  refused({ blocks: Array.from({ length: 200 }, (_, i) => b({ name: `b${i}` })), floors: Array.from({ length: 57 }, () => ({})), area: [0, 0, 10, 10] }, /holds at most 256 blocks, floors and obstacles, and this one has 257 — split it into two maps/);
   refused({ blocks: [b()], wires: { length: 2000 }, area: [0, 0, 10, 10] }, /the map's wires is a list/);
   refused({ blocks: [b()], wires: new Array(ISO_MAP_LIMITS.wires + 1), area: [0, 0, 10, 10] }, /wires holds at most 1024, and this one has 1025/);
   refused({ blocks: [b()], wires: [, 1], area: [0, 0, 10, 10] }, /has a hole at 1/);   // eslint-disable-line no-sparse-arrays
@@ -164,7 +165,7 @@ test('refusals name the piece by its who, and the fix', () => {
 test('the policy is refused in words: each number, its range, the hold', () => {
   const bad = (policy, re) => assert.throws(() => buildIsoMap(TWO, policy), re);
   bad(null, /the map policy is an object of fit, name, small, clear, hold/);
-  bad({ ...FILM, extra: 1 }, /the map policy takes fit, name, small, clear, hold — not "extra"/);
+  bad({ ...FILM, extra: 1 }, /the map policy takes fit, name, small, clear, hold, cover — not "extra"/);
   bad({ ...FILM, fit: { ...FILM.fit, most: 1 } }, /fit most is a tile's most px, 2 or more — not 1/);
   bad({ ...FILM, fit: { ...FILM.fit, least: 200 } }, /least and grouped no more than most/);
   bad({ ...FILM, fit: { ...FILM.fit, margin: 0.5 } }, /fit margin is the tiles a fitted floor shows/);
@@ -177,9 +178,9 @@ test('the policy is refused in words: each number, its range, the hold', () => {
 });
 
 test('the numbers the policies hold, and the limits', () => {
-  assert.deepEqual(DECK, { fit: { most: 160, least: 96, grouped: 64, inset: 40, margin: 1 }, name: { size: 26, least: 16 }, small: null, clear: 0.9, hold: 'groups' });
+  assert.deepEqual(DECK, { fit: { most: 160, least: 96, grouped: 64, inset: 40, margin: 1 }, name: { size: 26, least: 16 }, small: null, clear: 0.9, hold: 'groups', cover: 'block' });
   assert.ok(Object.isFrozen(ISO_MAP_POLICIES) && Object.isFrozen(FILM.fit) && Object.isFrozen(ISO_MAP_LIMITS));
-  assert.deepEqual(ISO_MAP_LIMITS, { pieces: 256, wires: 1024, name: 64, label: 120, group: 100, who: 200 });
+  assert.deepEqual(ISO_MAP_LIMITS, { pieces: 256, wires: 1024, keep: 512, name: 64, label: 2000, group: 100, who: 200 });
 });
 
 test('a name is counted in letters everywhere: 40 letters outside the BMP are 40, in the spec and in the style alike', async () => {

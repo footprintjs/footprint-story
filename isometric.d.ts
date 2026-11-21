@@ -377,36 +377,48 @@ export function restyle(record: IsoStyle, settings?: { readonly choices?: readon
  */
 export function paintPiece(style: IsoStyle, piece: IsoStylePiece, grid: IsoGrid, colours?: { readonly base?: string | null; readonly ink?: string | null } | null): { readonly box: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }; readonly centre: readonly [number, number]; readonly outline: readonly (readonly [number, number])[]; readonly items: readonly PaintItem[] };
 
-// ── The map's steps (0.24.0): an isometric map built as named, pure steps (docs/design/2026-11-map-flow.md) ──
+// ── The map's steps (0.24.0; a deck's inputs 0.25.0): an isometric map built as named, pure steps (docs/design/2026-11-map-flow.md) ──
 
 /** The colours a piece is painted with: `#rrggbb` each, or null for the page's. */
 export interface IsoMapColours { readonly base?: string | null; readonly ink?: string | null }
 /** A block (or a cylinder) of the spec. `who` is the tool's words for where it was written: every refusal names it. */
 export interface IsoMapBlockSpec { readonly name: string; readonly kind?: 'block' | 'cylinder'; readonly at?: readonly number[] | null; readonly size: readonly [number, number, number]; readonly label?: string | null; readonly small?: string | null; readonly rule?: 'even' | 'fill' | null; readonly group?: string | null; readonly ports?: readonly IsoPort[] | null; readonly colours?: IsoMapColours | null; readonly who?: string }
-/** A floor of the spec: its at and size, or neither (fitted round its blocks). */
-export interface IsoMapFloorSpec { readonly name?: string | null; readonly at?: readonly [number, number] | null; readonly size?: readonly [number, number] | null; readonly label?: string | null; readonly group?: string | null; readonly colours?: IsoMapColours | null; readonly who?: string }
-/** One end of a wire: a block's name, and a port of it. */
+/** A floor of the spec: its at and size, or neither (fitted round its blocks). `icon` (0.25.0): the tool draws an icon before its label, which then has that much less room. */
+export interface IsoMapFloorSpec { readonly name?: string | null; readonly at?: readonly [number, number] | null; readonly size?: readonly [number, number] | null; readonly label?: string | null; readonly icon?: boolean | null; readonly group?: string | null; readonly colours?: IsoMapColours | null; readonly who?: string }
+/** What stands on the floor that the tool draws itself (0.25.0; StoryDeck's footprint): laid round, may be a wire's end, fitted round, kept clear of by a floor's label, painted in order. */
+export interface IsoMapObstacleSpec { readonly name: string; readonly at: readonly number[]; readonly size: readonly [number, number, number]; readonly ports?: readonly IsoPort[] | null; readonly who?: string }
+/** A stretch of floor kept clear under words placed over the picture (0.25.0; routes · keep), in tiles; `name` names the words a route's `under` says. */
+export interface IsoMapKeepSpec { readonly at: readonly number[]; readonly size: readonly [number, number]; readonly name: string }
+/** A grid in numbers: a tile's width (and height), where the floor's far corner stands, and a unit of height. */
+export interface IsoMapGridSpec { readonly tile: number | readonly [number, number]; readonly origin: readonly [number, number]; readonly rise?: number }
+/** One end of a wire: a block's (or an obstacle's) name, and a port of it. */
 export interface IsoMapEnd { readonly block: string; readonly port?: string | null }
 export interface IsoMapWireSpec { readonly name?: string | null; readonly from: IsoMapEnd; readonly to: IsoMapEnd; readonly straight?: boolean; readonly who?: string }
-/** The map as data, read by a tool from its own format. All or none of the blocks have an at; a grid in numbers, or an area to fit the picture into. */
-export interface IsoMapSpec { readonly blocks: readonly IsoMapBlockSpec[]; readonly floors?: readonly IsoMapFloorSpec[] | null; readonly wires?: readonly IsoMapWireSpec[] | null; readonly grid?: { readonly tile: number | readonly [number, number]; readonly origin: readonly [number, number]; readonly rise?: number } | null; readonly area?: readonly [number, number, number, number] | null; readonly style?: IsoStyleRow | null; readonly who?: string }
-/** A tool's own numbers: a fitted tile's most and least px (`grouped`: the least for a map of groups), the inset and floor margin, a name's and a small line's size and least (small null: left as written), the share of a top's room a name gets, and which floors a fitted picture holds. */
+/**
+ * The map as data, read by a tool from its own format. All or none of the blocks have an at; a grid in numbers, the word
+ * 'fit' (the map asks for the fitted grid), or an area to fit the picture into. `usualGrid` (0.25.0): the grid a map that
+ * places its own blocks and writes none is drawn on (StoryDeck's: tile 120, its far corner at the slide's middle, 240 px down).
+ */
+export interface IsoMapSpec { readonly blocks?: readonly IsoMapBlockSpec[] | null; readonly floors?: readonly IsoMapFloorSpec[] | null; readonly wires?: readonly IsoMapWireSpec[] | null; readonly obstacles?: readonly IsoMapObstacleSpec[] | null; readonly keep?: readonly IsoMapKeepSpec[] | null; readonly grid?: IsoMapGridSpec | 'fit' | null; readonly usualGrid?: IsoMapGridSpec | null; readonly area?: readonly [number, number, number, number] | null; readonly style?: IsoStyleRow | null; readonly who?: string }
+/** A tool's own numbers: a fitted tile's most and least px (`grouped`: the least for a map of groups), the inset and floor margin, a name's and a small line's size and least (small null: left as written), the share of a top's room a name gets, which floors a fitted picture holds, and (0.25.0) what a block covers of a floor's label: the outline it draws ('drawn', when left out) or the block it stands in ('block', StoryDeck's). */
 export interface IsoMapPolicy {
   readonly fit: { readonly most: number; readonly least: number; readonly grouped: number; readonly inset: number; readonly margin: number };
   readonly name: { readonly size: number; readonly least: number };
   readonly small: { readonly size: number; readonly least: number } | null;
   readonly clear: number;
   readonly hold: 'groups' | 'groups-and-labels';
+  readonly cover?: 'drawn' | 'block';
 }
 /** The tools' numbers: `film` StoryReel's (pinned), `deck` StoryDeck's. */
 export const ISO_MAP_POLICIES: { readonly film: IsoMapPolicy; readonly deck: IsoMapPolicy };
-/** How much a map holds: blocks and floors together, wires, the letters of a name, a label, a group and a `who`. */
-export const ISO_MAP_LIMITS: { readonly pieces: number; readonly wires: number; readonly name: number; readonly label: number; readonly group: number; readonly who: number };
+/** How much a map holds: blocks, floors and obstacles together, wires, stretches kept clear, the letters of a name, a block's label (2000) and a floor's (120), a group and a `who`. */
+export const ISO_MAP_LIMITS: { readonly pieces: number; readonly wires: number; readonly keep: number; readonly name: number; readonly label: number; readonly group: number; readonly who: number };
 /** A piece's shape: the box round it, where its name stands, its outline, and its faces (the style's shape column, no fill or stroke yet). */
 export interface IsoMapShape { readonly box: IsoBox; readonly centre: readonly [number, number]; readonly outline: readonly (readonly [number, number])[]; readonly faces: readonly PaintItem[] }
 /** A block as the built map keeps it: checked, its at as written (or null), its ports read. */
 export interface IsoMapBlock { readonly name: string; readonly kind: 'block' | 'cylinder'; readonly at: readonly [number, number, number] | null; readonly size: readonly [number, number, number]; readonly label: string | null; readonly small: string | null; readonly rule: 'even' | 'fill' | null; readonly group: string | null; readonly ports: readonly IsoPort[]; readonly colours: { readonly base: string | null; readonly ink: string | null } | null; readonly who: string }
-export interface IsoMapFloor { readonly name: string | null; readonly at: readonly [number, number] | null; readonly size: readonly [number, number] | null; readonly label: string | null; readonly group: string | null; readonly colours: { readonly base: string | null; readonly ink: string | null } | null; readonly who: string }
+export interface IsoMapFloor { readonly name: string | null; readonly at: readonly [number, number] | null; readonly size: readonly [number, number] | null; readonly label: string | null; readonly icon: boolean; readonly group: string | null; readonly colours: { readonly base: string | null; readonly ink: string | null } | null; readonly who: string }
+export interface IsoMapObstacle { readonly name: string; readonly at: readonly [number, number, number]; readonly size: readonly [number, number, number]; readonly ports: readonly IsoPort[]; readonly who: string }
 export interface IsoMapWire { readonly name: string | null; readonly from: { readonly block: string; readonly port: string | null }; readonly to: { readonly block: string; readonly port: string | null }; readonly straight: boolean; readonly who: string }
 /**
  * The built map: the last state of the steps, frozen plain data. Lists run in the spec's order (block i, floor i, wire i).
@@ -414,16 +426,20 @@ export interface IsoMapWire { readonly name: string | null; readonly from: { rea
  */
 export interface IsoMap {
   readonly who: string; readonly blocks: readonly IsoMapBlock[]; readonly floors: readonly IsoMapFloor[]; readonly wires: readonly IsoMapWire[];
-  readonly written: { readonly tile: number | readonly [number, number]; readonly origin: readonly [number, number]; readonly rise?: number } | null;
-  readonly area: readonly [number, number, number, number] | null; readonly style: IsoStyle; readonly policy: IsoMapPolicy;
+  readonly obstacles: readonly IsoMapObstacle[]; readonly keep: readonly { readonly at: readonly [number, number, number]; readonly size: readonly [number, number]; readonly name: string }[];
+  /** The grid as the map writes it: its numbers, 'fit', or null. */
+  readonly written: IsoMapGridSpec | 'fit' | null; readonly usualGrid: IsoMapGridSpec | null;
+  readonly area: readonly [number, number, number, number] | null; readonly style: IsoStyle; readonly policy: IsoMapPolicy & { readonly cover: 'drawn' | 'block' };
   readonly placed: 'hand' | 'build'; readonly placedWhy: string; readonly at: readonly (readonly [number, number, number])[];
-  /** Each wire's route, its ends and what it passes behind by the blocks' names; null for a straight wire. */
+  /** Each wire's route, its ends and what it passes behind by the pieces' names (and, with keep, `under`: the words it could not keep off); null for a straight wire. */
   readonly routes: readonly (IsoRoute | IsoNoRoute | null)[];
   readonly floorTiles: readonly { readonly at: readonly [number, number]; readonly size: readonly [number, number] }[];
-  readonly grid: 'written' | 'fitted'; readonly gridWhy: string; readonly view: { readonly tile: readonly [number, number]; readonly origin: readonly [number, number]; readonly rise: number };
+  readonly grid: 'written' | 'fitted' | 'usual'; readonly gridWhy: string; readonly view: { readonly tile: readonly [number, number]; readonly origin: readonly [number, number]; readonly rise: number };
   readonly shapes: readonly IsoMapShape[]; readonly floorShapes: readonly IsoMapShape[];
+  /** Each obstacle's block on the frame: its box, centre and outline (the tool draws the obstacle itself). */
+  readonly obstacleShapes: readonly { readonly box: IsoBox; readonly centre: readonly [number, number]; readonly outline: readonly (readonly [number, number])[] }[];
   readonly names: readonly (FittedWords | null)[]; readonly smalls: readonly (FittedWords | null)[];
-  /** The blocks' names, the furthest first: the order they are painted in. */
+  /** The blocks' and obstacles' names, the furthest first: the order they are painted in. */
   readonly order: readonly string[];
   readonly floorLabels: readonly (FloorLabel | null)[];
   readonly paints: readonly (readonly PaintItem[])[]; readonly floorPaints: readonly (readonly PaintItem[])[];

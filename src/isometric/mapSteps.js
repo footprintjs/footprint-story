@@ -8,20 +8,21 @@
  * place → route → fitFloors → grid → shape → names → order → floorLabels → style. Each step reads only the keys it names
  * (`reads`) of the state it is handed, and gives back a new state with the keys it names (`writes`); it never edits what
  * it was handed and never puts a function in the state, so every state is plain data a record can keep. A step that
- * chooses (`place`: the map placed the blocks, or the build from its wires; `grid`: written in numbers, or fitted to the
- * area) says so as data — the choice and its reason in words (`placed`/`placedWhy`, `grid`/`gridWhy`) — and does the
+ * chooses (`place`: the map placed the blocks, or the build from its wires; `grid`: written in numbers, fitted to the
+ * area, or the tool's usual grid) says so as data — the choice and its reason in words (`placed`/`placedWhy`, `grid`/`gridWhy`) — and does the
  * rest in the branch it chose (`decides`, `branches`): footprint-story/mapflow runs the same functions as a footprintjs
  * chart, a decider for each, so a run's record keeps what each read, wrote and decided.
  *
  * The state, by key (lists in the spec's order: block i, floor i, wire i):
- *   who, blocks, floors, wires, written (the grid as written, or null), area, style ({row, options}), policy — the input
+ *   who, blocks, floors, wires, obstacles, keep, written (the grid as written: numbers, 'fit' or null), usualGrid,
+ *   area, style ({row, options}), policy — the input
  *   placed 'hand'|'build', placedWhy, at [[c, r, lift]]       place
  *   routes [route | null]  (null: a straight wire)              route
  *   floorTiles [{at, size}]                                      fitFloors
- *   grid 'written'|'fitted', gridWhy, view {tile, origin, rise}  grid
- *   shapes, floorShapes [{box, centre, outline, faces}]          shape
+ *   grid 'written'|'fitted'|'usual', gridWhy, view {tile, origin, rise}   grid
+ *   shapes, floorShapes [{box, centre, outline, faces}], obstacleShapes [{box, centre, outline}]   shape
  *   names, smalls [{lines, size, fits} | null]                   names
- *   order [block name] (the furthest first)                     order
+ *   order [block or obstacle name] (the furthest first)         order
  *   floorLabels [{x, y, matrix, size, lines, fits, covered} | null]   floorLabels
  *   paints, floorPaints [[paint item]]                           style
  *
@@ -30,6 +31,14 @@
  * map is never mutated and holds no closure (a block's room is asked of the grid where it is needed), the grid is kept
  * as its numbers, a piece's shape is the style's `shape` column (style.js · shapePiece, the same code paintPiece runs),
  * and the paint list is a step of its own (`style`).
+ *
+ * 0.25.0 takes what StoryDeck 0.32.0's deck/iso.js · isoDrawn hands its parts (pinned against a copy of it,
+ * test/control/storydeck-0.32.0-iso.js): obstacles (its footprints) stand with the blocks — laid round, fitted round by a
+ * floor with no group, kept clear of by a floor's label, painted in order; keep (its keep-clear stretches) goes to
+ * `routes`; a floor's icon to floorLabelPlace; the policy's `cover` says what a block covers of a floor's label; a map
+ * that places its own blocks and writes no grid is drawn on the tool's `usualGrid` when it hands one; a group named
+ * only by a floor makes a map of groups (a fitted picture's least tile). Left out, each is nothing: a film's map is
+ * 0.24.0's (a property test against a copy of it, test/control/footprint-story-0.24.0-mapSteps.js).
  */
 import { arrange } from './arrange.js';
 import { arrangeByGroup, GROUP_MARGIN } from './groups.js';
@@ -53,12 +62,17 @@ const floorPiece = (f, i, tiles) => ({ name: f.name ?? `floors[${i}]`, kind: 'fl
 const blockPiece = (b, at) => ({ name: b.name, kind: b.kind, at, size: b.size });
 /** The floor points the laid wires reach, [[col, row, lift], …]: a wire round a block reaches past the blocks. */
 const reachOf = (laid) => laid.flatMap((r) => (r?.points ? r.path.map(([c, w, h]) => [c, w, h ?? 0]) : []));
+/** What stands on the floor, in paint order's terms — the blocks, then the obstacles: [{name, at, size, group}]. */
+const standing = ({ blocks, at, obstacles }) => [...blocks.map((b, i) => ({ name: b.name, at: at[i], size: b.size, group: b.group })), ...obstacles.map((o) => ({ name: o.name, at: o.at, size: o.size, group: null }))];
+/** The outline of the block a thing stands in, on the frame: [[x, y], …]. */
+const blockOutline = (grid, thing) => grid.block({ at: thing.at, size: thing.size }).outline.map(xy);
 
 // ---- place -----------------------------------------------------------------------------------------------------------
 
 /** Who places the blocks: the map, when every block has an at (the spec has all or none), else the build. */
 function choosePlace(state) {
   const groups = new Set(state.blocks.filter((b) => b.group !== null).map((b) => b.group));
+  if (!state.blocks.length) return { ...state, placed: 'hand', placedWhy: 'the map has no blocks: nothing is placed' };
   if (state.blocks.every((b) => b.at !== null)) return { ...state, placed: 'hand', placedWhy: 'every block has an at: the map placed them' };
   return { ...state, placed: 'build', placedWhy: `no block has an at: the build places them from their wires, ${groups.size ? `group by group (${groups.size} group${groups.size === 1 ? '' : 's'})` : 'across the frame'}` };
 }
@@ -78,31 +92,38 @@ function placeByBuild(state) {
 // ---- route -----------------------------------------------------------------------------------------------------------
 
 /**
- * Every wire laid along the floor (routes), each block known by its index, so a refusal of a name is never the map's.
- * A straight wire is not laid: its route is null. A route names its ends and what it passes behind by the blocks' names.
+ * Every wire laid along the floor (routes), each block and obstacle known by its index (the blocks, then the obstacles),
+ * so a refusal of a name is never the map's. A straight wire is not laid: its route is null. A route names its ends and
+ * what it passes behind by the pieces' names. Floor kept clear (`keep`) is handed on only when the map keeps some, each
+ * stretch known by the index of its name, and a route's `under` names the words it could not keep off, each once —
+ * StoryDeck's cable.js · layRoutes, so a map that keeps none lays as before.
  */
 function route(state) {
-  const { blocks, at, wires } = state;
-  const things = blocks.map((b, i) => ({ name: String(i), at: at[i], size: b.size, round: b.kind === 'cylinder', ...(b.ports.length ? { ports: b.ports.map(({ name, at: a, face }) => ({ name, at: a, face })) } : {}) }));
-  const index = new Map(blocks.map((b, i) => [b.name, String(i)])), end = ({ block, port }) => (port !== null ? { thing: index.get(block), port } : index.get(block));
+  const { wires, keep } = state, pieces = [...state.blocks.map((b, i) => ({ ...b, at: state.at[i] })), ...state.obstacles];
+  const things = pieces.map((b, i) => ({ name: String(i), at: b.at, size: b.size, round: b.kind === 'cylinder', ...(b.ports.length ? { ports: b.ports.map(({ name, at: a, face }) => ({ name, at: a, face })) } : {}) }));
+  const index = new Map(pieces.map((b, i) => [b.name, String(i)])), end = ({ block, port }) => (port !== null ? { thing: index.get(block), port } : index.get(block));
+  const kept = [...new Set(keep.map((k) => k.name))], options = keep.length ? { keep: keep.map((k) => ({ at: k.at, size: k.size, name: String(kept.indexOf(k.name)) })) } : undefined;
   const asked = wires.filter((w) => !w.straight);
   let found = [];
-  try { found = asked.length ? routes(things, asked.map((w) => [end(w.from), end(w.to)])) : []; } catch (e) { fail(state.who, 'the wires cannot be laid: ', e, " — check each wire's ends and the blocks' ports"); }
-  const nameOf = (id) => blocks[Number(id)].name;
+  try { found = asked.length ? routes(things, asked.map((w) => [end(w.from), end(w.to)]), options) : []; } catch (e) { fail(state.who, 'the wires cannot be laid: ', e, " — check each wire's ends and the blocks' ports"); }
+  const nameOf = (id) => pieces[Number(id)].name;
   return { ...state, routes: wires.map((w) => {
     const k = asked.indexOf(w), r = k < 0 ? null : found[k];
-    return r && { ...r, from: w.from.block, to: w.to.block, ...(r.behind ? { behind: r.behind.map(nameOf) } : {}) };
+    return r && { ...r, from: w.from.block, to: w.to.block, ...(r.behind ? { behind: r.behind.map(nameOf) } : {}), ...(r.under ? { under: [...new Set(r.under.map((id) => kept[Number(id)]))] } : {}) };
   }) };
 }
 
 // ---- fitFloors -------------------------------------------------------------------------------------------------------
 
-/** Each floor with no size fitted round the blocks on it (its group's, or all and their wires), the policy's margin showing on every side. */
+/**
+ * Each floor with no size fitted round what stands on it — its group's blocks, or every block and obstacle and the floor
+ * their wires reach — the policy's margin showing on every side.
+ */
 function fitFloors(state) {
-  const { blocks, at, floors, policy } = state, reach = reachOf(state.routes);
+  const { floors, policy } = state, reach = reachOf(state.routes), all = standing(state);
   return { ...state, floorTiles: floors.map((f) => {
     if (f.size !== null) return { at: [...f.at], size: [...f.size] };
-    const on = blocks.map((b, i) => ({ at: at[i], size: b.size, group: b.group })).filter((b) => f.group === null || b.group === f.group), reached = f.group === null ? reach : [];
+    const on = f.group === null ? all : all.slice(0, state.blocks.length).filter((b) => b.group === f.group), reached = f.group === null ? reach : [];
     // a group's floor by the margin arrangeByGroup leaves round a group; any other by the policy's
     const margin = f.group === null ? policy.fit.margin : GROUP_MARGIN;
     const far = (axis, end) => (end ? Math.ceil(Math.max(...on.map((b) => b.at[axis] + b.size[axis]), ...reached.map((p) => p[axis])) - 1e-9) : Math.floor(Math.min(...on.map((b) => b.at[axis]), ...reached.map((p) => p[axis])) + 1e-9));
@@ -114,39 +135,60 @@ function fitFloors(state) {
 
 // ---- grid ------------------------------------------------------------------------------------------------------------
 
-const chooseGrid = (state) => (state.written
-  ? { ...state, grid: 'written', gridWhy: 'the map writes its grid in numbers: its tile and where the floor\'s far corner stands' }
-  : { ...state, grid: 'fitted', gridWhy: 'no grid is written: it is fitted so the picture fills the area' });
+/**
+ * Which grid: the map's own numbers; else fitted when the map asks ('fit') or the build placed the blocks; else the
+ * tool's usual grid when it hands one (StoryDeck's: a map that places its own blocks keeps the grid it always had, its
+ * picture never rescaled); else fitted. Each said in words, so a record answers "why this grid" honestly.
+ */
+function chooseGrid(state) {
+  const { written, placed, usualGrid } = state;
+  if (written !== null && written !== 'fit') return { ...state, grid: 'written', gridWhy: 'the map writes its grid in numbers: its tile and where the floor\'s far corner stands' };
+  if (written === 'fit') return { ...state, grid: 'fitted', gridWhy: 'the map asks for its grid fitted: it is fitted so the picture fills the area' };
+  if (usualGrid === null) return { ...state, grid: 'fitted', gridWhy: 'no grid is written: it is fitted so the picture fills the area' };
+  if (placed === 'build') return { ...state, grid: 'fitted', gridWhy: 'no grid is written and the build placed the blocks: it is fitted so the picture fills the area, not drawn on the usual grid' };
+  // a map with no block placed nothing: its reason must not say it did (it lands in the record)
+  if (!state.blocks.length) return { ...state, grid: 'usual', gridWhy: 'no grid is written and the map has no blocks: it is the usual grid the tool handed in' };
+  return { ...state, grid: 'usual', gridWhy: 'no grid is written and the map placed its blocks: it is the usual grid the tool handed in' };
+}
 const viewOf = (g) => ({ tile: [...g.tile], origin: [...g.origin], rise: g.rise });
 function gridWritten(state) {
   try { return { ...state, view: viewOf(isometric(state.written)) }; } catch (e) { return fail(state.who, 'its grid: ', e); }
 }
+/** The tool's usual grid, as it handed it in (mapSpec.js checked its numbers). */
+const gridUsual = (state) => ({ ...state, view: viewOf(isometric(state.usualGrid)) });
 /**
- * Fitted so the blocks, the floor their wires reach and the floors the policy holds fill the area, less its inset (a
- * small area keeps half of itself): every floor that names a group, and with `hold: 'groups-and-labels'` every labelled
- * one too. WHY a film holds a labelled floor (StoryReel's gridOf): it shows its whole frame, and a floor's name run off it
- * is a name nobody reads; a deck lets any other floor run past the slide, where a click's camera can frame it.
+ * Fitted so the blocks and obstacles, the floor their wires reach and the floors the policy holds fill the area, less
+ * its inset (a small area keeps half of itself): every floor that names a group, and with `hold: 'groups-and-labels'`
+ * every labelled one too. WHY a film holds a labelled floor (StoryReel's gridOf): it shows its whole frame, and a floor's
+ * name run off it is a name nobody reads; a deck lets any other floor run past the slide, where a click's camera can
+ * frame it. A map of groups — a block or a floor names one (StoryDeck's rule: a floor alone names an area) — is fitted
+ * down to the policy's `grouped` tile, several floors side by side needing more room.
  */
 function gridFitted(state) {
-  const { blocks, at, floors, floorTiles, area: [x0, y0, x1, y1], policy: { fit, hold } } = state;
+  const { blocks, floors, floorTiles, area: [x0, y0, x1, y1], policy: { fit, hold } } = state;
   const inset = Math.min(fit.inset, (x1 - x0) / 4, (y1 - y0) / 4);
   const held = floors.flatMap((f, i) => (f.group !== null || (hold === 'groups-and-labels' && f.label !== null) ? [floorTiles[i]] : []))
     .flatMap(({ at: [c, r], size: [w, d] }) => [[c, r, 0], [c + w, r, 0], [c, r + d, 0], [c + w, r + d, 0]]);
-  const grouped = blocks.some((b) => b.group !== null);
+  const grouped = blocks.some((b) => b.group !== null) || floors.some((f) => f.group !== null);
   try {
-    return { ...state, view: viewOf(gridFor(blocks.map((b, i) => ({ at: at[i], size: b.size })), [x0 + inset, y0 + inset, x1 - inset, y1 - inset],
+    return { ...state, view: viewOf(gridFor(standing(state).map(({ at, size }) => ({ at, size })), [x0 + inset, y0 + inset, x1 - inset, y1 - inset],
       { most: fit.most, least: grouped ? fit.grouped : fit.least, also: [...reachOf(state.routes), ...held] })) };
   } catch (e) { return fail(state.who, 'its picture (fitted into the area): ', e); }
 }
 
 // ---- shape, names, order, floorLabels, style -------------------------------------------------------------------------
 
-/** Each piece's box, centre, outline and faces on the frame: the style's `shape` column (style.js · shapePiece). */
+/**
+ * Each piece's box, centre, outline and faces on the frame: the style's `shape` column (style.js · shapePiece). An
+ * obstacle is drawn by the tool, so its shape is the block it stands in (grid.block): its box, centre and outline.
+ */
 function shape(state) {
   const { blocks, at, floors, floorTiles } = state, style = restyle(state.style), grid = gridOf(state.view);
   const of = (made) => ({ box: made.box, centre: made.centre, outline: made.outline, faces: made.items });
   const shaped = (who, piece, colours) => { try { return of(shapePiece(style, piece, grid, colours)); } catch (e) { return fail(who, '', e); } };
-  return { ...state, shapes: blocks.map((b, i) => shaped(b.who, blockPiece(b, at[i]), b.colours)), floorShapes: floors.map((f, i) => shaped(f.who, floorPiece(f, i, floorTiles[i]), f.colours)) };
+  const stood = (o) => { const b = grid.block({ at: o.at, size: o.size }); return { box: { ...b.box }, centre: xy(b.centre), outline: b.outline.map(xy) }; };
+  return { ...state, shapes: blocks.map((b, i) => shaped(b.who, blockPiece(b, at[i]), b.colours)), floorShapes: floors.map((f, i) => shaped(f.who, floorPiece(f, i, floorTiles[i]), f.colours)),
+    obstacleShapes: state.obstacles.map(stood) };
 }
 
 /**
@@ -168,20 +210,25 @@ function names(state) {
   return { ...state, names: fitted.map((f) => f?.big ?? null), smalls: fitted.map((f) => f?.little ?? null) };
 }
 
-/** The order the blocks are painted in, the furthest first (grid.backToFront), by name. */
+/** The order the blocks and obstacles are painted in, the furthest first (grid.backToFront), by name. */
 function order(state) {
-  const { blocks, at } = state;
-  return { ...state, order: gridOf(state.view).backToFront(blocks.map((_, i) => i), (i) => ({ at: at[i], size: blocks[i].size })).map((i) => blocks[i].name) };
+  const all = standing(state);
+  return { ...state, order: gridOf(state.view).backToFront(all.map((_, i) => i), (i) => ({ at: all[i].at, size: all[i].size })).map((i) => all[i].name) };
 }
 
-/** Where each floor's label lies (floorLabelPlace), clear of what is drawn over it: each block's outline and each stretch of a laid wire. */
+/**
+ * Where each floor's label lies (floorLabelPlace), clear of what is drawn over it: each block (by the policy's `cover`:
+ * the outline it draws, or the block it stands in), each obstacle's block, and each stretch of a laid wire. A floor whose
+ * label has an icon before it (`icon`) gives the label that much less room.
+ */
 function floorLabels(state) {
-  const { floors, floorTiles, shapes } = state, grid = gridOf(state.view);
-  const covers = floors.some((f) => f.label !== null) ? [...shapes.map((s) => s.outline),
+  const { blocks, at, floors, floorTiles, shapes, policy: { cover } } = state, grid = gridOf(state.view);
+  const drawn = cover === 'block' ? blocks.map((b, i) => blockOutline(grid, { at: at[i], size: b.size })) : shapes.map((s) => s.outline);
+  const covers = floors.some((f) => f.label !== null) ? [...drawn, ...state.obstacles.map((o) => blockOutline(grid, o)),
     ...state.routes.flatMap((r) => { const path = r?.points ? r.path : []; return path.slice(1).map((b, i) => [path[i], b].map(([c, w, h]) => xy(grid.at(c, w, h ?? 0)))); })] : [];
   return { ...state, floorLabels: floors.map((f, i) => {
     if (f.label === null) return null;
-    try { return floorLabelPlace(floorTiles[i], state.view, f.label, covers); } catch (e) { return fail(f.who, 'its label: ', e); }
+    try { return floorLabelPlace(floorTiles[i], state.view, f.label, covers, f.icon ? { icon: true } : undefined); } catch (e) { return fail(f.who, 'its label: ', e); }
   }) };
 }
 
@@ -195,7 +242,7 @@ function style(state) {
 // ---- the list --------------------------------------------------------------------------------------------------------
 
 /** The keys of the state handed in. */
-export const ISO_MAP_INPUT = Object.freeze(['who', 'blocks', 'floors', 'wires', 'written', 'area', 'style', 'policy']);
+export const ISO_MAP_INPUT = Object.freeze(['who', 'blocks', 'floors', 'wires', 'obstacles', 'keep', 'written', 'usualGrid', 'area', 'style', 'policy']);
 
 const part = (reads, writes, run) => Object.freeze({ reads: Object.freeze(reads), writes: Object.freeze(writes), run });
 /** A step that chooses: its choice and reason (`decides`: written under `key` and `why`), then the branch it chose. `run` does both, as the chart does. */
@@ -216,15 +263,16 @@ export const ISO_MAP_STEPS = Object.freeze([
   choosing('place', 'Who places the blocks: the map, or the build from its wires',
     { key: 'placed', why: 'placedWhy', ...part(['blocks'], ['placed', 'placedWhy'], choosePlace) },
     { hand: part(['blocks'], ['at'], placeByHand), build: part(['who', 'blocks', 'wires'], ['at'], placeByBuild) }),
-  plainStep('route', 'Each wire laid along the floor, round what stands on it', ['who', 'blocks', 'at', 'wires'], ['routes'], route),
-  plainStep('fitFloors', 'Each floor with no size fitted round its blocks', ['blocks', 'at', 'floors', 'routes', 'policy'], ['floorTiles'], fitFloors),
-  choosing('grid', 'The grid: written in numbers, or fitted to the area',
-    { key: 'grid', why: 'gridWhy', ...part(['written'], ['grid', 'gridWhy'], chooseGrid) },
-    { written: part(['who', 'written'], ['view'], gridWritten), fitted: part(['who', 'blocks', 'at', 'routes', 'floors', 'floorTiles', 'area', 'policy'], ['view'], gridFitted) }),
-  plainStep('shape', "Each piece's box, centre, outline and faces: the style's shape", ['blocks', 'at', 'floors', 'floorTiles', 'view', 'style'], ['shapes', 'floorShapes'], shape),
+  plainStep('route', 'Each wire laid along the floor, round what stands on it', ['who', 'blocks', 'at', 'obstacles', 'wires', 'keep'], ['routes'], route),
+  plainStep('fitFloors', 'Each floor with no size fitted round what stands on it', ['blocks', 'at', 'obstacles', 'floors', 'routes', 'policy'], ['floorTiles'], fitFloors),
+  choosing('grid', "The grid: written in numbers, fitted to the area, or the tool's usual grid",
+    { key: 'grid', why: 'gridWhy', ...part(['written', 'placed', 'usualGrid', 'blocks'], ['grid', 'gridWhy'], chooseGrid) },
+    { written: part(['who', 'written'], ['view'], gridWritten), fitted: part(['who', 'blocks', 'at', 'obstacles', 'routes', 'floors', 'floorTiles', 'area', 'policy'], ['view'], gridFitted),
+      usual: part(['usualGrid'], ['view'], gridUsual) }),
+  plainStep('shape', "Each piece's box, centre, outline and faces: the style's shape", ['blocks', 'at', 'obstacles', 'floors', 'floorTiles', 'view', 'style'], ['shapes', 'floorShapes', 'obstacleShapes'], shape),
   plainStep('names', "Each block's name fitted to its top, and its small line", ['blocks', 'at', 'view', 'policy'], ['names', 'smalls'], names),
-  plainStep('order', 'The order the blocks are painted in, the furthest first', ['blocks', 'at', 'view'], ['order'], order),
-  plainStep('floorLabels', "Where each floor's label lies, clear of what stands on it", ['floors', 'floorTiles', 'shapes', 'routes', 'view'], ['floorLabels'], floorLabels),
+  plainStep('order', 'The order the blocks and obstacles are painted in, the furthest first', ['blocks', 'at', 'obstacles', 'view'], ['order'], order),
+  plainStep('floorLabels', "Where each floor's label lies, clear of what stands on it", ['blocks', 'at', 'obstacles', 'floors', 'floorTiles', 'shapes', 'routes', 'view', 'policy'], ['floorLabels'], floorLabels),
   plainStep('style', "Each piece's paint list: the style's other columns", ['blocks', 'at', 'floors', 'floorTiles', 'shapes', 'floorShapes', 'style'], ['paints', 'floorPaints'], style),
 ]);
 

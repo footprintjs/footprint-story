@@ -4,7 +4,7 @@
 per step, so a run's record says what each step read, wrote and decided:
 
 ```
-read → place? (hand | build) → route → fitFloors → grid? (written | fitted) → shape → names → order → floorLabels → style
+read → place? (hand | build) → route → fitFloors → grid? (written | fitted | usual) → shape → names → order → floorLabels → style
 ```
 
 ```js
@@ -21,7 +21,7 @@ await sink.close();
 console.log(await whyFromRecord({ file: 'runs/map.record.jsonl', control: controlEdges(snapshot.commitLog, control), key: 'at' }));
 // at = [[0,3,0],[3,0,0]]
 // place: build (build#2) [wrote: at]
-//   read (read#0) ← via who [wrote: who, blocks, floors, wires, written, area, style, policy]
+//   read (read#0) ← via who [wrote: who, blocks, floors, wires, obstacles, keep, written, usualGrid, area, style, policy]
 //     ⚠ also consumed args — slice may be incomplete here
 //   place (place#1) ← [control: no block has an at: the build places them from their wires, across the frame] [wrote: placed, placedWhy]
 ```
@@ -40,7 +40,11 @@ the scope, `$getValue`, so the record keeps it), writing back the keys it names.
 **What the record keeps.** `runMapFlow` runs with `writeProvenance: 'reads-prefix'` (the keys each stage had read when
 it wrote). A step that chooses is a decider: it writes its choice and its reason (`placed`/`placedWhy`,
 `grid`/`gridWhy`) — a decider that wrote nothing would leave no reads — and hands footprintjs a `decide()` whose label
-is the reason, so `controlEdges` saves the words and `whyFromRecord` shows them. The spec and the policy come in as the
+is the reason, so `controlEdges` saves the words and `whyFromRecord` shows them. The grid's reason says which of five it
+was: written in numbers; asked fitted (`grid: 'fit'`); fitted, no grid being written and no usual grid handed in;
+fitted because the build placed the blocks; or the usual grid the tool handed in (`usualGrid`, 0.25.0), said apart for
+a map that placed its blocks and one that has none — so a deck's record never says "written" of a grid nobody wrote, nor
+"placed" of blocks it does not have. The spec and the policy come in as the
 run's input (`{mapSpec, mapPolicy}`), checked by the `read` stage; the record says that stage read the run's args.
 
 **What it gives.** `mapFlow()` is the chart, to run as you like (input `{mapSpec, mapPolicy}`). `runMapFlow(spec,

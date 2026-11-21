@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.25.0 — the map's steps take what a deck hands them
+
+- **`buildIsoMap` takes StoryDeck's map inputs** (docs/design/2026-11-map-flow.md · build order step 3, its
+  prerequisites), each as data in the spec, each nothing when left out:
+  - `obstacles: [{name, at, size, ports?, who?}]` — what stands on the floor that the tool draws itself (StoryDeck's
+    footprints). A laid wire goes round it and may end at it (at a port of its own); a floor with no size and no group
+    is fitted round it; a floor's label keeps clear of its block; it takes its place in `order`. The built map gives
+    each one's `obstacleShapes` (box, centre, outline).
+  - `keep: [{at, size, name}]` — floor kept clear under words placed over the picture, handed to `routes` as `keep`; a
+    route's `under` names each words it could not keep off, once.
+  - a floor's `icon: true` — the tool draws an icon before its label (`floorLabelPlace`'s `{icon}`), so it has less room.
+  - `grid: 'fit'` — the map asks for the fitted grid; `usualGrid: {tile, origin, rise?}` — the grid a map that places its
+    own blocks and writes none is drawn on (StoryDeck's tile 120 at [width / 2, 240]). The `grid` step's new choice
+    `usual` says so in `gridWhy` ("it is the usual grid the tool handed in"), and the fitted grid now says why it was
+    fitted: asked, or the build placed the blocks.
+- **The policy's `cover`** (`'drawn' | 'block'`, left out `'drawn'`): what a block covers of a floor's label — the
+  outline it draws (a film's), or the block it stands in (`ISO_MAP_POLICIES.deck`: a cylinder by its square box).
+- **Two rules loosened for every tool**, neither touching a map 0.24.0 built: a map may have no block (floors and
+  obstacles on a written or usual grid); a sized floor may name a group no block has (a named area), and a map where a
+  floor alone names a group is fitted down to the policy's `grouped` tile, as StoryDeck fits it. `ISO_MAP_LIMITS` adds
+  `keep` (512) and counts obstacles among the 256 pieces.
+- **Pinned against StoryDeck 0.32.0**: a verbatim copy of its map code (`deck/iso.js` and the siblings it reads, its
+  `cable.js` · `layRoutes`; `test/control/storydeck-0.32.0-*.js`), run on random deck maps written as the deck's HTML —
+  blocks placed by hand and by the build, groups with and without blocks, cylinders, footprints, keep-clear, labelled
+  floors with and without icons, written, fitted and usual grids, ports — gives the numbers `buildIsoMap(spec,
+  ISO_MAP_POLICIES.deck)` gives for the same map as a spec: the grid, every block's and footprint's place, outline,
+  middle and paint level, every floor's tiles and label place, every route, every name's fit
+  (`test/deck-map-differential.property.test.js`). The map flow's chart gives `buildIsoMap`'s map for these maps too.
+- **A film's map is 0.24.0's**: pinned against a copy of 0.24.0's steps (`test/control/footprint-story-0.24.0-map*.js`)
+  for random film maps, styles and colours — every key the same, but the two echoes of the input that now name a new
+  field (the policy's `cover: 'drawn'`, each floor's `icon: false`), and the new keys (`obstacles`, `keep`, `usualGrid`,
+  `obstacleShapes`) empty.
+
+### Differences from the code it replaced
+
+- What StoryDeck reads from its HTML stays its own and is handed in as data: its pieces' names (the spec's are unique,
+  1 to 64 letters, so a deck whose pieces share a first name, or have a longer one, hands names of its own), a sized
+  floor's `at` of `[0, 0]`, the keep-clear stretches worked out from a box on the slide (`floorUnder`, on its written or
+  usual grid), the usual grid's numbers, and a block's name as plain words (its entities decoded). A wire past the
+  1024 the kit lays stays the deck's (StoryDeck leaves it straight; the spec holds at most 1024 wires).
+- What a tool's adapter must do that the steps leave to it (src/isometric/README.md · "What a tool's adapter does"):
+  drop a wire to a flat piece (a callout, a panel) — placement does not change; hand a wire whose block shares a name
+  with another piece as straight (the deck's "alone" rule); slice a floor's three-number at to two; hand its own unique
+  names (at most 64 letters); keep its own refusal of footprints and kept floor beside a fitted grid.
+- A block's label may run to 2000 letters (`ISO_MAP_LIMITS.label`, 120 in 0.24.0): a deck draws a long name and says it
+  does not fit, so the steps take it; a floor's label stays at 120 (`MOST_FLOOR_LABEL`).
+- A map with no blocks on the usual grid says so in `gridWhy` ("the map has no blocks"), not that it placed them.
+- The record reads more: the grid's decider reads `written`, `placed`, `usualGrid` and `blocks`; `route`, `fitFloors`, `shape`,
+  `order` and `floorLabels` read `obstacles` (and `keep`, `policy`) — so a film's record names those keys too.
+
 ## 0.24.0 — a whole map as named steps, and as a footprintjs chart
 
 - **`footprint-story/isometric` · `buildIsoMap(spec, policy)`** and **`ISO_MAP_STEPS`**: an isometric map built as
