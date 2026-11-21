@@ -261,6 +261,10 @@ export interface HeldPoints { readonly points: readonly Xy[]; readonly left: num
 /** A cable walked (walkWay) and held, marked with its way: labelPlace passes over the cable's own. */
 export interface HeldRun extends HeldPoints { readonly of: unknown }
 export function held(points: readonly Xy[]): { points: [number, number][]; left: number; top: number; right: number; bottom: number };
+/** A cable's points with the last pulled `back` px towards the one before (never past 1 px short of that run's start): a new list. */
+export function stopShort(points: readonly Xy[], back?: number): [number, number][];
+/** A cable's line: `points` with the last pulled `back` px towards the one before (never past 1 px short of that run's start), corners rounded `radius` (0). */
+export function cableWay(cable: { readonly points: readonly Xy[]; readonly radius?: number }, back?: number): RoundedWay;
 /**
  * Where a cable's label stands, [x, y]: the first of LABEL_PLACES where no outline in `hides` covers its plate and no
  * other cable in `runs` runs through it; else the least hidden, then the least crossed, then the earliest. `looks` is
