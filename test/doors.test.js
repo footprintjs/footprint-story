@@ -1,4 +1,4 @@
-// The eight doors (the record door, Node only and the one that reaches a package, is the last test). The pure door ('footprint-story'), the motion door ('footprint-story/motion'), the storyboard door
+// The nine doors (the record door and the mapflow door, the two that reach a package, are the last tests). The pure door ('footprint-story'), the motion door ('footprint-story/motion'), the storyboard door
 // ('footprint-story/storyboard'), the shot door ('footprint-story/shot'), the isometric door ('footprint-story/isometric') and the layout door ('footprint-story/layout') run in a browser: nothing they reach may import a Node module, or every React project
 // that bundles them breaks. The voice door
 // ('footprint-story/voice') is Node only. The motion door is its own: the pure door never loads it, so a page that
@@ -59,7 +59,7 @@ test('every source file is behind exactly one door, only the voice door reaches 
 });
 
 test('every public symbol has one door, and its types declare it', async () => {
-  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')), 'layout.js': Object.keys(await import('../layout.js')), 'record.js': Object.keys(await import('../record.js')) };
+  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')), 'layout.js': Object.keys(await import('../layout.js')), 'record.js': Object.keys(await import('../record.js')), 'mapflow.js': Object.keys(await import('../mapflow.js')) };
   const all = Object.values(doors).flat();
   assert.deepEqual(all.filter((name, i) => all.indexOf(name) !== i), [], 'a symbol with two doors');
   for (const [door, names] of Object.entries(doors)) {
@@ -70,8 +70,8 @@ test('every public symbol has one door, and its types declare it', async () => {
   }
 });
 
-test('the record door is Node only and the one door that reaches a package: footprintjs and foottrace, the caller\'s own', () => {
-  const record = reach('record.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js')];
+test('the record door is Node only and reaches footprintjs and foottrace, the caller\'s own', () => {
+  const record = reach('record.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js'), ...reach('mapflow.js')];
   for (const [file] of others) assert.ok(!relative(file).startsWith('src/record/'), `${relative(file)}: src/record loads only through its own door`);
   const packages = [...record].flatMap(([, specs]) => specs.filter((s) => !s.startsWith('.') && !NODE.has(s))).map((s) => s.split('/')[0]);
   assert.deepEqual([...new Set(packages)].sort(), ['footprintjs', 'foottrace']);
@@ -80,4 +80,20 @@ test('the record door is Node only and the one door that reaches a package: foot
   assert.ok(Object.values(pkg.peerDependenciesMeta).every((m) => m.optional === true), 'optional: a page that only captions installs neither');
   assert.equal(pkg.dependencies, undefined);
   for (const [file] of record) assert.ok(relative(file) === 'record.js' || relative(file).startsWith('src/record/') || relative(file) === 'src/said/oneline.js', `${relative(file)}: the record door reaches its own folder and the one-line rule`);
+});
+
+test('the mapflow door reaches footprintjs alone, its own folder, and the isometric files the map\'s steps compose — no others', () => {
+  const flow = reach('mapflow.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js'), ...reach('record.js')];
+  for (const [file] of others) assert.ok(!relative(file).startsWith('src/mapflow/'), `${relative(file)}: src/mapflow loads only through its own door`);
+  const packages = [...flow].flatMap(([, specs]) => specs.filter((s) => !s.startsWith('.'))).map((s) => s.split('/')[0]);
+  assert.deepEqual([...new Set(packages)], ['footprintjs'], 'footprintjs, the caller\'s own (an optional peer), and no Node module: a chart runs anywhere footprintjs does');
+  // what it may reach of src/isometric is what the steps reach (mapSteps.js and the reader of its input): it composes
+  // the one copy of the algorithm, never a second
+  const steps = new Set([...reach('src/isometric/mapSteps.js').keys()].map(relative));
+  for (const [file] of flow) {
+    const f = relative(file);
+    assert.ok(f === 'mapflow.js' || f.startsWith('src/mapflow/') || steps.has(f), `${f}: the mapflow door reaches its own folder and the map's steps`);
+  }
+  assert.ok(steps.has('src/isometric/mapSpec.js') && [...steps].every((f) => f.startsWith('src/isometric/')), 'the steps reach the isometric folder only');
+  for (const f of readdirSync(path.join(root, 'src', 'mapflow')).filter((x) => x.endsWith('.js'))) assert.ok(flow.has(path.join(root, 'src', 'mapflow', f)), `src/mapflow/${f} is behind no door`);
 });

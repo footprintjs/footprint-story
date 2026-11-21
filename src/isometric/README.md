@@ -28,6 +28,8 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
 | `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`) |
 | `paint.js` | the paint list: its items, checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
+| `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
+| `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -359,4 +361,68 @@ isoStyle({ texture: 'reel:chalk' }, { choices: [chalk] });   // { row: { …, te
 
 A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
 apart, never on the style), so a record read back can be shown but must be made into a style again to draw.
+
+## A whole map, built as named steps
+
+**Why:** each tool used to build a map in one opaque step of its own compile — place the blocks, lay the wires, fit the
+floors, choose the grid, shape the pieces, fit the names, place the floor labels — the same order written twice
+(StoryDeck's `deck/iso.js`, StoryReel's `kits/isometric/build.mjs`). Now it is one list of named steps, run in order
+(the design: `docs/design/2026-11-map-flow.md`):
+
+```js
+import { buildIsoMap, ISO_MAP_POLICIES } from 'footprint-story/isometric';
+
+const map = buildIsoMap({
+  blocks: [{ name: 'web', size: [2, 2, 1], label: 'Web', small: 'nginx', who: 'blocks[0] ("web")' },
+           { name: 'db', kind: 'cylinder', size: [2, 2, 1.2], label: 'Database' }],
+  wires:  [{ from: { block: 'web' }, to: { block: 'db' } }],
+  floors: [{ label: 'Production' }],          // no at, no size: fitted round the blocks
+  area:   [0, 0, 1600, 900],                  // no grid written: fitted into this box
+}, ISO_MAP_POLICIES.film);
+map.placed      // 'build'
+map.placedWhy   // 'no block has an at: the build places them from their wires, across the frame'
+map.at          // [[c, r, lift], …] — block i's place
+map.order       // ['web', 'db'] — the furthest first
+```
+
+| Step | Reads | Writes | Decides |
+|---|---|---|---|
+| `place` | blocks, wires | `at`; `placed`, `placedWhy` | the map placed them (every block has an at), or the build from its wires (by group when any has one) |
+| `route` | blocks, at, wires | `routes` (null for a straight wire) | — |
+| `fitFloors` | blocks, at, floors, routes, policy | `floorTiles` (each floor's at and size) | — |
+| `grid` | written, area, … | `view` (tile, origin, rise); `grid`, `gridWhy` | written in numbers, or fitted to the area |
+| `shape` | blocks, floors, view, style | `shapes`, `floorShapes` (box, centre, outline, faces: the style's `shape` column) | — |
+| `names` | blocks, at, view, policy | `names`, `smalls` (each fitted to its top) | — |
+| `order` | blocks, at, view | `order` (block names, the furthest first) | — |
+| `floorLabels` | floors, floorTiles, shapes, routes, view | `floorLabels` (each label's place, fits, covered) | — |
+| `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | `paints`, `floorPaints` (the style's other columns) | — |
+
+Each step is `{name, about, reads, writes, run}`: `run(state)` reads only the keys it names and gives back a new state
+with the keys it writes. It never edits what it was handed and never puts a function in the state — a block's room is
+asked of the grid where it is needed, the grid is kept as its numbers — so every state is plain data a record can keep,
+and the built map is the last state, frozen. `buildIsoMap` hands each step only its `reads`, so a step that reads a key
+it does not name finds nothing. A step that chooses (`place`, `grid`) also has `decides` (the choice and its reason, as
+data) and `branches` (one per choice); `footprint-story/mapflow` runs the same functions as a footprintjs chart, a
+decider for each, so a run's record says what each step read, wrote and decided ([src/mapflow/README.md](../mapflow/README.md)).
+
+**The spec** is the map as data, already read by the tool from its own format: `blocks` (`name`, `kind`, `at` or none,
+`size`, `label`, `small`, `rule`, `group`, `ports`, `colours`, `who`), `floors` (`name`, `at` and `size` or neither,
+`label`, `group`, `colours`, `who`), `wires` (`from`/`to` `{block, port?}`, `straight`, `who`), `grid` (`{tile, origin,
+rise?}`) or `area`, `style` (a row of choices) and `who` (the map). `who` is the tool's own words for where a piece was
+written: every refusal names it, with the fix, so a tool needs no rewording. Read by own stored fields (a getter is
+refused, never run), each list a plain list, bounded (`ISO_MAP_LIMITS`: 256 blocks and floors, 1024 wires), a key a
+piece does not take refused. The tools' rules hold: all or none of the blocks have an at, one name one piece, a group's
+floor has a block, a wire to a port runs along the floor.
+
+**The policy** is a tool's own numbers, where a deck and a film differ on purpose: `ISO_MAP_POLICIES.film` (StoryReel's
+ISO_FIT: a small line fitted down to 12 px; a fitted picture holds every floor that names a group or has a label —
+`hold: 'groups-and-labels'`) and `.deck` (StoryDeck's: the small line left as written, `small: null`; only a group's
+floor held, `hold: 'groups'`).
+
+Moved from StoryReel 0.38.0's `buildMap` and pinned against a verbatim copy of it (`test/control/storyreel-0.38.0-build.mjs`):
+for random maps and the film policy, every block's at, shape, fitted name and small line, every floor's at, size, shape
+and label, every route, the grid and the paint order are the same numbers (`test/isometric-map-differential.property.test.js`).
+The deck's policy is pinned when StoryDeck builds its maps here. **Not here:** a tool's own style choices (code, which no
+record holds: the spec's style is a row of this package's choices), cables on the frame (their line, label, head, lead
+and packets — a later step: the tools differ most there), and the deck's footprints, keep-clear and callouts.
 

@@ -204,3 +204,19 @@ const first: PaintItem = painted.items[0];
 export const styled: unknown[] = [first.role, painted.box.w, look.row.line, ISO_STYLE_COLUMNS[0], ISO_STYLE_CHOICES.line, USUAL_STYLE.shape, MOST_EFFECTS, MOST_OWN_CHOICES, PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour('#000000', '#ffffff', 0.5)];
 // @ts-expect-error — a column that is not one
 isoStyle({ outline: 'ink' });
+
+// The map's steps (0.24.0) and the map flow door
+import { buildIsoMap, ISO_MAP_STEPS, ISO_MAP_POLICIES, ISO_MAP_LIMITS } from 'footprint-story/isometric';
+import type { IsoMap, IsoMapSpec, IsoMapPolicy, IsoMapStep } from 'footprint-story/isometric';
+import { mapFlow, runMapFlow } from 'footprint-story/mapflow';
+const mapSpec: IsoMapSpec = { blocks: [{ name: 'web', size: [2, 2, 1], label: 'Web', who: 'blocks[0] ("web")' }, { name: 'db', kind: 'cylinder', size: [2, 2, 1], at: null }], wires: [{ from: { block: 'web' }, to: { block: 'db', port: null } }], area: [0, 0, 1600, 900], style: { line: 'none' } };
+const filmPolicy: IsoMapPolicy = { ...ISO_MAP_POLICIES.film, small: null, hold: 'groups' };
+const builtMap: IsoMap = buildIsoMap(mapSpec, filmPolicy);
+const firstStep: IsoMapStep = ISO_MAP_STEPS[0];
+export const mapped: unknown[] = [builtMap.placed === 'build', builtMap.view.tile[0], builtMap.order[0], builtMap.names[0]?.lines, builtMap.shapes[0].faces[0].role, firstStep.decides?.key, firstStep.run({ blocks: builtMap.blocks }).placed, ISO_MAP_LIMITS.pieces, mapFlow()];
+runMapFlow(mapSpec, ISO_MAP_POLICIES.deck, { recorders: [] }).then(({ map, snapshot }) => [map.gridWhy, snapshot.commitLog.length]);
+// @ts-expect-error — a hold that is not one
+buildIsoMap(mapSpec, { ...filmPolicy, hold: 'everything' });
+// 0.24.0: a style made again from a built map's record
+import { restyle } from 'footprint-story/isometric';
+export const again: unknown = restyle(isoStyle({ line: 'none' }), { choices: [] });
