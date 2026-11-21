@@ -227,3 +227,11 @@ export function showStops(share?: number, options?: { end?: boolean } | null): R
  * done `radius` (0) px before the stretch.
  */
 export function hiddenRamps(unseen: readonly (readonly [number, number])[], length: number, speed: number, ease?: RideEase, options?: { frames?: number; fps?: number; least?: number; radius?: number } | null): [number, number, number, number][];
+/** The value on stops [[time, value], …] at `u`: straight between, held past the ends (CSS's linear(), read at a moment). */
+export function onStops(stops: readonly (readonly [number, number])[], u: number): number;
+/** A hidden ramp's term: falling, 1 at `from` to 0 at `to`; else rising, 0 at `from` to 1 at `to`. */
+export interface SeenTerm { readonly from: number; readonly to: number; readonly falling: boolean }
+/** The terms each hidden ramp (hiddenRamps) shows a packet by — one list a ramp; none: it shows nothing there. */
+export function seenTerms(ramps: readonly (readonly [number, number, number, number])[]): SeenTerm[][];
+/** How much of a packet at share `p` of its line shows by the hidden ramps: 1 in the open, 0 behind a block, straight between. */
+export function seenAt(ramps: readonly (readonly [number, number, number, number])[], p: number): number;

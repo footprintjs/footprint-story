@@ -14,7 +14,7 @@ own drawer and reads these names.
 | `settings.js` | the one settings reader (`oneOf`, `point`, `color`, `number`, `box`, `name`); a point's default may be `'centre'` |
 | `pace.js` | how long a picture may sit still, by kind of film: `lesson`, `promo` |
 | `turns.js` | an order written once: names one after another, `(a b)` together, `name:seconds` for a turn's own time; when each turn starts |
-| `ride.js` | a packet riding a line: eased out of its start and into its end over shares of its LENGTH (`rideProfile`, stops within 0.4 px of the true ease), its time from a speed (`rideSeconds`), the speed at a place (`speedAt`), a rest at the end (`withHold`), how much of it shows (`showStops`), where it fades before a stretch a block hides (`hiddenRamps`) |
+| `ride.js` | a packet riding a line: eased out of its start and into its end over shares of its LENGTH (`rideProfile`, stops within 0.4 px of the true ease), its time from a speed (`rideSeconds`), the speed at a place (`speedAt`), a rest at the end (`withHold`), how much of it shows (`showStops`), where it fades before a stretch a block hides (`hiddenRamps`); read at a moment: a value on stops (`onStops`), how much of a packet the ramps show (`seenAt`, and `seenTerms` for a page that writes them as CSS) |
 | `REFERENCES.md` | where the ideas come from |
 
 ```js

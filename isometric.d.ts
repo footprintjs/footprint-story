@@ -237,3 +237,55 @@ export const GROUP_MARGIN: number;
  * a tile more — on the links between them; both across the frame. Things with no group are a group of their own.
  */
 export function arrangeByGroup(things: readonly IsoGrouped[], links?: readonly (readonly [string, string])[] | null): [number, number, number][];
+
+// ── a cable on the frame (cable.js, outline.js, straight.js): from StoryDeck 0.29.0 and StoryReel 0.34.0 ──
+
+type Xy = readonly [number, number];
+/** The cable's numbers, in px of the frame unless said (cable.js · CABLE says what each is). */
+export const CABLE: Readonly<{ clear: number; gap: number; lane: number; laneInset: number; least: number; corner: number; head: number; headShort: number; sample: number; walkMost: number;
+  label: Readonly<{ size: number; char: number; pad: number }>; edge: number; tip: number; looks: number }>;
+/** Where a label may stand along its cable, shares of its length: the middle first, then a twentieth further to each side by turns. */
+export const LABEL_PLACES: readonly number[];
+/** The most entries of `hides` or `runs` one label is asked against. */
+export const MOST_HIDES: number;
+/** The most points an outline read by exitOutline (or a straight wire's end) may have. */
+export const MOST_OUTLINE: number;
+/** The most wires lanesOf reads in one call. */
+export const MOST_WIRES: number;
+/** Half a label's plate, [wide, high], for `letters` letters (as the tool counts what the label shows). */
+export function labelHalf(letters: number): [number, number];
+/** A way walked from share `from` to share `to`: points CABLE.sample px apart at most, at most CABLE.walkMost runs. */
+export function walkWay(way: RoundedWay, from?: number, to?: number): [number, number][];
+/** Points, with the box that holds them. */
+export interface HeldPoints { readonly points: readonly Xy[]; readonly left: number; readonly top: number; readonly right: number; readonly bottom: number }
+/** A cable walked (walkWay) and held, marked with its way: labelPlace passes over the cable's own. */
+export interface HeldRun extends HeldPoints { readonly of: unknown }
+export function held(points: readonly Xy[]): { points: [number, number][]; left: number; top: number; right: number; bottom: number };
+/**
+ * Where a cable's label stands, [x, y]: the first of LABEL_PLACES where no outline in `hides` covers its plate and no
+ * other cable in `runs` runs through it; else the least hidden, then the least crossed, then the earliest. `looks` is
+ * spent (CABLE.looks for a map); `tip` the cable's tip (way.at(1) when left out).
+ */
+export function labelPlace(way: RoundedWay, half: Xy, hides: readonly HeldPoints[], runs?: readonly HeldRun[], looks?: { left: number }, tip?: Xy): [number, number];
+/** How far a ray from `p` along the unit vector `u` runs before it leaves an outline with no dent (Infinity: never). */
+export function exitOutline(points: readonly Xy[], p: Xy, u: Xy): number;
+/** How far a ray from `p` (inside the box) along the unit vector `u` runs before it leaves the box. */
+export function exitBox(box: IsoBox, p: Xy, u: Xy): number;
+/** A round thing's outline: the upper half of its top, then the lower half of its foot (grid.cylinder's ellipses), each in `steps` runs. */
+export function roundOutline(top: IsoEllipse, bottom: IsoEllipse, steps?: number): IsoPoint[];
+/** A wire's lane among those joining the same two pieces; `flip`: it runs against the pair's own direction (its names in order). */
+export interface StraightLane { readonly k: number; readonly count: number; readonly flip: boolean }
+/** Each wire's lane: one entry a wire, [from, to] by name, or null for a wire that takes none. */
+export function lanesOf(pairs: readonly (readonly [string, string] | null)[]): (StraightLane | null)[];
+/** One end of a straight wire: what a block draws (its outline), or a flat piece's box; `middle` the line is drawn between. */
+export type StraightEnd = { readonly middle: Xy; readonly outline: readonly Xy[] } | { readonly middle: Xy; readonly box: IsoBox };
+/** A straight wire in the pair's own direction: {start, end}, or why it cannot be drawn ('middle': the two share a middle; 'close': under CABLE.least px between). */
+export function straightRun(a: StraightEnd, b: StraightEnd, lane?: { readonly k: number; readonly count: number }): { start: [number, number]; end: [number, number]; why?: undefined } | { why: 'middle' | 'close'; start?: undefined; end?: undefined };
+/** A wire bent `bend` px off its straight line: the curve's control point, its tip pulled `back` px, the way it arrives (a unit vector). */
+export function bentWire(a: Xy, e: Xy, bend?: number, back?: number): { corner: [number, number]; tip: [number, number]; heading: [number, number] };
+/** A quadratic curve from `a` to `e` drawn towards `c`, as a way, walked in `runs` straight runs (64). */
+export function curveWay(a: Xy, c: Xy, e: Xy, runs?: number): RoundedWay;
+/** The unit vector from `from` to `to` ([0, 0] for a point onto itself). */
+export function headingOf(from: Xy, to: Xy): [number, number];
+/** An arrow's head at `tip` pointing the way `heading`: [tip, left, right], `size` px long (CABLE.head). */
+export function arrowHead(tip: Xy, heading: Xy, size?: number): [[number, number], [number, number], [number, number]];

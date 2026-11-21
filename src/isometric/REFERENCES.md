@@ -17,6 +17,10 @@
 | Whether two convex outlines on the frame overlap: no line along one of their sides parts them (the separating-axis test) | `floorLabel.js` (`overlap`) | S. Gottschalk, M. C. Lin, D. Manocha, "OBBTree: A Hierarchical Structure for Rapid Interference Detection", SIGGRAPH 1996 |
 | Whether a straight stretch passes inside a box: clip its parameter to the box's slab along each axis in turn, and see whether anything is left | `under.js` (`crossesBox`) | Y.-D. Liang, B. A. Barsky, "A New Concept and Method for Line Clipping", ACM Transactions on Graphics 3 (1), 1984 |
 | A corner as one curve from two points and the corner between them (a quadratic Bézier curve) | `path.js` | as set out in G. Farin, *Curves and Surfaces for Computer Aided Geometric Design*, Academic Press, 1988 |
+| A label takes the first of a fixed list of places that nothing is in the way of, the least bad when there is none (the greedy method over fixed candidate places) | `cable.js` (`labelPlace`) | J. Christensen, J. Marks, S. Shieber, "An Empirical Study of Algorithms for Point-Feature Label Placement", ACM Transactions on Graphics 14 (3), 1995 |
+| Whether a point is inside an outline, by counting the sides a ray from it crosses | `cable.js` (`inside`) | M. Shimrat, "Algorithm 112: Position of Point Relative to Polygon", Communications of the ACM 5 (8), 1962; in the short form W. R. Franklin's PNPOLY made common |
+| Where a ray leaves a convex outline: the nearest side it crosses, by the two cross products of a ray–segment intersection | `outline.js` (`exitOutline`) | as set out in R. Goldman, "Intersection of Two Lines in Three-Space", *Graphics Gems*, Academic Press, 1990 |
+| A curve's length as the sum of the straight runs between points along it (a chord-length approximation) | `straight.js` (`curveWay`) | as set out in G. Farin (above) |
 
 **Ours:** the test for "this can never cover that" (all of it at smaller cols, or at smaller rows, or below), with its
 reason in `README.md`; ordering only pairs that meet on the frame; cutting a ring at its first given, and only a ring
@@ -39,3 +43,8 @@ as one thing to the arrangement, as big as its things and its floor's margin and
 
 **Why not the simpler sort** (one score per thing, col + row + height): it is right for things one tile big and wrong
 for long ones, where a long box and a short one beside it swap. A deck's blocks are often long.
+
+**Ours (0.19.0, from StoryDeck):** the thirteen places from a cable's middle out by turns; a label's plate as a
+generous width a letter; asking an outline by its box before its points, and the looks a map's labels share; a
+label kept off its cable's tip; spreading the wires of one pair into lanes across the line between the two middles,
+each keeping to its left; the bend's control point beside the middle of the run; the arrow head's shape.

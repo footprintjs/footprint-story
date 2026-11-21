@@ -159,3 +159,22 @@ const titleLines: string[] = wrapWords(['a', 'b'], 100, (text) => text.length);
 export const shared: unknown[] = [timeWords(30), analogyWords('a'), differsFactors(30)[0], foldDiffers(' a '), differsStatements(declared), differsEnglish(declared, ['x'], 'fr'), DIFFERS_MOST, DIFFERS_SAID_MOST, DIFFERS_TIME_MOST, DIFFERS_ANALOGY, why,
   frameZoom([1, 2], [3, 4], { share: 0.7, least: 1, most: 2.5, smallest: 1 }), narrowestWidth(100, titleLines.length, (w) => wrapWords(['a', 'b'], w, (t) => t.length).length), NARROWEST_STEPS,
   fitWords('Load Balancer', [170, 70], { measure: (w) => w.length * 0.55 }), fitWords('Load', [170, 70], { measure: { Load: 2.2 } })];
+
+// 0.19.0: a cable on the frame (from StoryDeck and StoryReel), a value on stops, how much of a packet shows
+import { CABLE, LABEL_PLACES, MOST_HIDES, MOST_OUTLINE, MOST_WIRES, labelHalf, walkWay, held, labelPlace, exitOutline, exitBox, roundOutline, lanesOf, straightRun, bentWire, curveWay, headingOf, arrowHead, rounded as roundWay } from 'footprint-story/isometric';
+import type { HeldPoints, HeldRun, StraightLane, StraightEnd } from 'footprint-story/isometric';
+import { onStops, seenTerms, seenAt } from 'footprint-story/motion';
+import type { SeenTerm } from 'footprint-story/motion';
+const cableWay = roundWay([[0, 0], [300, 0]], CABLE.corner * 120);
+const halfPlate: [number, number] = labelHalf(5);
+const hiding: HeldPoints = held([[100, -50], [200, -50], [200, 50], [100, 50]]);
+const crossing: HeldRun = { ...held(walkWay(cableWay)), of: cableWay };
+const labelAt: [number, number] = labelPlace(cableWay, halfPlate, [hiding], [crossing], { left: CABLE.looks }, [300, 0]);
+const lanes: (StraightLane | null)[] = lanesOf([['a', 'b'], null]);
+const fromEnd: StraightEnd = { middle: [50, 50], box: { x: 0, y: 0, w: 100, h: 100 } }, toEnd: StraightEnd = { middle: [350, 50], outline: [[300, 0], [400, 0], [400, 100], [300, 100]] };
+const ran = straightRun(fromEnd, toEnd, lanes[0] ?? undefined);
+const bent = ran.why === undefined ? bentWire(ran.start, ran.end, 24, CABLE.head * CABLE.headShort) : null;
+const bentCurve = bent ? curveWay([0, 0], bent.corner, bent.tip) : cableWay;
+const term: SeenTerm | undefined = seenTerms([[0.2, 0.3, 0.5, 0.6]])[0][0];
+export const cablePieces: unknown[] = [labelAt[0], LABEL_PLACES[0], MOST_HIDES, MOST_OUTLINE, MOST_WIRES, exitOutline([[0, 0], [1, 0], [1, 1]], [0.5, 0.2], [1, 0]), exitBox({ x: 0, y: 0, w: 1, h: 1 }, [0.5, 0.5], [0, 1]),
+  roundOutline({ cx: 0, cy: 0, rx: 2, ry: 1 }, { cx: 0, cy: 3, rx: 2, ry: 1 })[0].x, bentCurve.at(0.5), arrowHead([1, 0], headingOf([0, 0], [1, 0]))[2][1], onStops([[0, 0], [1, 1]], 0.5), seenAt([[0.2, 0.3, 0.5, 0.6]], 0.4), term?.falling, ran.why];

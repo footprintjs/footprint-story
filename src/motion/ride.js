@@ -144,3 +144,58 @@ export function hiddenRamps(unseen, length, speed, ease = [0, 0], options = unde
     .filter(([lo, hi]) => hi > lo)
     .map(([lo, hi]) => (lo > 0 ? [share(lo - radius - fade(lo)), share(lo - radius)] : [0, 0]).concat(hi < px ? [share(hi + radius), share(hi + radius + fade(hi))] : [1, 1]));
 }
+
+// Reading a ride at a moment. StoryDeck hands the stops to the browser (CSS linear()) and the hidden ramps to a CSS
+// clamp(); a film reads both at t. WHY here: the same packet at the same moment must stand at the same share and show
+// the same amount in both — so the rule of each (straight between stops; 1 in the open, 0 behind a block, straight
+// between) is written once. They came from StoryReel 0.34.0 (kits/isometric/ride.mjs · onStops, seenAt), StoryDeck's
+// own CSS rule (deck/rides.js · seenOf) read the same way; a property test holds each to those copies (test/control/).
+
+/** The most stops or ramps one of these reads: far past any ride (a ride has under 100 stops). */
+const MOST_READ = 4096;
+const stopsOf = (stops) => {
+  if (Array.isArray(stops) && (!stops.length || stops.length > MOST_READ)) refuse(`stops are [[time, value], …], 1 to ${MOST_READ} of them — not ${shown(stops)}`);
+  return list(stops, 'stops are [[time, value], …]', (stop, i) => pair(stop, `stop ${i + 1} is [time, value], two finite numbers`, -Infinity, Infinity));
+};
+
+/**
+ * The value on stops [[time, value], …] at time `u`: straight between two stops, held past the ends (CSS's linear()
+ * easing, read at a moment — a film's own interpolation of the stops a page writes as CSS).
+ */
+export function onStops(stops, u) {
+  const read = stopsOf(stops);
+  if (typeof u !== 'number') refuse(`a moment on stops is a number — not ${shown(u)}`);
+  if (u <= read[0][0]) return read[0][1];
+  for (let i = 1; i < read.length; i++) {
+    const [t1, v1] = read[i];
+    if (u <= t1) { const [t0, v0] = read[i - 1]; return t1 > t0 ? v0 + ((v1 - v0) * (u - t0)) / (t1 - t0) : v1; }
+  }
+  return read.at(-1)[1];
+}
+
+/**
+ * The terms each hidden ramp (hiddenRamps) shows a packet by: one list a ramp, of {from, to, falling} — `falling` a
+ * ramp out (1 at `from`, 0 at `to`: (to − p) / (to − from)), else a ramp back (0 at `from`, 1 at `to`: (p − from) /
+ * (to − from)). A ramp with no length is no term; a stretch with neither (hidden from the start to the end) has none,
+ * and shows nothing. A page writes these as CSS; seenAt reads them at a share.
+ */
+export function seenTerms(ramps) {
+  if (Array.isArray(ramps) && ramps.length > MOST_READ) refuse(`ramps are at most ${MOST_READ} — not ${ramps.length}`);
+  const read = list(ramps, 'ramps are [[outFrom, outTo, backFrom, backTo], …] (hiddenRamps)', (r, i) => {
+    const out = Array.isArray(r) && r.length === 4 ? list(r, `ramp ${i + 1}`, (n) => n) : null;
+    return out && out.every((n) => isNumber(n, -Infinity, Infinity)) ? out : refuse(`ramp ${i + 1} is [outFrom, outTo, backFrom, backTo], four finite numbers — not ${shown(r)}`);
+  });
+  return read.map(([outFrom, outTo, backFrom, backTo]) => [...(outTo > outFrom ? [{ from: outFrom, to: outTo, falling: true }] : []), ...(backTo > backFrom ? [{ from: backFrom, to: backTo, falling: false }] : [])]);
+}
+
+/** How much of a packet at share `p` of its line shows by the hidden ramps (hiddenRamps): 1 in the open, 0 behind a block, straight between; the least of the ramps where there are several. */
+export function seenAt(ramps, p) {
+  const terms = seenTerms(ramps);
+  if (typeof p !== 'number') refuse(`a share of the line is a number — not ${shown(p)}`);
+  let seen = 1;
+  for (const ramp of terms) {
+    const values = ramp.map(({ from, to, falling }) => (falling ? (to - p) / (to - from) : (p - from) / (to - from)));
+    seen = Math.min(seen, values.length ? Math.max(0, Math.min(1, Math.max(...values))) : 0);
+  }
+  return seen;
+}
