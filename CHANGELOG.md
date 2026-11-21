@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.19.0 — a cable on the frame: its label, a straight wire, its head — written once for a deck and a film
+
+StoryReel's isometric kit carried copies of StoryDeck's cable pieces; each now lives here once, and both tools import
+it (StoryDeck 0.30.0, StoryReel 0.35.0). Each gives what the tool's own code gave, to the last bit, for every input
+the tool can hand it — checked by property tests against copies of both tools' code (`test/control/storydeck-0.29.0-*`,
+`test/control/storyreel-0.34.0-*`; 30,000 runs each in a deep sweep) and, through each tool, by its pages and frames
+before and after (StoryDeck: 2,500 generated maps, 150 compiled decks and their pages, the example deck; StoryReel:
+its iso-world film, 1,500 generated worlds and 24 generated films — none changed).
+
+- **`footprint-story/isometric` · a cable's label**: `labelPlace(way, half, hides, runs, looks, tip)` (the first of
+  `LABEL_PLACES` where no outline covers the plate and no other cable runs through it; else the least hidden, the
+  least crossed, the earliest; the looks a map's labels share), `labelHalf(letters)` (half the plate: the tool counts
+  the letters its label shows), `held(points)` (points with their box: asked before their points), `walkWay(way, from,
+  to)` (a way walked a point each `CABLE.sample` px, at most `CABLE.walkMost` runs), and `CABLE` (the cable's numbers:
+  `clear`, `gap`, `lane`, `laneInset`, `least`, `corner`, `head`, `headShort`, `sample`, `walkMost`, `label`, `edge`,
+  `tip`, `looks`). From StoryDeck 0.29.0's `deck/cable.js` and `deck/transforms.js`; StoryReel 0.34.0's
+  `kits/isometric/cables.mjs` had copied them.
+- **A wire drawn straight**: `lanesOf(pairs)` (each wire's lane among those joining one pair, and whether it runs
+  against the pair's own direction), `straightRun(a, b, lane)` (from `CABLE.gap` px off one piece's edge — an outline,
+  or a box — to as far off the other's; `{why: 'middle' | 'close'}` where it cannot be drawn, for the tool to word),
+  `bentWire(a, e, bend, back)` (the bend's control point, the tip pulled back for the head, the way it arrives),
+  `curveWay(a, c, e, runs)` (a curve as a way, as `rounded` gives one: its length StoryDeck's `curveLength`),
+  `headingOf(from, to)` and `arrowHead(tip, heading, size)` (the head's three corners; a tool closes and fills them).
+- **Outlines**: `exitOutline(points, p, u)`, `exitBox(box, p, u)` (how far a ray runs before it leaves), and
+  `roundOutline(top, bottom, steps)` (a cylinder's outline, as `grid.block` gives a block's: `{x, y}` points).
+- **`footprint-story/motion` · read at a moment**: `onStops(stops, u)` (a value on stops, CSS's `linear()` read at
+  `u`), `seenTerms(ramps)` (the terms each hidden ramp shows a packet by — what a page writes as CSS) and
+  `seenAt(ramps, p)` (how much of a packet at share `p` shows).
+- Inputs are read by their own stored fields (a getter is never run; `looks.left` as a getter is refused by name), a
+  list's length is checked before an entry is read (`MOST_HIDES`, `MOST_OUTLINE`, `MOST_WIRES`, 4,096 stops or ramps),
+  and a far entry of `hides` or `runs` costs one look: its points are read only when it is near the label. Any number
+  is taken where a tool's arithmetic answered NaN or Infinity before (a wire through the air 3,000,000,000 px long).
+- **Where the tools' copies differed, named — `labelPlace` is StoryDeck's rule in both:**
+  1. StoryReel 0.34.0's label search asked a block only when one of its corners stood within 200 px of the label; a
+     large block covering the label from further off was passed over. With blocks up to 7 tiles a side, one label
+     moved in 3 of 1,500 worlds (out from under a block).
+  2. It charged its looks far more for the same search (every point of every other cable at every place tried, where
+     StoryDeck charges the cables and blocks near the place and a look an entry), so a busy world — over about a
+     hundred labelled cables — ran out, and every later label fell to its cable's middle. Here they are placed by the
+     rule: on a lattice of 48 blocks and 160 labelled wires, 52 labels (wires 105 to 159) move.
+  StoryReel's example and its generated worlds and films at a film's tile sizes are unchanged.
+  `test/cable-differential.property.test.js` shows both cases.
+- `labelPlace` refuses a `half` that is not two finite numbers from 0, and a `looks.left` that is not a finite number
+  (either would make every place cost nothing and switch the map's shared budget off); with fewer looks left than
+  entries to look at, it gives the cable's middle without reading one.
+
 ## 0.18.0 — framing a box, breaking words, and a part that differs: written once for a deck and a film
 
 Three rules each tool kept to itself move here, so a deck, its animation and a film work them out once. Each gives

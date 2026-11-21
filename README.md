@@ -406,6 +406,27 @@ over the picture, as `routes`' `keep` takes it, and `crossesBox(points, box)` wh
 them. `floorLabelPlace(floor, grid, name, covers)` lays a floor's name flat along its front edge, clear of what stands
 there. `arrangeByGroup(things, links)` places each group's things together, then the groups, from what joins them.
 
+A cable between two blocks is laid by `routes` and rounded by `rounded`; where its label stands on it, and a wire
+drawn straight where there is no way along the floor, are worked out here too, so a slide and a film put them in the
+same place:
+
+```js
+import { CABLE, labelHalf, labelPlace, held, lanesOf, straightRun, bentWire, curveWay, arrowHead } from 'footprint-story/isometric';
+
+const api = { middle: [300, 200], outline: [[240, 150], [360, 150], [360, 250], [240, 250]] };   // what a block draws
+const db = { middle: [700, 260], box: { x: 640, y: 200, w: 120, h: 120 } };                     // a flat piece's box
+const [lane] = lanesOf([['api', 'db']]);                    // { k: 0, count: 1, flip: false }
+const run = straightRun(api, db, lane);                     // { start, end }: 6 px off each edge
+const bend = bentWire(run.start, run.end, 24, CABLE.head * CABLE.headShort);   // the curve's corner, its tip, the way it arrives
+const line = curveWay(run.start, bend.corner, bend.tip);    // a way, as rounded() gives one: a packet rides it by length
+const head = arrowHead(run.end, bend.heading);              // [tip, left, right]
+const plate = labelHalf('SQL'.length);                      // [22, 13]: half the label's plate
+const at = labelPlace(line, plate, [held(api.outline)], [], { left: CABLE.looks }, run.end);   // its middle, clear of the block
+```
+
+Each refuses what it cannot read, by name; `straightRun` gives `{why: 'middle' | 'close'}` where the two pieces share a
+middle or stand too close, and the tool words it.
+
 More in [src/isometric/README.md](src/isometric/README.md).
 
 ## A part that differs from the real thing (differs)
@@ -470,7 +491,7 @@ takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
 | `/motion` `TRANSITIONS`, `readTransition`, `checkTransition`, `extendTransitions`, `readSettings` | changes of picture as data, read and checked |
 | `/motion` `PACES`, `readPace` | how long a picture may sit still, by kind of film |
 | `/motion` `readTurns`, `turnTimes`, `writeTurns`, `MOST_TURNS`, `MOST_TOGETHER`, `MOST_TURN_NAME`, `MOST_TURNS_TEXT`, `MOST_TURN_SECONDS` | an order written once: read, timed, written back; its bounds |
-| `/motion` `rideProfile`, `rideSeconds`, `speedAt`, `withHold`, `showStops`, `hiddenRamps`, `MOST_EASE` | a packet riding a line: eased ends along its length, its time from a speed, a rest, how much shows, fades behind blocks |
+| `/motion` `rideProfile`, `rideSeconds`, `speedAt`, `withHold`, `showStops`, `hiddenRamps`, `onStops`, `seenTerms`, `seenAt`, `MOST_EASE` | a packet riding a line: eased ends along its length, its time from a speed, a rest, how much shows, fades behind blocks; a value on stops at a moment, how much of a packet shows there |
 | `/shot` `readView`, `readScene`, `sceneProblems`, `readShot`, `shotProblems` | named views, scenes and shots, read and refused in words |
 | `/shot` `readCamera`, `frameOf`, `distanceFor`, `apertureFor` | a camera's numbers; the camera a shot asks for |
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
@@ -478,6 +499,7 @@ takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
+| `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
 | `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS` | the zoom that frames a box; words broken across a width as drawn, and balanced |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |

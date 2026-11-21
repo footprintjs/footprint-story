@@ -8,6 +8,7 @@
 //   readPace('lesson')                             → { hold, most, still, spare }
 //   turnTimes(readTurns('a (b c) d:1.2'))          → { turns: [{ names, at, takes }], last, end }
 //   rideProfile([0.15, 0.2], 900)                  → [[time, progress], …]: a packet's ride along a line, eased ends
+//   onStops(stops, u) · seenAt(ramps, p)           → a value on those stops at a moment; how much of a packet shows
 
 // ease — the ease table by name, and any CSS cubic-bezier
 export { EASES, EASE_NAMES, bezier, easeNamed, overshoots, inOut } from './src/motion/ease.js';
@@ -28,5 +29,6 @@ export { PACES, PACE_NAMES, readPace } from './src/motion/pace.js';
 // turns — an order written once: one after another, together, and a turn's own time
 export { readTurns, turnTimes, writeTurns, MOST_TURNS, MOST_TOGETHER, MOST_TURN_NAME, MOST_TURNS_TEXT, MOST_TURN_SECONDS } from './src/motion/turns.js';
 
-// ride — how a packet rides a line: its eased ends, its time from a speed, a rest, how much shows, fades behind blocks
-export { rideSeconds, speedAt, rideProfile, withHold, showStops, hiddenRamps, MOST_EASE } from './src/motion/ride.js';
+// ride — how a packet rides a line: its eased ends, its time from a speed, a rest, how much shows, fades behind blocks;
+// read at a moment: a value on stops, how much of a packet a block's ramps show
+export { rideSeconds, speedAt, rideProfile, withHold, showStops, hiddenRamps, onStops, seenTerms, seenAt, MOST_EASE } from './src/motion/ride.js';
