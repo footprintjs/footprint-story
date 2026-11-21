@@ -169,33 +169,95 @@ function readColours(c) {
   return Object.freeze({ base: one('base'), ink: one('ink') });
 }
 
+/** The style's choices (isoStyle made it), or a refusal naming the call. */
+function pickedOf(style, call) {
+  const picked = chosen.get(style);
+  if (!picked) refuse(`${call} takes a style isoStyle made — not ${shown(style)}`);
+  return picked;
+}
+
+function checkGrid(grid, call) {
+  if (!grid || typeof grid !== 'object' || !['block', 'cylinder', 'floor'].every((k) => typeof grid[k] === 'function')) refuse(`${call} draws on a map's grid (isometric(...)) — not ${shown(grid)}`);
+}
+
+/** What each column's apply is handed beside its input: the piece, the colours, its options and its seeded numbers. */
+function contextOf(style, p, cs) {
+  const seedOf = JSON.stringify([style.row, style.options, p.name]);
+  return (column, options, k = 0) => Object.freeze({ piece: p, colours: cs, options: options ?? Object.freeze({}), random: seeded(`${seedOf}|${column}|${k}`) });
+}
+const whoOf = (c) => `the style's ${c.column} "${c.name}"`;
+
+/** The shape column run and checked: {box, centre, outline, items}, frozen. */
+function shapeWith(picked, style, p, cs, grid) {
+  const shape = picked.shape, made = shape.apply(Object.freeze({ piece: p, grid }), contextOf(style, p, cs)('shape', style.options.shape));
+  const who = whoOf(shape);
+  if (!made || typeof made !== 'object') refuse(`${who} gives back {box, items} — not ${shown(made)}`);
+  // what a tool reads of the shape besides its items: the box round it, where its name stands, the outline round it
+  const box = stored(made, 'box', `${who}'s box`), centre = stored(made, 'centre', `${who}'s centre`), outline = stored(made, 'outline', `${who}'s outline`);
+  if (!box || typeof box !== 'object') refuse(`${who} gives back a box {x, y, w, h} round what it draws — not ${shown(box)}`);
+  for (const k of ['x', 'y', 'w', 'h']) { const v = stored(box, k, `${who}'s box ${k}`); if (!finite(v) || ('wh'.includes(k) && v < 0)) refuse(`${who}'s box ${k} is a finite number${'wh'.includes(k) ? ', from 0' : ''} — not ${shown(v)}`); }
+  const pt = (q, what) => {
+    const xy = Array.isArray(q) && q.length === 2 ? ownEntries(q, `${who}'s ${what}`) : null;   // by index: a getter never runs
+    if (!(xy && finite(xy[0]) && finite(xy[1]))) refuse(`${who}'s ${what} is a point [x, y], finite numbers — not ${shown(q)}`);
+    return Object.freeze(xy);
+  };
+  if (!Array.isArray(outline) || outline.length < 3 || outline.length > MOST_PAINT_POINTS) refuse(`${who} gives back its outline, 3 to ${MOST_PAINT_POINTS} points round what it draws — not ${shown(outline)}`);
+  const round = Object.freeze(ownEntries(outline, `${who}'s outline`).map((q) => pt(q, 'outline point')));
+  return Object.freeze({ box: Object.freeze({ x: box.x, y: box.y, w: box.w, h: box.h }), centre: pt(centre, 'centre'), outline: round, items: checkPaint(own(made, 'items'), who, p.name) });
+}
+
+/** The columns after the shape, in order, over the shape's items: the paint list. */
+function paintWith(picked, style, p, cs, shapeItems) {
+  const context = contextOf(style, p, cs);
+  let items = shapeItems;
+  for (const column of ['shading', 'line', 'palette', 'texture']) items = checkPaint(picked[column].apply(items, context(column, style.options[column])), whoOf(picked[column]), p.name);
+  picked.effects.forEach((c, k) => { items = checkPaint(c.apply(items, context('effects', style.options.effects?.[k], k)), whoOf(c), p.name); });
+  return items;
+}
+
 /**
  * A piece's paint list, by a style: {box, centre, outline, items}, frozen. `grid` is the map's (`isometric(...)`); `colours` the base
  * and the ink, or none (each item then carries its recipe and no colour, and a page's CSS colours it by role).
  */
 export function paintPiece(style, piece, grid, colours = undefined) {
-  const picked = chosen.get(style);
-  if (!picked) refuse(`paintPiece takes a style isoStyle made — not ${shown(style)}`);
-  const p = readPiece(piece), cs = readColours(colours);
-  if (!grid || typeof grid !== 'object' || !['block', 'cylinder', 'floor'].every((k) => typeof grid[k] === 'function')) refuse(`paintPiece draws on a map's grid (isometric(...)) — not ${shown(grid)}`);
-  const seedOf = JSON.stringify([style.row, style.options, p.name]);
-  const context = (column, options, k = 0) => Object.freeze({ piece: p, colours: cs, options: options ?? Object.freeze({}), random: seeded(`${seedOf}|${column}|${k}`) });
-  const shape = picked.shape, made = shape.apply(Object.freeze({ piece: p, grid }), context('shape', style.options.shape));
-  const who = (c) => `the style's ${c.column} "${c.name}"`;
-  if (!made || typeof made !== 'object') refuse(`${who(shape)} gives back {box, items} — not ${shown(made)}`);
-  // what a tool reads of the shape besides its items: the box round it, where its name stands, the outline round it
-  const box = stored(made, 'box', `${who(shape)}'s box`), centre = stored(made, 'centre', `${who(shape)}'s centre`), outline = stored(made, 'outline', `${who(shape)}'s outline`);
-  if (!box || typeof box !== 'object') refuse(`${who(shape)} gives back a box {x, y, w, h} round what it draws — not ${shown(box)}`);
-  for (const k of ['x', 'y', 'w', 'h']) { const v = stored(box, k, `${who(shape)}'s box ${k}`); if (!finite(v) || ('wh'.includes(k) && v < 0)) refuse(`${who(shape)}'s box ${k} is a finite number${'wh'.includes(k) ? ', from 0' : ''} — not ${shown(v)}`); }
-  const pt = (p, what) => {
-    const xy = Array.isArray(p) && p.length === 2 ? ownEntries(p, `${who(shape)}'s ${what}`) : null;   // by index: a getter never runs
-    if (!(xy && finite(xy[0]) && finite(xy[1]))) refuse(`${who(shape)}'s ${what} is a point [x, y], finite numbers — not ${shown(p)}`);
-    return Object.freeze(xy);
-  };
-  if (!Array.isArray(outline) || outline.length < 3 || outline.length > MOST_PAINT_POINTS) refuse(`${who(shape)} gives back its outline, 3 to ${MOST_PAINT_POINTS} points round what it draws — not ${shown(outline)}`);
-  const round = Object.freeze(ownEntries(outline, `${who(shape)}'s outline`).map((q) => pt(q, 'outline point')));
-  let items = checkPaint(own(made, 'items'), who(shape), p.name);
-  for (const column of ['shading', 'line', 'palette', 'texture']) items = checkPaint(picked[column].apply(items, context(column, style.options[column])), who(picked[column]), p.name);
-  picked.effects.forEach((c, k) => { items = checkPaint(c.apply(items, context('effects', style.options.effects?.[k], k)), who(c), p.name); });
-  return Object.freeze({ box: Object.freeze({ x: box.x, y: box.y, w: box.w, h: box.h }), centre: pt(centre, 'centre'), outline: round, items });
+  const picked = pickedOf(style, 'paintPiece'), p = readPiece(piece), cs = readColours(colours);
+  checkGrid(grid, 'paintPiece');
+  const shaped = shapeWith(picked, style, p, cs, grid);
+  return Object.freeze({ box: shaped.box, centre: shaped.centre, outline: shaped.outline, items: paintWith(picked, style, p, cs, shaped.items) });
+}
+
+/**
+ * The shape column alone: {box, centre, outline, items} — the faces, no fill, no stroke — as paintPiece makes them
+ * first. With paintShaped after it, the same list paintPiece gives. WHY two halves: the map flow keeps a piece's shape
+ * as a step of its own (mapSteps.js · shape), read by the names and the floor labels, and paints it last (· style).
+ */
+export function shapePiece(style, piece, grid, colours = undefined) {
+  const picked = pickedOf(style, 'shapePiece'), p = readPiece(piece), cs = readColours(colours);
+  checkGrid(grid, 'shapePiece');
+  return shapeWith(picked, style, p, cs, grid);
+}
+
+/** The other columns over a shape's items (shapePiece gave them): the paint list, as paintPiece gives its items. */
+export function paintShaped(style, piece, items, colours = undefined) {
+  const picked = pickedOf(style, 'paintShaped'), p = readPiece(piece), cs = readColours(colours);
+  return paintWith(picked, style, p, cs, checkPaint(items, `${whoOf(picked.shape)}'s items`, p.name));
+}
+
+/**
+ * A style made again from its record (the frozen {row, options} isoStyle gave): the same choices, the same seeds.
+ * WHY: a step of the map flow holds only plain data — a record keeps it, and a structured copy loses what made the style
+ * (the choices are held apart, never on it). Only this package's choices: a tool's own are code, which no record holds.
+ */
+export function restyle(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) refuse(`a style's record is {row, options}, as isoStyle gives it — not ${shown(record)}`);
+  const row = stored(record, 'row', "the style's row"), options = stored(record, 'options', "the style's options") ?? {};
+  if (!row || typeof row !== 'object' || Array.isArray(row) || !options || typeof options !== 'object' || Array.isArray(options)) refuse(`a style's record is {row, options}, as isoStyle gives it — not ${shown([row, options])}`);
+  const entry = (name, o) => (o && Object.keys(o).length ? { ...o, name } : name);
+  const written = {};
+  for (const column of ISO_STYLE_COLUMNS) {
+    const name = stored(row, column, `the style's ${column}`), o = stored(options, column, `the style's ${column} options`);
+    if (name === undefined) continue;
+    written[column] = column === 'effects' ? (Array.isArray(name) ? ownEntries(name, "the style's effects").map((n, k) => entry(n, Array.isArray(o) ? o[k] : undefined)) : name) : entry(name, o);
+  }
+  return isoStyle(written);
 }

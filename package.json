@@ -1,6 +1,6 @@
 {
   "name": "footprint-story",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "description": "Shared JavaScript narration, shown/spoken text, captions, motion, framing, line-breaking and drawing-grid primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
   "type": "module",
   "license": "MIT",
@@ -72,6 +72,10 @@
       "types": "./record.d.ts",
       "default": "./record.js"
     },
+    "./mapflow": {
+      "types": "./mapflow.d.ts",
+      "default": "./mapflow.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -91,6 +95,8 @@
     "layout.d.ts",
     "record.js",
     "record.d.ts",
+    "mapflow.js",
+    "mapflow.d.ts",
     "src",
     "plugin",
     "README.md",
@@ -98,7 +104,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=layout.js --test-coverage-include=record.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=layout.js --test-coverage-include=record.js --test-coverage-include=mapflow.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
   },
   "devDependencies": {
     "fast-check": "^4.10.2",
