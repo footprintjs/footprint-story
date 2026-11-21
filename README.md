@@ -433,6 +433,10 @@ const cable = cableWay({ points: [[0, 0], [200, 0], [200, 20]], radius: 30 }, CA
 cable.at(1);                                                // [200, 5.6]: where the head begins
 ```
 
+A lead into a port on a seen side is drawn again over its block (the cable lies under every block); `cableLead(cable,
+end, count, back)` gives it from that end through its floor corner — `{way, pieces, length}` — and `length` over the
+line's length is the share where a packet passes onto it.
+
 Each refuses what it cannot read, by name; `straightRun` gives `{why: 'middle' | 'close'}` where the two pieces share a
 middle or stand too close, and the tool words it.
 
@@ -508,7 +512,7 @@ takes a `measure` too. More in [src/layout/README.md](src/layout/README.md).
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
-| `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `cableWay`, `stopShort`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked, its line stopped for its head; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
+| `/isometric` `CABLE`, `LABEL_PLACES`, `labelHalf`, `labelPlace`, `held`, `walkWay`, `cableWay`, `stopShort`, `cableLead`, `MOST_HIDES`, `exitOutline`, `exitBox`, `roundOutline`, `MOST_OUTLINE`, `lanesOf`, `straightRun`, `bentWire`, `curveWay`, `headingOf`, `arrowHead`, `MOST_WIRES` | a cable on the frame: its numbers, its label's plate and place on it, a way walked, its line stopped for its head, a lead into a port; a ray leaving an outline or a box, a cylinder's outline; a wire drawn straight: its lane, its ends, its bend, its curve, its head |
 | `timeWords`, `analogyWords`, `differsFactors`, `foldDiffers`, `timeProblem`, `differsStatements`, `differsLines`, `differsProblem`, `differsEnglish`, `DIFFERS_MOST`, `DIFFERS_SAID_MOST`, `DIFFERS_TIME_MOST`, `DIFFERS_ANALOGY` | a part that differs from the real thing: its default words and the rules a declaration is held to, as data for the tool to word |
 | `/layout` `frameZoom`, `wrapWords`, `narrowestWidth`, `NARROWEST_STEPS` | the zoom that frames a box; words broken across a width as drawn, and balanced |
 | `/record` `whyFromRecord`, `controlEdges`, `WHY_LIMITS` | where a value of a run came from, read from the run's record file alone (Node only; needs footprintjs and foottrace, the caller's): [src/record/README.md](src/record/README.md) |

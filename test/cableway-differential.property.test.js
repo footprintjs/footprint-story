@@ -3,7 +3,7 @@
 // its line rounded. The CONTROL is StoryDeck's code, copied and never edited but for an import and an export
 // (test/control/storydeck-0.30.0-cableWay.js). For every cable StoryDeck could hand them, the door gives the way
 // StoryDeck's copy gave — the same start, pieces, length and points along it — and a lead rounded from either end is
-// the lead leadOf gave.
+// the lead leadOf gave, and cableLead's lead and its length are leadOf's and piecesLength's (0.21.0).
 //
 // What it refuses that StoryDeck's copy took, left out of the generator: a `back` below 0 (StoryDeck pulled none; it
 // only ever passes 0 or the head's 14.4 px) and a `back` that is not a number.
@@ -16,13 +16,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import * as deck from './control/storydeck-0.30.0-cableWay.js';
-import { CABLE, cableWay, rounded, stopShort } from '../isometric.js';
+import * as rides0 from './control/storydeck-0.29.0-rides.js';
+import { CABLE, cableLead, cableWay, rounded, stopShort } from '../isometric.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 2000;
 const SHORT = CABLE.head * CABLE.headShort;
 /** A way as data: what a tool draws and rides. */
 const seen = (way) => ({ start: way.start, pieces: way.pieces, length: way.length, at: [0, 0.25, 0.5, 0.75, 1].map((t) => way.at(t)) });
-const outcome = (f) => { try { return { way: seen(f()) }; } catch (e) { return { threw: true }; } };
+/** A number as a page or a canvas draws it: -0 and 0 are one place (StoryDeck's pull gave +0 where this gives -0, on a run under 1 px). */
+const flat = (v) => (typeof v === 'number' ? v + 0 : Array.isArray(v) ? v.map(flat) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, flat(x)])) : v);
+const outcome = (f) => { try { return flat({ way: seen(f()) }); } catch (e) { return { threw: true }; } };
 const px = fc.double({ min: -2000, max: 4000, noNaN: true });
 const point = fc.tuple(px, px);
 /** A cable as a map lays one: a route's points on the frame, with its last run sometimes very short (where the pull is capped). */
@@ -47,6 +50,41 @@ test('a lead rounded from either end on stopShort\'s points is StoryDeck 0.30.0\
     const theirs = () => deck.leadOf({ points: c.points, radius, ends }, k, b).way;
     assert.deepEqual(outcome(mine), outcome(theirs));
   }), { numRuns: RUNS });
+});
+
+test('cableLead is StoryDeck\'s lead (0.30.0 leadOf) and its length (piecesLength) wherever StoryDeck\'s lead ended at its floor point', () => {
+  // The one difference, named: StoryDeck counted the lead's pieces (2 for a port on the floor's level, 4 with a riser)
+  // where cableLead finds the floor point itself. Where a count ran past the floor point — a riser too short for a
+  // run between its two corners (rounded leaves out a run of no length), or a floor point that is no corner — StoryDeck's
+  // lead ran on along the floor, drawn over its block far from the port; there cableLead ends at the floor point.
+  const same = (p, q) => p[0] === q[0] && p[1] === q[1];
+  let agreed = 0;
+  fc.assert(fc.property(cable, back, fc.constantFrom(0, 1), fc.constantFrom(2, 3), (c, b, k, count) => {
+    fc.pre(c.points.length >= count);
+    const radius = c.radius ?? 0, ends = [{ seen: true, count }, { seen: true, count }];
+    let theirs;
+    try { theirs = deck.leadOf({ points: c.points, radius, ends }, k, b); } catch { assert.throws(() => cableLead({ points: c.points, radius }, k, count, b)); return; }
+    const mine = cableLead({ points: c.points, radius }, k, count, b);
+    const run = k ? c.points : [...c.points].reverse(), floor = run[run.length - count], last = theirs.pieces.at(-1);
+    if (last.corner ? same(last.corner, floor) : same(last.to, floor)) {
+      agreed += 1;
+      assert.deepEqual(flat({ way: seen(mine.way), pieces: mine.pieces, length: mine.length }), flat({ way: seen(theirs.way), pieces: theirs.pieces, length: rides0.piecesLength(theirs.way.start, theirs.pieces) }));
+    } else {
+      const end = mine.pieces.at(-1);
+      assert.ok(end ? (end.corner ? same(end.corner, floor) : same(end.to, floor)) : same(mine.way.start, floor) && mine.length === 0, 'here the lead ends at its floor point (nothing, for a port on it)');
+    }
+  }), { numRuns: RUNS });
+  assert.ok(agreed > RUNS / 4, `most leads end at their floor point in StoryDeck's count too (${agreed} of ${RUNS})`);
+});
+
+test('the difference from StoryDeck, worked: a riser too short for a run between its corners', () => {
+  // a port 6 px out of its side and 4.2 px above the floor, then 500 px along the floor: StoryDeck's four pieces ran
+  // past the floor point's corner (the run between the two corners has no length, so rounded left it out) to the far corner
+  const points = [[68, 513.3], [80, 519.3], [80, 523.5], [524, 745.5], [1285.3, 364.8]], ends = [{ seen: true, count: 3 }, null];
+  const theirs = deck.leadOf({ points, radius: 21.5, ends }, 0, 0), mine = cableLead({ points, radius: 21.5 }, 0, 3);
+  assert.ok(rides0.piecesLength(theirs.way.start, theirs.pieces) > 400, 'StoryDeck\'s lead ran on along the floor');
+  assert.deepEqual(mine.pieces.at(-1).corner, [80, 523.5], 'here it ends at the floor point\'s corner');
+  assert.ok(mine.length < 30, `out of the port, down its riser, through the corner: ${mine.length} px`);
 });
 
 test('where StoryReel 0.35.0 parted from it: a last run shorter than twice the pull', () => {
