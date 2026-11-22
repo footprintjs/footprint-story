@@ -22,6 +22,9 @@
   now - start), {cap})` is the partial ring, its cut end capped — one rule for both tools.
 - Tests: `test/human-strokes-outline.test.js`, `test/hand-drawn-map.test.js`. Types: `IsoMapSettings`,
   `IsoStyleChoice.unseeded`, `strokeAt`, `STROKE_CAPS`, `CAP_STEPS`, `strokeOutline`'s options.
+- **Fill a stroke's ring by the non-zero rule** (SVG's and a canvas's default): the ring can cross itself at a round
+  cap on a short, sharply turning stroke, and even-odd would leave a hole there. Seeds change for a style that writes
+  `speed` (it is left out of the seed now, as timing); every other style's seed is as before.
 
 ## 0.32.4 — `mixColour` reads a colour as the rest of the package does
 

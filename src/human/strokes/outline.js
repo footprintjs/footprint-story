@@ -12,8 +12,10 @@
  * WHY the caps are in the ring, not left to the painter: a painter that fills a ring draws no cap of its own (an SVG
  * path's fill has none; a canvas fill none), so StoryDeck drew flat ends and StoryReel drew its own circles — the same
  * picture worked out twice, and differently. A cap is geometry; it belongs here, once.
- * WHY one ring, not a ring and two discs: one fill, one path; no seam where a disc meets the ring; the same even-odd or
- * non-zero answer either way, since the ring never crosses itself at an end.
+ * WHY one ring, not a ring and two discs: one fill, one path; no seam where a disc meets the ring. The ring CAN cross
+ * itself — at a round cap on a short, sharply turning stroke (seen on about 1 in 86 real map strokes), as any offset
+ * ring can at a tight bend — so a painter fills it by the NON-ZERO rule (SVG's and a canvas's default), never even-odd,
+ * which would leave a hole where it crosses.
  */
 import { refuse, shown, finite } from '../read.js';
 import { MOST_STROKE_POINTS } from './plan.js';

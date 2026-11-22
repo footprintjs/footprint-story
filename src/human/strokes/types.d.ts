@@ -49,7 +49,8 @@ export const CAP_STEPS: number;
 /**
  * One ring round a stroke of changing width (points [x, y, width, …]), its two ends capped by `cap` (round when left out,
  * as `strokeItems` writes it; a stroke item's `stroke.cap`): what a painter fills, drawing no cap of its own. A stroke
- * of one point is a dot (a circle, a square, or nothing for butt).
+ * of one point is a dot (a circle, a square, or nothing for butt). Fill it by the non-zero rule: the ring can cross
+ * itself at a round cap on a short, sharply turning stroke.
  */
 export function strokeOutline(points: readonly (readonly number[])[], options?: { readonly cap?: 'round' | 'butt' | 'square' } | null): [number, number][];
 /**
