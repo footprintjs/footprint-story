@@ -419,7 +419,17 @@ face with no fill by its role's CSS, so a null fill would draw tones in a deck a
 | line art `width` / `inner` | 3 / 1.25 px | ours: a line drawing has no tones, so its edge is the line alone, a little over today's ink; folds under half of it, so the faces read as one solid |
 | tile lines | 1.5 px at 16% | today's, kept (StoryDeck's CSS holds the width) |
 
-Refused, before anything is drawn, naming the entry and the fix: a look that is not one; `shading: 'paper'` with
+Known limits. The paper is `#ffffff` unless the tool gives its page's: on a dark page (StoryDeck's dark theme) white
+faces and a white floor under light ink read poorly, so a tool on a dark page writes its paper
+(`{look: 'line-art', shading: {name: 'paper', colour: …}}`). It is a colour, not null, on purpose: in today's paint
+contract a fill colour of null means "the recipe over the page's base", which StoryDeck draws as its role's CSS tones and
+StoryReel as the piece's base — neither is the paper, and the two would differ. A page-paper fill would need a word in
+the contract both painters read. And two pieces that touch side by side on the frame get no order rule
+(`grid.backToFront` orders only pieces whose outlines overlap), so the band of the one drawn later lies over its
+neighbour's edge; giving touching pieces a rule would move the order of every map, so it is left for its own change.
+
+Refused, before anything is drawn, naming the entry and the fix: a look that is not one; a look whose every column the
+row writes itself (it would draw nothing, and the record would name it — drop the look, or the column); `shading: 'paper'` with
 `line: 'none'` (white on white shows nothing — use `contour` or `ink`), and when the paper came from the look the words
 say so (`(from the look "line-art": write shading beside it to change it)`); a contour `width` or `inner` out of range,
 an inner bolder than the contour; a paper colour that is no colour. A tool's own shading that leaves a face unfilled

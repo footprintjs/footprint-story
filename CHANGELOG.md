@@ -14,9 +14,14 @@
   contour is each face again under the faces with no fill and a wide stroke (role `contour`), trimmed to an even outside
   band by the faces' fills — no silhouette worked out, no new item kind. A paper fill carries its colour even with no
   base given. Both tools' painters draw these lists as they are: no painter change.
-- **Refused, with the fix:** a look that is not one; `shading: 'paper'` with `line: 'none'` (saying when the paper came
+- **Refused, with the fix:** a look that is not one; a look whose every column the row writes itself (it draws nothing,
+  so the record would name a look that drew nothing — drop the look or the column; `restyle` leaves the look's own
+  columns to it, so a record made again is the style it was); `shading: 'paper'` with `line: 'none'` (saying when the paper came
   from the look); a contour width or inner out of range, or an inner bolder than the contour; a paper colour that is no
   colour; a tool's own shading that leaves a face unfilled under the contour (on the piece).
+- **Known limits** (src/isometric/README.md): the paper is `#ffffff` unless a tool gives its page's (`shading: {name:
+  'paper', colour}`) — a dark page should; and touching pieces get no draw-order rule, so a later band lies over its
+  neighbour's edge.
 - **For the tools:** StoryDeck's `data-style` reader and StoryReel's `readStyle` check a row's keys against
   `ISO_STYLE_COLUMNS`, so each needs a small reader change to accept `look`; until then each can write a look's row out
   (`line: contour`; `shading: paper; line: contour width 3 inner 1.25`), which draws the same.

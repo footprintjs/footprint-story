@@ -49,7 +49,7 @@ test('a look named and its row written out are the same style: the same row, opt
   // a column written beside the look replaces the look's entry for it, whole
   const thick = isoStyle({ look: 'line-art', line: { name: 'contour', width: 6 } });
   assert.deepEqual([thick.row.shading, thick.row.line, thick.options.line], ['paper', 'contour', { width: 6 }]);
-  assert.deepEqual(isoStyle({ look: 'outlined', line: 'ink' }).row.line, 'ink');
+  assert.deepEqual([isoStyle({ look: 'line-art', line: 'ink' }).row.shading, isoStyle({ look: 'line-art', line: 'ink' }).look], ['paper', 'line-art'], 'the look still fills the shading');
   assert.deepEqual(isoStyle({ look: null }), isoStyle(), 'look: null is none');
 });
 
@@ -106,6 +106,10 @@ test('the geometry is pinned to 1e-6: a cylinder\'s contour and a block\'s top o
 test('bad combinations are refused before anything is drawn, naming the entry and the fix', () => {
   assert.throws(() => isoStyle({ look: 'line-art', line: 'none' }), /^Error: isometric: the style's shading "paper" \(from the look "line-art": write shading beside it to change it\) cannot sit with line "none" — paper faces on a paper page show only by their lines: use line "contour" or "ink", or a shading that colours the faces \("tones"\)$/);
   assert.throws(() => isoStyle({ shading: 'paper', line: 'none' }), /the style's shading "paper" cannot sit with line "none" — paper faces/);
+  // a look the row overrides in every column draws nothing: the record would name a look that drew nothing
+  assert.throws(() => isoStyle({ look: 'outlined', line: 'ink' }), /^Error: isometric: the style's look "outlined" sets line, and the row writes it itself, so the look draws nothing — drop the look, or the line written beside it$/);
+  assert.throws(() => isoStyle({ look: 'outlined', line: 'contour' }), /the look draws nothing/, 'even with the look\'s own entry');
+  assert.throws(() => isoStyle({ look: 'line-art', shading: 'tones', line: 'ink' }), /the style's look "line-art" sets shading and line, and the row writes each itself, so the look draws nothing — drop the look, or the shading and line written beside it/);
   assert.throws(() => isoStyle({ look: 'flat' }), /^Error: isometric: the style's look is one of "outlined", "line-art" \(a row of choices under a name\), or none — not "flat"$/);
   assert.throws(() => isoStyle({ look: ['outlined'] }), /the style's look is one of "outlined", "line-art"/);
   assert.throws(() => isoStyle({ look: 'outlined', outline: 'bold' }), /a style's columns are shape, shading, line, palette, texture, effects — not "outline" \(a row may also name a look: \{look: "outlined", "line-art"\}\)/);
@@ -133,6 +137,10 @@ test('the record keeps the look beside the row; a record made again is the same 
   assert.deepEqual(again, style);
   assert.deepStrictEqual(paintPiece(again, block, grid, colours), paintPiece(style, block, grid, colours));
   assert.throws(() => restyle({ ...style, look: 'flat' }), /the style's look is one of/);
+  // a look that fills only some columns made again: the same style, the look still named where it drew
+  for (const row of [{ look: 'line-art', line: 'ink' }, { look: 'line-art', line: { name: 'contour', width: 6 } }, { look: 'outlined', texture: 'none' }]) assert.deepEqual(restyle(structuredClone(isoStyle(row))), isoStyle(row));
+  // a record naming a look whose columns it all overrides is refused as isoStyle refuses it
+  assert.throws(() => restyle({ row: { ...isoStyle().row }, options: {}, look: 'outlined' }), /the look draws nothing/);
   for (const policy of [ISO_MAP_POLICIES.film, ISO_MAP_POLICIES.deck]) {
     const map = buildIsoMap({ blocks: [{ name: 'web', size: [2, 2, 1] }, { name: 'db', kind: 'cylinder', size: [2, 2, 1] }], wires: [{ from: { block: 'web' }, to: { block: 'db' } }], floors: [{ label: 'P' }], area: [0, 0, 1600, 900], style: { look: 'outlined' } }, policy);
     assert.equal(map.style.look, 'outlined');

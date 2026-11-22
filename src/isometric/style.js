@@ -146,6 +146,9 @@ export function isoStyle(row = undefined, settings = undefined) {
     out[column] = name;
     if (Object.keys(o).length) options[column] = Object.freeze(o);
   }
+  // a look every column of which the row writes itself draws nothing of its own: the record would name a look that
+  // drew nothing, so it is refused, with the fix
+  if (look && !fromLook.size) refuse(`the style's look "${lookName}" sets ${Object.keys(look).join(' and ')}, and the row writes ${Object.keys(look).length > 1 ? 'each' : 'it'} itself, so the look draws nothing — drop the look, or the ${Object.keys(look).join(' and ')} written beside it`);
   // a pairing that cannot work, said once with its fix (each choice names what it cannot sit with)
   const inRow = (column, name) => (column === 'effects' ? out.effects.includes(name) : out[column] === name);
   for (const c of [...ISO_STYLE_COLUMNS.filter((x) => x !== 'effects').map((x) => picked[x]), ...picked.effects]) {
@@ -279,6 +282,13 @@ export function paintShaped(style, piece, items, colours = undefined) {
   return paintWith(picked, style, p, cs, checkPaint(items, `${whoOf(picked.shape)}'s items`, p.name));
 }
 
+/** Two entries the same: one name and the same options (an entry is a name, or {name, …options}). */
+function sameEntry(a, b) {
+  const flat = (e) => (typeof e === 'string' ? { name: e } : e);
+  const x = flat(a), y = flat(b), kx = Object.keys(x).sort(), ky = Object.keys(y).sort();
+  return kx.length === ky.length && kx.every((k, i) => k === ky[i] && x[k] === y[k]);
+}
+
 /**
  * A style made again from its record (the frozen {row, options} isoStyle gave): the same choices, the same seeds.
  * WHY: a step of the map flow holds only plain data — a record keeps it, and a structured copy loses what made the style
@@ -291,12 +301,15 @@ export function restyle(record, settings = undefined) {
   const row = stored(record, 'row', "the style's row"), options = stored(record, 'options', "the style's options") ?? {};
   if (!row || typeof row !== 'object' || Array.isArray(row) || !options || typeof options !== 'object' || Array.isArray(options)) refuse(`a style's record is {row, options}, as isoStyle gives it — not ${shown([row, options])}`);
   const entry = (name, o) => (o && Object.keys(o).length ? { ...o, name } : name);
-  // the look's name, kept for the record: every column is written out below, so the row is the record's own
-  const look = stored(record, 'look', "the style's look");
-  const written = look === undefined || look === null ? {} : { look };
+  // the look's name, kept for the record; a column the look fills (its entry the look's own) is left to the look, so a
+  // record made again names the look only where it drew, as isoStyle made it
+  const look = stored(record, 'look', "the style's look") ?? null;
+  const filled = typeof look === 'string' && Object.hasOwn(ISO_LOOKS, look) ? ISO_LOOKS[look] : {};
+  const written = look === null ? {} : { look };
   for (const column of ISO_STYLE_COLUMNS) {
     const name = stored(row, column, `the style's ${column}`), o = stored(options, column, `the style's ${column} options`);
     if (name === undefined) continue;
+    if (Object.hasOwn(filled, column) && sameEntry(entry(name, o), filled[column])) continue;
     written[column] = column === 'effects' ? (Array.isArray(name) ? ownEntries(name, "the style's effects").map((n, k) => entry(n, Array.isArray(o) ? o[k] : undefined)) : name) : entry(name, o);
   }
   return isoStyle(written, settings);
