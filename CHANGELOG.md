@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — spin at a track's end
+## 0.38.1 — spin at a track's end
 
 - **`spin` no longer lets a sample's own reported rate explain a flick at a track's end.** Where a run touches an end
   one side is missing; 0.31.0 let the run's own reported turn (its samples' `spin`) speak for that side, and a reported
@@ -13,6 +13,26 @@
   `test/human-spin-end.test.js`: matching flicks of ±30° and ±180° on the last and the first sample are caught; a true
   stop at the end and easing to rest give no finding; the same stopping step with a steady `spin` is a flick. Found in
   the second read of 0.31.0.
+
+## 0.38.0 — a name's ink
+
+- **The ink a name reads in on a face, once for both tools** (`src/isometric/colour.js`, on the isometric door):
+  `readableInk(face, inks, {least})` gives `{ink, ratio, reads}` — the first ink (in the caller's order) that stands
+  `least` : 1 on the face (default 4.5, WCAG's small text), else the best one with `reads: false`, never a failing ink
+  as if it passed. StoryReel 0.49.0 had this rule in its own code (`looks.mjs` · `nameInk`); StoryDeck needs it too.
+  `readableInk(face, [look.ink, look.bg]).ink` is StoryReel's `nameInk(face, look)` exactly — on its golden faces and,
+  as a property, for any face and any two inks against a copy of its code (`test/control/storyreel-0.49.0-nameInk.mjs`),
+  its ratios equal to the last bit — so it can switch with no picture moving.
+- **The measures behind it, on the door:** `luminance`, `contrastRatio` (WCAG 2, unrounded: `#777` on white is 4.48,
+  `#767676` 4.54, both pinned) and `deltaE76` (CIE76 in CIELAB, D65; black to white 100, sRGB red where its published
+  Lab puts it). `luminance` and `contrastRatio` moved here from `duotone.js`, which now uses them; the duotone test's
+  own ΔE copy is gone, it measures with `deltaE76`. Nothing draws differently.
+- **The duotone's tint of an untoned block stays apart from ok / warn / bad** (pinned): StoryReel 0.49.0 hands an
+  untoned block the usual tone (`#d9e4f3`) so the duotone tints it orange, and warn is orange too. Ours: more than
+  ΔE76 10 from every status face — the floor the status faces keep from each other, one number for "apart at a
+  glance" — on every face, for four sets of tones (ours, StoryReel's paper and storybook themes, the tools' default
+  tokens), on a light page and a dark one. The nearest is 12.2 (warn, paper theme, the lit top; its faces 12.6 / 16.5 /
+  12.2, as StoryReel's review measured). The tint clears the floor and did not move.
 
 ## 0.37.0 — the look `sketchy`, and a ball every style paints
 

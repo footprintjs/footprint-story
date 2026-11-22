@@ -31,6 +31,7 @@
 //   sweptThrough · checkMoments · deepestPass · passFinding   → whether a move passes through a block, swept
 //   offFrame · drawnOff · posed                        → a moving block on the frame, and where its pose puts a point
 //   nameBox · overlapsBox · orderAt · hiddenNames · coverFinding   → which names a block at rest hides
+//   readableInk(face, [ink, ground]) · contrastRatio · deltaE76     → the ink a name reads in on a face, and the measures
 
 export { isometric } from './src/isometric/grid.js';
 export { readThing } from './src/isometric/thing.js';
@@ -53,6 +54,7 @@ export { isoStyle, paintPiece, restyle, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, US
 export { ISO_LOOKS } from './src/isometric/looks.js';
 export { CONTOUR, SEAM } from './src/isometric/styleChoices.js';
 export { DUOTONE } from './src/isometric/duotone.js';
+export { luminance, contrastRatio, readableInk, deltaE76 } from './src/isometric/colour.js';
 export { PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour } from './src/isometric/paint.js';
 export { ISO_MAP_STEPS, buildIsoMap } from './src/isometric/mapSteps.js';
 export { ISO_MAP_POLICIES, ISO_MAP_LIMITS } from './src/isometric/mapSpec.js';

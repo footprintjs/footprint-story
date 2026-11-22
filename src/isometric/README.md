@@ -31,6 +31,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`, `paper-grain`, `duotone`, `sketchy`) |
 | `ball.js` | a ball on the grid (0.37.0): StoryReel's round kind as numbers — its outline, middle, two seams and box (`ballOf`); the `box` shape paints it |
 | `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
+| `colour.js` | the colour measures: luminance and the contrast ratio (WCAG 2), the ink a name reads in on a face (`readableInk`), and ΔE76 (`deltaE76`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
 | `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
 | `standing.js` | where a moving block stands: its foot, its top, its corner (`footOf`, `topOf`, `cornerOf`), the top it lands on (`landingUnder`), whether its middle is over that top (`overTop`), whether one rests on another (`ridesOn`) |
@@ -561,6 +562,49 @@ but the antialiased fringe at a seam's end. A turned ball keeps its own turn: sw
 `ballPicture(grid, centre, radius, turn).marks` (the level seam first), and put every point where its pose says, as
 today. The map is still built with the ball as the cylinder round it (`buildIsoMap` takes no ball yet); with this,
 StoryReel can drop its refusal of a ball in a styled world.
+
+### A name's ink: the ink that reads on a face
+
+A block's name is written on its face, and the face's colour is the page's or the block's own: a light theme's dark ink
+reads on a pale tone, a dark theme's light ink does not. `readableInk(face, inks, {least})` (colour.js) picks the ink:
+the first of `inks` — the caller's order of preference — that stands at least `least` : 1 on the face (default 4.5,
+WCAG 2's least for small text; 3 for large), else the one that reads best, the earlier on a tie. It gives
+`{ink, ratio, reads}`. WHY `reads`: when no ink reads, a tool still has to draw the name in something, so the best ink
+comes back with its ratio and `reads: false` — never a failing ink handed back as if it passed — and the tool can say
+so or change the face.
+
+```js
+import { readableInk } from 'footprint-story/isometric';
+readableInk('#d9e4f3', ['#14181f', '#f5f7fa'])      // → { ink: '#14181f', ratio: 13.8…, reads: true }: the theme's ink
+readableInk('#d9e4f3', ['#e8e4da', '#161b22'])      // → { ink: '#161b22', ratio: 13.4…, reads: true }: a dark theme's ground
+readableInk('#808080', ['#999999', '#ffffff'])      // → { ink: '#ffffff', ratio: 3.9…, reads: false }: none reads
+```
+
+WHY here: StoryReel 0.49.0 chose a block's name's ink by this rule in its own code (`looks.mjs` · `nameInk`: the
+theme's ink when it reads at 4.5 : 1, else the ground when that reads better) and StoryDeck needs the same; an
+algorithm lives once. `readableInk(face, [look.ink, look.bg]).ink` is StoryReel's `nameInk(face, look)` for every face
+(pinned for its golden faces and, as a property, for any face and any two inks against a copy of its code,
+`test/control/storyreel-0.49.0-nameInk.mjs`), so it can switch with no picture moving. Its only other rule — a face of
+null, no fill of its own, takes the theme's ink — stays the tool's: a face here is always a colour.
+
+The measures behind it: `luminance(hex)` and `contrastRatio(a, b)` (WCAG 2, unrounded: `#777` on white is 4.48 : 1,
+which does not pass 4.5; `#767676` is 4.54) and `deltaE76(a, b)` (CIE76: the distance in CIELAB under D65; 100 black to
+white, about 2.3 the least an eye tells apart). Each reads a colour as the package does (`#rgb` or `#rrggbb`, any case)
+and refuses anything else by name; `readableInk` refuses an empty list, an ink that is no colour, a `least` outside 1 to
+21, an option it does not know and a getter.
+
+**An untoned block apart from the status faces.** StoryReel 0.49.0 hands a block with no tone its colour (the tools'
+usual tone, `#d9e4f3`) so a duotone tints it toward its orange accent — and a warn tone is orange too. Pinned: that
+tint stays more than ΔE76 10 from every ok / warn / bad face, on every face, for this package's test tones, StoryReel's
+paper and storybook themes and the tools' default tokens, on a light page and a dark one. The floor is ours and the
+same as the status faces keep from each other: a block that means nothing read as warn is the same mistake as warn read
+as bad, so one number says "apart at a glance". The nearest is warn on StoryReel's paper theme, the lit top, at 12.2
+(its three faces 12.6, 16.5, 12.2, as StoryReel's review measured); the tint clears the floor and did not move.
+
+| Number | Value | Whose, and why |
+|---|---|---|
+| a name's least ratio | 4.5 : 1 | WCAG 2 (1.4.3, AA) for small text; a caller asks 3 for large |
+| untoned tint apart from ok / warn / bad | ΔE76 over 10 | ours: the status faces' own floor, one number for "read apart at a glance"; nearest today 12.2 |
 
 ## A whole map, built as named steps
 

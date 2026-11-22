@@ -11,7 +11,7 @@ import { isometric, isoStyle, paintPiece, restyle, buildIsoMap, ISO_LOOKS, ISO_M
 import { grainTexture, hatchTexture, sketchyLine, GRAIN, MOST_GRAIN_MARKS, HUMAN_STYLE_CHOICES } from '../human.js';
 import { segmentWithin } from '../src/human/strokes/geometry.js';
 import { ringOf } from '../src/human/strokes/paint.js';
-import { contrastRatio, luminance } from '../src/isometric/duotone.js';
+import { contrastRatio, luminance, deltaE76 } from '../isometric.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 300;
 const choices = HUMAN_STYLE_CHOICES;
@@ -232,18 +232,6 @@ test('the grain is low contrast: a mark, blended at its alpha, stands under 1.6 
   }
 });
 
-/** CIE76 colour difference (ΔE*ab, D65): the distance between two colours in CIELAB. */
-function deltaE(a, b) {
-  const lab = (hex) => {
-    const [r, g, bl] = [1, 3, 5].map((i) => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
-    const xyz = [(0.4124 * r + 0.3576 * g + 0.1805 * bl) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * bl, (0.0193 * r + 0.1192 * g + 0.9505 * bl) / 1.08883];
-    const f = xyz.map((t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116));
-    return [116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])];
-  };
-  const x = lab(a), y = lab(b);
-  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
-}
-
 test('colour that means something survives the duotone: ok / warn / bad, given at draw time, stay apart (ΔE76 over 10 on every face)', () => {
   // the tools' status tones: a theme's ok / warn / bad as a pale tint (StoryReel's toneOf: 60% white), given as the base
   // when the piece is painted — the list holds the recipe, and the duotone must leave it so
@@ -253,6 +241,6 @@ test('colour that means something survives the duotone: ok / warn / bad, given a
   assert.deepEqual(duo.map((it) => it.fill), usual.map((it) => it.fill), 'the recipe is kept: the page\'s base reaches every face');
   const faces = Object.fromEntries(Object.entries(tones).map(([k, c]) => [k, painted(duo, base(c))]));
   for (const [a, b] of [['ok', 'warn'], ['warn', 'bad'], ['ok', 'bad']]) {
-    faces[a].forEach((c, i) => assert.ok(deltaE(c, faces[b][i]) > 10, `${a} and ${b}, face ${i}: ΔE ${deltaE(c, faces[b][i]).toFixed(1)}`));
+    faces[a].forEach((c, i) => assert.ok(deltaE76(c, faces[b][i]) > 10, `${a} and ${b}, face ${i}: ΔE ${deltaE76(c, faces[b][i]).toFixed(1)}`));
   }
 });
