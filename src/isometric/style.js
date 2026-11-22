@@ -29,6 +29,8 @@
 import { BUILT_IN_CHOICES } from './styleChoices.js';
 import { checkPaint, ownEntries, readColour, MOST_PAINT_POINTS } from './paint.js';
 import { FAR, fin, finite, own, refuse, shown, stored } from './thing.js';
+// numbers from 0 to 1 seeded by a text (FNV-1a, then mulberry32): the one rule, shared with the human door
+import { seeded } from '../seed/seeded.js';
 
 /** The columns, in the order they run; the look a column takes when none is written; the most effects and own choices. */
 export const ISO_STYLE_COLUMNS = Object.freeze(['shape', 'shading', 'line', 'palette', 'texture', 'effects']);
@@ -140,13 +142,6 @@ function checkOptions(choice, options, column) {
   for (const key of Object.keys(options)) if (!choice.options.includes(key)) refuse(`the style's ${column} "${choice.name}" takes ${choice.options.length ? choice.options.join(', ') : 'no options'} — not ${shown(key)}`);
   // the values, once, before anything is drawn: the choice's own check (what it throws comes out as it is)
   if (choice.check) choice.check(Object.freeze({ ...options }));
-}
-
-/** Numbers from 0 to 1, the same for the same seed (FNV-1a of the text, then mulberry32). */
-function seeded(text) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-  return () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
 /** The piece as a style reads it, checked: {name, kind, at, size}. */

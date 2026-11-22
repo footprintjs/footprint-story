@@ -79,6 +79,54 @@ export function legGaps(points: readonly HumanPoint[], within: number): readonly
 /** The points again, every `spacing` px along, or `count` points evenly along. */
 export function resample(points: readonly HumanPoint[], settings: { readonly spacing: number } | { readonly count: number }): readonly HumanPoint[];
 
+// ── physics ────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** An axis-aligned box on the frame. */
+export interface HumanBox { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
+/** A floor line (a y; below it is a larger y) and boxes that do not overlap and stand on or above the floor. */
+export interface HumanWorld { readonly floor: number | null; readonly boxes: readonly HumanBox[] }
+/** The usual apex: a quarter of the distance across (a 45° throw for level ends), at least MIN_APEX px. */
+export const APEX_SHARE: number;
+export const MIN_APEX: number;
+/** The launch from `from` that lands on `to`: with an apex (px above the higher end) or seconds, not both. */
+export function launch(from: HumanPoint, to: HumanPoint, options: { readonly apex?: number; readonly seconds?: number; readonly gravity: number }, who?: string): { velocity: [number, number]; seconds: number };
+export function flightAt(from: HumanPoint, velocity: HumanPoint, gravity: number, t: number): [number, number];
+/** The heading at t (radians, y down). */
+export function headingAt(velocity: HumanPoint, gravity: number, t: number): number;
+/** The time to fall from y0 to `floor` starting at vertical speed vy; null when it never gets there. */
+export function fallSeconds(y0: number, vy: number, floor: number, gravity: number): number | null;
+export interface BounceSegment { readonly at: number; readonly seconds: number; readonly from: HumanPoint; readonly velocity: HumanPoint }
+export const MIN_BOUNCE: number;
+export const MOST_BOUNCES: number;
+export function bounces(from: HumanPoint, velocity: HumanPoint, options: { readonly floor: number; readonly gravity: number; readonly restitution: number; readonly keep: number; readonly firstSeconds?: number | null }): { readonly segments: readonly BounceSegment[]; readonly impacts: readonly { readonly at: number; readonly speed: number }[]; readonly rest: HumanPoint; readonly duration: number };
+export function bounceAt(plan: { readonly segments: readonly BounceSegment[]; readonly rest: HumanPoint; readonly landed: number; readonly gravity: number }, t: number): [number, number];
+export const MIN_CHAIN_PASSES: number;
+export const CHAIN_REST_SPEED: number;
+export const CHAIN_LENGTH_TOLERANCE: number;
+export const MIN_CHAIN_LINK: number;
+/** A chain's kept frames (flat [x0, y0, x1, y1, …], the pin first, every STEPS_PER_FRAME steps). */
+export function runChain(options: { readonly pin: HumanPoint; readonly path: readonly (readonly [number, number, number])[]; readonly points: readonly number[]; readonly rest: number; readonly gravity: number; readonly keep: number; readonly world: HumanWorld; readonly steps: number; readonly settle: boolean }): { readonly frames: readonly (readonly number[])[]; readonly steps: number };
+export function relaxChain(points: number[], rest: number, pin: HumanPoint, passes?: number): number[];
+export function pinAt(pin: HumanPoint, path: readonly (readonly [number, number, number])[], t: number): HumanPoint;
+export const MOST_BOXES: number;
+export function makeWorld(world: { readonly floor?: number | null; readonly boxes?: readonly HumanBox[] }, who?: string): HumanWorld;
+/** The world an intent names (its floor and boxes), checked. */
+export function readWorld(intent: object, who: string): HumanWorld;
+export function pushOut(x: number, y: number, world: HumanWorld): [number, number];
+export function collide(points: number[], world: HumanWorld, from?: number): number[];
+export function depthIn(x: number, y: number, world: HumanWorld, radius?: number): number;
+export function verletStep(now: readonly number[], before: readonly number[], accel: HumanPoint, dt: number, keep?: number): number[];
+export function simulate<S extends { readonly points: readonly number[] }>(start: S, advance: (state: S, n: number) => S, options: { readonly steps: number; readonly every?: number; readonly stop?: ((state: S, n: number) => boolean) | null }): { readonly frames: readonly (readonly number[])[]; readonly steps: number };
+/** The fixed step (1/240 s), the steps to each kept frame (4: 60 a second), gravity (px/s², down), the longest physics plan (s). */
+export const PHYSICS_STEP: number;
+export const STEPS_PER_FRAME: number;
+export const GRAVITY: number;
+export const MOST_PHYSICS_SECONDS: number;
+export type SpringFeel = 'snappy' | 'default' | 'heavy' | 'playful' | { readonly k: number; readonly d: number };
+/** How much of the way back is still to go at t on a spring: 1 at 0, exactly 0 at settleSeconds. */
+export function settleLeft(t: number, feel?: SpringFeel): number;
+export function settleSeconds(feel?: SpringFeel): number;
+
 // ── models ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type HumanFamily = 'reach' | 'pen' | 'letter' | 'settle' | 'fall' | 'throw' | 'hang';
@@ -99,6 +147,16 @@ export const UNSEEDED_KEYS: readonly string[];
 export const PEN_SPEED: number;
 export const MOST_STROKES: number;
 export const MOST_TRACK_SAMPLES: number;
+/** The intent keys of a throw and of a fall (the ballistic and bounce models read them). */
+export const THROW_KEYS: readonly string[];
+export const FALL_KEYS: readonly string[];
+/** A landing squashes a bouncing body for this long either side of it (s). */
+export const SQUASH_SECONDS: number;
+export const MOST_CHAIN_LINKS: number;
+export const MOST_CHAIN_SECONDS: number;
+export const MOST_PATH_KEYS: number;
+/** The least overshoot a settle's reason mentions (half a percent of the way). */
+export const OVERSHOOT_SEEN: number;
 
 export type HumanOptions = Readonly<Record<string, number | string | boolean>>;
 /** What an author writes: what happens. Each family reads its own keys (see src/human/README.md). */
@@ -121,7 +179,8 @@ export type HumanSampleValue = number | readonly number[] | readonly HumanPoint[
 export interface HumanSample { readonly x: number; readonly y: number; readonly [key: string]: HumanSampleValue }
 /** A model: a named strategy for one family of move. A tool's own is named under its prefix ('reel:chalk-pen'). */
 export interface HumanModel {
-  readonly family: HumanFamily;
+  /** The family it serves, or a list of them (ballistic: ['throw', 'fall']). */
+  readonly family: HumanFamily | readonly HumanFamily[];
   readonly name: string;
   readonly options?: readonly string[];
   check?(options: HumanOptions): void;
@@ -130,7 +189,8 @@ export interface HumanModel {
   readonly checks?: readonly string[];
 }
 /** A sampled track, as the critics read it. */
-export interface HumanTrack { readonly who: string; readonly family: HumanFamily; readonly model: string; readonly seconds: number; readonly pushes: number; readonly samples: readonly { readonly t: number; readonly x: number; readonly y: number }[] }
+/** A sampled track, as the critics read it: each sample whole, and the plan (a wrapped one as it is). */
+export interface HumanTrack { readonly who: string; readonly family: HumanFamily; readonly model: string; readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[]; readonly plan: HumanPlan }
 /** A critic: a number measured on a track, and a finding in words past its limit (null within it). */
 export interface HumanCritic {
   readonly name: string;
@@ -140,10 +200,34 @@ export interface HumanCritic {
 }
 export interface HumanSettings { readonly models?: readonly HumanModel[] | null; readonly critics?: readonly HumanCritic[] | null }
 /** A move, as planMove gives it: frozen plain data a record keeps. */
-export interface HumanMove { readonly model: string; readonly family: HumanFamily; readonly do: HumanDo; readonly who: string; readonly options: HumanOptions; readonly choice: { readonly by: 'named' | 'usual' }; readonly reason: string; readonly plan: HumanPlan; readonly checks: readonly string[] }
+export interface HumanMove { readonly model: string; readonly family: HumanFamily; readonly do: HumanDo; readonly who: string; readonly options: HumanOptions; readonly choice: { readonly by: 'named' | 'usual' }; readonly reason: string; readonly plan: HumanPlan; readonly checks: readonly string[]; readonly wrappers?: readonly WrapperName[] }
 export function planMove(intent: HumanIntent, settings?: (HumanSettings & { readonly frame?: HumanPoint }) | null): HumanMove;
 export function sampleMove(move: HumanMove, t: number, settings?: HumanSettings | null): HumanSample;
 export function sampleTrack(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): HumanTrack;
+
+// ── wrappers ───────────────────────────────────────────────────────────────────────────────────────────────
+
+export type WrapperName = 'anticipate' | 'follow-through' | 'hold' | 'overshoot';
+/** A wrapped plan: the inner plan unchanged, the wrapper's name and numbers, its seconds the inner's plus what it adds. */
+export type WrappedPlan = HumanPlan & { readonly wrapper: WrapperName; readonly inner: HumanPlan; readonly pushes: number } & (
+  | { readonly wrapper: 'anticipate' | 'follow-through'; readonly share: number; readonly by: number | null }
+  | { readonly wrapper: 'hold'; readonly at: number; readonly held: number }
+  | { readonly wrapper: 'overshoot'; readonly share: number; readonly by: number | null; readonly feel: SpringFeel; readonly tail: number });
+/** A pull back opposite the first direction of travel, released into the move: adds share × its seconds before it. */
+export function anticipate(move: HumanMove, options?: { readonly share?: number; readonly by?: number | null }): HumanMove;
+/** Carries on past the end and swings back: adds share × its seconds after it. */
+export function followThrough(move: HumanMove, options?: { readonly share?: number; readonly by?: number | null }): HumanMove;
+/** Still for `seconds` at the move's time `at`. */
+export function hold(move: HumanMove, options: { readonly at: number; readonly seconds: number }): HumanMove;
+/** Arrives `by` px past the end, then settles back on the spring `feel`: adds settleSeconds(feel). */
+export function overshoot(move: HumanMove, options?: { readonly by?: number | null; readonly share?: number; readonly feel?: SpringFeel }): HumanMove;
+/** The plan the model made, under every wrapper. */
+export function basePlan(plan: HumanPlan): HumanPlan;
+export function isWrapped(plan: unknown): plan is WrappedPlan;
+export const BY_SHARE: number;
+export const MIN_TRAVEL: number;
+export const MOST_WRAPPERS: number;
+export const WRAPPER_NAMES: readonly WrapperName[];
 
 // ── critics ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -152,5 +236,9 @@ export const FINDING_LEVELS: readonly ('warn' | 'note')[];
 export const JERK_PEAK_SHARE: number;
 export const ARC_LEAST: number;
 export const PEN_SPEED_MOST: number;
+/** The least variation of a fall's speed that reads as falling (5%), the most a squash may change the area (10%), the deepest a body may go into something solid (0.5 px). */
+export const SPACING_LEAST: number;
+export const VOLUME_MOST: number;
+export const CONTACT_MOST: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }
 export function checkMove(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): { readonly measures: Readonly<Record<string, number | null>>; readonly bases: Readonly<Record<string, HumanBasis | null>>; readonly findings: readonly HumanFinding[] };

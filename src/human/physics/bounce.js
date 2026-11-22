@@ -12,7 +12,7 @@
  * the rest point to the bit and a wrapper keeps it.
  */
 import { flightAt, fallSeconds } from './flight.js';
-import { MOST_SECONDS } from './read.js';
+import { MOST_PHYSICS_SECONDS } from './step.js';
 
 /** A bounce lower than this (px) is not drawn: it rests. At most MOST_BOUNCES bounces. */
 export const MIN_BOUNCE = 1;
@@ -33,7 +33,7 @@ export function bounces(from, velocity, { floor, gravity: g, restitution: e, kee
     impacts.push(Object.freeze({ at, speed: Math.hypot(v[0], down) }));
     const up = e * down, next = (2 * up) / g;
     // a bounce lower than MIN_BOUNCE, past the count, or past the longest plan: it rests where it landed
-    if ((up * up) / (2 * g) < MIN_BOUNCE || segments.length >= MOST_BOUNCES + 1 || at + next > MOST_SECONDS) {
+    if ((up * up) / (2 * g) < MIN_BOUNCE || segments.length >= MOST_BOUNCES + 1 || at + next > MOST_PHYSICS_SECONDS) {
       return Object.freeze({ segments: Object.freeze(segments), impacts: Object.freeze(impacts), rest: Object.freeze(land), duration: at });
     }
     start = land; v = [v[0] * keep, -up]; seconds = next;

@@ -11,7 +11,7 @@
  * textbook formula exactly. WHY the usual apex is a quarter of the distance across: for two ends at one height that
  * is a 45° launch, the angle that reaches furthest for a given speed — the throw a person makes without aiming high.
  */
-import { refuse } from './read.js';
+import { refuse } from '../read.js';
 
 /** The usual apex: a quarter of the distance across (a 45° throw for level ends), at least MIN_APEX px. */
 export const APEX_SHARE = 0.25;
@@ -30,7 +30,7 @@ export const headingAt = (velocity, g, t) => Math.atan2(velocity[1] + g * t, vel
  * both; neither gives the usual apex. Gives {velocity, seconds}.
  */
 export function launch(from, to, { apex, seconds, gravity: g }, who = 'the entry') {
-  if (apex !== undefined && seconds !== undefined) refuse(`${who}: its throw takes apex (how high) or seconds (how long), not both — drop one`);
+  if (apex !== undefined && seconds !== undefined) refuse(`${who}'s throw takes apex (how high) or seconds (how long), not both — drop one`);
   const dx = to[0] - from[0];
   if (seconds !== undefined) {
     // y₁ = y₀ + v_y T + ½gT²  ⇒  v_y = (y₁ − y₀ − ½gT²) / T
@@ -39,7 +39,7 @@ export function launch(from, to, { apex, seconds, gravity: g }, who = 'the entry
   const high = Math.min(from[1], to[1]) - (apex ?? Math.max(MIN_APEX, APEX_SHARE * Math.abs(dx)));
   // up from the start to the apex (v_y = −√(2g·rise)), then down from it to the end (t = √(2·drop/g))
   const up = Math.sqrt(2 * (from[1] - high) / g), down = Math.sqrt(2 * (to[1] - high) / g), total = up + down;
-  if (!(total > 0)) refuse(`${who}: its throw has no time in the air — apex 0 with both ends at one height would need an endless speed: give an apex above 0, or seconds`);
+  if (!(total > 0)) refuse(`${who}'s throw has no time in the air — apex 0 with both ends at one height would need an endless speed: give an apex above 0, or seconds`);
   return { velocity: [dx / total, -g * up], seconds: total };
 }
 

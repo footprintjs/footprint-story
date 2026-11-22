@@ -15,7 +15,7 @@
 | Centripetal knots | `paths/catmullRom.js` (alpha 0.5) | C. Yuksel, S. Schaefer, J. Keyser, "Parameterization and Applications of Catmull–Rom Curves", *Computer-Aided Design* 43 (7), 2011 | knots spaced by the square root of the distance: no cusp and no loop within a stretch; the test case of a short stretch between long ones |
 | Curvature from three points | `paths/curvature.js` | K. Menger, "Untersuchungen über allgemeine Metrik", *Mathematische Annalen* 103, 1930 | 1 over the radius of the circle through three points: 4 · area / the product of the sides |
 | Value noise | `laws/tremor.js` | the lattice noise that K. Perlin's gradient noise refined ("An Image Synthesizer", SIGGRAPH 1985) | a seeded number at each step of a lattice, eased between (smoothstep) |
-| Seeded numbers | `seed.js` | G. Fowler, L. C. Noll, K.-P. Vo, the FNV-1a hash; T. Ettinger's mulberry32 (public domain) | the same rule the isometric styles keep (`src/isometric/style.js` · `seeded`) |
+| Seeded numbers | `src/seed/seeded.js` (shared) | G. Fowler, L. C. Noll, K.-P. Vo, the FNV-1a hash; T. Ettinger's mulberry32 (public domain) | one leaf for this door and the isometric styles |
 | Arcs | `critics/arc.js` | F. Thomas, O. Johnston, *The Illusion of Life: Disney Animation*, Abbeville Press, 1981 | that a living thing moves on arcs, and a straight slide reads as mechanical |
 
 **Ours:** every default not in a row above — Fitts's a (0.1 s), b (0.2 s a bit) and the usual target (40 px); the power law's floor

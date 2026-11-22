@@ -21,7 +21,7 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
 | `models/` | the model interface and registry (`registry.js`), this package's three models, and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
 | `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, and `checkMove` (`check.js`) |
-| `read.js`, `plain.js`, `seed.js`, `names.js` | reading what a caller hands in; plain frozen data checked; seeded numbers; the strategies' names |
+| `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
 
 ## The laws
@@ -86,7 +86,7 @@ sampleMove(move, t, { models: [chalk] });
 ```
 
 The model's `random()` is seeded from its name, its options, the piece's `name` and the intent's shape (FNV-1a, then
-mulberry32, as the isometric styles do) — never from `who` (moving an entry in its list keeps its wobble) nor the
+mulberry32: `src/seed/seeded.js`, the one leaf the isometric styles use too) — never from `who` (moving an entry in its list keeps its wobble) nor the
 timing keys `seconds` and `speed` (a slower draw keeps its wobble's shape): `UNSEEDED_KEYS`. The same entry wobbles
 the same way, another piece another way. A model's plan and
 samples are checked as plain data (`plain.js`); what its own code throws comes out as it is.

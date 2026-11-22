@@ -7,7 +7,7 @@ import { minJerk, minJerkSpeed, minJerkAccel, MIN_JERK_PEAK, FITTS, fittsIndex, 
   SIGMA_LOGNORMAL, lognormalShare, lognormalSpeed, strokeEnd, strokeOffset, strokeBetween, sigmaLognormalAt, TREMOR, tremorKnots, tremorAt, curvatures } from '../human.js';
 import { erf } from '../src/human/laws/sigmaLognormal.js';
 import { rampShare } from '../src/human/laws/powerLaw.js';
-import { seeded } from '../src/human/seed.js';
+import { seeded } from '../src/seed/seeded.js';
 
 const close = (a, b, eps, what) => assert.ok(Math.abs(a - b) <= eps, `${what}: ${a} is not within ${eps} of ${b}`);
 

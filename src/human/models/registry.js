@@ -3,7 +3,8 @@
  *
  *   { family, name, options: [names], check(options)?, plan(intent, context) → plan, sample(plan, t) → {x, y, …}, checks: [critic names] }
  *
- * `family` is the kind of move it serves; `name` is lower case, a tool's own under its prefix (`reel:chalk-pen`);
+ * `family` is the kind of move it serves, or a list of them (0.27.0: a ballistic flight is a throw and a fall alike —
+ * one strategy, one name, never two copies under two names); `name` is lower case, a tool's own under its prefix (`reel:chalk-pen`);
  * `options` the names an intent may write under `model: {name, …}`, and `check` refuses a value it cannot take, once,
  * when the move is planned; `plan` gives plain data with `seconds`; `sample` is pure; `checks` names the critics that
  * measure what it made. WHY strategies by name, never a function handed in per call: the record names the one used.
@@ -17,7 +18,9 @@ import { criticsWith, holdsStill } from '../critics/registry.js';
 export const HUMAN_FAMILIES = Object.freeze(['reach', 'pen', 'letter', 'settle', 'fall', 'throw', 'hang']);
 export const HUMAN_DOS = Object.freeze({ reach: 'reach', draw: 'pen', write: 'letter', settle: 'settle', fall: 'fall', throw: 'throw', hang: 'hang' });
 /** The names of this package's models, by family; and the one each family uses when an intent names none. */
-export const HUMAN_MODELS = Object.freeze(Object.fromEntries(HUMAN_FAMILIES.map((f) => [f, Object.freeze(BUILT_IN_MODELS.filter((m) => m.family === f).map((m) => m.name))])));
+/** The families a model serves: its `family`, one or a list. */
+export const familiesOf = (m) => (Array.isArray(m.family) ? m.family : [m.family]);
+export const HUMAN_MODELS = Object.freeze(Object.fromEntries(HUMAN_FAMILIES.map((f) => [f, Object.freeze(BUILT_IN_MODELS.filter((m) => familiesOf(m).includes(f)).map((m) => m.name))])));
 export { USUAL_MODELS };
 const cache = new WeakMap(), NONE = Object.freeze([]);
 
@@ -32,12 +35,13 @@ export function readModel(m, what, own = true) {
   if (!isRecord(m)) refuse(`${what} is a model {family, name, options, plan, sample, checks} — not ${shown(m)}`);
   const get = (k) => stored(m, k, `${what}'s ${k}`);
   const family = get('family'), name = get('name'), plan = get('plan'), sample = get('sample'), check = get('check') ?? null;
-  if (!HUMAN_FAMILIES.includes(family)) refuse(`${what}'s family is one of ${HUMAN_FAMILIES.join(', ')} — not ${shown(family)}`);
+  const listed = Array.isArray(family) ? names(family, `${what}'s family`, /^[a-z]+$/, HUMAN_FAMILIES.length) : [family];
+  if (!listed.length || !listed.every((f) => HUMAN_FAMILIES.includes(f)) || new Set(listed).size !== listed.length) refuse(`${what}'s family is one of ${HUMAN_FAMILIES.join(', ')}, or a list of them (each once) — not ${shown(family)}`);
   if (typeof name !== 'string' || !(own ? OWN_NAME : BUILT_IN_NAME).test(name)) refuse(own ? `${what}'s name is the tool's prefix and a name, lower case ("reel:chalk-pen"): a name with no prefix is this package's — not ${shown(name)}` : `${what}'s name is lower case — not ${shown(name)}`);
   if (typeof plan !== 'function' || typeof sample !== 'function') refuse(`${what} (${name}) gives plan(intent, context) and sample(plan, t) — not ${shown(typeof plan === 'function' ? sample : plan)}`);
   if (check !== null && typeof check !== 'function') refuse(`${what} (${name})'s check is a function (options) that refuses what it cannot take, or none — not ${shown(check)}`);
   const options = names(get('options') ?? [], `${what} (${name})'s options`, BUILT_IN_NAME), checks = names(get('checks') ?? [], `${what} (${name})'s checks`, /^[a-z][a-z0-9:-]{0,48}$/);
-  return Object.freeze({ family, name, options, check, plan, sample, checks });
+  return Object.freeze({ family: Array.isArray(family) ? listed : family, name, options, check, plan, sample, checks });
 }
 
 /** Every model there is with a tool's own (a list, or none), and the critics they may name: {all, byName, critics}. */
@@ -66,7 +70,7 @@ export function chooseModel(models, family, named, doWord) {
   if (named !== undefined) {
     const m = models.byName.get(named);
     if (!m) refuse(`there is no model ${shown(named)} — the models are ${[...models.byName.keys()].map((k) => `"${k}"`).join(', ')} (a tool's own goes in planMove's models)`);
-    if (m.family !== family) refuse(`the model "${named}" is for a ${m.family}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => x.family === family).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
+    if (!familiesOf(m).includes(family)) refuse(`the model "${named}" is for a ${familiesOf(m).join(' or a ')}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => familiesOf(x).includes(family)).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
     return { model: m, how: 'named by the intent', by: 'named' };
   }
   const usual = USUAL_MODELS[family];

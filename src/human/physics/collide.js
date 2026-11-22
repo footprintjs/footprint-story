@@ -1,7 +1,7 @@
 /**
  * Simple collisions: a floor line (y down, so "below the floor" is a larger y) and axis-aligned boxes {x, y, w, h}.
  *
- *   makeWorld({ floor: 900, boxes: [{ x: 100, y: 700, w: 200, h: 200 }] }, who)   → { floor, boxes }, checked
+ *   makeWorld({ floor: 900, boxes: [{ x: 100, y: 700, w: 200, h: 200 }] })   → { floor, boxes }, checked (readWorld: an intent's)
  *   collide(points, world, from = 1)                                               → the same points, pushed out
  *   depthIn(x, y, world, radius)                                                   → how far (px) a point is inside
  *
@@ -10,33 +10,42 @@
  * never inside another (their insides do not meet), and a box push never moves a point below the floor — so after a
  * step no point is inside anything, which the tests check after every step.
  */
-import { list, num, readKeys, refuse, shown, stored } from './read.js';
+import { refuse, shown, stored, isRecord, readNumber } from '../read.js';
 
 export const MOST_BOXES = 32;
 
 const inside = (x, y, b) => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h;
 
-/** The world an intent names: `floor` (a y, or none) and `boxes` (each {x, y, w, h}, w and h above 0). */
-export function readWorld(get, who) {
-  const floor = get('floor') === undefined || get('floor') === null ? null : num(get('floor'), { who, key: 'floor', unit: ' (the floor\'s y, px)' });
-  const raw = get('boxes') ?? [];
-  const boxes = list(raw, MOST_BOXES, who, 'boxes', '{x, y, w, h} boxes').map((b, i) => {
-    const key = `boxes[${i}]`;
-    if (!b || typeof b !== 'object' || Array.isArray(b)) refuse(`${who}: its ${key} is a box {x, y, w, h} — not ${shown(b)}`);
-    const v = (k, lo, open) => num(stored(b, k, `${who}: its ${key}.${k}`), { who, key: `${key}.${k}`, lo, open, unit: ' px' });
-    const box = Object.freeze({ x: v('x'), y: v('y'), w: v('w', 0, 'lo'), h: v('h', 0, 'lo') });
-    if (floor !== null && box.y + box.h > floor) refuse(`${who}: its ${key} reaches below the floor (its foot at y ${box.y + box.h}, the floor at ${floor}) — stand it on the floor: y ${floor - box.h}`);
+/**
+ * The world an intent names, checked: `floor` (a y, or none) and `boxes` (each {x, y, w, h}, w and h above 0, none
+ * overlapping another, none reaching below the floor). `o` is the intent (or any object with those keys).
+ */
+export function readWorld(o, who) {
+  const rawFloor = stored(o, 'floor', `${who}'s floor`);
+  const floor = rawFloor === undefined || rawFloor === null ? null : readNumber(o, 'floor', who);
+  const raw = stored(o, 'boxes', `${who}'s boxes`) ?? [];
+  if (!Array.isArray(raw) || raw.length > MOST_BOXES) refuse(`${who}'s boxes are a list of at most ${MOST_BOXES} boxes {x, y, w, h} — not ${shown(raw)}`);
+  const boxes = Array.from({ length: raw.length }, (_, i) => {
+    const key = `${who}'s boxes[${i}]`, b = Object.hasOwn(raw, i) ? stored(raw, i, key) : undefined;
+    if (!isRecord(b)) refuse(`${key} is a box {x, y, w, h} (a hole or a getter is never read) — not ${shown(b)}`);
+    for (const k of Object.keys(b)) if (!['x', 'y', 'w', 'h'].includes(k)) refuse(`${key} takes x, y, w, h — not ${shown(k)}`);
+    const box = Object.freeze({ x: readNumber(b, 'x', key), y: readNumber(b, 'y', key), w: readNumber(b, 'w', key, { lo: 0, above: true }), h: readNumber(b, 'h', key, { lo: 0, above: true }) });
+    if (floor !== null && box.y + box.h > floor) refuse(`${key} reaches below the floor (its foot at y ${box.y + box.h}, the floor at ${floor}) — stand it on the floor: y ${floor - box.h}`);
     return box;
   });
   for (let i = 0; i < boxes.length; i += 1) for (let j = i + 1; j < boxes.length; j += 1) {
     const a = boxes[i], b = boxes[j];
-    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) refuse(`${who}: its boxes[${i}] and boxes[${j}] overlap — boxes may touch but not overlap: make them one box`);
+    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) refuse(`${who}'s boxes[${i}] and boxes[${j}] overlap — boxes may touch but not overlap: make them one box`);
   }
   return Object.freeze({ floor, boxes: Object.freeze(boxes) });
 }
 
 /** A world from plain data {floor, boxes}, checked as an intent's are: what pushOut, collide and depthIn take. */
-export const makeWorld = (o, who = 'the world') => readWorld(readKeys(o, ['floor', 'boxes'], who, 'its world'), who);
+export function makeWorld(o, who = 'the world') {
+  if (!isRecord(o)) refuse(`${who} is {floor, boxes} — not ${shown(o)}`);
+  for (const k of Object.keys(o)) if (k !== 'floor' && k !== 'boxes') refuse(`${who} takes floor, boxes — not ${shown(k)}`);
+  return readWorld(o, who);
+}
 
 /** The point pushed out of the world: up onto the floor, then out of a box by its nearest side. A new [x, y]. */
 export function pushOut(x, y, world) {

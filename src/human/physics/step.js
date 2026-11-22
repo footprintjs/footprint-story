@@ -1,7 +1,7 @@
 /**
- * The fixed step: every simulation here moves in steps of STEP seconds, counted, never timed by a clock.
+ * The fixed step: every simulation here moves in steps of PHYSICS_STEP seconds, counted, never timed by a clock.
  *
- *   verletStep(now, before, [0, GRAVITY], STEP, keep)   → the next positions, flat [x0, y0, x1, y1, …]
+ *   verletStep(now, before, [0, GRAVITY], PHYSICS_STEP, keep)   → the next positions, flat [x0, y0, x1, y1, …]
  *   simulate(start, advance, { steps, every })           → frames: a frozen flat list of positions every `every` steps
  *
  * WHY a fixed step: the same input gives the same frames on any machine at any frame rate, so a deck and a film agree
@@ -11,10 +11,12 @@
  */
 
 /** The step (s): 240 a second, four steps to each frame kept at 60 a second. */
-export const STEP = 1 / 240;
-export const EVERY = 4;
+export const PHYSICS_STEP = 1 / 240;
+export const STEPS_PER_FRAME = 4;
 /** Gravity on the frame (px/s², y down): 9.8 m/s² at 200 px to the metre. */
 export const GRAVITY = 1960;
+/** The longest a physics plan may run (s): its frames are kept, so it is bounded far below a move's MOST_SECONDS. */
+export const MOST_PHYSICS_SECONDS = 30;
 
 /**
  * One position-Verlet step for every point, flat [x, y, …]. `keep` is the share of each point's velocity kept over the
@@ -34,7 +36,7 @@ export function verletStep(now, before, accel, dt, keep = 1) {
  * kept frames are evenly spaced) and keep `state.points` every `every` steps, the start included. `stop(state, n)`
  * may end the run early, on a kept frame. Gives {frames, steps}: frames frozen.
  */
-export function simulate(start, advance, { steps, every = EVERY, stop = null }) {
+export function simulate(start, advance, { steps, every = STEPS_PER_FRAME, stop = null }) {
   const frames = [Object.freeze([...start.points])], total = Math.ceil(steps / every) * every;
   let state = start, n = 0;
   while (n < total) {

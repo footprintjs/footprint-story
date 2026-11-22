@@ -10,7 +10,7 @@
  * fast it is drawn.
  *
  * Our defaults (TREMOR): amplitude 0.8 px, wavelength 24 px — a wobble a viewer feels more than sees. The seed is the
- * caller's random() (src/human/seed.js · seeded), made from the entry, so the same entry wobbles the same way.
+ * caller's random() (src/seed/seeded.js · seeded), made from the entry, so the same entry wobbles the same way.
  */
 import { refuse, shown, finite } from '../read.js';
 
