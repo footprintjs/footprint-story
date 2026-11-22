@@ -29,9 +29,10 @@
  *
  * And one for the named look "duotone" (0.35.0; duotone.js):
  *
- *   palette duotone two inks on paper: every line the ink, every fill a tint of the accent on the paper, as dark as the
- *                   fill it replaces (options `ink`, `accent`, `paper`; DUOTONE). Refused when a name in the ink would
- *                   stand under 4.5 : 1 on a tint it can give.
+ *   palette duotone two inks on paper: every line the ink, every fill with a colour a tint of the accent on the paper,
+ *                   as dark as the fill it replaces; a fill the page colours (a tool's ok / warn / bad) is left to it
+ *                   (options `ink`, `accent`, `paper`; DUOTONE). Refused when a name in the ink would stand under
+ *                   4.5 : 1 on a tint it can give.
  */
 import { mixColour, readColour } from './paint.js';
 import { roundOutline } from './outline.js';

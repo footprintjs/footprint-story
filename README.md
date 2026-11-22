@@ -525,7 +525,8 @@ fill and a stroke, which each tool paints (StoryReel on a canvas, StoryDeck as S
 lighter inner lines) or `{look: 'line-art'}` (paper-white faces, ink lines only: silhouette 3 px, folds 1.25 px, the
 tile lines faintest); a column written beside a look replaces its entry. Two more (0.35.0): `{look: 'paper-grain'}`
 (a fine, faint, seeded grain over every face, footprint-story/human's `grainTexture` handed in) and `{look: 'duotone'}`
-(two inks: every line the ink, every fill a tint of the accent, a name in the ink at 4.5 : 1 or more on every tint). A tool adds its own choice under its own
+(two inks: every line the ink, every fill with a colour a tint of the accent, a name in the ink at 4.5 : 1 or more on
+every tint; a fill the page colours — a tool's ok / warn / bad — is left to the page). A tool adds its own choice under its own
 prefix (`'reel:chalk'`); the style is plain data, so a run's record says which choices (and which look) drew a map.
 
 ```js

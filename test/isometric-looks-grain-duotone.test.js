@@ -29,9 +29,9 @@ test('the two looks are rows: paper-grain is the texture "human:grain", duotone 
   assert.deepEqual(ISO_LOOKS.duotone, { palette: 'duotone' });
   assert.deepEqual(HUMAN_STYLE_CHOICES, [sketchyLine, hatchTexture, grainTexture]);
   assert.ok(Object.isFrozen(HUMAN_STYLE_CHOICES));
-  assert.deepEqual(GRAIN, { spacing: 16, sets: 3, mark: [1, 3], gap: [12, 36], width: 0.75, alpha: 0.22, least: { spacing: 4, width: 0.25, alpha: 0.02 }, most: { spacing: 200, width: 4, alpha: 1 } });
+  assert.deepEqual(GRAIN, { spacing: 16, sets: 3, mark: [1, 3], gap: [12, 36], width: 0.75, alpha: 0.22, cap: 2048, wider: 1.25, least: { spacing: 4, width: 0.25, alpha: 0.02 }, most: { spacing: 200, width: 4, alpha: 1 } });
   assert.equal(MOST_GRAIN_MARKS, MOST_PAINT_POINTS, 'a face\'s grain fits one item');
-  assert.deepEqual(DUOTONE, { ink: '#22304a', accent: '#e07b39', paper: '#ffffff', most: 0.6, neutral: '#d9d9d9', text: 4.5 });
+  assert.deepEqual(DUOTONE, { ink: '#22304a', accent: '#e07b39', paper: '#ffffff', most: 0.6, text: 4.5 });
   assert.deepEqual(grainTexture.unseeded, [], 'a grain is printed, not drawn: nothing of it is timing');
 });
 
@@ -86,13 +86,12 @@ test('for any piece on any grid: the faces are the usual ones, every mark lies i
   const usual = isoStyle();
   fc.assert(fc.property(anyGrid, anyPiece, fc.boolean(), (g, p, coloured) => {
     const piece = { name: 'p', ...p }, cs = coloured ? colours : undefined, was = paintPiece(usual, piece, g, cs);
-    let now;
-    try { now = paintPiece(grained, piece, g, cs); } catch (e) { assert.match(e.message, /too big for its grain at 16 px .* — (give a wider spacing: texture: \{name: 'human:grain', spacing: \d+\}|no spacing up to 200 px fits it)/); return; }
+    const now = paintPiece(grained, piece, g, cs);   // never refused: a big face is thinned
     assert.deepStrictEqual([now.box, now.centre, now.outline], [was.box, was.centre, was.outline]);
     assert.deepStrictEqual(now.items.slice(0, was.items.length), was.items);
     const faces = was.items.filter((it) => SOLID.includes(it.role)).map((it) => ringOf(it));
     const grain = now.items.slice(was.items.length);
-    assert.ok(grain.every((it) => it.item === 'lines' && it.role === 'grain' && it.segments.length > 0 && it.segments.length <= MOST_GRAIN_MARKS));
+    assert.ok(grain.every((it) => it.item === 'lines' && ['grain', 'grain-thinned'].includes(it.role) && it.segments.length > 0 && it.segments.length <= MOST_GRAIN_MARKS));
     assert.ok(grain.length <= faces.length);
     // which face a grain item is: the faces with room, in order — each mark within it, out of the later ones
     let f = 0;
@@ -102,10 +101,29 @@ test('for any piece on any grid: the faces are the usual ones, every mark lies i
       f += 1;
     }
     assert.deepStrictEqual(paintPiece(grained, piece, g, cs), now);
+    // the duotone moves nothing either, on every kind of piece: the same items, points, box, centre and outline
+    const duo = paintPiece(isoStyle({ look: 'duotone' }), piece, g, cs);
+    assert.deepStrictEqual([duo.box, duo.centre, duo.outline], [was.box, was.centre, was.outline]);
+    assert.deepStrictEqual(shapeOf(duo.items), shapeOf(was.items));
+    assert.ok(duo.items.every((it) => it.stroke === null || it.stroke.colour === DUOTONE.ink));
   }), { numRuns: RUNS });
 });
 
-test('duotone: every line the ink (its alpha kept), every fill a tint of the accent on the paper, as dark as the fill it replaces', () => {
+test('a big face is thinned, never refused: a 10 × 10 slab fitted to 1920 × 1080 under both policies, its top laid wider and saying so', () => {
+  const spec = { blocks: [{ name: 'slab', size: [10, 10, 1] }], floors: [{ label: 'Hall' }], area: [0, 0, 1920, 1080], style: { look: 'paper-grain' } };
+  for (const policy of [ISO_MAP_POLICIES.film, ISO_MAP_POLICIES.deck]) {
+    const grain = buildIsoMap(spec, policy, { choices }).paints[0].slice(3);
+    assert.deepEqual(grain.map((it) => it.role), ['grain', 'grain', 'grain-thinned'], 'the left and right faces as they are, the top thinned');
+    const top = grain[2].segments.length;
+    assert.ok(top > GRAIN.cap * 0.85 && top < GRAIN.cap * 1.15, `the top's ${top} marks come to about the cap`);
+  }
+  // a face far past any spacing a style could write still gets its grain, thinned
+  const huge = paintPiece(grained, { name: 'hall', kind: 'block', at: [0, 0], size: [4, 4, 1] }, isometric({ tile: 2000, origin: [0, 0] })).items.slice(3);
+  assert.deepEqual(huge.map((it) => it.role), ['grain-thinned', 'grain-thinned', 'grain-thinned']);
+  assert.ok(huge.every((it) => it.segments.length <= MOST_GRAIN_MARKS));
+});
+
+test('duotone: every line the ink (its alpha kept), every fill with a colour a tint of the accent on the paper, as dark as the fill it replaces', () => {
   const style = isoStyle({ look: 'duotone' });
   const b = paintPiece(style, block, grid, colours).items;
   const tint = (c) => ({ mix: [c, 1], colour: c });
@@ -114,8 +132,9 @@ test('duotone: every line the ink (its alpha kept), every fill a tint of the acc
   // the shading's order survives: the lit top lightest, the right face in shadow darkest
   const [left, right, top] = b.map((it) => luminance(it.fill.colour));
   assert.ok(top > left && left > right);
-  // no colours given (both tools build so): still a duotone, every fill with its colour, over the neutral base
-  assert.deepEqual(paintPiece(style, block, grid).items.map((it) => [it.fill.colour, it.stroke.colour]), [['#f3cbb1', '#22304a'], ['#eeb691', '#22304a'], ['#f7dece', '#22304a']]);
+  // no colours given (both tools build so): the faces are the page's, recipe and all — only the lines take the ink
+  const usual = paintPiece(isoStyle(), block, grid).items;
+  assert.deepEqual(paintPiece(style, block, grid).items.map((it) => [it.fill, it.stroke.colour]), usual.map((it) => [it.fill, '#22304a']));
   // the floor: its ground a tint, its tile lines the ink at 16%
   const f = paintPiece(style, floor, grid, colours).items;
   assert.deepEqual(f[1].stroke, { colour: '#22304a', alpha: 0.16, width: 1.5, join: 'miter', cap: 'butt' });
@@ -142,7 +161,7 @@ test('a name reads on every duotone tint at 4.5 : 1 or more — in the duotone\'
   const hex = fc.array(fc.integer({ min: 0, max: 255 }), { minLength: 3, maxLength: 3 }).map((c) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`);
   fc.assert(fc.property(anyGrid, anyPiece, fc.option(hex, { nil: null }), fc.constantFrom('tones', 'paper'), (g, p, base, shading) => {
     const items = paintPiece(isoStyle({ look: 'duotone', shading }), { name: 'p', ...p }, g, { base, ink: '#14181f' }).items;
-    for (const it of items) if (it.fill) assert.ok(contrastRatio(DUOTONE.ink, it.fill.colour) >= DUOTONE.text, `${it.fill.colour} under the ink`);
+    for (const it of items) if (it.fill?.colour) assert.ok(contrastRatio(DUOTONE.ink, it.fill.colour) >= DUOTONE.text, `${it.fill.colour} under the ink`);
   }), { numRuns: RUNS });
   assert.throws(() => isoStyle({ palette: { name: 'duotone', ink: '#888888' } }), /^Error: isometric: the style's palette "duotone": a name in its ink #888888 stands 1\.88 : 1 on its tint #ecb088, and a name on a face needs 4\.5 : 1 — give a darker ink, a lighter accent or a lighter paper$/);
   assert.throws(() => isoStyle({ palette: { name: 'duotone', accent: '#22304a' } }), /stands \d\.\d\d : 1 on its tint #[0-9a-f]{6}, and a name on a face needs 4\.5 : 1/);
@@ -166,11 +185,6 @@ test('bad combinations are refused before anything is drawn, naming the entry an
   assert.throws(() => isoStyle({ texture: { name: 'human:grain', angle: 3 } }, { choices }), /the style's texture "human:grain" takes spacing, width, alpha — not "angle"/);
   for (const bad of ['navy', '#12']) assert.throws(() => isoStyle({ palette: { name: 'duotone', ink: bad } }), /the style's palette "duotone"'s ink is a colour, "#rgb" or "#rrggbb"/);
   assert.throws(() => isoStyle({ palette: { name: 'duotone', tint: 0.5 } }), /the style's palette "duotone" takes ink, accent, paper — not "tint"/);
-  // a face too big for its grain: refused on the piece, naming the spacing that fits
-  const hall = { name: 'hall', kind: 'block', at: [0, 0], size: [4, 4, 1] };
-  assert.throws(() => paintPiece(grained, hall, isometric({ tile: 600, origin: [0, 0] })), /^Error: human: the style's texture "human:grain" on "hall": its top face is too big for its grain at 16 px \(one face's grain holds at most 4096 marks\) — give a wider spacing: texture: \{name: 'human:grain', spacing: 51\}$/);
-  assert.equal(paintPiece(isoStyle({ texture: { name: 'human:grain', spacing: 51 } }, { choices }), hall, isometric({ tile: 600, origin: [0, 0] })).items.length, 6, 'the spacing named fits');
-  assert.throws(() => paintPiece(grained, hall, isometric({ tile: 2000, origin: [0, 0] })), /its left face is too big for its grain at 16 px .* — no spacing up to 200 px fits it: take the grain out \(texture "none"\), or draw the map at a smaller tile$/);
 });
 
 test('the record keeps the look; a record made again is the same style; a built map names its look', () => {
@@ -215,5 +229,30 @@ test('the grain is low contrast: a mark, blended at its alpha, stands under 1.6 
       const ratio = contrastRatio(it.fill.colour, mixColour(it.fill.colour, '#14181f', GRAIN.alpha));
       assert.ok(ratio > 1.3 && ratio < 1.6, `${base} ${it.role}: ${ratio}`);
     }
+  }
+});
+
+/** CIE76 colour difference (ΔE*ab, D65): the distance between two colours in CIELAB. */
+function deltaE(a, b) {
+  const lab = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+    const xyz = [(0.4124 * r + 0.3576 * g + 0.1805 * bl) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * bl, (0.0193 * r + 0.1192 * g + 0.9505 * bl) / 1.08883];
+    const f = xyz.map((t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116));
+    return [116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])];
+  };
+  const x = lab(a), y = lab(b);
+  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+}
+
+test('colour that means something survives the duotone: ok / warn / bad, given at draw time, stay apart (ΔE76 over 10 on every face)', () => {
+  // the tools' status tones: a theme's ok / warn / bad as a pale tint (StoryReel's toneOf: 60% white), given as the base
+  // when the piece is painted — the list holds the recipe, and the duotone must leave it so
+  const tones = { ok: '#2e7d32', warn: '#b26a00', bad: '#c62828' }, base = (c) => mixColour(c, '#ffffff', 0.6);
+  const painted = (items, b) => items.map((it) => (it.fill.colour ?? (it.fill.mix ? mixColour(b, it.fill.mix[0], it.fill.mix[1]) : b)));
+  const style = isoStyle({ look: 'duotone' }), usual = paintPiece(isoStyle(), block, grid).items, duo = paintPiece(style, block, grid).items;
+  assert.deepEqual(duo.map((it) => it.fill), usual.map((it) => it.fill), 'the recipe is kept: the page\'s base reaches every face');
+  const faces = Object.fromEntries(Object.entries(tones).map(([k, c]) => [k, painted(duo, base(c))]));
+  for (const [a, b] of [['ok', 'warn'], ['warn', 'bad'], ['ok', 'bad']]) {
+    faces[a].forEach((c, i) => assert.ok(deltaE(c, faces[b][i]) > 10, `${a} and ${b}, face ${i}: ΔE ${deltaE(c, faces[b][i]).toFixed(1)}`));
   }
 });

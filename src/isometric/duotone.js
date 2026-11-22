@@ -3,15 +3,19 @@
  * the paper. A style choice (palette column, styleChoices.js), named by the look "duotone" (looks.js).
  *
  *   ink     every stroke's colour, its alpha kept (a floor's tile lines stay the ink at 16%)
- *   accent  every fill: the paper mixed toward the accent by how dark the fill it replaces is — its darkness, 1 less
- *           its relative luminance (WCAG) — at most DUOTONE.most of the way (mixColour, the one mix), so the shading's
- *           order survives: a lit top stays lighter than a right face in shadow, and a lighter piece lighter than a
- *           darker one. A fill with no colour (the page's base: both tools build so) is read as its recipe over
- *           DUOTONE.neutral, so a map with no colours given is a duotone too, every piece alike
+ *   accent  every fill with a colour: the paper mixed toward the accent by how dark the fill it replaces is — its
+ *           darkness, 1 less its relative luminance (WCAG) — at most DUOTONE.most of the way (mixColour, the one mix), so
+ *           the shading's order survives: a lit top stays lighter than a right face in shadow, and a lighter piece
+ *           lighter than a darker one. It comes out with its colour (`{mix: [colour, 1], colour}`: whatever the base,
+ *           this colour), as a paper fill does
  *   paper   what a tint is mixed from: a fill as light as white is the paper
  *
- * Every fill comes out with its colour (`{mix: [colour, 1], colour}`: whatever the base, this colour), so a painter
- * that colours by role (StoryDeck's CSS) draws the duotone, as a paper fill carries its colour.
+ * A fill with no colour — its base the page's to decide — is left as it is, its recipe kept. WHY: that is where a tool
+ * puts colour that means something (StoryReel's ok / warn / bad tones, StoryDeck's ok / warn / bad classes and its
+ * theme, both given at draw time), and a duotone that coloured it would make an "ok" piece and a "bad" one alike. So
+ * on a map built with no colours (both tools build so) the duotone prints the lines in its ink and leaves each face's
+ * colour to the page; a tool that wants a face in the duotone's tints gives that piece a base colour, and leaves the
+ * pieces whose colour means something to the page. A test pins that ok / warn / bad stay apart.
  *
  * WHY a check on the inks: a block's name stands on its face (words.js), so a name in the ink must read on every tint
  * the palette can give: at least 4.5 : 1 (WCAG's ratio for small text; StoryReel's review measures words by it,
@@ -29,11 +33,9 @@ import { refuse } from './thing.js';
  *   paper #ffffff     the page's white, as the paper shading's
  *   most 0.6          the deepest tint, 60% of the way to the accent: the accent whole stands 4.4 : 1 under the ink,
  *                     under the 4.5 a name needs; at 0.6 it is 7.0
- *   neutral #d9d9d9   the base a fill with no colour is read over: a light grey, about as light as the tools' usual
- *                     bases, so the faces' tints fall where a coloured map's do
  *   text 4.5          WCAG's least ratio for small text (a name on a face)
  */
-export const DUOTONE = Object.freeze({ ink: '#22304a', accent: '#e07b39', paper: '#ffffff', most: 0.6, neutral: '#d9d9d9', text: 4.5 });
+export const DUOTONE = Object.freeze({ ink: '#22304a', accent: '#e07b39', paper: '#ffffff', most: 0.6, text: 4.5 });
 /** How finely the check walks the tints, paper to deepest: a step of 1% of the way. */
 const STEPS = 100;
 
@@ -69,13 +71,11 @@ export function checkDuotone(options) {
   if (worst.ratio < DUOTONE.text) refuse(`the style's palette "duotone": a name in its ink ${inks.ink} stands ${worst.ratio.toFixed(2)} : 1 on its tint ${worst.tint}, and a name on a face needs ${DUOTONE.text} : 1 — give a darker ink, a lighter accent or a lighter paper`);
 }
 
-/** The fill's colour as it would be drawn: its own, or its recipe over the neutral base when the page decides it. */
-const seenAs = (fill) => fill.colour ?? (fill.mix ? mixColour(DUOTONE.neutral, fill.mix[0], fill.mix[1]) : DUOTONE.neutral);
-
 export function duotone(items, { options }) {
   const inks = inksOf(options);
   return items.map((it) => {
-    const fill = it.fill === null ? null : (() => { const colour = tintOf(inks, 1 - luminance(seenAs(it.fill))); return { mix: [colour, 1], colour }; })();
+    // a fill whose colour the page decides is the page's: kept, recipe and all (the colour that means something lives there)
+    const fill = it.fill === null || it.fill.colour === null ? it.fill : (() => { const colour = tintOf(inks, 1 - luminance(it.fill.colour)); return { mix: [colour, 1], colour }; })();
     return { ...it, fill, stroke: it.stroke === null ? null : { ...it.stroke, colour: inks.ink } };
   });
 }

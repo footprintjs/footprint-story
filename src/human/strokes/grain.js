@@ -16,9 +16,11 @@
  * not `stroke` items: a mark is a printed fleck, not a pen's line — it has no pace and no taper — and one item a face
  * keeps a piece's list short (a block: 3 items more). Both tools' stroke budgets count `stroke` items: a grain adds none.
  *
- * Refused: a spacing, width or alpha out of range (once, when the style is made); a face whose grain would pass
- * MOST_GRAIN_MARKS (an item's most segments), naming a spacing that fits about four fifths of it; a palette "duotone" (the texture runs after
- * the palette, so its marks would print in the map's ink, a third ink beside the duotone's two).
+ * A big face is never refused: its grain is thinned — laid at a wider spacing, so its marks come to about GRAIN.cap —
+ * and its item's role says so (`grain-thinned`), so a list, and a tool's build note, can tell. Refused: a spacing,
+ * width or alpha out of range (once, when the style is made); a palette "duotone" (the texture runs after the palette,
+ * so its marks would print in the map's ink, a third ink beside the duotone's two). No face is ever too big or too
+ * small to refuse: a face too small for a mark gets none, and the piece's other faces carry the grain.
  */
 import { refuse, shown, finite } from '../read.js';
 import { hatchLines, MOST_HATCH_LINES } from './fills.js';
@@ -36,10 +38,15 @@ const SOLID = new Set(['top', 'left', 'right', 'side']);
  *                 140 px² of a face, so the grain shows as a texture, not as noise — and a 64-block world at a film's
  *                 tile (96 px) lays about 13,000 marks, 0.33 MB written as SVG path data (a test pins it under 2 MB)
  *   width 0.75    px: under the thinnest line a map draws (the folds' 1.25 in line art), so it never reads as an edge
+ *   cap 2048      marks on one face at most, about: half an item's most (MOST_GRAIN_MARKS), so the seeded spread of a
+ *                 face's count never reaches it; a face bigger than about 284,000 px² is thinned to it, evenly (a
+ *                 10 × 10 slab fitted to 1920 × 1080: its top, about 578,000 px², is laid at about twice the spacing)
+ *                 — the grain gets sparser there, and never refuses a map
+ *   wider 1.25    how much wider a face's spacing is laid again if its seeded count still passes the most (rare)
  *   alpha 0.22    of the ink: low contrast — a mark, as a painter blends it, stands about 1.5 : 1 against the face it
  *                 lies on (under 1.6 on today's tones: a test pins it), where a name needs 4.5
  */
-export const GRAIN = Object.freeze({ spacing: 16, sets: 3, mark: Object.freeze([1, 3]), gap: Object.freeze([12, 36]), width: 0.75, alpha: 0.22,
+export const GRAIN = Object.freeze({ spacing: 16, sets: 3, mark: Object.freeze([1, 3]), gap: Object.freeze([12, 36]), width: 0.75, alpha: 0.22, cap: 2048, wider: 1.25,
   least: Object.freeze({ spacing: 4, width: 0.25, alpha: 0.02 }), most: Object.freeze({ spacing: 200, width: 4, alpha: 1 }) });
 /** The most marks one face's grain item holds: the isometric MOST_PAINT_POINTS (an item's most segments; a test pins the two equal). */
 export const MOST_GRAIN_MARKS = 4096;
@@ -54,19 +61,26 @@ function checkGrain(options) {
   }
 }
 
-/** How far across a ring reaches at `angle` (degrees): what hatchLines spaces its lines over. */
-function spanAt(ring, angle) {
-  const rad = (angle * Math.PI) / 180, n = [-Math.sin(rad), Math.cos(rad)], across = ring.map((p) => p[0] * n[0] + p[1] * n[1]);
-  return Math.max(...across) - Math.min(...across);
+/** The mean length of a mark and the gap after it, px: what one mark costs along a line. */
+const PERIOD = (GRAIN.mark[0] + GRAIN.mark[1] + GRAIN.gap[0] + GRAIN.gap[1]) / 2;
+
+/**
+ * The spacing a face's grain is laid at: the style's, or wider when the face is big — so that its marks come to about
+ * GRAIN.cap (they go as area · sets / (spacing · PERIOD)), and its lines across stay under hatchLines' most (a span is
+ * at most the box's diagonal). Decided from the face alone, before a number is drawn, so a face that is not thinned is
+ * seeded as it would be with no cap.
+ */
+function spacingFor(ring, spacing) {
+  const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+  const diagonal = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  return Math.max(spacing, (area(ring) * GRAIN.sets) / (PERIOD * GRAIN.cap), diagonal / MOST_HATCH_LINES);
 }
 
-/** One face's marks: GRAIN.sets sets of lines at seeded angles, each line broken into seeded marks and gaps. */
+/** One face's marks at a spacing: GRAIN.sets sets of lines at seeded angles, each broken into seeded marks and gaps; null past MOST_GRAIN_MARKS. */
 function marksIn(ring, holes, spacing, random) {
   const out = [];
   for (let s = 0; s < GRAIN.sets; s += 1) {
     const angle = random() * 180;
-    // past hatchLines' most lines, the marks would pass an item's most long before: said with the grain's own fix
-    if (spanAt(ring, angle) / spacing > MOST_HATCH_LINES) return null;
     for (const { a, b } of hatchLines(ring, { angle, spacing, holes }).segments) {
       const length = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / length, uy = (b[1] - a[1]) / length;
       for (let t = between(random, [0, GRAIN.gap[1]]); t < length; ) {
@@ -80,17 +94,6 @@ function marksIn(ring, holes, spacing, random) {
   return out;
 }
 
-/**
- * A spacing that lays about four fifths of MOST_GRAIN_MARKS on the piece's biggest face, from its area: the marks go as area · sets /
- * (spacing · (a mark + a gap)), each at its mean. Seeded, so an estimate with room, never a promise; at least one more
- * than the spacing refused, and null when even GRAIN's widest would not do.
- */
-function fitting(faces, spacing) {
-  const most = Math.max(...faces.map((f) => area(f.ring))), period = (GRAIN.mark[0] + GRAIN.mark[1] + GRAIN.gap[0] + GRAIN.gap[1]) / 2;
-  const fit = Math.max(spacing + 1, Math.ceil((most * GRAIN.sets) / (period * MOST_GRAIN_MARKS * 0.8)));
-  return fit > GRAIN.most.spacing ? null : fit;
-}
-
 function grain(items, { piece, colours, options, random }) {
   const faces = items.map((it, index) => ({ it, index, ring: SOLID.has(it.role) ? ringOf(it) : [] })).filter((f) => f.ring.length >= 3 && area(f.ring) > 1e-9);
   const spacing = options.spacing ?? GRAIN.spacing, stroke = { colour: colours.ink, alpha: options.alpha ?? GRAIN.alpha, width: options.width ?? GRAIN.width, join: 'round', cap: 'round' };
@@ -98,12 +101,11 @@ function grain(items, { piece, colours, options, random }) {
   for (const f of faces) {
     // kept out of every face painted after it: a later face covers what is under it (as the hatch is)
     const holes = faces.filter((g) => g.index > f.index).slice(0, 16).map((g) => g.ring);
-    const segments = marksIn(f.ring, holes, spacing, random);
-    if (segments === null) {
-      const fit = fitting(faces, spacing);
-      refuse(`the style's texture "human:grain" on "${piece.name}": its ${f.it.role} face is too big for its grain at ${spacing} px (one face's grain holds at most ${MOST_GRAIN_MARKS} marks) — ${fit === null ? `no spacing up to ${GRAIN.most.spacing} px fits it: take the grain out (texture "none"), or draw the map at a smaller tile` : `give a wider spacing: texture: {name: 'human:grain', spacing: ${fit}}`}`);
-    }
-    if (segments.length) added.push({ item: 'lines', role: 'grain', of: piece.name, segments, fill: null, stroke });
+    let at = spacingFor(f.ring, spacing), segments = marksIn(f.ring, holes, at, random);
+    // the cap is an estimate, at half an item's most: a seeded face that still passes the most is laid again, wider
+    while (segments === null) { at *= GRAIN.wider; segments = marksIn(f.ring, holes, at, random); }
+    // a face laid wider than the style's spacing says so in its role: the list (and a tool's note) can tell it thinned
+    if (segments.length) added.push({ item: 'lines', role: at > spacing ? 'grain-thinned' : 'grain', of: piece.name, segments, fill: null, stroke });
   }
   return [...items, ...added];
 }

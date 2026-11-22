@@ -27,7 +27,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
 | `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
 | `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`), and `paper` (shading), `contour` (line) and `duotone` (palette) for the named looks |
-| `duotone.js` | the palette `duotone`: two inks on paper, every line the ink, every fill a tint of the accent; a name in the ink kept at 4.5 : 1 on every tint (`DUOTONE`) |
+| `duotone.js` | the palette `duotone`: two inks on paper, every line the ink, every fill with a colour a tint of the accent (a fill the page colours is left to it); a name in the ink kept at 4.5 : 1 on every tint (`DUOTONE`) |
 | `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`, `paper-grain`, `duotone`) |
 | `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
@@ -326,7 +326,7 @@ they run — each reads only what the one before it gave (the design: `docs/desi
 | `shape` | the piece and the grid | the faces, as items with a role (`top`, `left`, `right`, `side`, `ground`, `grid`) | `box` |
 | `shading` | the items, the base colour | a fill per face | `tones`: top 20% toward white, left 6% and right (a cylinder's side) 18% toward black; `paper`: every face and the ground the paper's colour (option `colour`, `#ffffff`) |
 | `line` | the items, the ink | strokes | `ink` (2.5 px, round joins; option `width`, 0.5 to 20), `none` (a floor keeps its tile lines), `contour` (a bold even contour round the piece and lighter inner lines; options `width`, 1 to 20, 5, and `inner`, 0.25 to the width, 1.5) |
-| `palette` | the items | the same, recoloured | `theme`; `duotone`: every line the ink, every fill a tint of the accent on the paper (options `ink`, `accent`, `paper`) |
+| `palette` | the items | the same, recoloured | `theme`; `duotone`: every line the ink, every fill with a colour a tint of the accent on the paper, a fill the page colours left to it (options `ink`, `accent`, `paper`) |
 | `texture` | the items | marks over them | `none` (footprint-story/human hands in `human:hatch` and `human:grain`) |
 | `effects` | the items | items added to the whole, a list of choices | — |
 
@@ -447,40 +447,57 @@ stroke budget). In each face: three sets of lines at seeded angles, 16 px apart 
 1 to 3 px long with gaps of 12 to 36 px — clipped by the hatch's own clipper (`hatchLines`), so every mark lies inside
 its face and out of each face painted over it (a property over any piece on any grid). The ink at 22%, 0.75 px wide:
 a mark stands about 1.5 : 1 against its face. Seeded by the style, the piece's name and the column, with no timing (a
-grain is printed, not drawn). A floor has none (the ground is the page's). It is a `human:` choice because the clipper
-lives in src/human, which this door never loads: hand `grainTexture` (or the human door's `HUMAN_STYLE_CHOICES`, every
-choice it ships) in `choices`; the look named without it is refused, with that fix.
+grain is printed, not drawn). A floor has none (the ground is the page's). **A big face is thinned, never refused:** a
+face whose marks would pass about `GRAIN.cap` (2048, half an item's 4096) is laid at a wider spacing, so they come to
+about the cap, and its item's role says so — `grain-thinned` — so a list, and a tool's build note, can tell (a 10 × 10
+slab fitted to 1920 × 1080: its top, about 578,000 px², at about twice the spacing; pinned under both policies). It is
+a `human:` choice because the clipper lives in src/human, which this door never loads: hand `grainTexture` (or the
+human door's `HUMAN_STYLE_CHOICES`, every choice it ships) in `choices`; the look named without it is refused, with
+that fix.
 
 **Duotone** (`palette: 'duotone'`, duotone.js) prints a map in two inks on paper: every stroke the `ink` (`#22304a`;
-its alpha kept, so a floor's tile lines are the ink at 16%), every fill the `paper` (`#ffffff`) mixed toward the
-`accent` (`#e07b39`) by how dark the fill it replaces is (1 less its WCAG relative luminance), at most 60% of the way.
-So the shading's order survives — a lit top stays lighter than a right face in shadow, and white is the paper (line art
-in duotone stays paper and ink). A fill with no colour (the page's base: both tools build so) is read as its recipe over
-`DUOTONE.neutral` (`#d9d9d9`), so a map with no colours is a duotone too, every piece alike; and every fill carries its
-colour (`{mix: [colour, 1], colour}`), as a paper fill does, so StoryDeck's role CSS draws it as said. A block's name
-stands on its face: a name in the ink keeps 4.5 : 1 (WCAG, small text; StoryReel's review measures words by it) on every
-tint from the paper to the deepest — 7.0 : 1 at worst for the usual inks, 9.4 : 1 in the tools' usual ink (`#14181f`) —
-and inks that cannot are refused when the style is made, naming the ratio, the tint and the fix. A tool draws names on a
-duotone map in its ink (`style.options.palette?.ink ?? DUOTONE.ink`) or a darker one.
+its alpha kept, so a floor's tile lines are the ink at 16%), every fill that has a colour the `paper` (`#ffffff`) mixed
+toward the `accent` (`#e07b39`) by how dark the fill it replaces is (1 less its WCAG relative luminance), at most 60% of
+the way. So the shading's order survives — a lit top stays lighter than a right face in shadow, and white is the paper
+(line art in duotone stays paper and ink). Each such fill carries its colour (`{mix: [colour, 1], colour}`).
+
+**Colour that means something survives.** A fill whose colour the page decides (no colour in the list: its base is
+given at draw time) is left as it is, recipe and all. That is where the tools put colour that carries meaning —
+StoryReel's ok / warn / bad tones, StoryDeck's ok / warn / bad classes and theme — and a duotone that coloured it would
+make an "ok" piece and a "bad" one alike. So a map built with no colours (both tools build so) prints its lines in the
+duotone's ink and keeps each face's colour the page's; a tool that wants a face in the duotone's tints gives that
+piece a base colour, and leaves the pieces whose colour means something to the page. Pinned: ok / warn / bad tones
+painted through a duotone list stay at least ΔE76 10 apart on every face (ours: a difference read at a glance; about
+2.3 is the least an eye tells apart).
+
+A block's name stands on its face: a name in the ink keeps 4.5 : 1 (WCAG, small text; StoryReel's review measures words
+by it) on every tint from the paper to the deepest — 7.0 : 1 at worst for the usual inks, 9.4 : 1 in the tools' usual
+ink (`#14181f`) — and inks that cannot are refused when the style is made, naming the ratio, the tint and the fix. A
+tool draws names on a duotone map in its ink (`style.options.palette?.ink ?? DUOTONE.ink`) or a darker one. **On a dark
+page**, give the looks the page's colours: the duotone its paper and ink (`palette: {name: 'duotone', paper: '#1b1f27',
+ink: '#f2f2f2', accent: …}` — the 4.5 : 1 check then holds the page's ink against the page's tints, light on dark), and
+a paper shading the page's paper (`shading: {name: 'paper', colour: …}`). With the usual light inks on a dark page,
+names over a light floor tint read at about 1.1 to 1.4 : 1 (measured on StoryDeck's dark theme).
 
 | Number | Value | Whose, and why |
 |---|---|---|
 | grain spacing / sets | 16 px / 3 | ours: a line about every 5 px across a face in three seeded directions — one or two read as hatching, three as fibre |
 | grain mark / gap | 1–3 px / 12–36 px | ours: about one mark in 140 px² of a face, a texture and not noise; a 64-block world at a film's tile (96 px) lays 13,118 marks, 0.33 MB as SVG path data (pinned, under StoryDeck's 2 MB note) |
+| grain cap | 2048 marks a face | ours: half an item's most (4096), so a face's seeded count never reaches it; a face past it (about 284,000 px²) is thinned evenly, and says so |
 | grain width / alpha | 0.75 px / 22% | ours: under the thinnest line a map draws (1.25 px folds), and about 1.5 : 1 against the face (pinned under 1.6) |
 | duotone ink / accent / paper | `#22304a` / `#e07b39` / `#ffffff` | ours: a deep navy and a warm orange, far apart in hue, on white |
 | duotone deepest tint | 60% | ours: the accent whole stands 4.4 : 1 under the ink, under the 4.5 a name needs; at 60%, 7.0 |
-| duotone neutral | `#d9d9d9` | ours: about as light as the tools' usual bases, so an uncoloured map's tints fall where a coloured one's do |
 | name contrast | 4.5 : 1 | WCAG 2's least for small text |
+| status apart | ΔE76 over 10 | ours: ok / warn / bad read apart at a glance (an eye tells about 2.3) |
 
 Refused, naming the entry and the fix: a grain beside a duotone, and a hatch beside a duotone (the texture runs after
 the palette, in the map's ink: a third ink — take the texture out, or keep it and the palette `theme`), with the words
 saying which entry came from the look; `{look: 'duotone', palette: …}` and `{look: 'paper-grain', texture: …}` (the
 look would draw nothing); a grain `spacing` (4 to 200 px), `width` (0.25 to 4 px) or `alpha` (0.02 to 1) out of range;
-a face too big for its grain (over 4096 marks, an item's most), naming a spacing estimated to fit (or that none up to 200 px does); a duotone ink, accent or
-paper that is no colour, or inks under 4.5 : 1. Known limits: the grain is in the map's ink at its alpha, so on a dark
-face it shows less; a dark base gives the deepest tint on every face, so its faces part only by their ink lines; and a
-tool that draws names in a pale ink on a dark page must give the duotone its own inks.
+a duotone ink, accent or paper that is no colour, or inks under 4.5 : 1. No face is too big for the grain (it thins)
+or too small (a face with no room for a mark gets none, and the piece's other faces carry it). Known limits: the grain
+is in the map's ink at its alpha, so on a dark face it shows less; a dark base gives the deepest tint on every face, so
+its faces part only by their ink lines; a map built with no colours keeps its faces the page's under the duotone.
 
 ## A whole map, built as named steps
 

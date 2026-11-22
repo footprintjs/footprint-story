@@ -67,13 +67,14 @@ export const sketchyLine: StrokeStyleChoice;
 export const hatchTexture: StrokeStyleChoice;
 /**
  * The texture 'human:grain' (0.35.0, the look "paper-grain"): a paper's grain — fine, faint, seeded marks laid in each
- * face with the hatch's clipper, one `lines` item a face (role `grain`), in the ink at GRAIN.alpha. Options: spacing,
- * width, alpha. Refused beside the palette "duotone" (a third ink).
+ * face with the hatch's clipper, one `lines` item a face (role `grain`; `grain-thinned` where a big face was laid
+ * wider, to about GRAIN.cap marks — never refused), in the ink at GRAIN.alpha. Options: spacing, width, alpha. Refused
+ * beside the palette "duotone" (a third ink).
  */
 export const grainTexture: StrokeStyleChoice;
 /** The grain's numbers (ours): spacing between one set's lines, the sets, a mark's and a gap's length, the width and alpha, and the options' ranges. */
-export const GRAIN: Readonly<{ spacing: number; sets: number; mark: readonly [number, number]; gap: readonly [number, number]; width: number; alpha: number; least: Readonly<{ spacing: number; width: number; alpha: number }>; most: Readonly<{ spacing: number; width: number; alpha: number }> }>;
-/** The most marks one face's grain holds (the paint list's MOST_PAINT_POINTS): past it, refused with the spacing that fits. */
+export const GRAIN: Readonly<{ spacing: number; sets: number; mark: readonly [number, number]; gap: readonly [number, number]; width: number; alpha: number; cap: number; wider: number; least: Readonly<{ spacing: number; width: number; alpha: number }>; most: Readonly<{ spacing: number; width: number; alpha: number }> }>;
+/** The most marks one face's grain item holds (the paint list's MOST_PAINT_POINTS); a big face is thinned under it. */
 export const MOST_GRAIN_MARKS: number;
 /** Every isometric style choice this door ships, in one list, to hand in under `choices`: sketchyLine, hatchTexture, grainTexture. */
 export const HUMAN_STYLE_CHOICES: readonly StrokeStyleChoice[];

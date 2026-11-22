@@ -174,9 +174,10 @@ strokes: a printed fleck has no pace and no taper. In each face, three sets of l
 apart across, from `hatchLines` — so a mark is exactly inside its face and out of the faces painted over it, by the
 hatch's own clipper, never a second one — each line broken into seeded marks (1 to 3 px) and gaps (12 to 36 px); one
 `lines` item a face (role `grain`), the ink at 22%, 0.75 px (`GRAIN`, ours: the numbers and their WHY are in grain.js
-and the isometric README). No option is timing, so `unseeded` is empty. Refused: an option out of range; a face whose
-grain passes `MOST_GRAIN_MARKS` (4096, an item's most segments), naming a spacing estimated to fit (or that none up to 200 px does); and the grain, or the
-hatch, beside the palette `duotone` (the texture runs after the palette, in the map's ink: a third ink).
+and the isometric README). No option is timing, so `unseeded` is empty. A big face is thinned, never refused: past
+about `GRAIN.cap` (2048) marks it is laid at a wider spacing, under `MOST_GRAIN_MARKS` (4096, an item's most segments),
+and its item's role is `grain-thinned`. Refused: an option out of range; and the grain, or the hatch, beside the
+palette `duotone` (the texture runs after the palette, in the map's ink: a third ink).
 `HUMAN_STYLE_CHOICES` is `[sketchyLine, hatchTexture, grainTexture]`: a tool that hands it in takes each new choice
 as it comes.
 

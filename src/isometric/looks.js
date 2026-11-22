@@ -9,8 +9,9 @@
  *   paper-grain   today's look printed on paper (0.35.0): a fine, faint, seeded grain over every face — the texture
  *              "human:grain" (footprint-story/human · grainTexture, handed in under `choices`: it lays its marks with the
  *              hatch's clipper, which this door never loads)
- *   duotone    two inks on paper (0.35.0): every line the ink, every fill a tint of the accent as dark as the fill it
- *              replaces — the palette "duotone" (duotone.js; a name in the ink reads at 4.5 : 1 or more on every tint)
+ *   duotone    two inks on paper (0.35.0): every line the ink, every fill with a colour a tint of the accent as dark as
+ *              the fill it replaces; a fill the page colours (a tool's ok / warn / bad) is left to it — the palette
+ *              "duotone" (duotone.js; a name in the ink reads at 4.5 : 1 or more on every tint)
  *
  * WHY a name for a row and not a choice of its own: a look spans columns (line art is a shading and a line), and every
  * column's choice stays one strategy behind one interface — the look adds no code, so it can never paint what its row
