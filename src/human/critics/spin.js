@@ -19,7 +19,8 @@
  *           disagree, and any turn between them is explained). Its value is |extra turn| over the larger of the run's
  *           expected turn (the span's far end) and SPIN_FLOOR × the run's time. A flick of any length, a burst kept for a
  *           few samples, a hump or a dip of turning speed, a stutter and a flick on the last sample all leave turn that
- *           neither side explains. One allowance, stated: a run that reaches the track's end while the turning eases
+ *           neither side explains. At each end, where one side is missing, the samples' own spin (when every step of
+ *           the run gives one) speaks for it: the turn they say joins the span. One allowance, stated: a run that reaches the track's end while the turning eases
  *           monotonically to rest (each step's speed under the one before by more than RESTING of it, the same way,
  *           through the run, and over the last three steps at least — a lone last step slower than a steady spin is a
  *           flick) is a move coming to a stop, not a burst; and, the same at the other end, a run that starts the
@@ -94,8 +95,11 @@ function runLengths(most) {
 function burstOf(rates) {
   const n = rates.length, dts = rates.map((r) => r.dt).sort((a, b) => a - b), typical = dts[dts.length >> 1];
   const most = Math.max(MOST_RUN, Math.round(MOST_RUN_SECONDS / typical)), lengths = runLengths(Math.min(most, n));
-  const P0 = [0], P1 = [0], P2 = [0], PW = [0];
-  for (const r of rates) { P0.push(P0.at(-1) + r.dt); P1.push(P1.at(-1) + r.t * r.dt); P2.push(P2.at(-1) + r.t * r.t * r.dt); PW.push(PW.at(-1) + r.w * r.dt); }
+  const P0 = [0], P1 = [0], P2 = [0], PW = [0], PO = [0], NO = [0];
+  for (const r of rates) {
+    P0.push(P0.at(-1) + r.dt); P1.push(P1.at(-1) + r.t * r.dt); P2.push(P2.at(-1) + r.t * r.t * r.dt); PW.push(PW.at(-1) + r.w * r.dt);
+    PO.push(PO.at(-1) + (r.own ?? 0) * r.dt); NO.push(NO.at(-1) + (r.own === null ? 1 : 0));
+  }
   let worst = { value: 0, at: null, steps: 0, extra: 0 };
   for (let i = 0; i < n; i += 1) {
     for (const length of lengths) {
@@ -117,6 +121,8 @@ function burstOf(rates) {
       };
       if (i >= 1) side(rates[i - 1], i >= 2 ? rates[i - 2] : null, i >= 3 ? rates[i - 3] : null);
       if (j + 1 < n) side(rates[j + 1], j + 2 < n ? rates[j + 2] : null, j + 3 < n ? rates[j + 3] : null);
+      // at an end one side is missing: there the samples' own spin, when every step gives it, speaks for that side
+      if ((i === 0 || j === n - 1) && NO[j + 1] - NO[i] === 0) said.push(PO[j + 1] - PO[i]);
       const lo = Math.min(...said), hi = Math.max(...said), extra = made > hi ? made - hi : made < lo ? made - lo : 0;
       if (extra === 0 || (j === n - 1 && easesToRest(rates, i)) || (i === 0 && setsOff(rates, j))) continue;
       const value = Math.abs(extra) / Math.max(Math.abs(lo), Math.abs(hi), SPIN_FLOOR * S0);
@@ -145,7 +151,7 @@ export const spin = Object.freeze({
       const said = finite(a.spin) && finite(b.spin) ? ((a.spin + b.spin) / 2) * dt : null;
       if (said === null) longest = Math.max(longest, dt);
       const turn = said === null ? shortestTurn(a.angle, b.angle) : said + wrapAngle(b.angle - a.angle - said);
-      rates.push({ t: (a.t + b.t) / 2, dt, w: turn / dt, air: a.air === 1 && b.air === 1 });
+      rates.push({ t: (a.t + b.t) / 2, dt, w: turn / dt, own: said === null ? null : said / dt, air: a.air === 1 && b.air === 1 });
     }
     if (rates.length < 3) return null;
     const flying = rates.filter((r) => r.air), ws = flying.map((r) => r.w);

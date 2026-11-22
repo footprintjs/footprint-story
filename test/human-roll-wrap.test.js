@@ -138,7 +138,7 @@ test('a follow-through and an overshoot leave the end at the speed the move arri
 });
 
 test('the property\'s counterexamples, pinned: a short roll followed through, at rest or arriving, or wound up', () => {
-  for (const [distance, slope, by] of [[30, 0, 8.212139378517993], [30, -6.188254797266435, 0.237935905405177], [30, 16.461549113929117, 0.2924279980798362], [30, 13.071056259582596, 12.488188017256634], [30, -6.752967200880146, 0.365066528319369]]) {
+  for (const [distance, slope, by] of [[30, 0, 8.212139378517993], [30, -6.188254797266435, 0.237935905405177], [30, 16.461549113929117, 0.2924279980798362], [30, 13.071056259582596, 12.488188017256634], [30, -6.752967200880146, 0.365066528319369], [30, 7.966361016015862, 0]]) {
     const phi = (slope * Math.PI) / 180;
     const roll = planMove({ do: 'roll', from: [0, 0], to: [distance * Math.cos(phi), distance * Math.sin(phi)], slope, radius: 1 });
     const c = checkMove(followThrough(roll, { by }));
