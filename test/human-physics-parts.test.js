@@ -47,9 +47,13 @@ test('wrappers: a move in, a move out — the record nests, the reason says it, 
   assert.deepEqual(s(h, 0.5), s(move, 0.3));
   assert.deepEqual(s(h, 0.9), s(move, 0.4));
   assert.ok(s(o, d).x > 600);
-  // the usual by is BY_SHARE of the straight distance: 48 px at the swing's peak, along the end's heading
+  // the usual by is BY_SHARE of the straight distance (48 px), along the end's heading — but a throw arriving at 1084 px a
+  // second carries on further than that on its own speed: it follows through as far as that speed takes it, never braking
   const peak = Math.max(...Array.from({ length: 400 }, (_, i) => s(f, d + (f.plan.seconds - d) * (i / 400)).x));
-  assert.ok(Math.abs(peak - 600 - BY_SHARE * 600 * Math.cos(Math.PI / 4)) < 0.5, `${peak}`);
+  const carryPeak = Math.max(...Array.from({ length: 1000 }, (_, i) => { const u = i / 1000; return u - 3 * u ** 3 + 2 * u ** 4; }));
+  const speed = Math.hypot(...move.plan.velocity), carried = speed * (f.plan.seconds - d) * carryPeak;
+  assert.ok(carried > BY_SHARE * 600);
+  assert.ok(Math.abs(peak - 600 - carried * Math.cos(Math.PI / 4)) < 0.5, `${peak}`);
   // nested: the outermost last, basePlan finds the model's; a hold at 0 adds no push
   const n = overshoot(hold(anticipate(move), { at: 0, seconds: 0.1 }), { by: 3, feel: { k: 200, d: 20 } });
   assert.deepEqual(n.wrappers, ['anticipate', 'hold', 'overshoot']);

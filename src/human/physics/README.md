@@ -143,13 +143,20 @@ flight, a spin that changes by over 10%, where nothing can change it), with `con
 over half a turn between samples, is read as it turns: `roll-slip` takes the drawn turn nearest the one the drawn
 distance owes, and `spin` the one nearest its samples' own `spin` × the step. A hand-drawn track with no `spin` is read
 the short way (`shortestTurn`), and `spin`'s basis says the fastest spin that can tell (`mostReadable`, half a turn a
-sample: π × the rate); `checkMove(move, {rate})` samples more densely to read faster. A flick is a step off both its
-neighbours the same way — a flick of any length, a kept jump and a stutter all make one — measured against at least a
-turn a second (`SPIN_FLOOR`). The one peak that is not a flick, a spin sped up and then stopped dead, is let off only
-when it lies on the trend of three smooth steps beyond it on one side, so a flick's own steps never vouch for it; the
-last step is judged against its one side. A spin that starts and stops, starts and stops (three sudden changes back and
-forth within `STUTTER_STEPS`, six) is a stutter; a stop, a start or a landing is one change, never three. With
-that floor a slow spin may drift a little in flight unflagged: 3 → 3.5 rad/s is 8% of a turn a second.
+sample: π × the rate); `checkMove(move, {rate})` samples more densely to read faster.
+
+`spin`'s jumps are ONE measure (`critics/spin.js` · `burstOf`): for every run of 1 to `MOST_RUN` (6) consecutive steps,
+the turn it made is set against what each side says it should have made — each side read only outside the run, from
+up to three steps beyond it, as its speed held, its line and its curve carried on in time. The run's extra turn is how far its
+sum lies outside the span of those (none when it lies between them: a stop, a start or a landing changes speed between
+two sides that disagree); its value is |extra| over the larger of the run's expected turn and `SPIN_FLOOR` (a turn a
+second) × its time. A flick of any length, a burst kept a few samples, a hump or a dip, a stutter, a hitch, a twitch
+between rests and a flick on the last sample all leave turn neither side explains. One allowance at each end, where
+one side is missing: a run reaching the end while the turning eases monotonically to rest (slower each step by more
+than `RESTING`, 1e-9, through the run and the last three steps — a steady spin's rounding is not slowing) is a stop; a
+run starting the track while the turning only grows through it is a start (so a flick on the very first sample cannot
+be told from one). With that floor a slow spin may drift a little in flight unflagged: 3 → 3.5 rad/s is 8% of a turn a
+second.
 
 A wrapped roll stays a roll: the `no-slip` plan names `turnVector` (its turn per px of travel), and every wrapper turns
 it by that over the way it moves it, its spin by that over the offset's speed. So `overshoot(roll)` still turns

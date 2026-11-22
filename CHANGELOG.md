@@ -21,12 +21,12 @@
   at) **and `spin`** (a drawn angle that jumps between two samples, or a spin that changes by over 10% in flight). Both
   read the drawn track. A fast spin, over half a turn between samples, is read as it turns: `roll-slip` nearest the turn
   the drawn distance owes, `spin` nearest its samples' own `spin`; a hand-drawn track with no spin is read the short way
-  and `spin`'s basis says the fastest spin it can tell (`mostReadable`, π × the rate). A flick is a step off both
-  neighbours the same way (a flick of any length, a kept jump, a stutter), read against at least a turn a second
-  (`SPIN_FLOOR` = 2π rad/s, so a slow spin that drifts a little in flight, 3 → 3.5 rad/s, passes); a spin sped up and
-  stopped dead is let off only on the trend of three smooth steps beyond it; the last step is judged against its one
-  side; three sudden changes of turning speed back and forth within `STUTTER_STEPS` (6) are a stutter (a spin that
-  starts and stops), while a stop or a single change passes. `spacing` now reads only a track's flight
+  and `spin`'s basis says the fastest spin it can tell (`mostReadable`, π × the rate). Its jumps are one measure: for
+  every run of 1 to `MOST_RUN` (6) steps, the extra turn beyond what each side says (read outside the run, its speed
+  held, its line and its curve carried on), over the run's expected turn or `SPIN_FLOOR` (2π rad/s) × its time — flicks of any
+  length, bursts, humps, dips, stutters and a flick on the last sample are caught; a stop, a start or a landing is not
+  (a slow spin drifting 3 → 3.5 rad/s in flight passes); at the track's end a run easing monotonically to rest (by more
+  than `RESTING`, 1e-9, a step) is a stop, at its start a run only growing is a start. `spacing` now reads only a track's flight
   when its samples mark `air: 0` on the floor.
 - **A wrapped roll stays a roll:** the `no-slip` plan names `turnVector` (its turn per px of travel), and `anticipate`,
   `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
@@ -35,8 +35,9 @@
   (`air: 0`). **Wrappers respect their plan's world:** every offset (wind-up, follow-through, overshoot) is cut back
   along itself to where the body first touches the floor or a box its model's plan names, never turned aside. An
   anticipation is sized by the part it winds up for (`plan.lead`): a tumble's flight (its plan's `opening`), not the
-  roll after it lands. A follow-through leaves the end at the speed the move arrives with (swinging out from rest when
-  it arrives at rest, carrying on further than `by` when its speed alone takes it there) and ends still; an overshoot's
+  roll after it lands. A follow-through leaves the end at the speed the move arrives with, unpushed and unbraked
+  (swinging out from rest when it arrives at rest, carrying on further than `by` when its speed alone takes it there),
+  and ends still — a roll, a slide or a throw alike; an overshoot's
   settle carries that speed too (`settleCarry`, the spring's impulse response): no jump in speed or spin at the
   hand-over, on any roll.
 - **A roll or a slide to `to` that would take longer than 30 s says so** ("it would take 30.03 s to come to rest at to,

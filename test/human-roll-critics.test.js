@@ -67,7 +67,7 @@ test('roll-slip cannot say when no radius is named, no angle is drawn, or it rol
 test('spin catches a drawn angle that jumps between two samples, and passes a steady one', () => {
   const c = roll({ flick: 0.8 }), f = c.findings.find((x) => x.critic === 'spin');
   assert.equal(c.bases.spin.kind, 'jump'); near(c.bases.spin.at, 1 - 1 / 240, 1e-9);
-  assert.match(f.message, /^scene\[4\] \("wheel"\): its drawn angle jumps at 1\.00 s \(one step turns \d+% off both neighbours\) — it flicks instead of turning$/);
+  assert.match(f.message, /^scene\[4\] \("wheel"\): its drawn angle jumps at 1\.00 s — 1 step turn 45\.8° more than the turning on either side says \(\d+% off\) — it flicks instead of turning$/);
   assert.match(f.fix, /let the model turn it: do: 'roll' \(radius: …\)/);
   // a step the same way for good (an angle set once by hand) flicks too
   const stepped = { ...wheel, name: 'reel:stepped', sample: (p, t) => ({ x: 200 * t, y: 0, angle: 20 * t + (t >= 1 ? 1 : 0) }) };
@@ -76,33 +76,47 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
   const flipped = (name, flip) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 200 * t, y: 0, angle: 20 * t + flip(t), spin: 20 }) }; return checkMove(planMove({ do: 'roll', who, model: name }, { models: [m] }), { models: [m] }); };
   for (const [name, flip] of [['reel:flip', (t) => (t >= 1 ? Math.PI / 2 : 0)], ['reel:blip', (t) => (Math.abs(t - 1) < 1e-9 ? Math.PI / 2 : 0)]]) {
     const c = flipped(name, flip);
-    assert.equal(c.bases.spin.kind, 'jump'); assert.ok(c.measures.spin > 1, `${name}: ${c.measures.spin}`);
+    assert.equal(c.bases.spin.kind, 'jump'); assert.ok(c.measures.spin > 3 * SPIN_MOST, `${name}: ${c.measures.spin}`);
     assert.match(c.findings.find((f) => f.critic === 'spin').message, /its drawn angle jumps at (0\.99|1\.00) s/);
   }
   // flicks of any length, stutters and kept steps are caught, with or without the samples' own spin; a sudden stop is not
   const D = Math.PI / 180;
   const drawn = (name, angle, spun = true) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => { const k = Math.round(t * 120), o = { x: 200 * t, y: 0, angle: angle(t, k) }; if (spun) o.spin = 20; return o; } }; return checkMove(planMove({ do: 'roll', who, model: name }, { models: [m] }), { models: [m] }).measures.spin; };
+  // the one measure: every flick, burst, hump and dip leaves turn neither side explains — a finding, past SPIN_MOST
+  const caught = (v, what) => assert.ok(v > SPIN_MOST, `${what}: ${v}`);
   for (const spun of [true, false]) {
-    for (const deg of [10, 30, 45, 90, 170]) assert.ok(drawn('reel:two', (t, k) => 20 * t + (k === 120 || k === 121 ? deg * D : 0), spun) > 1, `${deg}° held two samples`);
-    assert.ok(drawn('reel:three', (t, k) => 20 * t + (k >= 120 && k <= 122 ? 30 * D : 0), spun) > 1, '30° held three samples');
-    assert.ok(drawn('reel:one', (t, k) => 20 * t + (k === 120 ? 30 * D : 0), spun) > 1, 'a one-sample flick');
-    assert.ok(drawn('reel:kept', (t, k) => 20 * t + (k >= 120 ? 30 * D : 0), spun) > 1, 'a kept step');
+    for (const deg of [5, 10, 30, 45, 90, 170, 180]) for (const held of [1, 2, 3, 4, 8]) caught(drawn('reel:flick', (t, k) => 20 * t + (k >= 120 && k < 120 + held ? deg * D : 0), spun), `${deg}° held ${held} sample${held > 1 ? 's' : ''}${spun ? '' : ', no spin'}`);
+    caught(drawn('reel:kept', (t, k) => 20 * t + (k >= 120 ? 30 * D : 0), spun), 'a kept step');
+    // the last sample, either way — a steady spin's rounding is not slowing, so a small backward flick is not a stop
+    for (const deg of [5, 7, 9, 30]) for (const way of [1, -1]) caught(drawn('reel:last', (t, k) => 20 * t + (k === 240 ? way * deg * D : 0), spun), `${way * deg}° on the last sample${spun ? '' : ', no spin'}`);
   }
   for (const rate of [3, 20]) {
-    assert.ok(drawn('reel:s22', (t, k) => rate * t + (k % 4 < 2 ? 10 * D : 0), false) > 1, `a 2-on/2-off stutter at ${rate} rad/s`);
-    assert.ok(drawn('reel:s33', (t, k) => rate * t + (k % 6 < 3 ? 10 * D : 0), false) > 1, `a 3-on/3-off stutter at ${rate} rad/s`);
+    caught(drawn('reel:s22', (t, k) => rate * t + (k % 4 < 2 ? 10 * D : 0), false), `a 2-on/2-off stutter at ${rate} rad/s`);
+    caught(drawn('reel:s33', (t, k) => rate * t + (k % 6 < 3 ? 10 * D : 0), false), `a 3-on/3-off stutter at ${rate} rad/s`);
   }
+  // humps and a dip of turning speed spread over 2–5 steps (rad/s added to a 20 rad/s roll)
+  const shaped = (extra, way = 1) => drawn('reel:hump', (t, k) => { let a = 20 * t; extra.forEach((e, q) => { if (k > 120 + q) a += (way * e) / 120; }); return a; }, false);
+  caught(shaped([12, 12]), 'a hump +[12, 12]'); caught(shaped([10, 10, 10]), 'a hump +[10, 10, 10]');
+  caught(shaped([3, 6, 9, 6, 3]), 'a hump +[3, 6, 9, 6, 3]'); caught(shaped([6, 12, 18, 12, 6], -1), 'a dip −[6, 12, 18, 12, 6]');
+  // a spin slowing by far less than RESTING a step (rounding's worth) is steady, not easing to rest: a −7° flick on its
+  // last sample is caught; one truly easing to rest at its end is not a burst
+  caught(drawn('reel:creep', (t, k) => 20 * t - 1e-10 * t * t - (k === 240 ? 7 * D : 0), false), 'a −7° flick on the last sample of a spin slowing by 1e-12 a step');
+  // a slow spin's small wobble is measured against the floor, a turn a second: 0.5 rad/s, 0.1 more for two steps, passes
+  assert.ok(drawn('reel:wobble', (t, k) => 0.5 * t + (k > 120 ? 0.1 / 120 : 0) + (k > 121 ? 0.1 / 120 : 0), false) < SPIN_MOST, 'a slow spin\'s wobble under the floor');
+  // a move easing to rest at its end is no burst
+  assert.ok(drawn('reel:easing', (t) => 20 * t - 5 * t * t, false) < 1e-9, 'easing to rest at the end');
   // a spin that starts and stops, starts and stops: each step level with one neighbour, so no peak — three sudden
   // changes back and forth within six steps say it; one change (a stop, or a new speed) never does
   const stutter = (on, rate) => (t, k) => rate * (Math.floor(k / (2 * on)) * on + Math.min(k % (2 * on), on)) / 120;
   for (const rate of [3, 20]) for (const on of [2, 3]) for (const spun of [true, false]) {
     const m = { ...wheel, name: 'reel:stutter', checks: ['spin'], sample: (p, t) => { const k = Math.round(t * 120), o = { x: 200 * t, y: 0, angle: stutter(on, rate)(t, k) }; if (spun) o.spin = rate; return o; } };
     const c = checkMove(planMove({ do: 'roll', who, model: 'reel:stutter' }, { models: [m] }), { models: [m] });
-    assert.equal(c.bases.spin.kind, 'stutter', `${on}-on/${on}-off at ${rate} rad/s`); assert.ok(c.measures.spin > SPIN_MOST);
-    assert.match(c.findings[0].message, /its spin stutters at [\d.]+ s \(its turning speed jumps back and forth by \d+% or more, three times within 6 steps\) — it starts and stops instead of turning/);
+    assert.equal(c.bases.spin.kind, 'jump', `${on}-on/${on}-off at ${rate} rad/s`); assert.ok(c.measures.spin > SPIN_MOST);
+    assert.match(c.findings[0].message, /its drawn angle jumps at [\d.]+ s — \d steps? turn [\d.]+° (more|less) than the turning on either side says \(\d+% off\) — it flicks instead of turning/);
   }
   assert.ok(drawn('reel:slower', (t) => (t < 1 ? 20 * t : 20 + 5 * (t - 1)), false) < 1e-9, 'one change of speed');
-  assert.ok(drawn('reel:paused', (t, k) => 20 * (k < 120 ? t : k < 122 ? 1 : t - 2 / 120), false) < SPIN_MOST, 'a stop and a start, once');
+  assert.ok(drawn('reel:paused', (t, k) => 20 * (k < 120 ? t : k < 132 ? 1 : t - 12 / 120), false) < SPIN_MOST, 'a stop of 0.1 s and a start, once');
+  caught(drawn('reel:hitch', (t, k) => 20 * (k < 120 ? t : k < 122 ? 1 : t - 2 / 120), false), 'a stop of two samples between two equal speeds: a hitch');
   // the last sample is judged too
   assert.ok(drawn('reel:last', (t, k) => 20 * t + (k === 240 ? 30 * D : 0)) > 1, 'a 30° flick on the final sample');
   assert.ok(drawn('reel:last-free', (t, k) => 20 * t + (k === 240 ? 30 * D : 0), false) > 1, 'a 30° flick on the final sample, no spin');
@@ -110,7 +124,9 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
   assert.ok(drawn('reel:halted', (t) => 20 * Math.min(t, 1.0041), false) < 1e-9, 'a sudden stop between samples');
   // a spin sped up hard and stopped dead, or started at once from rest, changes its rate — it never flicks
   const spun = (name, angle) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 100 * t, y: 0, angle: angle(t) }) }; return checkMove(planMove({ do: 'roll', model: name }, { models: [m] }), { models: [m] }); };
-  assert.ok(spun('reel:stopped', (t) => 200 * Math.min(t, 0.05) ** 2).measures.spin <= SPIN_MOST, 'sped up, then stopped dead');
+  assert.ok(spun('reel:stopped', (t) => (t < 0.5 ? 0 : 8 * Math.min(t - 0.5, 0.25) ** 2)).measures.spin <= SPIN_MOST, 'sped up for 0.25 s, then stopped dead');
+  // a twitch: from rest, sped up for 0.05 s (six steps) and stopped dead — turn neither side (both still) explains
+  assert.ok(spun('reel:twitch', (t) => (t < 0.5 ? 0 : 200 * Math.min(t - 0.5, 0.05) ** 2)).measures.spin > SPIN_MOST, 'a twitch of six steps between rests');
   assert.ok(spun('reel:started', (t) => (t < 1 ? 0 : 200 * (t - 1) ** 2)).measures.spin <= SPIN_MOST, 'started at once from rest');
   // a spin sped up in uneven strides (each step between its neighbours, 2, 4, 12, 14, 22, …) changes its rate unevenly — still no flick
   const strides = [0];

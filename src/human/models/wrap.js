@@ -62,12 +62,16 @@ export const ADDED_BELLS = Object.freeze({ anticipate: 2, 'follow-through': 2, o
 
 const smooth = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 /** One swing out and back, 0 at both ends and 1 at its peak: sin(πu)·(1 − u), scaled by its own peak. */
-/** One swing out and back from rest, 0 at both ends and still at both: sin²(πu)·(1 − u), scaled by its own peak. */
-const swing = (u) => Math.sin(Math.PI * u) ** 2 * (1 - u);
-const SWING_PEAK = (() => { let m = 0; for (let i = 1; i < 1000; i += 1) m = Math.max(m, swing(i / 1000)); return m; })();
-/** A carry out and back that starts at speed 1 (per unit of u) and ends still: u·(1 − u)², its peak 4/27 at a third. */
-const carryOn = (u) => u * (1 - u) ** 2;
-const CARRY_PEAK = 4 / 27;
+/** The peak of a shape on (0, 1), read at a thousand points. */
+const peakOf = (f) => { let m = 0; for (let i = 1; i < 1000; i += 1) m = Math.max(m, f(i / 1000)); return m; };
+/** One swing out and back from rest, 0 at both ends and still at both, with no push at its start: sin³(πu)·(1 − u). */
+const swing = (u) => Math.sin(Math.PI * u) ** 3 * (1 - u);
+const SWING_PEAK = peakOf(swing);
+/** A carry out and back that starts at speed 1 (per unit of u) with no push or brake (no acceleration) and ends still:
+ *  u − 3u³ + 2u⁴ = u·(1 − u)²·(1 + 2u). WHY no acceleration at the start: a carry that brakes at once loses a fifth of
+ *  its speed in its first frame, which reads as a jolt at the hand-over. */
+const carryOn = (u) => u - 3 * u ** 3 + 2 * u ** 4;
+const CARRY_PEAK = peakOf(carryOn);
 
 /**
  * The speed the inner move arrives with, along `dir` (px a second, at least 0), read over its last instant. WHY: a
@@ -82,8 +86,8 @@ function arrivalSpeed(at, d, dir) {
 
 /**
  * A follow-through's offset at x (0 to 1 over its time `span`), in px: out and back, starting at the speed `speed` it
- * arrives with and ending still. A share λ = speed·span·4/27 / by of it is the carry (carryOn), the rest the swing from
- * rest (swing), so it leaves at exactly `speed` and reaches about `by`; when the speed alone carries it further than
+ * arrives with, unpushed, and ending still. A share λ = speed·span·CARRY_PEAK / by of it is the carry (carryOn), the rest
+ * the swing from rest (swing), so it leaves at exactly `speed` and reaches about `by`; when the speed alone carries it further than
  * `by` (λ > 1), it is all carry — a move that arrives fast follows through further than asked, never stops dead.
  */
 function followOffset(x, by, speed, span) {
@@ -297,7 +301,8 @@ export function sampleWrapped(plan, t, sampleInner) {
   if (!isWrapped(plan)) return sampleInner(plan, t);
   const inner = plan.inner, d = inner.seconds, at = (u) => sampleWrapped(inner, u, sampleInner);
   const u = t > 0 ? Math.min(t, plan.seconds) : 0;
-  if (u <= 0) return at(0);
+  // a wrapper that holds its model still from the start (a wind-up, a hold at 0) holds its first sample too
+  if (u <= 0) return plan.wrapper === 'anticipate' || (plan.wrapper === 'hold' && plan.at === 0) ? held(at(0)) : at(0);
   // after a follow-through or an overshoot its model has been held at its end: the end sample is held too
   if (u >= plan.seconds) return plan.wrapper === 'follow-through' || plan.wrapper === 'overshoot' ? held(at(d)) : at(d);
   const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d), T = turnOf(inner), { world, radius } = worldOf(inner, 'the move');

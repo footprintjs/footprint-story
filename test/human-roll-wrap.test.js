@@ -134,11 +134,29 @@ test('a follow-through and an overshoot leave the end at the speed the move arri
   assert.ok(furthest > 0.3);
 });
 
-test('the property\'s counterexamples, pinned: a short roll followed through, at rest or arriving', () => {
-  for (const [distance, slope, by] of [[30, 0, 8.212139378517993], [30, -6.188254797266435, 0.237935905405177], [30, 16.461549113929117, 0.2924279980798362]]) {
+test('the property\'s counterexamples, pinned: a short roll followed through, at rest or arriving, or wound up', () => {
+  for (const [distance, slope, by] of [[30, 0, 8.212139378517993], [30, -6.188254797266435, 0.237935905405177], [30, 16.461549113929117, 0.2924279980798362], [30, 13.071056259582596, 12.488188017256634], [30, -6.752967200880146, 0.365066528319369]]) {
     const phi = (slope * Math.PI) / 180;
     const roll = planMove({ do: 'roll', from: [0, 0], to: [distance * Math.cos(phi), distance * Math.sin(phi)], slope, radius: 1 });
     const c = checkMove(followThrough(roll, { by }));
     assert.ok(c.measures.spin <= SPIN_MOST && c.measures['roll-slip'] <= 0.05, `${slope}°: spin ${c.measures.spin}`);
   }
+});
+
+test('a follow-through on a slide keeps its arrival speed at the hand-over and through its first frame: no brake, no jolt', () => {
+  const slide = planMove({ do: 'slide', from: [0, 300], speed: 600, to: [300, 300] }), d = slide.plan.seconds;
+  const arrive = (sampleMove(slide, d).x - sampleMove(slide, d - 1e-6).x) / 1e-6;
+  assert.ok(arrive > 300);
+  for (const by of [60, 24, 200]) {
+    const move = followThrough(slide, { by });
+    const leave = (sampleMove(move, d + 1e-6).x - sampleMove(move, d).x) / 1e-6, frame = (sampleMove(move, d + 1 / 120).x - sampleMove(move, d).x) * 120;
+    assert.ok(Math.abs(leave - arrive) < 1e-3 * arrive, `by ${by}: leaves at ${leave}, arrived at ${arrive}`);
+    assert.ok(frame > 0.97 * arrive, `by ${by}: its first frame keeps the speed (${frame} of ${arrive})`);
+  }
+});
+
+test('a short roll wound up from the start reads as smooth: the counterexample of seed 1506228752', () => {
+  const slope = -19.79580363280165, phi = (slope * Math.PI) / 180;
+  const roll = planMove({ do: 'roll', from: [0, 0], to: [30 * Math.cos(phi), 30 * Math.sin(phi)], slope, radius: 1 });
+  assert.ok(checkMove(anticipate(roll, { share: 0.25 })).measures.spin <= SPIN_MOST);
 });

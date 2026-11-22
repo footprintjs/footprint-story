@@ -67,7 +67,7 @@ export { SPACING_LEAST, SPACING_MOST } from './src/human/critics/spacing.js';
 export { VOLUME_MOST } from './src/human/critics/volume.js';
 export { CONTACT_MOST } from './src/human/critics/contact.js';
 export { ROLL_SLIP_MOST } from './src/human/critics/rollSlip.js';
-export { SPIN_MOST, SPIN_FLOOR, STUTTER_STEPS } from './src/human/critics/spin.js';
+export { SPIN_MOST, SPIN_FLOOR, MOST_RUN, RESTING } from './src/human/critics/spin.js';
 
 // the intent decider — an author's intents in, every move decided: steps in one list, run in order (footprint-story/humanflow runs the same list as a chart)
 export { HUMAN_STEPS, HUMAN_INPUT, planIntents } from './src/human/intents/steps.js';

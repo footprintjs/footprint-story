@@ -1,102 +1,115 @@
 /**
- * The `spin` critic: whether the drawn angle turns smoothly — no jump between two samples, and in flight one even spin.
- * Read on the drawn angle, step by step, as a turning speed. Each step's turn is the drawn one nearest the turn the
- * samples' own `spin` says (their mean spin × the step, geom/angles.js · wrapAngle of the difference): a fast spin turning
- * more than half a turn between samples is read as it turns, not as a slow turn backwards. A track whose samples carry
- * no spin (a hand-drawn one) is read the short way (shortestTurn), and the basis says the fastest spin that can be told
- * that way, half a turn a sample (`mostReadable`, rad/s): sample it more densely (checkMove's `rate`) to read faster.
- * Either way an angle drawn wrapped into (−π, π] is no jump.
+ * The `spin` critic: whether the drawn angle turns smoothly — no burst of turn the turning on either side does not
+ * explain, and in flight one even spin. Read on the drawn angle, step by step. Each step's turn is the drawn one nearest
+ * the turn the samples' own `spin` says (their mean spin × the step, geom/angles.js · wrapAngle of the difference): a fast
+ * spin turning more than half a turn between samples is read as it turns, not as a slow turn backwards. A track whose
+ * samples carry no spin (a hand-drawn one) is read the short way (shortestTurn), and the basis says the fastest spin that
+ * can be told that way, half a turn a sample (`mostReadable`, rad/s): sample it more densely (checkMove's `rate`) to read
+ * faster. Either way an angle drawn wrapped into (−π, π] is no jump.
  *
  *   flight  over the steps in the air (both samples air: 1): (fastest − slowest) / the middle spin. Nothing touches a
  *           thing in flight, so nothing can change its spin (no torque); a spin that speeds up or slows in the air reads
  *           as pushed by an invisible hand.
- *   jump    at any step that stands off both its neighbours the same way (a peak or a dip of turning speed): how far,
- *           over the neighbours' speed. A flick of any length makes one — into it and out of it — as does a kept jump
- *           or a stutter, while a spin that changes at a landing, slows on the floor or starts at once sits between its
- *           neighbours. One peak is no flick: a spin sped up and then stopped dead (at a box, or a hold). So a peak
- *           that lies on a side's own trend is let off — the trend read only from the three steps beyond it on that
- *           side, and only when they run smooth (their change steady within SPIN_MOST): steps a flick has touched are
- *           never smooth, so a flick's own return step cannot vouch for it. So is a peak that a smooth curve through the
- *           two steps either side reaches (a turning speed at its smooth highest, sampled coarsely): a flick touches a
- *           neighbour too, so its four never lie on one curve. The last step has one side only: it is judged
- *           against its neighbour, the line through the two steps before it or the curve through three, carried on in
- *           time (a flick on the final sample stands off all three) — unless it was already slowing and slows on toward
- *           rest, between the step before it and 0: a move coming to a stop at its end. The
- *           first is not: a spin that starts unevenly cannot be told from a flick with nothing before it.
- *   stutter a turning speed that changes suddenly (by over SPIN_MOST of its speed) back and forth: three such changes,
- *           each the other way to the one before, within STUTTER_STEPS steps — a spin that starts and stops, starts
- *           and stops. Each step there is level with one neighbour, so no peak shows it. A stop, a start or a landing
- *           is one change (or two the same way, a stop between samples), never three back and forth.
+ *   jump    THE ONE MEASURE (burstOf). For every run of 1 to MOST_RUN consecutive steps, the turn it made is set
+ *           against the turn each side says it should have made — each side read only OUTSIDE the run, from up to three
+ *           steps beyond it: its speed held (its nearest step), its trend carried on in time (the line through its two
+ *           nearest), and its curve (the parabola through its three, so a smooth hump sampled coarsely is explained). The run's EXTRA TURN is how far its summed turn lies outside the span of
+ *           those (zero when it lies between them: a stop, a start or a landing changes speed between two sides that
+ *           disagree, and any turn between them is explained). Its value is |extra turn| over the larger of the run's
+ *           expected turn (the span's far end) and SPIN_FLOOR × the run's time. A flick of any length, a burst kept for a
+ *           few samples, a hump or a dip of turning speed, a stutter and a flick on the last sample all leave turn that
+ *           neither side explains. One allowance, stated: a run that reaches the track's end while the turning eases
+ *           monotonically to rest (each step's speed under the one before by more than RESTING of it, the same way,
+ *           through the run, and over the last three steps at least — a lone last step slower than a steady spin is a
+ *           flick) is a move coming to a stop, not a burst; and, the same at the other end, a run that starts the
+ *           track while the turning only grows through it (each step no slower than the one before, the same way) is a
+ *           move setting off — so a flick on the very first sample cannot be told from a start: nothing comes before it. At either end only one side is there to say.
  *
- *   value  the largest of the three (each over max(the spin it is read against, SPIN_FLOOR)); null when the track draws
- *          no angle or has under three steps
- *   basis  { kind: 'flight' | 'jump' | 'stutter', at (s), flight (its spread, or null), jump, stutter, spin (the middle spin in flight, or
- *            null), readBy ('spin': every step against its samples' spin | 'short': some step the short way),
- *            mostReadable (rad/s: the fastest spin the short way can tell, null when every step was read by spin) }
+ *   value  the larger of the two; null when the track draws no angle or has under three steps
+ *   basis  { kind: 'flight' | 'jump', at (s: the run's first step), steps (its length), extra (rad, + more turn than the
+ *            sides say), flight (its spread, or null), jump, spin (the middle spin in flight, or null), readBy ('spin':
+ *            every step against its samples' spin | 'short': some step the short way), mostReadable (rad/s, or null) }
  *
- * A track that marks no flight (no air) is read for jumps only.
+ * A track that marks no flight (no air) is read for bursts only.
  */
 import { shortestTurn, wrapAngle } from '../../geom/angles.js';
 import { finite } from '../read.js';
 import { round } from '../models/options.js';
 
-/** The most a spin may spread in flight, or a step stand off its neighbours, as a share: 10%. Ours. */
+/** The most a spin may spread in flight, or a run's turn stray from what its sides say, as a share: 10%. Ours. */
 export const SPIN_MOST = 0.1;
 /** The slowest spin a share is read against (rad/s): one turn a second. Ours: at 1 rad/s a change of 0.1 rad/s is
- *  under a tenth of a degree between samples, nothing an eye sees — a settling wrapper's curve read as a flick. */
+ *  under a tenth of a degree between samples, nothing an eye sees. */
 export const SPIN_FLOOR = 2 * Math.PI;
-
-/** The most steps three sudden changes of turning speed, back and forth, may span to read as a stutter: six (0.05 s at
- *  120 a second). Ours: a spin that starts and stops more often than that reads as stuttering. */
-export const STUTTER_STEPS = 6;
+/** The longest run of steps read as one burst: six (0.05 s at 120 a second). Ours: a burst longer than that is a change
+ *  of spin, which the sides around it show. */
+export const MOST_RUN = 6;
+/** How much slower each step must be than the one before to count as easing to rest: 1e-9 of it (rounding never does). */
+export const RESTING = 1e-9;
 /** The shortest step read (s): a track's last sample can sit a hair after the one before it. */
 const MIN_STEP = 1e-6;
 
-/** The worst back-and-forth run of sudden changes in turning speed: {value, at}, three changes within STUTTER_STEPS. */
-function stutterOf(w, rates) {
-  const big = [];
-  for (let i = 0; i + 1 < w.length; i += 1) {
-    const d = w[i + 1] - w[i], scale = Math.max(Math.abs(w[i]), Math.abs(w[i + 1]), SPIN_FLOOR);
-    if (Math.abs(d) > SPIN_MOST * scale) big.push({ i, d, size: Math.abs(d) / scale });
+/** Whether two turning speeds go the same way, a rounding's worth of the floor either side of 0 counting as still. */
+const sameWay = (a, b) => { const e = RESTING * SPIN_FLOOR; return !((a < -e && b > e) || (a > e && b < -e)); };
+
+/** Whether the steps from the run's first (and over the last three at least) to the end each turn slower than the one
+ *  before, the same way: easing to rest. WHY three at least: a lone last step slower than a steady spin is a flick. */
+function easesToRest(rates, i) {
+  for (let k = Math.max(0, Math.min(i, rates.length - 3)); k + 1 < rates.length; k += 1) {
+    const a = rates[k].w, b = rates[k + 1].w;
+    if (!(sameWay(a, b) && Math.abs(b) < Math.abs(a) * (1 - RESTING))) return false;
   }
-  let value = 0, at = null, run = 0;
-  for (let k = 0; k < big.length; k += 1) {
-    run = k > 0 && Math.sign(big[k].d) !== Math.sign(big[k - 1].d) ? run + 1 : 1;
-    if (run >= 3 && big[k].i - big[k - 2].i <= STUTTER_STEPS) {
-      const size = Math.min(big[k].size, big[k - 1].size, big[k - 2].size);
-      if (size > value) { value = size; at = rates[big[k - 1].i + 1].t; }
+  return true;
+}
+
+/** Whether the run's steps, from the track's start, each turn no slower than the one before, the same way: setting off
+ *  (still, then starting — at once or gradually). Only the run itself is read: past it the move may already ease. */
+function setsOff(rates, j) {
+  for (let k = 0; k < j; k += 1) {
+    const a = rates[k].w, b = rates[k + 1].w;
+    if (!(sameWay(a, b) && Math.abs(b) >= Math.abs(a) * (1 - RESTING))) return false;
+  }
+  return true;
+}
+
+/** The worst run's extra turn, as a share (the one measure): {value, at, steps, extra}. */
+function burstOf(rates) {
+  const n = rates.length;
+  let worst = { value: 0, at: null, steps: 0, extra: 0 };
+  for (let i = 0; i < n; i += 1) {
+    let made = 0, span = 0;
+    for (let j = i; j < n && j - i < MOST_RUN; j += 1) {
+      made += rates[j].w * rates[j].dt; span += rates[j].dt;
+      // what each side says the run should have turned: its nearest speed held, and its trend carried on in time
+      const said = [];
+      const side = (near, far) => {
+        let held = 0, carried = 0;
+        for (let k = i; k <= j; k += 1) {
+          held += near.w * rates[k].dt;
+          carried += (far ? near.w + ((near.w - far.w) / (near.t - far.t)) * (rates[k].t - near.t) : near.w) * rates[k].dt;
+        }
+        said.push(held, carried);
+      };
+      if (i >= 1) side(rates[i - 1], i >= 2 ? rates[i - 2] : null);
+      if (j + 1 < n) side(rates[j + 1], j + 2 < n ? rates[j + 2] : null);
+      // and its curve: the parabola through its three nearest steps, carried on in time (Lagrange's form)
+      const curve = (p, q, r) => {
+        let c = 0;
+        for (let k = i; k <= j; k += 1) {
+          const t = rates[k].t, l = (a, b, d) => ((t - b.t) * (t - d.t)) / ((a.t - b.t) * (a.t - d.t));
+          c += (p.w * l(p, q, r) + q.w * l(q, p, r) + r.w * l(r, p, q)) * rates[k].dt;
+        }
+        said.push(c);
+      };
+      if (i >= 3) curve(rates[i - 1], rates[i - 2], rates[i - 3]);
+      if (j + 3 < n) curve(rates[j + 1], rates[j + 2], rates[j + 3]);
+      const lo = Math.min(...said), hi = Math.max(...said), extra = made > hi ? made - hi : made < lo ? made - lo : 0;
+      if (extra === 0 || (j === n - 1 && easesToRest(rates, i)) || (i === 0 && setsOff(rates, j))) continue;
+      const value = Math.abs(extra) / Math.max(Math.abs(lo), Math.abs(hi), SPIN_FLOOR * span);
+      if (value > worst.value) worst = { value, at: rates[i].t, steps: j - i + 1, extra };
     }
   }
-  return { value, at };
-}
-
-/**
- * A side's turning speed carried on to the time `t`, from its nearest step `a` (then `b`, `c` further out: each {t, w}),
- * or null when the three do not run smooth: their change of speed not steady within SPIN_MOST of their speed. Read in
- * time, so a last step shorter than the rest is carried on to its own middle.
- */
-function trendOf(a, b, c, t) {
-  const scale = Math.max(Math.abs(a.w), Math.abs(b.w), Math.abs(c.w), SPIN_FLOOR);
-  const near = (a.w - b.w) / (a.t - b.t), far = (b.w - c.w) / (b.t - c.t);
-  return Math.abs(near - far) * Math.abs(a.t - b.t) <= SPIN_MOST * scale ? a.w + near * (t - a.t) : null;
-}
-
-/** The turning speed at `t` on the parabola through three steps ({t, w}): Lagrange's form. */
-function throughThree(a, b, c, t) {
-  const l = (p, q, r) => ((t - q.t) * (t - r.t)) / ((p.t - q.t) * (p.t - r.t));
-  return a.w * l(a, b, c) + b.w * l(b, a, c) + c.w * l(c, a, b);
-}
-
-/**
- * The turning speed at step i on a smooth curve through the two steps either side of it (never through i), or null
- * when those four do not lie on one: the parabola through three of them must meet the fourth within SPIN_MOST of their
- * speed, both ways round. A flick touches a neighbour too (its way in or out), so its four never lie on one curve.
- */
-function curveAcross(rates, i) {
-  const [p, q, r, s] = [rates[i - 2], rates[i - 1], rates[i + 1], rates[i + 2]];
-  const scale = Math.max(Math.abs(p.w), Math.abs(q.w), Math.abs(r.w), Math.abs(s.w), SPIN_FLOOR);
-  if (Math.abs(throughThree(p, q, r, s.t) - s.w) > SPIN_MOST * scale || Math.abs(throughThree(q, r, s, p.t) - p.w) > SPIN_MOST * scale) return null;
-  return (throughThree(p, q, r, rates[i].t) + throughThree(q, r, s, rates[i].t)) / 2;
+  return worst;
 }
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -115,46 +128,17 @@ export const spin = Object.freeze({
       const said = finite(a.spin) && finite(b.spin) ? ((a.spin + b.spin) / 2) * dt : null;
       if (said === null) longest = Math.max(longest, dt);
       const turn = said === null ? shortestTurn(a.angle, b.angle) : said + wrapAngle(b.angle - a.angle - said);
-      rates.push({ t: (a.t + b.t) / 2, w: turn / dt, air: a.air === 1 && b.air === 1 });
+      rates.push({ t: (a.t + b.t) / 2, dt, w: turn / dt, air: a.air === 1 && b.air === 1 });
     }
     if (rates.length < 3) return null;
     const flying = rates.filter((r) => r.air), ws = flying.map((r) => r.w);
     const mid = ws.length >= 2 ? median(ws) : null;
     const flight = mid === null ? null : (Math.max(...ws) - Math.min(...ws)) / Math.max(Math.abs(mid), SPIN_FLOOR);
-    let jump = 0, at = null;
-    const w = rates.map((r) => r.w), n = w.length;
-    for (let i = 1; i + 1 < n; i += 1) {
-      const d1 = w[i] - w[i - 1], d2 = w[i] - w[i + 1];
-      if (!(d1 * d2 > 0)) continue;   // between its neighbours, or level with one: a change of spin, not a flick
-      let off = Math.min(Math.abs(d1), Math.abs(d2));
-      // let off a peak that a smooth side's own trend reaches (a stop after a speed-up): read beyond the step, never through it
-      const t = rates[i].t, left = i >= 3 ? trendOf(rates[i - 1], rates[i - 2], rates[i - 3], t) : null, right = i + 3 < n ? trendOf(rates[i + 1], rates[i + 2], rates[i + 3], t) : null;
-      if (left !== null) off = Math.min(off, Math.abs(w[i] - left));
-      if (right !== null) off = Math.min(off, Math.abs(w[i] - right));
-      // and a peak a smooth curve through the two steps either side reaches (a turning speed at its smooth highest)
-      const curve = i >= 2 && i + 2 < n ? curveAcross(rates, i) : null;
-      if (curve !== null) off = Math.min(off, Math.abs(w[i] - curve));
-      off /= Math.max(Math.abs(w[i - 1]), Math.abs(w[i + 1]), SPIN_FLOOR);
-      if (off > jump) { jump = off; at = rates[i].t; }
-    }
-    // the last step, against its one side: its neighbour, or that side's trend carried on in time (a flick on the final
-    // sample). No smoothness asked: only the last sample is under test, so the steps before it are its own
-    {
-      const t = rates[n - 1].t, a = rates[n - 2], b = rates[n - 3], line = a.w + ((a.w - b.w) / (a.t - b.t)) * (t - a.t);
-      // and the curve through three steps, for a move whose turning bends fast near its end (a short follow-through)
-      const curve = n >= 4 ? throughThree(a, b, rates[n - 4], t) : line;
-      // a move already slowing that slows on toward rest (between the step before and 0) is coming to a stop, not flicking
-      const resting = w[n - 1] * a.w >= 0 && Math.abs(w[n - 1]) <= Math.abs(a.w) && Math.abs(a.w) < Math.abs(b.w);
-      const off = resting ? 0 : Math.min(Math.abs(w[n - 1] - a.w), Math.abs(w[n - 1] - line), Math.abs(w[n - 1] - curve)) / Math.max(Math.abs(a.w), SPIN_FLOOR);
-      if (off > jump) { jump = off; at = rates[n - 1].t; }
-    }
-    const stutter = stutterOf(w, rates);
-    const kind = flight !== null && flight >= jump && flight >= stutter.value ? 'flight' : stutter.value > jump ? 'stutter' : 'jump';
+    const burst = burstOf(rates), byFlight = flight !== null && flight >= burst.value;
     // in flight, the step that stands furthest off the middle spin
-    if (kind === 'flight') at = flying.reduce((far, r) => (Math.abs(r.w - mid) > Math.abs(far.w - mid) ? r : far)).t;
-    if (kind === 'stutter') at = stutter.at;
+    const at = byFlight ? flying.reduce((far, r) => (Math.abs(r.w - mid) > Math.abs(far.w - mid) ? r : far)).t : burst.at;
     const readable = longest > 0 ? Math.PI / longest : null;
-    return { value: kind === 'flight' ? flight : kind === 'stutter' ? stutter.value : jump, basis: { kind, at, flight, jump, stutter: stutter.value, spin: mid, readBy: readable === null ? 'spin' : 'short', mostReadable: readable } };
+    return { value: byFlight ? flight : burst.value, basis: { kind: byFlight ? 'flight' : 'jump', at, steps: burst.steps, extra: burst.extra, flight, jump: burst.value, spin: mid, readBy: readable === null ? 'spin' : 'short', mostReadable: readable } };
   },
   finding(value, who, basis) {
     if (!(value > SPIN_MOST)) return null;
@@ -162,11 +146,8 @@ export const spin = Object.freeze({
       return { level: 'warn', message: `${who}: its spin changes by ${(value * 100).toFixed(0)}% in the air (about ${round(basis.spin, 1)} rad/s, most off at ${basis.at.toFixed(2)} s) — nothing touches it in flight, so its spin should hold`,
         fix: "keep one spin in flight: do: 'tumble' (model: 'free-spin') with spin: <rad/s>" };
     }
-    if (basis.kind === 'stutter') {
-      return { level: 'warn', message: `${who}: its spin stutters at ${basis.at.toFixed(2)} s (its turning speed jumps back and forth by ${(value * 100).toFixed(0)}% or more, three times within ${STUTTER_STEPS} steps) — it starts and stops instead of turning`,
-        fix: "let the model turn it: do: 'roll' (radius: …), do: 'tumble' (spin: …) or do: 'slide' (angle: …), never a turn started and stopped by hand between frames" };
-    }
-    return { level: 'warn', message: `${who}: its drawn angle jumps at ${basis.at.toFixed(2)} s (one step turns ${(value * 100).toFixed(0)}% off both neighbours) — it flicks instead of turning`,
+    const deg = round((Math.abs(basis.extra) * 180) / Math.PI, 1), steps = `${basis.steps} step${basis.steps === 1 ? '' : 's'}`;
+    return { level: 'warn', message: `${who}: its drawn angle jumps at ${basis.at.toFixed(2)} s — ${steps} turn ${deg}° ${basis.extra > 0 ? 'more' : 'less'} than the turning on either side says (${(value * 100).toFixed(0)}% off) — it flicks instead of turning`,
       fix: "let the model turn it: do: 'roll' (radius: …), do: 'tumble' (spin: …) or do: 'slide' (angle: …), never an angle set by hand between frames" };
   },
 });
