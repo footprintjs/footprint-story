@@ -23,6 +23,9 @@
  * turn = T · travel), the turn follows the wrapped path wherever a sample rolls (not `air: 1`, not `rolls: 0`) — the
  * angle gains T · the wrapper's offset, the spin T · the offset's speed. So a wrapped roll, and a tumble that lands
  * into a roll after it lands, still turn distance / radius and roll-slip passes them; a slide's angle stays its own.
+ * A WRAPPER RESPECTS ITS PLAN'S WORLD (the floor and boxes its model's plan names, with its radius): each offset is
+ * cut back along itself to where the body first touches one (keptShare), so a wind-up, a follow-through or an
+ * overshoot never drives it into the floor or a box. A chain's points move with its middle.
  * WHILE A WRAPPER HOLDS ITS MODEL STILL (an anticipation's wind-up, after the end, a hold) the model's own spin is
  * stopped and a sample in flight is marked `air: 0`: held by the hand, it is not falling.
  * The pushes a wrapped move is made of (wrappedPushes, what sampleTrack hands the `jerk` critic) add the speed bells
@@ -41,6 +44,7 @@ import { plainCopy } from '../plain.js';
 import { checkSettles, settleLeft, settleSeconds } from '../physics/settle.js';
 import { FEEL_NAMES } from '../../motion/spring.js';
 import { round } from './options.js';
+import { readWorld, touchAlong } from '../physics/collide.js';
 
 /** A wrapper's usual `by`: this share of the straight distance from the move's start to its end. */
 export const BY_SHARE = 0.08;
@@ -175,16 +179,41 @@ const turns = (T, s) => T !== null && finite(s.angle) && s.air !== 1 && s.rolls 
  * unbroken from its landing) and its spin by T · the offset's speed. `still`: its model is held at one of its ends
  * (held). Every other field as it was.
  */
-function moved(s0, dir, amount, weight, u, T, still, from = 0) {
-  const s = still ? held(s0) : s0, w = weight(u), ox = dir[0] * amount * w, oy = dir[1] * amount * w;
+function moved(s0, dir, amount, weight, u, { T, still = false, from = 0, at = null, shift = 0, world = null, radius = 0 }) {
+  const s = still ? held(s0) : s0, w = weight(u), k = keptShare(s, dir, amount * w, world, radius), ox = dir[0] * amount * w * k, oy = dir[1] * amount * w * k;
   const out = ox === 0 && oy === 0 ? { ...s } : { ...s, x: s.x + ox, y: s.y + oy };
   if (Array.isArray(s.points) && (ox !== 0 || oy !== 0)) out.points = s.points.map((p) => [p[0] + ox, p[1] + oy]);
   if (turns(T, s)) {
-    const w0 = weight(from), gained = amount * (w - w0);
-    out.angle = s.angle + (T[0] * dir[0] + T[1] * dir[1]) * gained;
-    if (finite(s.spin)) out.spin = s.spin + (T[0] * dir[0] + T[1] * dir[1]) * amount * rateOf(weight, u);
+    // the offset gained since it began to roll, each end cut as it was drawn, so the angle runs on unbroken
+    const w0 = weight(from), k0 = w0 === 0 || !at ? 1 : keptShare(at(Math.max(0, from - shift)), dir, amount * w0, world, radius);
+    const along = T[0] * dir[0] + T[1] * dir[1];
+    out.angle = s.angle + along * amount * (w * k - w0 * k0);
+    if (finite(s.spin)) out.spin = s.spin + along * amount * k * rateOf(weight, u);
   }
   return out;
+}
+
+/** The world a plan names (its model's, under every wrapper) and its body's radius: {world, radius}, or no world. */
+function worldOf(plan, who) {
+  const base = basePlan(plan);
+  if (!isRecord(base.world)) return { world: null, radius: 0 };
+  return { world: readWorld(base.world, `${who}: its plan's world`), radius: finite(base.radius) && base.radius > 0 ? base.radius : 0 };
+}
+
+/**
+ * How much of an offset `length` px along `dir` a sample keeps, 0 to 1: THE WORLD RULE — a wrapper's offset is cut back
+ * along itself to where the body (its middle, `radius` wide) first touches the floor or a box of its plan's world, never
+ * turned aside. A body already in something keeps the whole offset (the contact critic says so); a world-less plan too.
+ * WHY cut, not turned: a turned wind-up would pull a different way than the move it winds up for.
+ */
+function keptShare(s, dir, length, world, radius) {
+  if (!world || !(Math.abs(length) > 0)) return 1;
+  const way = length > 0 ? dir : [-dir[0], -dir[1]], size = Math.abs(length);
+  let room = Infinity;
+  const box = touchAlong([s.x, s.y], way, world, radius);
+  if (box.inside === null) room = box.distance;
+  if (world.floor !== null && way[1] > 0 && s.y + radius <= world.floor) room = Math.min(room, (world.floor - radius - s.y) / way[1]);
+  return Math.min(1, room / size);
 }
 
 /** The direction of travel at the start or the end of a plan sampled by `at` over `d` s (two samples), else its start
@@ -219,7 +248,7 @@ export function sampleWrapped(plan, t, sampleInner) {
   const u = t > 0 ? Math.min(t, plan.seconds) : 0;
   if (u <= 0) return at(0);
   if (u >= plan.seconds) return at(d);
-  const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d), T = turnOf(inner);
+  const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d), T = turnOf(inner), { world, radius } = worldOf(inner, 'the move');
   switch (plan.wrapper) {
     case 'hold': {
       if (u < plan.at) return at(u);
@@ -231,17 +260,17 @@ export function sampleWrapped(plan, t, sampleInner) {
       const lead = plan.share * d, dir = way(false), s = at(Math.max(0, u - lead));
       const pull = (v) => (v < lead ? smooth(v / lead) : 1 - smooth((v - lead) / lead));
       const r = rollStart(inner), from = r > 0 ? r + lead : 0;
-      return dir ? moved(s, [-dir[0], -dir[1]], amount(), pull, u, T, u < lead, from) : s;
+      return dir ? moved(s, [-dir[0], -dir[1]], amount(), pull, u, { T, still: u < lead, from, at, shift: lead, world, radius }) : s;
     }
     case 'follow-through': {
       if (u <= d) return at(u);
       const dir = way(true), s = at(d), w = (v) => swing(Math.max(0, (v - d) / (plan.seconds - d))) / SWING_PEAK;
-      return dir ? moved(s, dir, amount(), w, u, T, true, rollStart(inner)) : s;
+      return dir ? moved(s, dir, amount(), w, u, { T, still: true, from: rollStart(inner), at, world, radius }) : s;
     }
     case 'overshoot': {
       // past the end over the inner's last `share`, then back on the spring (physics/settle.js · settleLeft: exactly 0 at the end)
       const dir = way(true), s = at(Math.min(u, d)), w = (v) => (v <= d ? smooth((v - d * (1 - plan.share)) / (d * plan.share)) : settleLeft(v - d, plan.feel));
-      return dir ? moved(s, dir, amount(), w, u, T, u > d, rollStart(inner)) : s;
+      return dir ? moved(s, dir, amount(), w, u, { T, still: u > d, from: rollStart(inner), at, world, radius }) : s;
     }
     default: return refuse(`a wrapped plan's wrapper is one of ${WRAPPER_NAMES.join(', ')} — not ${shown(plan.wrapper)}`);
   }

@@ -86,3 +86,19 @@ test('a hand-drawn track with no spin is read the short way, and its basis says 
   // roll-slip reads the turn the drawn distance owes, so it tells the fast wheel true at any rate
   assert.ok(at120.measures['roll-slip'] < 1e-9 && at1000.measures['roll-slip'] < 1e-9);
 });
+
+test('a wrapper respects its plan\'s world: a roll on the floor between boxes winds up, follows through and overshoots only to their sides', () => {
+  const roll = planMove({ do: 'roll', who: 'ball', from: [100, 480], to: [660, 480], radius: 20, boxes: [{ x: 20, y: 400, w: 40, h: 100 }, { x: 700, y: 400, w: 40, h: 100 }] });
+  for (const [name, move] of [['anticipate', anticipate(roll, { by: 100 })], ['follow-through', followThrough(roll, { by: 100 })], ['overshoot', overshoot(roll, { by: 100 })]]) {
+    const xs = sampleTrack(move).samples.map((s) => s.x);
+    assert.ok(Math.min(...xs) >= 80 - 1e-9 && Math.max(...xs) <= 680 + 1e-9, `${name}: ${Math.min(...xs)}…${Math.max(...xs)}`);
+    const c = checkMove(move);
+    assert.deepEqual(c.findings, [], name); assert.equal(c.measures.contact, 0);
+  }
+  // the wind-up is cut back along itself to the box's side: at its fullest it touches, never enters
+  const wound = anticipate(roll, { by: 100, share: 0.2 });
+  near(sampleMove(wound, 0.2 * roll.plan.seconds).x, 80, 1e-9);
+  // with no world in the way the offset is whole
+  const free = planMove({ do: 'roll', from: [100, 480], to: [660, 480], radius: 20 });
+  near(sampleMove(anticipate(free, { by: 100, share: 0.2 }), 0.2 * free.plan.seconds).x, 0, 1e-9);
+});

@@ -30,7 +30,8 @@
   `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
   wrapped roll still turns distance / radius; a tumble that lands into a roll turns with the wrapper after it lands
   (`turnFrom`); a slide's angle stays its own. A model held still by a wrapper stops spinning and is not in flight
-  (`air: 0`).
+  (`air: 0`). **Wrappers respect their plan's world:** every offset (wind-up, follow-through, overshoot) is cut back
+  along itself to where the body first touches the floor or a box its model's plan names, never turned aside.
 - **The 30 s refusal names the value that stops it** (`stoppingCoefficient`: above tan θ on a slope, at least (1 + k)·v /
   (g · 30 s) on the level for a roll, v / (g · 30 s) for a slide), and following it plans. A box tumble given its own
   spin keeps it and may land at a slant: `basis.slant` and the reason say so.

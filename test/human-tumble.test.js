@@ -163,6 +163,10 @@ test('wrappers on a tumble: held still it is not in flight, and once it rolls it
   const rest = sampleMove(ball, ball.plan.seconds), out = sampleMove(ft, ball.plan.seconds + (ft.plan.seconds - ball.plan.seconds) / 3);
   near(out.angle - rest.angle, (out.x - rest.x) / 20);
   assert.ok(Math.abs(out.x - rest.x) > 1);
-  // the default anticipation over a long roll still pulls back through its landing: the drawn track goes into the floor, said
-  assert.deepEqual(checkMove(anticipate(ball)).findings.map((f) => f.critic), ['contact']);
+  // the default anticipation pulls back through its landing, cut back at the floor: nothing goes in, nothing is found
+  for (const move of [anticipate(ball), anticipate(ball, { share: 0.4, by: 200 }), overshoot(ball, { by: 200 }), followThrough(ball, { by: 200 })]) {
+    const c = checkMove(move);
+    assert.deepEqual(c.findings, [], JSON.stringify(c.findings.map((f) => f.message)));
+    for (const sample of sampleTrack(move).samples) assert.ok(sample.y <= 500 + 1e-9, 'never below where it lands');
+  }
 });

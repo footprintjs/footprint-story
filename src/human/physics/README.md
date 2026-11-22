@@ -152,8 +152,11 @@ it by that over the way it moves it, its spin by that over the offset's speed. S
 distance / radius and `roll-slip` passes it. A tumble that lands into a roll names one too, from its landing
 (`turnFrom`): its rolling samples turn with the wrapper, its flight and a slide keep their own angle. While a wrapper
 holds a model still (a wind-up, after the end, a hold) its own spin stops and a sample in flight is marked `air: 0`.
-The default anticipation over a long tumble still pulls back through its landing (its lead is 15% of the whole move,
-the roll included), and `contact` says when that drawn track goes into the floor: give a smaller `share` or `by`.
+A wrapper respects its plan's world: each offset is cut back along itself to where the body (its middle, `radius`
+wide) first touches the floor or a box the model's plan names — cut, never turned aside, so a wind-up still pulls
+against the move it winds up for. So the default anticipation over a tumble, whose release runs through its landing,
+stops at the floor, and a roll between boxes winds up and overshoots only to their sides. A body already in
+something keeps its offset (the contact critic says so).
 
 ## The laws it keeps
 
