@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { planCameraMove, sampleCameraMove, cameraTrack, checkCameraMove, readCamera, quatAngle, CAMERA_MOVES } from '../shot.js';
+import { planCameraMove, sampleCameraMove, cameraTrack, checkCameraMove, readCamera, CAMERA_MOVES } from '../shot.js';
+import { quatAngle } from '../geometry.js';
 import { lookOf } from '../src/shot/move.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 200;

@@ -2,7 +2,7 @@
 
 ## Unreleased — angles, rotations and camera moves
 
-- **A geometry leaf, `src/geom/`, handed out by `footprint-story/shot`:** `angleAt` (the angle at b in a–b–c, 2D or 3D, by
+- **A new door, `footprint-story/geometry`** (pure, no dependencies, loads only `src/geom/`), for the geometry leaf: `angleAt` (the angle at b in a–b–c, 2D or 3D, by
   atan2 so a sliver keeps its digits; null when a point sits on b), `dihedral` (the signed twist about b→c, IUPAC's sign;
   null when three points are in a line), `wrapAngle` ((−π, π]), `shortestTurn` (half a turn goes +π), `unwrapAngles`;
   quaternions `[w, x, y, z]`: `quatFromAxisAngle`, `quatMultiply`, `quatNormalize`, `quatRotate`, `quatAngle` (q and −q are
@@ -11,7 +11,8 @@
   quaternions stay put, near-parallel safe) and `squad` through several keys (Shoemake 1985, 1987; passes through each
   key, C¹ at each); `toSpherical`, `fromSpherical` (the shot camera's convention) and `greatCircle` (opposite directions
   go over the top); `lookAt` and `horizonRoll` (null where no horizon is in the picture). Each refuses what is not a
-  finite number in a TypeError that names it. Sources in `src/geom/REFERENCES.md`.
+  finite number in a TypeError that names it. Sources in `src/geom/REFERENCES.md`. WHY its own door: camera moves use it,
+  and so will joint angles and rolling, which are not camera work; the shot door reaches the leaf and hands out none of it.
 - **Camera moves between shots on `footprint-story/shot`:** `planCameraMove({do: 'fly', from, to} | {do: 'orbit', around,
   by}, scene?)` — an end is a shot in words or a camera in numbers. A rule table (`CAMERA_MOVE_RULES`, first match)
   picks the kind: a fly whose look turns past `cutPast` (150°) cuts; a turn of at most 45° keeps its height and turns at
@@ -30,7 +31,7 @@
 - **The minimum-jerk law moved to a shared leaf, `src/timing/minJerk.js`,** unchanged: a hand's reach and a camera's
   move both use it, so there is one copy. The human door still hands out `minJerk`, `minJerkSpeed`, `minJerkAccel` and
   `MIN_JERK_PEAK` (one door per name); `src/human/laws/minJerk.js` is gone. The doors test allows the timing leaf in
-  exactly the human and shot doors, the geometry leaf in exactly the shot door, and finds no second copy of slerp, a
+  exactly the human and shot doors, the geometry leaf in exactly the geometry and shot doors, and finds no second copy of slerp, a
   quaternion product or minimum jerk.
 - `src/shot/camera.js` gains `shotCamera` (the camera a shot asks for, read on a read scene with its problems under a
   path), which `frameOf` and the camera moves share; `src/shot/check.js` exports `reportOf` for the sight critic.

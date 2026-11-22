@@ -25,7 +25,7 @@ camera really sees without reading a picture. Everything here is numbers in, num
 | `moveCheck.js` | `checkCameraMove`: a planned move or a path made by hand, checked; findings with the fix |
 
 The geometry the moves stand on (angles, quaternions, slerp, squad, spherical places, look-at) is the shared leaf
-[`../geom/`](../geom/README.md), handed out by this door; the timing is the minimum-jerk law, the shared leaf
+[`../geom/`](../geom/README.md), handed out by `footprint-story/geometry`; the timing is the minimum-jerk law, the shared leaf
 [`../timing/`](../timing/README.md), which the human door hands out.
 
 **What the check does not know.** It knows the things it is given: not a bond, a caption, a panel, a flat layer laid over the
@@ -77,6 +77,6 @@ unless given, are the fewest that keep the fastest turn at 90% of the comfort li
 
 A path made by hand, `{samples: [{t, camera, look?, cut?}]}`, is checked the same way: a tool that flies its own camera
 asks the same questions. **The numbers are ours,** starting choices and not measurements: 45° a small turn, 150° a cut, a
-10° rise, 75° the highest, 45°/s the comfort limit (a cinematographer's slow pan is slower; a whip pan far faster), a tenth
-of the subject, 0.5° of lean. **What it does not do yet:** a path through more than two shots (squad is here for it), a
+10° rise and 45°/s the comfort limit are our own starting numbers, to be judged by eye on real films (a cinematographer's
+slow pan is slower; a whip pan far faster), as are 75° the highest, a tenth of the subject and 0.5° of lean. **What it does not do yet:** a path through more than two shots (squad is here for it), a
 dolly that avoids things in the way (the critic finds them; the move does not route round), a roll the author asks for.

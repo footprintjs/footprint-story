@@ -2,8 +2,8 @@
 // law's, and each critic catching a bad path made by hand and passing a good one. Geometry to a tolerance; choices exactly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planCameraMove, sampleCameraMove, cameraTrack, checkCameraMove, frameOf, readCamera, quatAngle, quatFromAxisAngle, quatMultiply, quatRotate, slerp, CAMERA_MOVES,
-  CAMERA_MOVE_RULES, CAMERA_CRITICS, HORIZON_MOST, SIGHT_DROP } from '../shot.js';
+import { planCameraMove, sampleCameraMove, cameraTrack, checkCameraMove, frameOf, readCamera, CAMERA_MOVES, CAMERA_MOVE_RULES, CAMERA_CRITICS, HORIZON_MOST, SIGHT_DROP } from '../shot.js';
+import { quatAngle, quatFromAxisAngle, quatMultiply, quatRotate, slerp } from '../geometry.js';
 import { minJerk } from '../human.js';
 import { minJerk as sharedMinJerk } from '../src/timing/minJerk.js';
 

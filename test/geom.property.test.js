@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { angleAt, dihedral, wrapAngle, shortestTurn, unwrapAngles, quatFromAxisAngle, quatMultiply, quatRotate, quatAngle, quatLook, quatForward,
-  quatFromAxes, slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll } from '../shot.js';
+  quatFromAxes, slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll } from '../geometry.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 300;
 const runs = (share = 1) => ({ numRuns: Math.max(20, Math.round(RUNS * share)) });

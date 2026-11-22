@@ -102,9 +102,11 @@ const shotMisc: unknown[] = [ROUNDS.front, HEIGHTS.high, SIZES.wide, LENSES.norm
 export { shotMisc };
 
 import { angleAt, dihedral, wrapAngle, shortestTurn, unwrapAngles, quatFromAxisAngle, quatMultiply, quatNormalize, quatRotate, quatAngle, quatLook, quatForward, quatFromAxes,
-  slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll, CAMERA_MOVE_DOS, MOST_MOVE_SECONDS, MOST_ORBIT, MOST_LIFT, CAMERA_MOVES, CAMERA_MOVE_RULES, CAMERA_MOVE_KINDS,
+  slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll } from 'footprint-story/geometry';
+import type { Quat, Spherical } from 'footprint-story/geometry';
+import { CAMERA_MOVE_DOS, MOST_MOVE_SECONDS, MOST_ORBIT, MOST_LIFT, CAMERA_MOVES, CAMERA_MOVE_RULES, CAMERA_MOVE_KINDS,
   MOST_CAMERA_SAMPLES, planCameraMove, sampleCameraMove, cameraTrack, CAMERA_CRITICS, SIGHT_DROP, HORIZON_MOST, checkCameraMove } from 'footprint-story/shot';
-import type { Quat, CameraMove, CameraSample, CameraTrack, CameraFinding, CameraMoveIntent, Spherical } from 'footprint-story/shot';
+import type { CameraMove, CameraSample, CameraTrack, CameraFinding, CameraMoveIntent } from 'footprint-story/shot';
 
 const turnQ: Quat = quatMultiply(quatFromAxisAngle([0, 1, 0], 1), quatNormalize([1, 0, 0, 0]));
 const place: Spherical = toSpherical(quatRotate(turnQ, [0, 0, 1]));

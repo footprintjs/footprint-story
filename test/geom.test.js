@@ -1,10 +1,10 @@
-// The geometry leaf (src/geom/, handed out by the shot door) against closed forms and the cases that break careless
+// The geometry leaf (src/geom/, handed out by footprint-story/geometry) against closed forms and the cases that break careless
 // maths: points in a line or on top of each other, opposite quaternions, a camera looking straight up or down (gimbal
 // lock), angles across ±π. Geometry is pinned to a tolerance: sin, cos and sqrt differ in their last digits across engines.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { angleAt, dihedral, wrapAngle, shortestTurn, unwrapAngles, quatFromAxisAngle, quatMultiply, quatNormalize, quatRotate, quatAngle, quatLook, quatForward,
-  quatFromAxes, slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll } from '../shot.js';
+  quatFromAxes, slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll } from '../geometry.js';
 import { quatLog, quatExp } from '../src/geom/quat.js';
 import { unit } from '../src/geom/vec.js';
 
