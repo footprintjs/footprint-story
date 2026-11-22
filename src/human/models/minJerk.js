@@ -1,6 +1,6 @@
 /**
  * `min-jerk` (family `reach`): a hand reaching from one place to another, rest to rest, on the minimum-jerk curve
- * (laws/minJerk.js), its duration from Fitts's law (laws/fitts.js) unless the intent says how long.
+ * (src/timing/minJerk.js, the shared leaf), its duration from Fitts's law (laws/fitts.js) unless the intent says how long.
  *
  *   intent  { do: 'reach', from: [x, y], to: [x, y], target?: px (how big the thing it ends on is; 40), seconds? }
  *   options bend (how far it bows to the left as seen, as a share of its length, at most 0.3 either way; 0.06 — 0 is
@@ -12,7 +12,7 @@
  * on a wire (the `arc` critic): 6% of its length is ours, enough to read as a hand.
  */
 import { readPoint, readNumber, stored, FAR } from '../read.js';
-import { minJerk } from '../laws/minJerk.js';
+import { minJerk } from '../../timing/minJerk.js';
 import { FITTS, fittsIndex, fittsSeconds } from '../laws/fitts.js';
 import { intentKeys, optionNumber, readSeconds, round } from './options.js';
 

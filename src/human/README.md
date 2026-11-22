@@ -9,7 +9,7 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 
 | folder · file | holds |
 |---|---|
-| `laws/minJerk.js` | minimum jerk: a purposeful move's path in time, one smooth bell of speed (`minJerk`, `minJerkSpeed`, `minJerkAccel`) |
+| `../timing/minJerk.js` | minimum jerk: a purposeful move's path in time, one smooth bell of speed (`minJerk`, `minJerkSpeed`, `minJerkAccel`) — a shared leaf, since the camera's moves (`footprint-story/shot`) start and stop by the same law; handed out here |
 | `laws/fitts.js` | Fitts's law: a move's seconds from its distance and its target's width (`fittsIndex`, `fittsSeconds`, `FITTS`) |
 | `laws/powerLaw.js` | the two-thirds power law: slower where a line bends (`powerLawSpeed`, `powerLawTimes`, `powerLawFit`) |
 | `laws/sigmaLognormal.js` | sigma-lognormal strokes: overlapping lognormal pushes, added up into a pen's path (`sigmaLognormalAt`, `strokeBetween`, …) |

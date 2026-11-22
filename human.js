@@ -12,7 +12,7 @@
 //   sampleMove(overshoot(planMove({ do: 'throw', from: [0, 600], to: [600, 600] }), { by: 12 }), 0.5)   → a throw landing 12 px past
 
 // laws — the maths of a body's moves
-export { minJerk, minJerkSpeed, minJerkAccel, MIN_JERK_PEAK } from './src/human/laws/minJerk.js';
+export { minJerk, minJerkSpeed, minJerkAccel, MIN_JERK_PEAK } from './src/timing/minJerk.js';
 export { FITTS, fittsIndex, fittsSeconds } from './src/human/laws/fitts.js';
 export { POWER_LAW, powerLawSpeed, powerLawTimes, powerLawFit } from './src/human/laws/powerLaw.js';
 export { SIGMA_LOGNORMAL, STROKE_SIGMAS, lognormalShare, lognormalSpeed, strokeEnd, strokeOffset, strokeBetween, sigmaLognormalAt } from './src/human/laws/sigmaLognormal.js';

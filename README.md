@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Ten doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Twelve doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -34,12 +34,13 @@ Ten doors, nothing else. A door loads only when you import it, so a page that on
 | `footprint-story/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
 | `footprint-story/motion` | eases and springs, moves, transitions as data, pace, turns (an order written once) | anywhere — browser or Node; no dependencies |
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
-| `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
+| `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text; camera moves between shots (slerp, arc or cut, timed by minimum jerk, checked by critics) | anywhere — browser or Node; no dependencies |
 | `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in — and where things stand, worked out from what is joined to what | anywhere — browser or Node; no dependencies |
 | `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
 | `footprint-story/mapflow` | an isometric map built as a footprintjs chart, one stage per step, so a run's record says why each block stands where it does | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
 | `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; light physics (a throw, a fall, a bounce, a hanging chain, a spring settle); named models that plan a move from an intent, wrappers that reshape it, and critics that say what still looks wrong | anywhere — browser or Node; no dependencies |
+| `footprint-story/geometry` | angles between points and the twist about a line, angles that wrap round, quaternions, slerp and squad (Shoemake), spherical places and great circles, a camera's look and its lean | anywhere — browser or Node; no dependencies |
 | `footprint-story/humanflow` | the intent decider built as a footprintjs chart, one stage per step, so a run's record says why each move got its model and its duration | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 | `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
@@ -403,6 +404,16 @@ other things in front`, or `no other things given`. A flat layer over the pictur
 add it as a thing, and every thing with a size is solid. Two things in one shot's `on` can hide each other, and that is reported:
 name a tight cluster as one ball. The sizes, the lenses and "too small" are starting choices, not measurements. Nothing here draws, and no tool reads a shot yet. More in [src/shot/README.md](src/shot/README.md).
 
+**Moving between shots.** `planCameraMove({do: 'fly', from: shotA, to: shotB}, scene)` or `{do: 'orbit', around, by}` picks
+how the camera goes from a rule table and says why: a turn of at most 45° keeps its height and turns at one speed (a slerp), a
+larger one rises 10° over its middle (an arc), and a fly past 150°, or one that would take longer than 12 s at a comfortable
+pace, cuts. The seconds come from the minimum-jerk law and three limits (a turn of 45°/s, a slide of 1 frame height a second,
+a growth of 2× a second; ours) unless given. `cameraTrack(move)` samples it, each sample a camera with its eye and its look as a
+quaternion, both ends exactly the cameras handed in. `checkCameraMove(move, {scene, frame})` says what still looks wrong:
+the subject hidden on the way (`in-sight`), a turn too fast (`turn-speed`), a slide or a zoom too fast (`travel-speed`), a crossing of the line between two subjects
+(`line-of-action`), a horizon that leans (`horizon`) — each finding names `who` and the fix in the intent's keys
+(`lift: 25`, `seconds: 4.42`). The geometry it stands on has its own door, `footprint-story/geometry`: [src/geom/README.md](src/geom/README.md).
+
 ## A floor seen from a corner (isometric)
 
 **Why:** a system drawn as blocks on a floor reads at a glance, and a film and a deck should place those blocks the same
@@ -592,6 +603,8 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
+| `/shot` `planCameraMove`, `sampleCameraMove`, `cameraTrack`, `checkCameraMove`, `CAMERA_MOVES`, `CAMERA_MOVE_RULES`, `CAMERA_MOVE_KINDS`, `CAMERA_MOVE_DOS`, `CAMERA_CRITICS`, `SIGHT_DROP`, `HORIZON_MOST`, `MOST_MOVE_SECONDS`, `MOST_ORBIT`, `MOST_LIFT`, `MOST_CAMERA_SAMPLES` | camera moves between shots: planned from an intent (its reason in words), sampled in time, checked by critics that say the fix: [src/shot/README.md](src/shot/README.md) |
+| `/geometry` `angleAt`, `dihedral`, `wrapAngle`, `shortestTurn`, `unwrapAngles`, `quatFromAxisAngle`, `quatMultiply`, `quatNormalize`, `quatRotate`, `quatAngle`, `quatLook`, `quatForward`, `quatFromAxes`, `slerp`, `squad`, `toSpherical`, `fromSpherical`, `greatCircle`, `lookAt`, `horizonRoll` | the geometry leaf: angles between points, angles that wrap, quaternions, even turns (Shoemake), places on a sphere, a camera's look and its lean: [src/geom/README.md](src/geom/README.md) |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
 | `/isometric` `isoStyle`, `paintPiece`, `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `MOST_EFFECTS`, `MOST_OWN_CHOICES`, `PAINT_ITEMS`, `MOST_PAINT_ITEMS`, `MOST_PAINT_POINTS`, `mixColour` | a map's look as a row of named choices, and a piece's paint list in it |
@@ -609,7 +622,7 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 | `/humanflow` `humanFlow`, `runHumanFlow` | the intent decider's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/humanflow/README.md](src/humanflow/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`, `humanflow.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`, `humanflow.d.ts`, `geometry.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -623,7 +636,7 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboa
 - **What moved from a tool frames, breaks and judges as the tool did**: the differs rules (StoryDeck 0.28.0 and
   StoryReel 0.33.0), a whole map's build (StoryReel 0.38.0), `frameZoom` (StoryDeck 0.28.0's cameras, to the last bit) and `wrapWords` / `narrowestWidth`
   (StoryReel 0.33.0's line breaking) are compared against copies of that code in `test/control/`.
-- **The main, motion, storyboard, shot, isometric, layout and human doors run in a browser**: nothing they reach imports a Node module, and the main
+- **The main, motion, storyboard, shot, isometric, layout, human and geometry doors run in a browser**: nothing they reach imports a Node module, and the main
   door never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).

@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.29.0 — angles, rotations and camera moves
+
+- **A new door, `footprint-story/geometry`** (pure, no dependencies, loads only `src/geom/`), for the geometry leaf: `angleAt` (the angle at b in a–b–c, 2D or 3D, by
+  atan2 so a sliver keeps its digits; null when a point sits on b), `dihedral` (the signed twist about b→c, IUPAC's sign;
+  null when three points are in a line), `wrapAngle` ((−π, π]), `shortestTurn` (half a turn goes +π), `unwrapAngles`;
+  quaternions `[w, x, y, z]`: `quatFromAxisAngle`, `quatMultiply`, `quatNormalize`, `quatRotate`, `quatAngle` (q and −q are
+  one turn), `quatLook` / `quatForward` (to and from a look direction, horizon level; straight up or down it picks the
+  same side every time), `quatFromAxes` (Shepperd's method); `slerp` (constant angular speed, the shorter way, opposite
+  quaternions stay put, near-parallel safe) and `squad` through several keys (Shoemake 1985, 1987; passes through each
+  key, C¹ at each); `toSpherical`, `fromSpherical` (the shot camera's convention) and `greatCircle` (opposite directions
+  go over the top); `lookAt` and `horizonRoll` (null where no horizon is in the picture). Points are scaled together by a
+  power of two before they are subtracted, so points near ±1e308 and subnormal ones give their angles; `quatFromAxes`
+  refuses axes that are stretched, sheared or mirrored. Each refuses what is not a finite number in a TypeError that
+  names it (NaN shown as NaN). Sources in `src/geom/REFERENCES.md`. WHY its own door: camera moves use it,
+  and so will joint angles and rolling, which are not camera work; the shot door reaches the leaf and hands out none of it.
+- **Camera moves between shots on `footprint-story/shot`:** `planCameraMove({do: 'fly', from, to} | {do: 'orbit', around,
+  by}, scene?)` — an end is a shot in words or a camera in numbers. A rule table (`CAMERA_MOVE_RULES`, first match)
+  picks the kind: a fly whose look turns past `cutPast` (150°) cuts, and so does a fly, its seconds not given, that would
+  take longer than 12 s at a comfortable pace (`too-far`: a thing far off, a zoom from a speck); a turn of at most 45°
+  keeps its height and turns at one speed (`slerp`); any other turn rises `lift` (10°) over its middle (`arc`), its middle
+  at most 75° up. An orbit never cuts. The choice is data (`choice`: the rule, the kind, the turn, decided on the tenth of
+  a degree the reason shows, so the sentence agrees with the choice), `basis` holds the numbers, `reason` is their
+  sentence. The timing is minimum jerk; the seconds, unless given, the fewest that keep the look's turn (45°/s), the
+  target's slide across the frame (1 frame height a second) and the subject's growth (2× a second) at 90% of their limits
+  at the fastest moment, at least 0.5 s (`basis.limitedBy`, `basis.comfortSeconds`). Every number is ours.
+  `sampleCameraMove(move, t)` and `cameraTrack(move, {rate})` give `{t, progress, camera, eye, look}`: every camera one
+  `readCamera` takes, both ends exactly the cameras handed in.
+- **Critics on a camera's path:** `checkCameraMove(move, {scene, frame, on, line, rate, who})`, for a planned move or a
+  path made by hand (`{samples: [{t, camera, look?, cut?}]}`, its own `look` honoured): `in-sight` (the larger of the hand-over —
+  the most the move shows of any one subject against the most any is owed, each owed its two ends' shares blended by
+  progress — and each subject's own drop below the worse of its two ends, read by the shot check's own outlines; over a
+  tenth; null when nothing is seen at either end), `turn-speed` (over 45°/s),
+  `travel-speed` (a slide over 1 frame height a second or a growth over 2× a second), `line-of-action` (the two subjects
+  swapping sides of the frame: on a cut a `warn`, in a move a `note`), `horizon` (a lean over 0.5°). Each finding names
+  `who` and the fix in the intent's keys (`lift: 0` when an arc's rise is what hides it, `lift: 25`, `seconds: 4.42` — the
+  planner's own seconds, so following it clears it — `cutPast: 180`, `by: 90`); a number beside its limit reads on its
+  side ("45.04°/s, past 45°/s"). Without a scene the sight and line critics measure null.
+- **The minimum-jerk law moved to a shared leaf, `src/timing/minJerk.js`,** unchanged: a hand's reach and a camera's
+  move both use it, so there is one copy. The human door still hands out `minJerk`, `minJerkSpeed`, `minJerkAccel` and
+  `MIN_JERK_PEAK` (one door per name); `src/human/laws/minJerk.js` is gone. The doors test allows the timing leaf in
+  exactly the human and shot doors, the geometry leaf in exactly the geometry and shot doors, and finds no file elsewhere in `src/` or the doors that
+  defines any name those leaves hand out, as a function or as a const, let or var.
+- `src/shot/camera.js` gains `shotCamera` (the camera a shot asks for, read on a read scene with its problems under a
+  path), which `frameOf` and the camera moves share; `src/shot/check.js` exports `reportOf` for the sight critic.
+  Neither is on a door.
+
 ## 0.28.0 — the intent decider
 
 - **`planIntents(intents, {models, critics, frame})` and `HUMAN_STEPS`** (`footprint-story/human`; docs/design/2026-11-human-motion.md ·
