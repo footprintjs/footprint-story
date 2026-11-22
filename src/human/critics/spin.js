@@ -19,8 +19,12 @@
  *           disagree, and any turn between them is explained). Its value is |extra turn| over the larger of the run's
  *           expected turn (the span's far end) and SPIN_FLOOR × the run's time. A flick of any length, a burst kept for a
  *           few samples, a hump or a dip of turning speed, a stutter and a flick on the last sample all leave turn that
- *           neither side explains. At each end, where one side is missing, the samples' own spin (when every step of
- *           the run gives one) speaks for it: the turn they say joins the span. One allowance, stated: a run that reaches the track's end while the turning eases
+ *           neither side explains. At each end, where one side is missing, the sample there may say one thing for it:
+ *           that the move is AT REST there (its own `spin` still, within RESTING of the floor) — then "no turn" joins the
+ *           span, so a run that turned less than the inside says, the same way, down to none, is a stop, not a burst.
+ *           Nothing else a sample reports speaks for the missing side: a reported rate is a claim, and the angles drawn
+ *           are the track — a final spin set to exactly the rate a flick implies agrees with the flick and would
+ *           explain it away (found in the second read of 0.31.0). One allowance, stated: a run that reaches the track's end while the turning eases
  *           monotonically to rest (each step's speed under the one before by more than RESTING of it, the same way,
  *           through the run, and over the last three steps at least — a lone last step slower than a steady spin is a
  *           flick) is a move coming to a stop, not a burst; and, the same at the other end, a run that starts the
@@ -92,13 +96,12 @@ function runLengths(most) {
  * at the track's own rate (at least MOST_RUN steps). Each side's turns over a run are summed in closed form from running
  * sums of dt, t·dt and t²·dt, so a run costs the same however long it is.
  */
-function burstOf(rates) {
+function burstOf(rates, rests) {
   const n = rates.length, dts = rates.map((r) => r.dt).sort((a, b) => a - b), typical = dts[dts.length >> 1];
   const most = Math.max(MOST_RUN, Math.round(MOST_RUN_SECONDS / typical)), lengths = runLengths(Math.min(most, n));
-  const P0 = [0], P1 = [0], P2 = [0], PW = [0], PO = [0], NO = [0];
+  const P0 = [0], P1 = [0], P2 = [0], PW = [0];
   for (const r of rates) {
     P0.push(P0.at(-1) + r.dt); P1.push(P1.at(-1) + r.t * r.dt); P2.push(P2.at(-1) + r.t * r.t * r.dt); PW.push(PW.at(-1) + r.w * r.dt);
-    PO.push(PO.at(-1) + (r.own ?? 0) * r.dt); NO.push(NO.at(-1) + (r.own === null ? 1 : 0));
   }
   let worst = { value: 0, at: null, steps: 0, extra: 0 };
   for (let i = 0; i < n; i += 1) {
@@ -121,8 +124,11 @@ function burstOf(rates) {
       };
       if (i >= 1) side(rates[i - 1], i >= 2 ? rates[i - 2] : null, i >= 3 ? rates[i - 3] : null);
       if (j + 1 < n) side(rates[j + 1], j + 2 < n ? rates[j + 2] : null, j + 3 < n ? rates[j + 3] : null);
-      // at an end one side is missing: there the samples' own spin, when every step gives it, speaks for that side
-      if ((i === 0 || j === n - 1) && NO[j + 1] - NO[i] === 0) said.push(PO[j + 1] - PO[i]);
+      // at an end one side is missing: a sample at rest there says "no turn" for it, and nothing more. WHY rest only:
+      // 0 widens the span toward stopping and never past it — it explains a run that turned less, the same way, down to
+      // none (a stop), never one that turned more or the other way (a flick). The run's own reported rates (0.31.0's
+      // rule) explained every run they agreed with, and a flick with its rate reported to match agrees exactly.
+      if ((i === 0 && rests.start) || (j === n - 1 && rests.end)) said.push(0);
       const lo = Math.min(...said), hi = Math.max(...said), extra = made > hi ? made - hi : made < lo ? made - lo : 0;
       if (extra === 0 || (j === n - 1 && easesToRest(rates, i)) || (i === 0 && setsOff(rates, j))) continue;
       const value = Math.abs(extra) / Math.max(Math.abs(lo), Math.abs(hi), SPIN_FLOOR * S0);
@@ -151,13 +157,15 @@ export const spin = Object.freeze({
       const said = finite(a.spin) && finite(b.spin) ? ((a.spin + b.spin) / 2) * dt : null;
       if (said === null) longest = Math.max(longest, dt);
       const turn = said === null ? shortestTurn(a.angle, b.angle) : said + wrapAngle(b.angle - a.angle - said);
-      rates.push({ t: (a.t + b.t) / 2, dt, w: turn / dt, own: said === null ? null : said / dt, air: a.air === 1 && b.air === 1 });
+      rates.push({ t: (a.t + b.t) / 2, dt, w: turn / dt, air: a.air === 1 && b.air === 1 });
     }
     if (rates.length < 3) return null;
     const flying = rates.filter((r) => r.air), ws = flying.map((r) => r.w);
     const mid = ws.length >= 2 ? median(ws) : null;
     const flight = mid === null ? null : (Math.max(...ws) - Math.min(...ws)) / Math.max(Math.abs(mid), SPIN_FLOOR);
-    const burst = burstOf(rates), byFlight = flight !== null && flight >= burst.value;
+    // whether the track's first and last samples say the move is at rest there (their own spin still)
+    const still = (x) => finite(x.spin) && Math.abs(x.spin) <= RESTING * SPIN_FLOOR;
+    const burst = burstOf(rates, { start: still(s[0]), end: still(s.at(-1)) }), byFlight = flight !== null && flight >= burst.value;
     // in flight, the step that stands furthest off the middle spin
     const at = byFlight ? flying.reduce((far, r) => (Math.abs(r.w - mid) > Math.abs(far.w - mid) ? r : far)).t : burst.at;
     const readable = longest > 0 ? Math.PI / longest : null;

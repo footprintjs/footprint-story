@@ -161,7 +161,9 @@ sum lies outside the span of those (none when it lies between them: a stop, a st
 two sides that disagree); its value is |extra| over the larger of the run's expected turn and `SPIN_FLOOR` (a turn a
 second) × its time. A flick of any length, a burst kept a few samples, a hump or a dip, a stutter, a hitch, a twitch
 between rests and a flick on the last sample all leave turn neither side explains. At an end, where one side is missing,
-the samples' own spin (when every step gives it) speaks for that side. And one allowance at each end: a run reaching the end while the turning eases monotonically to rest (slower each step by more
+the sample there speaks for it only to say the move is at rest (its own `spin` still): then "no turn" joins the span,
+which explains a stop and never a flick — a reported rate is a claim, the angles are the track, so a final `spin` set to
+exactly the rate a flick implies explains nothing. And one allowance at each end: a run reaching the end while the turning eases monotonically to rest (slower each step by more
 than `RESTING`, 1e-9, through the run and the last three steps — a steady spin's rounding is not slowing) is a stop; a
 run starting the track while the turning only grows through it is a start (so a flick on the very first sample cannot
 be told from one). With that floor a slow spin may drift a little in flight unflagged: 3 → 3.5 rad/s is 8% of a turn a

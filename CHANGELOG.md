@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.38.1 — spin at a track's end
+
+- **`spin` no longer lets a sample's own reported rate explain a flick at a track's end.** Where a run touches an end
+  one side is missing; 0.31.0 let the run's own reported turn (its samples' `spin`) speak for that side, and a reported
+  rate always agrees with the angles it was set for — so a flick on the last (or first) sample whose `spin` was set to
+  exactly the rate the jump implies hid: a 30° flick on the last sample of a steady 20 rad/s spin scored 6e-14, where
+  the same flick with a steady `spin` scores 3.14. Now the sample at the end may say one thing only: that the move is at rest there (its `spin` still, within
+  `RESTING` of the floor). Then "no turn" joins the span, which explains a stop — a run that turned less, the same way,
+  down to none — and never a turn the other way or more than the inside says. The 0.31.0 counterexample (a short roll
+  followed through, seed −1557641434) still passes, now by its last sample at rest. Pinned in
+  `test/human-spin-end.test.js`: matching flicks of ±30° and ±180° on the last and the first sample are caught; a true
+  stop at the end and easing to rest give no finding; the same stopping step with a steady `spin` is a flick. Found in
+  the second read of 0.31.0.
+
 ## 0.38.0 — a name's ink
 
 - **The ink a name reads in on a face, once for both tools** (`src/isometric/colour.js`, on the isometric door):
