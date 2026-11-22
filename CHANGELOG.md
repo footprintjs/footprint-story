@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.32.4 — `mixColour` reads a colour as the rest of the package does
+
+- **`mixColour` takes `#rgb` as well as `#rrggbb`, any case, and refuses anything else**
+  (`src/isometric/paint.js · mixColour`). It had its own parser, which read only `#rrggbb`: `'#abc'`, a colour every
+  other door takes, came back as `'#5606NaN'`, and `'red'` as a colour of `NaN`s. It now reads both colours with
+  `readColour`, the one colour reader, so `'#abc'`, `'#ABC'` and `'#aabbcc'` mix the same, and `'#ab'`, `'red'` or
+  `'#abcd'` is refused naming which colour it was. A `#rrggbb` mixes exactly as before, so nothing either tool draws
+  changed; StoryReel's kit keeps its own mix only to read `#rgb`, and may now ask this one.
+
 ## 0.32.3 — an arc with a radius of 0 refused, by name
 
 - **A paint list's `arc` with `rx` or `ry` of 0 is refused** (`src/isometric/paint.js · checkPaint`), naming the item

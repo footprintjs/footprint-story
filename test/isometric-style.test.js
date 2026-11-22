@@ -14,6 +14,13 @@ test('the columns, the usual style, and the choices this package ships', () => {
   assert.deepEqual(PAINT_ITEMS, ['polygon', 'ellipse', 'path', 'lines', 'stroke']);
   assert.equal(MOST_EFFECTS, 8); assert.equal(MOST_OWN_CHOICES, 64); assert.equal(MOST_PAINT_ITEMS, 512);
   assert.equal(mixColour('#d9e4f3', '#ffffff', 0.2), '#e1e9f5');
+  // read as readColour reads a colour: #rgb as #rrggbb, any case; anything else refused (it once gave '#5606NaN')
+  for (const c of ['#abc', '#ABC', '#aabbcc', '#AaBbCc']) assert.equal(mixColour(c, '#000000', 0.5), '#555e66', c);
+  assert.equal(mixColour('#000000', '#fff', 0.2), '#333333');
+  for (const bad of ['#ab', 'red', '#abcd', '#abcdeg', '', null, 7]) {
+    assert.throws(() => mixColour(bad, '#000000', 0.5), new RegExp(`^Error: isometric: the colour mixed is a colour, "#rgb" or "#rrggbb" — not `), String(bad));
+    assert.throws(() => mixColour('#000000', bad, 0.5), /the colour it is mixed toward is a colour, "#rgb" or "#rrggbb" — not /, String(bad));
+  }
   for (const v of [ISO_STYLE_COLUMNS, USUAL_STYLE, USUAL_STYLE.effects, ISO_STYLE_CHOICES]) assert.ok(Object.isFrozen(v));
 });
 
