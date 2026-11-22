@@ -6,7 +6,7 @@
  *   shapesOfPaint(items, {roles})       → shapes (shapes.js): the faces' edges, the outline first
  *   ringOf(item)                        → a face's ring [[x, y], …]: a polygon's points, an ellipse or a path walked round
  *   strokeItems(plan, {of, role, colour, alpha, width, at}) → paint items {item: 'stroke', points: [[x, y, width, t], …]}
- *   strokeOutline(points)               → the ring round a stroke of changing width: what a painter fills
+ *   (the ring round a stroke, its caps, and a stroke as drawn by a time: outline.js · strokeOutline, strokeAt)
  *
  * Which edges are the outline: an edge one face has is on the piece's silhouette (outline); one two faces share is an
  * inner edge (detail) — a box's three inner edges, where its faces meet. An edge a face painted later covers (its
@@ -95,19 +95,4 @@ export function shapesOfPaint(items, { roles = SOLID, group = '' } = {}) {
 export function strokeItems(plan, { of, role, colour = null, alpha = 1, width, at = 0, strokes = plan.strokes }) {
   return strokes.map((s) => ({ item: 'stroke', role, of, points: s.xs.map((x, i) => [x, s.ys[i], s.ws[i], at + s.ts[i]]), fill: null,
     stroke: { colour, alpha, width, join: 'round', cap: 'round' } }));
-}
-
-/**
- * The ring round a stroke whose width changes along it: up its left side and back down its right, each point moved
- * half its width along the normal of the chord through its neighbours. A painter that cannot vary a line's width fills
- * this ring instead (an SVG painter's path); round ends are the painter's (a circle of the end's width at each end).
- */
-export function strokeOutline(points) {
-  const n = points.length, left = [], right = [];
-  for (let i = 0; i < n; i += 1) {
-    const a = points[Math.max(0, i - 1)], b = points[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, h = points[i][2] / 2;
-    left.push([points[i][0] + (dy / len) * h, points[i][1] - (dx / len) * h]);
-    right.push([points[i][0] - (dy / len) * h, points[i][1] + (dx / len) * h]);
-  }
-  return [...left, ...right.reverse()];
 }

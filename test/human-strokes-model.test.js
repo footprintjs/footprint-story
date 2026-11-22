@@ -149,8 +149,8 @@ test('the paint list: strokes are items of their own, checked as [x, y, width, t
   }
   const lastInk = Math.max(...ink.flatMap((i) => i.points.map((q) => q[3])));
   assert.ok(Math.min(...hatch.flatMap((i) => i.points.map((q) => q[3]))) > lastInk, 'the hatch after the line');
-  const ring = strokeOutline([[0, 0, 2, 0], [10, 0, 4, 1]]);
-  assert.deepEqual(ring, [[0, -1], [10, -2], [10, 2], [0, 1]]);
+  // butt: the sides alone; the usual round cap adds its half circles (test/human-strokes-outline.test.js)
+  assert.deepEqual(strokeOutline([[0, 0, 2, 0], [10, 0, 4, 1]], { cap: 'butt' }), [[0, -1], [10, -2], [10, 2], [0, 1]]);
   const items = strokeItems({ strokes: [{ xs: [0, 1], ys: [0, 0], ws: [1, 1], ts: [0, 1] }] }, { of: 'a', role: 'ink', width: 1, at: 2 });
   assert.deepEqual(items[0].points, [[0, 0, 1, 2], [1, 0, 1, 3]]);
 });

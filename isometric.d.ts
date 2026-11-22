@@ -357,6 +357,8 @@ export interface IsoStyleChoice {
   readonly name: string;
   apply(input: any, context: IsoStyleContext): any;
   readonly options?: readonly string[];
+  /** The options it reads that say when, not what (a pen's speed): left out of the seed, so a slower draw keeps its wobble. Each one of `options`. */
+  readonly unseeded?: readonly string[];
   check?(options: Readonly<Record<string, number | string | boolean>>): void;
   readonly clashes?: readonly { readonly column: IsoStyleColumn; readonly name: string; readonly fix: string }[];
 }
@@ -448,14 +450,23 @@ export interface IsoMap {
 }
 /** The state a step is handed and gives back: the map's keys so far (a step reads only its `reads`). */
 export type IsoMapState = Readonly<Partial<IsoMap>>;
-/** A part of a step: the keys it reads and writes, and its pure function (a new state; the input is never edited). */
-export interface IsoMapPart { readonly reads: readonly (keyof IsoMap)[]; readonly writes: readonly (keyof IsoMap)[]; run(state: IsoMapState): IsoMapState }
+/** A part of a step: the keys it reads and writes, and its pure function (a new state; the input is never edited). `tools`: the tool's own style choices (only `shape` and `style` read them). */
+export interface IsoMapPart { readonly reads: readonly (keyof IsoMap)[]; readonly writes: readonly (keyof IsoMap)[]; run(state: IsoMapState, tools?: IsoMapSettings | null): IsoMapState }
 /** One step: its name and what it does in words, its reads and writes, and — for a step that chooses — its choice (`decides`, writing the choice under `key` and its reason under `why`) and a branch per choice. */
 export interface IsoMapStep extends IsoMapPart { readonly name: 'place' | 'route' | 'fitFloors' | 'grid' | 'shape' | 'names' | 'order' | 'floorLabels' | 'style'; readonly about: string; readonly decides?: IsoMapPart & { readonly key: 'placed' | 'grid'; readonly why: 'placedWhy' | 'gridWhy' }; readonly branches?: Readonly<Record<string, IsoMapPart>> }
 /** The steps, in order: place, route, fitFloors, grid, shape, names, order, floorLabels, style. */
 export const ISO_MAP_STEPS: readonly IsoMapStep[];
-/** The map built: the spec and the policy checked (a refusal names the piece's `who` and the fix), then each step in order. Frozen plain data. */
-export function buildIsoMap(spec: IsoMapSpec, policy: IsoMapPolicy): IsoMap;
+/**
+ * A tool's own style choices, handed beside the spec (data a tool writes) and the policy (its numbers): the choices the
+ * spec's style may name besides this package's — footprint-story/human's `sketchyLine` (`human:sketchy`) and
+ * `hatchTexture` (`human:hatch`), or a tool's `reel:chalk`. Code, never state: the built map's `style` names the ones it used.
+ */
+export interface IsoMapSettings { readonly choices?: readonly IsoStyleChoice[] | null }
+/**
+ * The map built: the spec and the policy checked (a refusal names the piece's `who` and the fix), then each step in
+ * order, each handed `settings`' choices. Frozen plain data. A style naming a tool's choice not handed in is refused, with the fix.
+ */
+export function buildIsoMap(spec: IsoMapSpec, policy: IsoMapPolicy, settings?: IsoMapSettings | null): IsoMap;
 
 // ---- moving pieces (0.32.0): where a moving block stands, whether it passes through another, what it hides --------
 

@@ -347,6 +347,17 @@ export const strokes: unknown[] = [sampleSketch(sketch, 0.5).down, boilSketch(sk
   isoStyle({ line: 'human:sketchy' }, { choices: [sketchyLine] }).row.line];
 // @ts-expect-error a fill kind that is not one
 planSketch([{ points: [[0, 0], [1, 0], [0, 1]], closed: true, fill: { kind: 'dots' } }], { seed: 'x' });
+// hand-drawn maps: the tool's own choices handed beside the spec and the policy; a stroke as drawn by a time; its caps
+import { strokeAt, STROKE_CAPS, CAP_STEPS } from 'footprint-story/human';
+const handDrawn: IsoMap = buildIsoMap({ ...mapSpec, style: { line: 'human:sketchy', texture: 'human:hatch' } }, ISO_MAP_POLICIES.deck, { choices: [sketchyLine, hatchTexture] });
+const drawnSoFar: [number, number, number, number][] = strokeAt(strokeItem.points, 0.25);
+export const handDrawnMaps: unknown[] = [handDrawn.style.row.line, strokeOutline(drawnSoFar, { cap: 'square' })[0][0], strokeOutline(drawnSoFar, null).length, STROKE_CAPS[0], CAP_STEPS,
+  sketchyLine.unseeded[0], mapFlow({ choices: [sketchyLine] }), ISO_MAP_STEPS[4].run({ style: handDrawn.style }, { choices: [sketchyLine, hatchTexture] })];
+runMapFlow(mapSpec, ISO_MAP_POLICIES.film, { choices: [sketchyLine, hatchTexture], recorders: [] }).then(({ map }) => map.paints[0][0].item);
+// @ts-expect-error a cap that is not one
+strokeOutline(drawnSoFar, { cap: 'arrow' });
+// @ts-expect-error the choices are code beside the spec, never a key of the policy
+buildIsoMap(mapSpec, ISO_MAP_POLICIES.film, { choice: [sketchyLine] });
 // 0.31.0: rolling, tumbling and sliding — the roll, slide and tumble families, the glide law, the hand-over rule, the critics
 import { glide, glideAt, restSpeed, touchAlong, ROLL_SHAPES, ROLLING_RESISTANCE, MOST_SLOPE, rollTurn, rollingPush, landRoll, KINETIC_FRICTION, STATIC_FRICTION, slidingPush,
   slideDistance, spinAt, faceSpin, ROLL_KEYS, MIN_ROLL_RADIUS, SLIDE_KEYS, MOST_FRICTION, TUMBLE_KEYS, TUMBLE_SHAPES, LANDING_RULES, GROUND_PLANES, MOST_GROUND_SPEED, OFF_LINE,

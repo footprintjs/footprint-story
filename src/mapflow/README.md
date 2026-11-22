@@ -47,8 +47,16 @@ a map that placed its blocks and one that has none — so a deck's record never 
 "placed" of blocks it does not have. The spec and the policy come in as the
 run's input (`{mapSpec, mapPolicy}`), checked by the `read` stage; the record says that stage read the run's args.
 
-**What it gives.** `mapFlow()` is the chart, to run as you like (input `{mapSpec, mapPolicy}`). `runMapFlow(spec,
-policy, {sink, recorders})` runs it and gives `{map, snapshot}`: the map (frozen plain data, as `buildIsoMap` gives it)
+**A hand-drawn map.** A tool's own style choices (`sketchyLine`, `hatchTexture` from footprint-story/human) are code,
+so never the run's input or state: `mapFlow({choices})` builds the chart with them and each stage hands them to its
+step, as `buildIsoMap(spec, policy, {choices})` does; `runMapFlow(spec, policy, {choices, sink, recorders})` reads them
+once and builds that chart. The record keeps the names the map's style chose (`style.row.line: 'human:sketchy'`,
+written by `read`, read by `shape` and `style`). WHY bound into the chart (the humanflow way): footprintjs copies a
+run's input, and a function does not copy. The drift property holds with them: for random maps, hand-drawn rows and
+both policies, the run's map equals `buildIsoMap`'s, or both refuse in one set of words (`test/hand-drawn-map.test.js`).
+
+**What it gives.** `mapFlow({choices})` is the chart, to run as you like (input `{mapSpec, mapPolicy}`). `runMapFlow(spec,
+policy, {choices, sink, recorders})` runs it and gives `{map, snapshot}`: the map (frozen plain data, as `buildIsoMap` gives it)
 and the run's snapshot. A spec or a policy it refuses rejects the run with `buildIsoMap`'s words; it reads the spec
 itself before the run and hands footprintjs a plain copy, because footprintjs copies a run's input before any stage sees
 it, and that copy would run a getter. `mapFlow()` run by hand has that gap: hand it plain data. The sink is the

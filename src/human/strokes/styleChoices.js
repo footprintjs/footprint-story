@@ -77,5 +77,6 @@ function hatch(items, { piece, colours, options, random }) {
   return [...items, ...strokeItems(plan, { of: piece.name, role: 'hatch', colour: colours.ink, width: width * WIDTH_SHARE.fill, at })];
 }
 
-export const sketchyLine = Object.freeze({ column: 'line', name: 'human:sketchy', options: Object.freeze(['width', 'tremor', 'overshoot', 'speed']), check: checkSketchy, clashes: Object.freeze([]), apply: sketchy });
-export const hatchTexture = Object.freeze({ column: 'texture', name: 'human:hatch', options: Object.freeze(['spacing', 'angle', 'width', 'tremor']), check: checkHatch, clashes: Object.freeze([]), apply: hatch });
+/** `speed` says when, not what: left out of the seed (`unseeded`), so a slower draw keeps its wobble (the seed rule, UNSEEDED_KEYS). */
+export const sketchyLine = Object.freeze({ column: 'line', name: 'human:sketchy', options: Object.freeze(['width', 'tremor', 'overshoot', 'speed']), unseeded: Object.freeze(['speed']), check: checkSketchy, clashes: Object.freeze([]), apply: sketchy });
+export const hatchTexture = Object.freeze({ column: 'texture', name: 'human:hatch', options: Object.freeze(['spacing', 'angle', 'width', 'tremor']), unseeded: Object.freeze([]), check: checkHatch, clashes: Object.freeze([]), apply: hatch });

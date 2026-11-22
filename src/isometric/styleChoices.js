@@ -86,4 +86,4 @@ export const BUILT_IN_CHOICES = Object.freeze([
   { column: 'line', name: 'none', apply: noLine, options: [] },
   { column: 'palette', name: 'theme', apply: same, options: [] },
   { column: 'texture', name: 'none', apply: same, options: [] },
-].map((c) => Object.freeze({ check: null, ...c, options: Object.freeze(c.options), clashes: Object.freeze([]) })));
+].map((c) => Object.freeze({ check: null, ...c, options: Object.freeze(c.options), unseeded: Object.freeze([]), clashes: Object.freeze([]) })));

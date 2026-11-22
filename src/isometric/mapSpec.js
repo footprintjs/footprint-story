@@ -33,7 +33,7 @@
  * when it writes none (the deck's: tile 120, its far corner at the slide's middle, 240 px down — depending on the
  * slide's width, so data, not a rule). Left out, each is nothing, and a map is built as 0.24.0 built it.
  */
-import { isoStyle } from './style.js';
+import { isoStyle, MOST_OWN_CHOICES } from './style.js';
 import { ownEntries, readColour } from './paint.js';
 import { readPorts } from './ports.js';
 import { isometric } from './grid.js';
@@ -259,15 +259,37 @@ function gridNumbers(raw, who, key) {
   return { tile: typeof tile === 'number' ? tile : [...g.tile], origin: [...g.origin], ...(rise === null ? {} : { rise: g.rise }) };
 }
 
+const SETTINGS_KEYS = ['choices'];
+/**
+ * The tool's own style choices, handed beside the spec and the policy: `{choices}` (as isoStyle takes them — a tool's
+ * `reel:chalk`, footprint-story/human's `sketchyLine` and `hatchTexture`), or none. Gives frozen `{choices}`, the list
+ * copied (a later edit of the caller's list reaches nothing), each choice checked once here by isoStyle.
+ * WHY a third argument, not the spec or the policy: a choice is code, and the spec is data a tool writes (a record keeps
+ * it whole) while the policy is the tool's numbers; the spec's `style` names the choices (`line: 'human:sketchy'`) and
+ * the record keeps those names — the code is handed again on every build, as `restyle` takes it.
+ */
+export function readIsoMapSettings(settings, call = 'buildIsoMap') {
+  if (settings === undefined || settings === null) return Object.freeze({ choices: Object.freeze([]) });
+  if (!isObject(settings)) refuse(`${call}'s settings are {choices} (a tool's own style choices), or none — not ${shown(settings)}`);
+  for (const k of Object.keys(settings)) if (!SETTINGS_KEYS.includes(k)) refuse(`${call}'s settings are {choices} (a tool's own style choices: [sketchyLine, hatchTexture] from footprint-story/human) — not ${shown(k)}`);
+  const raw = stored(settings, 'choices', `${call}'s choices`) ?? [];
+  if (!Array.isArray(raw) || raw.length > MOST_OWN_CHOICES) refuse(`${call}'s choices are a list of at most ${MOST_OWN_CHOICES} style choices — not ${Array.isArray(raw) ? `${raw.length} of them` : shown(raw)}`);
+  const choices = Object.freeze(ownEntries(raw, `${call}'s choices`));
+  named(`${call}'s choices`, () => isoStyle(null, { choices }));
+  return Object.freeze({ choices });
+}
+
 /**
  * The flow's first state: the spec and the policy checked and copied, or a refusal naming the piece and the fix.
+ * `settings` are the tool's own style choices ({choices}, readIsoMapSettings): what the spec's style may name besides
+ * this package's.
  * `written` is the grid as the map writes it: its numbers, the word 'fit' (the map asks for the fitted grid), or null.
  */
-export function readIsoMap(spec, policy) {
+export function readIsoMap(spec, policy, settings = undefined) {
   if (!isObject(spec)) refuse(`a map is {blocks, floors, wires, obstacles, keep, grid, usualGrid, area, style, who} — not ${shown(spec)}`);
   const who = whoOf(spec, 'the map');
   keysOf(spec, MAP_KEYS, who);
-  const pol = readIsoPolicy(policy);
+  const pol = readIsoPolicy(policy), tools = readIsoMapSettings(settings);
   const rawBlocks = stored(spec, 'blocks', `${who}'s blocks`), rawFloors = stored(spec, 'floors', `${who}'s floors`), rawObstacles = stored(spec, 'obstacles', `${who}'s obstacles`);
   const count = (v) => (Array.isArray(v) ? v.length : 0), pieces = count(rawBlocks) + count(rawFloors) + count(rawObstacles);
   if (pieces > ISO_MAP_LIMITS.pieces) refuse(`${who} holds at most ${ISO_MAP_LIMITS.pieces} blocks, floors and obstacles, and this one has ${pieces} — split it into two maps`);
@@ -307,6 +329,6 @@ export function readIsoMap(spec, policy) {
   if (fitted && !area) refuse(`${who} gives an area to fit its picture into ([0, 0, 1600, 900]), or a grid in numbers ({tile, origin})`);
   if (fitted && !blocks.length && !obstacles.length) refuse(`${who}: a fitted grid is fitted to what stands on the floor, and this map has nothing — add a block, or write the grid in numbers ({tile, origin})`);
   const rawStyle = stored(spec, 'style', `${who}'s style`) ?? null;
-  const style = named(`${who}'s style`, () => isoStyle(rawStyle));
+  const style = named(`${who}'s style`, () => isoStyle(rawStyle, tools));
   return { who, blocks, floors, wires, obstacles, keep, written, usualGrid, area, style: { row: style.row, options: style.options }, policy: pol };
 }

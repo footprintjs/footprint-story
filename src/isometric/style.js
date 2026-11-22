@@ -10,7 +10,7 @@
  * face) → `line` (strokes) → `palette` (recoloured) → `texture` (marks over the faces) → `effects` (a list, each adding
  * to the whole). A style left out, or a column left out, is today's look (USUAL_STYLE).
  *
- * A choice is `{ column, name, apply(input, context), options: [names it reads], check(options)?, clashes: [{column, name, fix}] }`;
+ * A choice is `{ column, name, apply(input, context), options: [names it reads], unseeded?: [those that are timing], check(options)?, clashes: [{column, name, fix}] }`;
  * `check` refuses an option value it cannot take, once, when the style is made.
  * `shape`'s apply takes `{piece, grid}` and gives `{box, centre, outline, items}` — the box round it, where its name
  * stands, the outline round it (what a cable's end and a label keep clear of) — every other apply takes the items and gives items.
@@ -53,11 +53,16 @@ function readOwn(c, i) {
   if (typeof name !== 'string' || !OWN.test(name)) refuse(`${what}'s name is the tool's prefix and a name, lower case ("reel:chalk"): a name with no prefix is this package's — not ${shown(name)}`);
   if (typeof apply !== 'function') refuse(`${what} (${name}) gives its apply(input, context) — not ${shown(apply)}`);
   const rawOptions = stored(c, 'options', `${what}'s options`) ?? [], rawClashes = stored(c, 'clashes', `${what}'s clashes`) ?? [], check = stored(c, 'check', `${what}'s check`) ?? null;
+  const rawUnseeded = stored(c, 'unseeded', `${what}'s unseeded`) ?? [];
   if (!Array.isArray(rawOptions) || rawOptions.length > 16) refuse(`${what} (${name})'s options are the names it reads, at most 16, lower case — not ${shown(rawOptions)}`);
   if (!Array.isArray(rawClashes) || rawClashes.length > 32) refuse(`${what} (${name})'s clashes are a list of at most 32 {column, name, fix} — not ${shown(rawClashes)}`);
   const options = ownEntries(rawOptions, `${what} (${name})'s options`), clashes = ownEntries(rawClashes, `${what} (${name})'s clashes`);
   if (check !== null && typeof check !== 'function') refuse(`${what} (${name})'s check is a function (options) that refuses what it cannot take, or none — not ${shown(check)}`);
   if (options.some((o) => typeof o !== 'string' || !BUILT_IN.test(o))) refuse(`${what} (${name})'s options are the names it reads, at most 16, lower case — not ${shown(options)}`);
+  // the options that say when, not what (a pen's speed): left out of the seed, so a slower draw keeps its wobble's shape
+  if (!Array.isArray(rawUnseeded)) refuse(`${what} (${name})'s unseeded are the options it reads that are timing, left out of the seed — not ${shown(rawUnseeded)}`);
+  const unseeded = ownEntries(rawUnseeded, `${what} (${name})'s unseeded`);
+  for (const u of unseeded) if (!options.includes(u)) refuse(`${what} (${name})'s unseeded names options it reads (${options.join(', ') || 'none'}) — not ${shown(u)}`);
   const read = clashes.map((x, k) => {
     const w = `${what} (${name})'s clashes[${k}]`;
     if (!x || typeof x !== 'object') refuse(`${w} is {column, name, fix} — not ${shown(x)}`);
@@ -65,7 +70,7 @@ function readOwn(c, i) {
     if (!ISO_STYLE_COLUMNS.includes(col) || typeof nm !== 'string' || typeof fix !== 'string' || !fix.trim() || fix.length > 200) refuse(`${w} is {column, name, fix}: a column, a choice's name and the fix in words (at most 200 letters) — not ${shown([col, nm, fix])}`);
     return Object.freeze({ column: col, name: nm, fix });
   });
-  return Object.freeze({ column, name, apply, check, options: Object.freeze([...options]), clashes: Object.freeze(read) });
+  return Object.freeze({ column, name, apply, check, options: Object.freeze([...options]), unseeded: Object.freeze([...new Set(unseeded)]), clashes: Object.freeze(read) });
 }
 
 /** One column's entry: a name, or {name, ...options}. Gives {name, options}. */
@@ -106,7 +111,7 @@ export function isoStyle(row = undefined, settings = undefined) {
   for (const k of keys) if (!ISO_STYLE_COLUMNS.includes(k)) refuse(`a style's columns are ${ISO_STYLE_COLUMNS.join(', ')} — not ${shown(k)}`);
   const find = (column, name) => {
     const c = all.find((x) => x.column === column && x.name === name);
-    if (!c) refuse(`the style's ${column} has no choice ${shown(name)} — the ${column} choices are ${all.filter((x) => x.column === column).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
+    if (!c) refuse(`the style's ${column} has no choice ${shown(name)} — the ${column} choices are ${all.filter((x) => x.column === column).map((x) => `"${x.name}"`).join(', ') || 'none yet'}${typeof name === 'string' && OWN.test(name) ? `; "${name}" is a tool's own choice (its name has a prefix), which is code no record holds: hand the choice itself in {choices} (${name.startsWith('human:') ? 'footprint-story/human has the "human:" ones' : 'the tool that names it has it'})` : ''}`);
     return c;
   };
   const out = {}, options = {}, picked = {};
@@ -176,9 +181,30 @@ function checkGrid(grid, call) {
   if (!grid || typeof grid !== 'object' || !['block', 'cylinder', 'floor'].every((k) => typeof grid[k] === 'function')) refuse(`${call} draws on a map's grid (isometric(...)) — not ${shown(grid)}`);
 }
 
+/**
+ * The options the seed reads: the style's, less those a choice names `unseeded` (timing — a pen's speed). A column left
+ * with none is left out, as if none were written, so a style that writes no timing option is seeded as it always was.
+ * WHY: the seed rule (src/seed/seeded.js, and the human door's UNSEEDED_KEYS): the same thing wobbles the same however
+ * fast it is drawn, and wherever it was written (`who` is never in a style).
+ */
+function seededOptions(style, picked) {
+  const less = (o, choice) => {
+    if (!o || !choice.unseeded.length) return o;
+    const kept = Object.fromEntries(Object.entries(o).filter(([k]) => !choice.unseeded.includes(k)));
+    return Object.keys(kept).length ? kept : null;
+  };
+  const out = {};
+  for (const [column, o] of Object.entries(style.options)) {
+    if (column === 'effects') { const list = o.map((e, k) => less(e, picked.effects[k]) ?? {}); if (list.some((e) => Object.keys(e).length)) out.effects = list; continue; }
+    const kept = less(o, picked[column]);
+    if (kept) out[column] = kept;
+  }
+  return out;
+}
+
 /** What each column's apply is handed beside its input: the piece, the colours, its options and its seeded numbers. */
 function contextOf(style, p, cs) {
-  const seedOf = JSON.stringify([style.row, style.options, p.name]);
+  const seedOf = JSON.stringify([style.row, seededOptions(style, chosen.get(style)), p.name]);
   return (column, options, k = 0) => Object.freeze({ piece: p, colours: cs, options: options ?? Object.freeze({}), random: seeded(`${seedOf}|${column}|${k}`) });
 }
 const whoOf = (c) => `the style's ${c.column} "${c.name}"`;

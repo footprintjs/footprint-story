@@ -7,7 +7,9 @@
  *
  * place → route → fitFloors → grid → shape → names → order → floorLabels → style. Each step reads only the keys it names
  * (`reads`) of the state it is handed, and gives back a new state with the keys it names (`writes`); it never edits what
- * it was handed and never puts a function in the state, so every state is plain data a record can keep. A step that
+ * it was handed and never puts a function in the state, so every state is plain data a record can keep. A tool's own
+ * style choices are code, so never state: each step is handed them beside it (`run(state, tools)`, tools `{choices}`),
+ * and the state's `style` names the ones the map uses — what a record keeps. A step that
  * chooses (`place`: the map placed the blocks, or the build from its wires; `grid`: written in numbers, fitted to the
  * area, or the tool's usual grid) says so as data — the choice and its reason in words (`placed`/`placedWhy`, `grid`/`gridWhy`) — and does the
  * rest in the branch it chose (`decides`, `branches`): footprint-story/mapflow runs the same functions as a footprintjs
@@ -48,11 +50,11 @@ import { isometric } from './grid.js';
 import { wordsToFit } from './words.js';
 import { floorLabelPlace } from './floorLabel.js';
 import { restyle, shapePiece, paintShaped } from './style.js';
-import { readIsoMap } from './mapSpec.js';
+import { readIsoMap, readIsoMapSettings } from './mapSpec.js';
 
 /** A refusal from a part of this package, said in a piece's (or the map's) name, with the fix. */
 function fail(who, what, e, fix = '') {
-  throw new Error(`isometric: ${who}: ${what}${String(e?.message ?? e).replace(/^isometric: /, '')}${fix}`, { cause: e });
+  throw new Error(`isometric: ${who}: ${what}${String(e?.message ?? e).replace(/^(?:isometric|human): /, '')}${fix}`, { cause: e });
 }
 const xy = (p) => [p.x, p.y];
 /** The grid from its numbers (the state keeps the numbers; the grid's functions are made again where they are needed). */
@@ -182,8 +184,8 @@ function gridFitted(state) {
  * Each piece's box, centre, outline and faces on the frame: the style's `shape` column (style.js · shapePiece). An
  * obstacle is drawn by the tool, so its shape is the block it stands in (grid.block): its box, centre and outline.
  */
-function shape(state) {
-  const { blocks, at, floors, floorTiles } = state, style = restyle(state.style), grid = gridOf(state.view);
+function shape(state, tools = undefined) {
+  const { blocks, at, floors, floorTiles } = state, style = restyle(state.style, tools), grid = gridOf(state.view);
   const of = (made) => ({ box: made.box, centre: made.centre, outline: made.outline, faces: made.items });
   const shaped = (who, piece, colours) => { try { return of(shapePiece(style, piece, grid, colours)); } catch (e) { return fail(who, '', e); } };
   const stood = (o) => { const b = grid.block({ at: o.at, size: o.size }); return { box: { ...b.box }, centre: xy(b.centre), outline: b.outline.map(xy) }; };
@@ -232,11 +234,15 @@ function floorLabels(state) {
   }) };
 }
 
-/** Each piece's paint list: the style's other columns over its faces (style.js · paintShaped), as paintPiece gives it. */
-function style(state) {
-  const { blocks, at, floors, floorTiles } = state, made = restyle(state.style);
-  return { ...state, paints: blocks.map((b, i) => paintShaped(made, blockPiece(b, at[i]), state.shapes[i].faces, b.colours)),
-    floorPaints: floors.map((f, i) => paintShaped(made, floorPiece(f, i, floorTiles[i]), state.floorShapes[i].faces, f.colours)) };
+/**
+ * Each piece's paint list: the style's other columns over its faces (style.js · paintShaped), as paintPiece gives it. A
+ * refusal (a hatch too close for its piece's list) names the piece by its `who`, as the shape step's does.
+ */
+function style(state, tools = undefined) {
+  const { blocks, at, floors, floorTiles } = state, made = restyle(state.style, tools);
+  const painted = (who, piece, faces, colours) => { try { return paintShaped(made, piece, faces, colours); } catch (e) { return fail(who, '', e); } };
+  return { ...state, paints: blocks.map((b, i) => painted(b.who, blockPiece(b, at[i]), state.shapes[i].faces, b.colours)),
+    floorPaints: floors.map((f, i) => painted(f.who, floorPiece(f, i, floorTiles[i]), state.floorShapes[i].faces, f.colours)) };
 }
 
 // ---- the list --------------------------------------------------------------------------------------------------------
@@ -250,9 +256,9 @@ function choosing(name, about, decides, branches) {
   const all = Object.values(branches);
   const reads = [...new Set([...decides.reads, ...all.flatMap((b) => b.reads)])], writes = [...new Set([...decides.writes, ...all.flatMap((b) => b.writes)])];
   // each part handed only what it reads, and only what it writes kept: the chart's decider and branch stages do the same
-  const run = (state) => {
-    const chosen = pick(decides.run(pick(state, decides.reads)), decides.writes), branch = branches[chosen[decides.key]];
-    return { ...state, ...chosen, ...pick(branch.run(pick(state, branch.reads)), branch.writes) };
+  const run = (state, tools = undefined) => {
+    const chosen = pick(decides.run(pick(state, decides.reads), tools), decides.writes), branch = branches[chosen[decides.key]];
+    return { ...state, ...chosen, ...pick(branch.run(pick(state, branch.reads), tools), branch.writes) };
   };
   return Object.freeze({ name, about, reads: Object.freeze(reads), writes: Object.freeze(writes), run, decides: Object.freeze({ ...decides }), branches: Object.freeze(branches) });
 }
@@ -293,9 +299,12 @@ export function deepFreeze(v) {
  * The map built: the spec and the policy checked (mapSpec.js · readIsoMap), then each step run in order, handed only the
  * keys it reads — so a step that reads a key it does not name finds nothing, and the list stays honest — and keeping
  * only the keys it writes. Gives the last state, frozen plain data: what the steps decided and made, by key (above).
+ * `settings.choices`: the tool's own style choices the spec's style may name (mapSpec.js · readIsoMapSettings) — handed
+ * to every step as its second argument (`run(state, tools)`); only `shape` and `style` read them. Code, never state.
  */
-export function buildIsoMap(spec, policy) {
-  let state = deepFreeze(readIsoMap(spec, policy));
-  for (const step of ISO_MAP_STEPS) state = Object.freeze({ ...state, ...deepFreeze(pick(step.run(pick(state, step.reads)), step.writes)) });
+export function buildIsoMap(spec, policy, settings = undefined) {
+  const tools = readIsoMapSettings(settings, 'buildIsoMap');
+  let state = deepFreeze(readIsoMap(spec, policy, tools));
+  for (const step of ISO_MAP_STEPS) state = Object.freeze({ ...state, ...deepFreeze(pick(step.run(pick(state, step.reads), tools), step.writes)) });
   return state;
 }

@@ -42,10 +42,24 @@ export function withOvershoot(points: readonly HumanPoint[], most?: number): Hum
 export function shapesOfPaint(items: readonly { readonly item: string; readonly role: string; readonly [key: string]: unknown }[], options?: { readonly roles?: readonly string[]; readonly group?: string }): SketchShape[];
 /** A plan's strokes as isometric paint items: {item: 'stroke', points: [[x, y, width, t], …]}. */
 export function strokeItems(plan: SketchPlan, options: { readonly of: string; readonly role: string; readonly colour?: string | null; readonly alpha?: number; readonly width: number; readonly at?: number; readonly strokes?: readonly SketchStroke[] }): { readonly item: 'stroke'; readonly role: string; readonly of: string; readonly points: (readonly [number, number, number, number])[]; readonly fill: null; readonly stroke: { readonly colour: string | null; readonly alpha: number; readonly width: number; readonly join: 'round'; readonly cap: 'round' } }[];
-/** The ring round a stroke of changing width (points [x, y, width, …]): what a painter that cannot vary a line's width fills. */
-export function strokeOutline(points: readonly (readonly number[])[]): [number, number][];
+/** The caps a stroke's end takes: 'round', 'butt', 'square' (the paint list's, SVG's and canvas's names). */
+export const STROKE_CAPS: readonly ('round' | 'butt' | 'square')[];
+/** The segments of a round cap's half circle (12, ours: within 0.09 px of the circle at a 20 px stroke). */
+export const CAP_STEPS: number;
+/**
+ * One ring round a stroke of changing width (points [x, y, width, …]), its two ends capped by `cap` (round when left out,
+ * as `strokeItems` writes it; a stroke item's `stroke.cap`): what a painter fills, drawing no cap of its own. A stroke
+ * of one point is a dot (a circle, a square, or nothing for butt).
+ */
+export function strokeOutline(points: readonly (readonly number[])[], options?: { readonly cap?: 'round' | 'butt' | 'square' } | null): [number, number][];
+/**
+ * The stroke as drawn by time `t` (seconds on the points' own clock, from the piece's start): every point at or before
+ * `t`, then the pen's place at `t` between the two around it (x, y and width linear). [] before the first point; every
+ * point at or after the last (Infinity: the whole stroke). The partial ring is `strokeOutline(strokeAt(points, t), {cap})`.
+ */
+export function strokeAt(points: readonly (readonly [number, number, number, number])[], t: number): [number, number, number, number][];
 /** An isometric style choice, as src/isometric/style.js takes a tool's own (handed in under `choices`). */
-export interface StrokeStyleChoice { readonly column: 'line' | 'texture'; readonly name: string; readonly options: readonly string[]; check(options: Readonly<Record<string, unknown>>): void; readonly clashes: readonly never[]; apply(items: readonly any[], context: any): any[] }
+export interface StrokeStyleChoice { readonly column: 'line' | 'texture'; readonly name: string; readonly options: readonly string[]; readonly unseeded: readonly string[]; check(options: Readonly<Record<string, unknown>>): void; readonly clashes: readonly never[]; apply(items: readonly any[], context: any): any[] }
 /** The line 'human:sketchy': a piece's edges drawn by hand (silhouette, then inner edges). Hand it to isoStyle in choices. */
 export const sketchyLine: StrokeStyleChoice;
 /** The texture 'human:hatch': left faces and sides hatched, right faces cross-hatched, after the line's strokes. */

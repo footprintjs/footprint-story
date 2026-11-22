@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — hand-drawn maps
+
+- **A map can be drawn by hand.** `buildIsoMap(spec, policy, {choices})` and `runMapFlow(spec, policy, {choices, sink,
+  recorders})` take a tool's own style choices beside the spec and the policy (`[sketchyLine, hatchTexture]` from
+  `footprint-story/human`), so a style naming `human:sketchy` / `human:hatch` builds under `film` or `deck`; before, the
+  steps refused both. Each step gets them as `run(state, tools)`; `mapFlow({choices})` binds them into the chart (the
+  humanflow way), so state never holds code and the record keeps the names (`style.row`). Refused by name: a settings
+  key but `choices`, a getter, a bad choice; a style naming a choice not handed in (in the map's `who`, with the fix); a
+  hatch too close for its piece (now in the piece's `who`: the `style` step wraps what a choice throws, as `shape` does,
+  the original as `cause`). Only paint lists change. The flow's map equals `buildIsoMap`'s with hand-drawn rows (a property).
+- **The seed leaves timing out.** A choice may name options that are timing (`unseeded`, each one of its `options`);
+  they are left out of its seed. `sketchyLine` names `speed`: a faster pen draws the same wobble (`UNSEEDED_KEYS`' rule).
+  A style writing none of them is seeded as before. A pinned map's pen points are held to 1e-6.
+- **Stroke ends: the cap is in the ring.** `strokeOutline(points, {cap})` (now `src/human/strokes/outline.js`) caps both
+  ends as one ring a painter fills: `round` (a half circle, `CAP_STEPS` 12), `butt`, `square`. **Changed:** with no cap
+  it gives round ends, as `strokeItems` writes the cap (it gave flat ones: StoryDeck drew flat ends, StoryReel its own
+  circles); `{cap: 'butt'}` is the old ring. A one-point stroke is a dot; a bad cap or point is refused.
+- **`strokeAt(points, t)`: a stroke as drawn by a time** — the points at or before `t`, then the pen's place at `t`
+  between the two around it (x, y, width linear); `[]` before, the whole stroke after. `strokeOutline(strokeAt(points,
+  now - start), {cap})` is the partial ring, its cut end capped — one rule for both tools.
+- Tests: `test/human-strokes-outline.test.js`, `test/hand-drawn-map.test.js`. Types: `IsoMapSettings`,
+  `IsoStyleChoice.unseeded`, `strokeAt`, `STROKE_CAPS`, `CAP_STEPS`, `strokeOutline`'s options.
+
 ## 0.32.1 — a cable test that held the film's labels to the old rule
 
 - **A test fix only: no code changed, nothing either tool draws changed.** The property test "StoryReel's straight
