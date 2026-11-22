@@ -375,3 +375,22 @@ export const resolution: number = BASE_RATE + MOST_STEP_TURN + MOST_STEP_TRAVEL 
 export const stopping: number = stoppingCoefficient({ along: 0, normal: 1960, speed: 100, seconds: 30, share: 1.4 });
 // @ts-expect-error a roll's do is 'roll', never 'rolling'
 planMove({ do: 'rolling' });
+import { footOf, topOf, cornerOf, landingUnder, overTop, ridesOn, SAME_PLACE, footTiles, sideFoot, worldPx, LEVEL_SNAP, sweptThrough, checkMoments, deepestPass, passFinding, THROUGH_MOST, CHECKS_PER_SECOND, MOST_CHECKS, offFrame, drawnOff, posed, nameBox, overlapsBox, orderAt, hiddenNames, coverFinding, NAME_WIDTH } from 'footprint-story/isometric';
+import type { IsoStanding, IsoLanding, IsoMover, IsoStretch, IsoSideWay, IsoMotionFinding } from 'footprint-story/isometric';
+const crate = { name: 'crate', size: [1, 1, 1] as const }, shelf = { name: 'shelf', size: [2, 2, 1] as const };
+const onShelf: IsoLanding<typeof shelf> = landingUnder([0, 0, 3], crate.size, [{ block: shelf, at: [0, 0, 0] }]);
+export const shelfName: string | undefined = onShelf.block?.name;
+const riding: IsoStanding = { block: crate, at: [0.5, 0.5, 1] };
+const wall: IsoMover<typeof shelf> = { block: shelf, from: [5, 0, 0], to: [5, 0, 0] };
+const swept = sweptThrough(crate.size, [0, 0, 0], [10, 0, 0], [wall]);
+export const sweptName: string | undefined = swept?.block.name;
+const moveStretch: IsoStretch = { t0: 0, t1: 1, size: [1, 1, 1], from: [0, 0], to: [1, 0], others: [] };
+const sideWay: IsoSideWay = { origin: [0, 0], heading: [1, 0], unit: worldPx(grid), levels: [0] };
+const passFound: IsoMotionFinding = passFinding({ block: shelf, depth: 0.2, t: 0.5 }, { do: 'throw', tie: 'foot' });
+const hidden: (number | null)[] = hiddenNames(grid, [{ at: [0, 0], size: [1, 1, 1] }], [{ piece: 0, box: [0, 0, 1, 1] }], []);
+export const moving: unknown[] = [footOf([0, 0], [1, 1, 1]), topOf([0, 0], [1, 1, 1]), cornerOf([0, 0, 0], [1, 1, 1]), overTop([1, 1], onShelf), ridesOn(riding, { block: shelf, at: [0, 0, 0] }), SAME_PLACE + LEVEL_SNAP,
+  footTiles(grid)([0, 0], { from: [0, 0], to: [1, 1] }, 0.5), sideFoot(sideWay, { x: 1, y: 0 }), checkMoments(1, 2), deepestPass([moveStretch])?.t, THROUGH_MOST + CHECKS_PER_SECOND + MOST_CHECKS, passFound.critic,
+  offFrame([0, 0], [100, 100]), drawnOff([[0, 0]], null, [100, 100])?.part, posed([0, 0], { dx: 1, dy: 1, pivot: [0, 0] }), nameBox({ lines: ['A'], size: 20 }, null, [0, 0]), overlapsBox([[0, 0], [1, 0], [0, 1]], [0, 0, 1, 1]),
+  orderAt(grid, [{ at: [0, 0], size: [1, 1, 1] }]), hidden, coverFinding('a', 'A').fix, NAME_WIDTH];
+// @ts-expect-error a finding's critic is 'contact' or 'covers', with no tool's prefix
+export const prefixed: IsoMotionFinding['critic'] = 'reel:contact';

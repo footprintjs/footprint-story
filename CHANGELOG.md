@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.32.0 — moving pieces on a map, one copy
+
+- **The number rules a moving block is placed by, on `footprint-story/isometric`** — moved from StoryReel 0.44.0
+  (`src/kits/isometric/motion-place.mjs`, `motion-cover.mjs`, `motion-side.mjs`) and StoryDeck 0.37.0
+  (`deck/motionPlace.js`, `motionPlan.js`), which held the same rules twice. Tools can now import:
+  - `footOf`, `topOf`, `cornerOf` — a block's foot (the middle of its footprint, at its lift), its top, and its corner
+    back from its foot;
+  - `landingUnder` — the highest top under a block that is not above its foot, else the floor (an overlap past
+    `SAME_PLACE`, 1e-6 tile); `overTop` — whether a foot is over that top, edges included;
+  - `ridesOn(rider, base)` — whether one block rests on another's top (the rider rule: a tool refuses moving the base);
+  - `footTiles(grid)` — a moving foot in tiles from where footprint-story/human's sample draws it, on the move's way;
+    `sideFoot`, `worldPx`, `LEVEL_SNAP` — a side-on sample (roll, slide, tumble) laid back on the floor along its way;
+  - `sweptThrough`, `THROUGH_MOST` (0.05 tile) — the block a move goes deepest into on a straight stretch, swept by
+    golden-section search, never sampled; `checkMoments`, `CHECKS_PER_SECOND` (30), `MOST_CHECKS` (900) — the moments a
+    move is checked at; `deepestPass` — the deepest pass over a move's stretches, and when; `passFinding` — it as a
+    finding, critic `'contact'`;
+  - `offFrame(point, frame)`, `drawnOff(outline, rope, frame)`, `posed` — a point off the frame in whole pixels, what of
+    a drawn block is off, a point where its pose puts it;
+  - `nameBox`, `NAME_WIDTH` (1.2 em a letter, font-free), `overlapsBox` — a name's box on a block's top and whether an
+    outline meets it; `orderAt(grid, things)` — the paint order at a moment, by index (`grid.backToFront`, the one
+    sort); `hiddenNames` — which resting block hides each name; `coverFinding` — it as a finding, critic `'covers'`.
+- Findings are `{critic, level, message, fix}` in words free of any tool's syntax; a tool prefixes the critic
+  (`reel:contact`, `deck:covers`, the names its writers already accept). Every input is checked and a refusal says what
+  to give (`isometric: …`); a getter is never run.
+- Tests: each rule (`test/isometric-motion.test.js`); the swept test against an exact oracle and a 4000-step one — for
+  any step, a block of side ≥ 0.1 tile entered past `THROUGH_MOST` is never missed and its depth is the true one; and a
+  differential against both tools' copies (`test/isometric-motion.property.test.js`, controls in `test/control/`).
+  The tools are not switched yet: each moves to the import in its own pull request.
+
+### Differences between the two tools' copies
+
+- **Which block hides a name.** StoryReel asked `grid.backToFront` of the two blocks alone whether the resting one is
+  in front; StoryDeck asked the order of every piece. Both tools paint by the order of every piece, so StoryDeck's is
+  right: two blocks that do not meet on the frame get no rule between them, and asked alone a block wholly behind the
+  named one (at smaller rows, ordered behind it through a third block) came out in front — StoryReel counted the name
+  hidden and stopped drawing it, while the picture draws it over that block. `hiddenNames` reads `orderAt` of every
+  piece; the test pins the case. A bug in StoryReel 0.44.0.
+- **`sideFoot`'s offset.** StoryReel's took the tie point's height above the foot (a rolling ball's radius) and needed
+  it given; StoryDeck's had none, since it plans only a slide, whose offset is 0. `sideFoot` takes `offset`, 0 when left
+  out — both copies' numbers. Not a bug: StoryDeck's form would put a rolling ball a radius in the air if it ever
+  planned a roll.
+- **The frame.** StoryReel's `offFrame` was fixed at 1600 × 900; StoryDeck's `offSlide` took the slide's size.
+  `offFrame` takes the frame; the same words.
+- **A small line's box.** StoryDeck handed its small line's words as written at the size it draws them; StoryReel its
+  fitted small line, drawn joined on one line. `nameBox` takes `{text, size}`, the line as drawn — both give the same
+  box.
+
 ## 0.31.0 — rolling, tumbling and sliding
 
 - **Three families on `footprint-story/human`: `do: 'roll'`, `'slide'` and `'tumble'`,** each with its usual model.

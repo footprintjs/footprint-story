@@ -25,6 +25,11 @@
 //   lanesOf(pairs) · straightRun(a, b, lane)           → a straight wire's lane, and where it starts and ends
 //   bentWire · curveWay · arrowHead · headingOf        → its bend, its curve as a way, its head
 //   exitOutline · exitBox · roundOutline · walkWay     → a ray leaving a shape, a cylinder's outline, a way walked
+//   footOf · topOf · cornerOf · landingUnder · overTop · ridesOn   → a moving block's foot, what it lands on, who rides it
+//   footTiles(grid) · sideFoot · worldPx               → a moving foot in tiles from footprint-story/human's samples
+//   sweptThrough · checkMoments · deepestPass · passFinding   → whether a move passes through a block, swept
+//   offFrame · drawnOff · posed                        → a moving block on the frame, and where its pose puts a point
+//   nameBox · overlapsBox · orderAt · hiddenNames · coverFinding   → which names a block at rest hides
 
 export { isometric } from './src/isometric/grid.js';
 export { readThing } from './src/isometric/thing.js';
@@ -47,3 +52,8 @@ export { isoStyle, paintPiece, restyle, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, US
 export { PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour } from './src/isometric/paint.js';
 export { ISO_MAP_STEPS, buildIsoMap } from './src/isometric/mapSteps.js';
 export { ISO_MAP_POLICIES, ISO_MAP_LIMITS } from './src/isometric/mapSpec.js';
+export { footOf, topOf, cornerOf, landingUnder, overTop, ridesOn, SAME_PLACE } from './src/isometric/standing.js';
+export { footTiles, sideFoot, worldPx, LEVEL_SNAP } from './src/isometric/footing.js';
+export { sweptThrough, checkMoments, deepestPass, passFinding, THROUGH_MOST, CHECKS_PER_SECOND, MOST_CHECKS } from './src/isometric/sweep.js';
+export { offFrame, drawnOff, posed } from './src/isometric/onFrame.js';
+export { nameBox, overlapsBox, orderAt, hiddenNames, coverFinding, NAME_WIDTH } from './src/isometric/cover.js';
