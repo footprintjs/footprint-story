@@ -14,12 +14,8 @@ import { POWER_LAW, powerLawFit } from '../laws/powerLaw.js';
 import { curvaturesOver } from '../paths/curvature.js';
 import { BEND_WIDTH } from '../models/powerLawPen.js';
 
-/**
- * The most a pen's log speed may be off the law, on average, before it reads as a machine: 0.25 (about 28%). Ours.
- * WHY not tighter: the critic reads the line as drawn, through its tremor, and a law-made pen then measures up to about
- * 0.2 at a hairpin; a pen that keeps one speed measures 0.3 or more on almost every curved line (test/human-critics).
- */
-export const PEN_SPEED_MOST = 0.25;
+/** The most a pen's log speed may be off the law, on average, before it reads as a machine: 0.2 (about 22%). Ours. */
+export const PEN_SPEED_MOST = 0.2;
 /** The share of the line at each end left out (the ramps), and the step the track is walked at, in px. */
 const ENDS = 0.15, STEP = 2;
 

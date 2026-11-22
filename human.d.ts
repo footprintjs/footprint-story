@@ -74,6 +74,8 @@ export function curvatures(points: readonly HumanPoint[]): readonly number[];
 /** The curvature after averaging each point with the k either side, held at a circle as wide as that half-width; a fold reads across it. */
 export function curvaturesOver(points: readonly HumanPoint[], k: number): readonly number[];
 export const MOST_RESAMPLED: number;
+/** The gap beside each point to another stretch of the same line (a hairpin's other leg), up to `within` px; Infinity where none. */
+export function legGaps(points: readonly HumanPoint[], within: number): readonly number[];
 /** The points again, every `spacing` px along, or `count` points evenly along. */
 export function resample(points: readonly HumanPoint[], settings: { readonly spacing: number } | { readonly count: number }): readonly HumanPoint[];
 

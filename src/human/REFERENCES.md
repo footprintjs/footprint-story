@@ -20,6 +20,7 @@
 
 **Ours:** every default not in a row above — Fitts's a (0.1 s), b (0.2 s a bit) and the usual target (40 px); the power law's floor
 (0.00025 per px) and ramp (a tenth at each end); the pen's speed (400 px a second); the tremor's amplitude (0.8 px),
-wavelength (24 px), alternating swings and quieting into bends; the letter's mu (−1.6), sigma (0.3) and gap (0.16 s); the reach's bow (6% of its length, at most 30%); a turn past a right angle read as at least 2 · cos(B/2) / its shorter side; the
+wavelength (24 px), its alternating swings set in px along the line (a real tremor runs at 8–12 Hz) and held to half
+the gap to another leg of the line; the letter's mu (−1.6), sigma (0.3) and gap (0.16 s); the reach's bow (6% of its length, at most 30%); a turn past a right angle read as at least 2 · cos(B/2) / its shorter side; the
 critics' limits (no extra speed peak, a 2% bow, 20% off the law) and the way `pen-speed` walks and smooths a track.
 Each is a named constant beside its reason, and a test pins it.

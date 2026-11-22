@@ -21,6 +21,7 @@ export { arcTable, pointAt, shareToDistance, distanceToShare, MOST_TABLE_POINTS 
 export { catmullRom, MOST_CURVE_POINTS } from './src/human/paths/catmullRom.js';
 export { curvatures, curvaturesOver } from './src/human/paths/curvature.js';
 export { resample, MOST_RESAMPLED } from './src/human/paths/resample.js';
+export { legGaps } from './src/human/paths/gap.js';
 
 // models — an intent planned by a named model, and sampled
 export { HUMAN_FAMILIES, HUMAN_DOS, HUMAN_MODELS, USUAL_MODELS } from './src/human/models/registry.js';

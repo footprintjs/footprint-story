@@ -13,11 +13,11 @@
   curvature to within 0.02 of the −1/3, and end ramps, ours);
   sigma-lognormal strokes and their exact integration along arcs (`sigmaLognormalAt`, `strokeBetween`, …; Plamondon
   1995, Plamondon & Djioua 2006); a seeded value-noise tremor that swings to and fro (knots alternating in sign, so it
-  never wanders into a bend; `tremorKnots`, `tremorAt`), seeded by the isometric styles' rule (FNV-1a, mulberry32).
+  never wanders into a bend; its swing is set in px along the line, not in time; `tremorKnots`, `tremorAt`), seeded by the isometric styles' rule (FNV-1a, mulberry32).
 - **Paths:** `arcTable` with `pointAt`, `shareToDistance`, `distanceToShare`; a centripetal Catmull-Rom line through
   points (`catmullRom`; Barry & Goldman's pyramid form, no loop within a stretch — Yuksel, Schaefer & Keyser 2011);
   `curvatures` (three-point, exact on a circle; a turn past a right angle reads as at least 2 · cos(B/2) / its shorter
-  side, eased in from a right angle so it never jumps; a hairpin is the sharpest bend, never straight) and `curvaturesOver` (over a width, held at the greatest bend
+  side, eased in from a right angle so it never jumps; a hairpin is the sharpest bend, never straight) and `legGaps` (the gap beside a line to another stretch of it) and `curvaturesOver` (over a width, held at the greatest bend
   that width can show, a fold read across it); `resample` by distance or count.
 - **Models, one interface** (`{family, name, options, check?, plan, sample, checks}`): `min-jerk` (`do: 'reach'`, its
   seconds from Fitts unless given, bowed 6% of its length), `power-law` (`do: 'draw'`, a pen slower in the bends, from
@@ -27,11 +27,12 @@
   bits, seconds…). `sampleMove(move, t)` and `sampleTrack(move, {rate})` sample it; a sample may carry lists of numbers
   or points (at most `MOST_SAMPLE_LIST`). The seed is the model, its options, the piece's name and the intent's shape —
   never `who`, `seconds` or `speed` (`UNSEEDED_KEYS`). The pen reads the law on the smooth line, before the tremor, over one
-  tremor wavelength (`BEND_WIDTH`), so a straight line keeps a steady pace; its tremor quietens into tight bends. A reach
+  tremor wavelength (`BEND_WIDTH`), so a straight line keeps a steady pace; its tremor is never larger than half the
+  gap to another leg of the line (`legGaps`), so a hairpin's legs a pixel apart never cross. A reach
   bows at most 0.3 of its length (`MOST_BEND`). A tool's own model is named under its prefix
   (`'reel:chalk'`), checked against the interface once, its plan and samples checked as plain data.
 - **Critics:** `jerk` (speed peaks beyond the pushes planned), `pen-speed` (log error off the power law, read on the line as
-  drawn over one tremor wavelength; over 0.25 it finds fault; its basis the free fit's exponent), `arc` (a straight slide); a critic's measure may give `{value, basis}`; `checkMove(move)` gives
+  drawn over one tremor wavelength; over 0.2 it finds fault; its basis the free fit's exponent), `arc` (a straight slide); a critic's measure may give `{value, basis}`; `checkMove(move)` gives
   `{measures, bases, findings}`, each finding `{critic, level, message, fix, basis}`. A tool's own critic under its
   prefix. A list of models or critics changed after it was read is read again.
 - `settle`, `fall`, `throw` and `hang` are families with no model yet (Round 1 · B fills them).

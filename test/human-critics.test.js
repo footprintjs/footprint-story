@@ -107,8 +107,12 @@ test('pen-speed sees a hairpin taken at full speed', () => {
   const hairpin = [[100, 100], [400, 100], [100, 100], [400, 100]];
   const law = checkMove(planMove({ do: 'draw', path: hairpin })), plotter = checkMove(planMove({ do: 'draw', path: hairpin, model: 'test:steady' }, { models }), { models });
   assert.deepEqual(law.findings, []);
-  // found by a 20000-run sweep: a hairpin whose legs lie a pixel apart, drawn by this package's pen, passes
-  assert.deepEqual(checkMove(planMove({ do: 'draw', name: ' ', path: [[0, 32], [1, 184], [1, 2]] })).findings, []);
+  // found by a 20000-run sweep: a hairpin whose legs lie a pixel apart; its wobble is held to half that gap, so it
+  // passes whatever its seed
+  for (const name of [' ', 'a', 'b', 'zz', 'hand', 'wires[3]', 'é']) {
+    const c = checkMove(planMove({ do: 'draw', name, path: [[0, 32], [1, 184], [1, 2]] }));
+    assert.ok(c.measures['pen-speed'] < PEN_SPEED_MOST, `${name}: ${c.measures['pen-speed']}`);
+  }
   assert.ok(plotter.measures['pen-speed'] > PEN_SPEED_MOST, `${plotter.measures['pen-speed']}`);
   assert.equal(plotter.findings[0].critic, 'pen-speed');
 });

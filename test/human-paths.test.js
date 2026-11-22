@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { arcTable, pointAt, shareToDistance, distanceToShare, catmullRom, curvatures, resample, MOST_RESAMPLED } from '../human.js';
 import { curvaturesOver } from '../src/human/paths/curvature.js';
+import { legGaps } from '../human.js';
 
 const close = (a, b, eps, what) => assert.ok(Math.abs(a - b) <= eps, `${what}: ${a} is not within ${eps} of ${b}`);
 
@@ -99,4 +100,13 @@ test('curvature over a width: no bend read tighter than a circle as wide as the 
   const r = 100, circle = Array.from({ length: 300 }, (_, i) => [r * Math.cos(i / 50), r * Math.sin(i / 50)]);
   close(curvaturesOver(circle, 3)[150], 1 / r, 2e-4, 'a wide circle keeps its curvature');
   assert.deepEqual(curvaturesOver([[4, 4]], 2), [0]);
+});
+
+test('the gap beside a line: the nearest piece of another stretch of it, never its own neighbours', () => {
+  assert.deepEqual(legGaps([[0, 0], [10, 0], [20, 0], [10, 1], [0, 1]], 5).map((g) => Math.round(g * 100) / 100), [1, 1, Infinity, 1, 1]);
+  assert.deepEqual(legGaps([[0, 0], [4, 0], [8, 0], [5, 0], [1, 0]], 3), [1, 0, Infinity, 0, 0], 'two legs drawn over each other: no gap, wherever the points fall');
+  assert.ok(legGaps(Array.from({ length: 50 }, (_, i) => [i * 2, 0]), 5).every((g) => g === Infinity), 'a straight run has no other stretch');
+  const r = 50, circle = Array.from({ length: 100 }, (_, i) => [r * Math.cos(i / 20), r * Math.sin(i / 20)]);
+  assert.ok(legGaps(circle, 5).every((g) => g === Infinity), 'nor a wide curve');
+  assert.throws(() => legGaps([[0, 0]], 0), /legGaps' within is how far to look, in px, above 0/);
 });

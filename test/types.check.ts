@@ -257,7 +257,7 @@ planMove({ do: 'jump' });
 // @ts-expect-error a resample is by spacing or count
 resample([[0, 0], [1, 1]], { every: 2 });
 // 0.26.0, after review: the move's choice and the plan's basis as data; lists in a sample; a critic's basis
-import { curvaturesOver, MOST_BEND, BEND_WIDTH, MOST_SAMPLE_LIST, UNSEEDED_KEYS } from 'footprint-story/human';
+import { curvaturesOver, legGaps, MOST_BEND, BEND_WIDTH, MOST_SAMPLE_LIST, UNSEEDED_KEYS } from 'footprint-story/human';
 import type { HumanBasis, HumanSampleValue } from 'footprint-story/human';
 const chain: HumanModel = { family: 'hang', name: 'reel:chain', plan: () => ({ seconds: 1, basis: { links: 3, slack: true } }), sample: () => ({ x: 0, y: 0, chain: [[0, 0], [0, 10]], weights: [1, 2] }) };
 const chained = planMove({ do: 'hang', model: 'reel:chain' }, { models: [chain] });
@@ -265,4 +265,4 @@ const by: 'named' | 'usual' = chained.choice.by;
 const basis: HumanBasis | undefined = chained.plan.basis;
 const links: HumanSampleValue = sampleMove(chained, 0, { models: [chain] }).chain;
 const based: HumanCritic = { name: 'reel:b', limit: 1, measure: () => ({ value: 2, basis: { exponent: 0.3 } }), finding: (v, who, b) => (b && v > 1 ? { level: 'warn', message: who, fix: 'x' } : null) };
-export const reviewed: unknown[] = [by, basis, links, based, curvaturesOver([[0, 0], [1, 1], [2, 0]], 1)[1], MOST_BEND + BEND_WIDTH + MOST_SAMPLE_LIST, UNSEEDED_KEYS, checkMove(chained, { models: [chain] }).bases];
+export const reviewed: unknown[] = [by, basis, links, based, curvaturesOver([[0, 0], [1, 1], [2, 0]], 1)[1], legGaps([[0, 0], [4, 0], [1, 0]], 2)[0], MOST_BEND + BEND_WIDTH + MOST_SAMPLE_LIST, UNSEEDED_KEYS, checkMove(chained, { models: [chain] }).bases];

@@ -3,9 +3,11 @@
  * along the line's length whose knots alternate in sign — a seeded size from 0.3 to 1 every `wavelength` px, one side
  * then the other (a swing a wavelength, a to-and-fro every two), eased from one knot to the next (smoothstep) — scaled
  * by `amplitude` and brought to 0 over the first and last wavelength, so the line still starts and ends on its points. WHY value noise: smooth (a hand does not jitter
- * frame to frame), cheap, the same for the same seed. WHY alternating: a tremor swings about the line, as a
- * physiological tremor oscillates; free knots wander, and a wander a few hundred px long is a bend, which a pen would
- * slow for and a critic would read. Averaged over a wavelength either side (the pen's BEND_WIDTH), it is gone.
+ * frame to frame), cheap, the same for the same seed. WHY alternating: a tremor swings about the line; free knots
+ * wander, and a wander a few hundred px long is a bend, which a pen would slow for and a critic would read. Averaged
+ * over a wavelength either side (the pen's BEND_WIDTH), it is gone. The swing is set in px along the line, not in time:
+ * a real tremor runs at 8 to 12 Hz, whatever the pen's speed; this one is a look, so a line wobbles the same however
+ * fast it is drawn.
  *
  * Our defaults (TREMOR): amplitude 0.8 px, wavelength 24 px — a wobble a viewer feels more than sees. The seed is the
  * caller's random() (src/human/seed.js · seeded), made from the entry, so the same entry wobbles the same way.

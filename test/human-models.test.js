@@ -273,3 +273,13 @@ test('a straight line keeps a steady speed away from its ends, tremor and all: t
   assert.ok(Math.max(...speeds) / Math.min(...speeds) < 1.02, `between ${Math.min(...speeds)} and ${Math.max(...speeds)} px a second`);
   assert.ok(tr.some((s) => Math.abs(s.y - 500) > 0.3), 'and it does tremble');
 });
+
+test('a wobble is never larger than the space it wobbles in: a hairpin a pixel wide swings at most half a pixel', () => {
+  const path = [[0, 32], [1, 184], [1, 2]];
+  const still = planMove({ do: 'draw', name: 'pin', path, model: { name: 'power-law', tremor: 0 } }), shaky = planMove({ do: 'draw', name: 'pin', path });
+  const most = Math.max(...shaky.plan.xs.map((x, i) => Math.hypot(x - still.plan.xs[i], shaky.plan.ys[i] - still.plan.ys[i])));
+  assert.ok(most <= 0.5 + 1e-9 && most > 0.05, `the most it swings: ${most}`);
+  const open = planMove({ do: 'draw', name: 'pin', path: [[0, 32], [1, 184], [60, 2]] });
+  const free = planMove({ do: 'draw', name: 'pin', path: [[0, 32], [1, 184], [60, 2]], model: { name: 'power-law', tremor: 0 } });
+  assert.ok(Math.max(...open.plan.xs.map((x, i) => Math.hypot(x - free.plan.xs[i], open.plan.ys[i] - free.plan.ys[i]))) > 0.5, 'with room, the full swing');
+});
