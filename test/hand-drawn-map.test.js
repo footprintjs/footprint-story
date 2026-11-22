@@ -12,6 +12,7 @@ import { buildIsoMap, isoStyle, ISO_MAP_POLICIES, ISO_MAP_STEPS, MOST_PAINT_ITEM
 import { sketchyLine, hatchTexture, strokeAt, strokeOutline, CAP_STEPS } from '../human.js';
 import { runMapFlow, mapFlow } from '../mapflow.js';
 import { mapArb } from './isoMapSpecs.js';
+import { SUMMARISED, paintSummary } from '../src/mapflow/summary.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 300;
 const FILM = ISO_MAP_POLICIES.film, DECK = ISO_MAP_POLICIES.deck;
@@ -180,5 +181,7 @@ test('the map flow\'s map equals buildIsoMap\'s with hand-drawn choices, for ran
     const { map, snapshot } = await runMapFlow(given, policy, { choices: CHOICES });
     assert.deepStrictEqual(map, built);
     assert.deepStrictEqual(snapshot.sharedState.style, built.style, 'the record names the choices that drew it');
+    // the record keeps the paint lists as counts and a digest (0.33.1): the digest of the lists buildIsoMap made
+    for (const key of SUMMARISED) assert.deepStrictEqual(snapshot.sharedState[key], paintSummary(built[key]), key);
   }), { numRuns: Math.max(20, Math.ceil(RUNS / 5)) });
 });

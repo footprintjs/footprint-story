@@ -47,6 +47,26 @@ a map that placed its blocks and one that has none — so a deck's record never 
 "placed" of blocks it does not have. The spec and the policy come in as the
 run's input (`{mapSpec, mapPolicy}`), checked by the `read` stage; the record says that stage read the run's args.
 
+**The paint lists are kept as a summary (0.33.1).** The record keeps what must be explained; what is merely derived
+is not. A paint list — every polygon, and with `human:sketchy`/`human:hatch` every hand-drawn stroke with all its points —
+is a pure function of the spec, the policy and the tool's choices (seeded), and the record already keeps those: the
+`read` stage's writes, and the choices' names in `style.row`. Kept whole it was most of the record: a 64-block hatched
+world wrote 12.4 MB of commit log, and footprintjs's file sink refused the `style` entry outright (over its 8 MB entry
+bound), so the record file had no style stage at all. So the `style` stage writes, under the same keys `paints` and
+`floorPaints`, a summary (`summary.js` · `paintSummary`):
+
+```js
+{ pieces: 64, items: 3839, byItem: { path: 13, ellipse: 13, stroke: 3660, polygon: 153 }, points: 157605, perPiece: [22, 69, 84, …], digest: 'fnv1a32:4636302c' }
+```
+
+— the counts, and FNV-1a (`src/seed/seeded.js` · `fnv1a`, the seed's own hash) over the lists' JSON with keys sorted. The
+full lists never enter the run's state: `runMapFlow` hands the stages a place of its own for them and gives them back in
+the map, so the map is still `buildIsoMap`'s whole, and the drift properties check both — the map equal, and the
+record's summary the summary of the built lists. The keys are the steps' own, so `log --why paints` answers as before,
+now with the summary. That world's record is 90.8 KB (`test/mapflow-record-size.test.js` pins it under 300 KB, and a
+plain world's under 0.33.0's 144 KB). `mapFlow()` run by hand keeps the summary only. No later step reads a paint list
+(a test pins it), so a summary never feeds a step.
+
 **A hand-drawn map.** A tool's own style choices (`sketchyLine`, `hatchTexture` from footprint-story/human) are code,
 so never the run's input or state: `mapFlow({choices})` builds the chart with them and each stage hands them to its
 step, as `buildIsoMap(spec, policy, {choices})` does; `runMapFlow(spec, policy, {choices, sink, recorders})` reads them
@@ -57,7 +77,7 @@ both policies, the run's map equals `buildIsoMap`'s, or both refuse in one set o
 
 **What it gives.** `mapFlow({choices})` is the chart, to run as you like (input `{mapSpec, mapPolicy}`). `runMapFlow(spec,
 policy, {choices, sink, recorders})` runs it and gives `{map, snapshot}`: the map (frozen plain data, as `buildIsoMap` gives it)
-and the run's snapshot. A spec or a policy it refuses rejects the run with `buildIsoMap`'s words; it reads the spec
+and the run's snapshot (its `paints`/`floorPaints` the summaries above). A spec or a policy it refuses rejects the run with `buildIsoMap`'s words; it reads the spec
 itself before the run and hands footprintjs a plain copy, because footprintjs copies a run's input before any stage sees
 it, and that copy would run a getter. `mapFlow()` run by hand has that gap: hand it plain data. The sink is the
 caller's to close.

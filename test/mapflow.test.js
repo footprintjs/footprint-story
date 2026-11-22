@@ -16,6 +16,7 @@ import { mapFlow, runMapFlow } from '../mapflow.js';
 import { buildIsoMap, ISO_MAP_POLICIES, ISO_MAP_STEPS } from '../isometric.js';
 import { mapArb } from './isoMapSpecs.js';
 import { deckMapArb } from './deckMaps.js';
+import { SUMMARISED, paintSummary } from '../src/mapflow/summary.js';
 
 const RUNS = Math.ceil((Number(process.env.FC_RUNS) || 300) / 5);
 const FILM = ISO_MAP_POLICIES.film, DECK = ISO_MAP_POLICIES.deck;
@@ -29,6 +30,8 @@ test('the map flow\'s map equals buildIsoMap\'s, for random maps, styles and bot
     const given = { ...spec, style, blocks: spec.blocks.map((b) => ({ ...b, colours })) }, before = structuredClone(given);
     const { map, snapshot } = await runMapFlow(given, policy);
     assert.deepStrictEqual(map, buildIsoMap(given, policy));
+    // the record keeps the paint lists' counts and digest (0.33.1), and they are the built map's
+    for (const key of SUMMARISED) assert.deepStrictEqual(snapshot.sharedState[key], paintSummary(map[key]), key);
     assert.deepStrictEqual(given, before, 'the spec is not edited');
     assert.ok(Object.isFrozen(map) && Object.isFrozen(map.shapes[0].faces[0]));
     // a stage per step: read, then each step — the two that choose as a decider and the branch it chose
@@ -45,6 +48,7 @@ test('the map flow\'s map equals buildIsoMap\'s for StoryDeck\'s maps too: obsta
     try { spec = { ...deckMap.spec, keep: deckMap.spec.keep() }; buildIsoMap(spec, DECK); } catch { return; }   // the deck refuses it (deck-map-differential)
     const { map, snapshot } = await runMapFlow(spec, DECK);
     assert.deepStrictEqual(map, buildIsoMap(spec, DECK));
+    for (const key of SUMMARISED) assert.equal(snapshot.sharedState[key].digest, paintSummary(map[key]).digest, key);
     if (map.grid === 'usual') {
       usual += 1;
       assert.deepEqual(snapshot.commitLog.map((c) => c.runtimeStageId.replace(/#\d+$/, '')).slice(5, 7), ['grid', 'usual']);
