@@ -352,7 +352,8 @@ time it is drawn, in a deck and in a film. `check(options)` refuses a value once
 the choices it cannot sit with and the fix: `isoStyle` refuses that pairing before anything is drawn. What a choice gives
 back is checked before the next column reads it — plain data only (no function, no getter, no live object), the items
 this package knows, each `of` its own piece, at most MOST_PAINT_ITEMS (512) a piece and MOST_PAINT_POINTS (4096) points an
-item, an arc at most half a turn — read entry by entry (never a list's own `map`, a hole or a getter) and copied, so a
+item, an arc at most half a turn with both radii above 0 (a radius of 0 SVG and a canvas draw differently; the line a
+painter writes to an arc's start is none when the pen is already there) — read entry by entry (never a list's own `map`, a hole or a getter) and copied, so a
 later edit of the choice's own objects reaches nothing. A Proxy's traps do run, once, as it is copied. Options are kept
 in the order of their names, so `{a, b}` and `{b, a}` are the same style, seeded the same; a clash must name a choice
 there is. What it throws comes out as it is: the tool's own code. `unseeded` names the options it reads that say when,

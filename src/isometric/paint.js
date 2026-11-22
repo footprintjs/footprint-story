@@ -17,8 +17,13 @@
  * An arc runs from angle `from` to `to` (radians, y down, as a canvas's `ellipse`), at most half a turn (π) and never
  * none, counted the way it turns (`from - to` when anticlockwise, `to - from` when not, so a canvas never goes the long
  * way round), and like a canvas's it is reached by a straight line from where the pen is: an SVG painter writes that line,
- * then `A rx ry 0 0 (anticlockwise ? 0 : 1) endX endY`. WHY at most π: the large-arc flag is then always 0, and a
- * longer arc is two items' worth of trouble for every painter; a choice that needs more splits it.
+ * then `A rx ry 0 0 (anticlockwise ? 0 : 1) endX endY`. That line is none when it has no length — when the pen is already
+ * at the arc's start (a cylinder's side reaches its arc so): a painter writes no line there, and draws the same either
+ * way. WHY at most π: the large-arc flag is then always 0, and a longer arc is two items' worth of trouble for every
+ * painter; a choice that needs more splits it. Its radii `rx` and `ry` are both above 0. WHY: with a radius of 0 the two
+ * tools draw different things — SVG takes the arc as a straight line between its ends (and nothing when they meet), a
+ * canvas walks the flattened ellipse, which can run past an end and back — so a choice that means a straight line writes
+ * a `line`.
  *
  * A `stroke` is a line drawn by hand (footprint-story/human · strokes): each point where the pen is, the width it lays
  * down there (0 to the stroke's `width`) and when, in seconds from the piece's start (rising along the item), so a painter
@@ -40,13 +45,16 @@ const HEX = /^#[0-9a-f]{6}$/;
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const JOINS = ['round', 'miter', 'bevel'], CAPS = ['butt', 'round', 'square'];
 
-const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** A colour's three channels, 0 to 255, read by readColour (the one reader): `#rgb` or `#rrggbb`, else a refusal. */
+const channels = (v, what) => { const hex = readColour(v, what); return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)); };
 /**
  * `hex` mixed `share` of the way toward `toward`, each channel rounded: StoryReel's `mix` and StoryDeck's CSS
- * `color-mix(in srgb, tone (1 - share), toward share)` (a browser may round a channel the other way at a half).
+ * `color-mix(in srgb, tone (1 - share), toward share)` (a browser may round a channel the other way at a half). Both
+ * colours are read as this package reads a colour (readColour: `#rgb` or `#rrggbb`, any case). WHY the one reader: a
+ * second parser that read only `#rrggbb` gave '#5606NaN' for '#abc', which a style takes; anything else is refused.
  */
 export function mixColour(hex, toward, share) {
-  const a = channels(hex), b = channels(toward);
+  const a = channels(hex, 'the colour mixed'), b = channels(toward, 'the colour it is mixed toward');
   return `#${a.map((v, i) => Math.round(v + (b[i] - v) * share).toString(16).padStart(2, '0')).join('')}`;
 }
 
@@ -122,10 +130,12 @@ export function checkPaint(list, who, piece) {
       count(item.segments, `${what}'s segments`);
       if (item.segments[0]?.[0] !== 'move') refuse(`${what} starts with a ['move', x, y]`);
       for (const s of item.segments) {
+        // a radius of 0 is refused by name, before the shape of the segment: SVG and a canvas would draw it differently
+        if (Array.isArray(s) && s[0] === 'arc' && (s[3] === 0 || s[4] === 0)) refuse(`${what}'s arc has a radius of 0 (rx ${shown(s[3])}, ry ${shown(s[4])}): SVG draws it as a straight line or nothing, a canvas as a flattened ellipse, so the two tools would differ — give rx and ry above 0, or write a ['line', x, y] to its end`);
         const ok = Array.isArray(s) && ((s[0] === 'move' || s[0] === 'line') ? s.length === 3 && finite(s[1]) && finite(s[2])
-          : s[0] === 'arc' ? s.length === 8 && s.slice(1, 7).every(finite) && s[3] >= 0 && s[4] >= 0 && typeof s[7] === 'boolean' && (s[7] ? s[5] - s[6] : s[6] - s[5]) > 0 && (s[7] ? s[5] - s[6] : s[6] - s[5]) <= Math.PI
+          : s[0] === 'arc' ? s.length === 8 && s.slice(1, 7).every(finite) && s[3] > 0 && s[4] > 0 && typeof s[7] === 'boolean' && (s[7] ? s[5] - s[6] : s[6] - s[5]) > 0 && (s[7] ? s[5] - s[6] : s[6] - s[5]) <= Math.PI
             : s[0] === 'close' && s.length === 1);
-        if (!ok) refuse(`${what}'s segment is ['move', x, y], ['line', x, y], ['arc', cx, cy, rx, ry, from, to, anticlockwise] (at most half a turn, never none) or ['close'] — not ${shown(s)}`);
+        if (!ok) refuse(`${what}'s segment is ['move', x, y], ['line', x, y], ['arc', cx, cy, rx, ry, from, to, anticlockwise] (rx and ry above 0, at most half a turn, never none) or ['close'] — not ${shown(s)}`);
       }
     }
     return deepFreeze(item);

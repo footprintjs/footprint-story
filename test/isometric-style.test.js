@@ -14,6 +14,13 @@ test('the columns, the usual style, and the choices this package ships', () => {
   assert.deepEqual(PAINT_ITEMS, ['polygon', 'ellipse', 'path', 'lines', 'stroke']);
   assert.equal(MOST_EFFECTS, 8); assert.equal(MOST_OWN_CHOICES, 64); assert.equal(MOST_PAINT_ITEMS, 512);
   assert.equal(mixColour('#d9e4f3', '#ffffff', 0.2), '#e1e9f5');
+  // read as readColour reads a colour: #rgb as #rrggbb, any case; anything else refused (it once gave '#5606NaN')
+  for (const c of ['#abc', '#ABC', '#aabbcc', '#AaBbCc']) assert.equal(mixColour(c, '#000000', 0.5), '#555e66', c);
+  assert.equal(mixColour('#000000', '#fff', 0.2), '#333333');
+  for (const bad of ['#ab', 'red', '#abcd', '#abcdeg', '', null, 7]) {
+    assert.throws(() => mixColour(bad, '#000000', 0.5), new RegExp(`^Error: isometric: the colour mixed is a colour, "#rgb" or "#rrggbb" — not `), String(bad));
+    assert.throws(() => mixColour('#000000', bad, 0.5), /the colour it is mixed toward is a colour, "#rgb" or "#rrggbb" — not /, String(bad));
+  }
   for (const v of [ISO_STYLE_COLUMNS, USUAL_STYLE, USUAL_STYLE.effects, ISO_STYLE_CHOICES]) assert.ok(Object.isFrozen(v));
 });
 
@@ -171,6 +178,19 @@ test('a clash names a choice there is; the shape gives its box, centre and outli
   // counted the way it turns: anticlockwise from 0 to 0.5 is the long way round on a canvas, refused
   assert.throws(() => arc(0, 0.5), /at most half a turn, never none/);
   assert.equal(shaped({ ...good, items: [{ item: 'path', role: 'side', of: 'server', segments: [['move', 0, 0], ['arc', 0, 0, 1, 1, 0, 0.5, false]], fill: null, stroke: null }] }).items.length, 1);
+  // an arc's radii are both above 0: with one at 0, SVG draws a straight line or nothing and a canvas a flattened
+  // ellipse — refused naming the item and the fix
+  const flat = (rx, ry) => shaped({ ...good, items: [{ item: 'path', role: 'side', of: 'server', segments: [['move', 0, 0], ['arc', 0, 0, rx, ry, Math.PI, 0, true]], fill: null, stroke: null }] });
+  for (const [rx, ry] of [[0, 1], [1, 0], [0, 0], [-0, 1]]) assert.throws(() => flat(rx, ry), /the style's shape "test:s"'s item 1's arc has a radius of 0 \(rx \d, ry \d\): SVG draws it as a straight line or nothing, a canvas as a flattened ellipse, so the two tools would differ — give rx and ry above 0, or write a \['line', x, y\] to its end/);
+  assert.throws(() => flat(-1, 1), /\(rx and ry above 0, at most half a turn, never none\)/);
+  assert.equal(flat(1e-9, 1e-9).items.length, 1, 'any radius above 0 is an arc');
+  // the line to an arc's start is none when it has no length: the usual cylinder's side reaches its arc from where its
+  // left edge ends, so a painter writes no line there (StoryDeck's isoPaint · pathData writes none when the pen is there)
+  for (const tile of [120, [100, 40], 77]) {
+    const side = paintPiece(isoStyle(), { name: 'db', kind: 'cylinder', at: [1, 2, 0.5], size: [2, 2, 1.5] }, isometric({ tile })).items.find((it) => it.role === 'side').segments;
+    const k = side.findIndex((g) => g[0] === 'arc'), [, cx, cy, rx, ry, from] = side[k], [, px, py] = side[k - 1];
+    assert.ok(Math.hypot(cx + rx * Math.cos(from) - px, cy + ry * Math.sin(from) - py) < 1e-9, `tile ${tile}: the pen is at the arc's start`);
+  }
   // a getter on the box or on a point of the centre is refused, never run
   let ran = false;
   assert.throws(() => shaped({ ...good, centre: Object.defineProperty([0, 0], 1, { get: () => { ran = true; return 0; } }) }), /'s centre's entry 2 is read as a stored value, and this one is a getter/);

@@ -190,6 +190,20 @@ test('a name is counted in letters everywhere: 40 letters outside the BMP are 40
   assert.equal(map.paints[0][0].of, long);
 });
 
+test('a who is counted in letters too: 200 letters outside the BMP are 200, and one more is refused', async () => {
+  const { buildIsoMap: build, ISO_MAP_POLICIES: P, ISO_MAP_LIMITS: L } = await import('../isometric.js');
+  for (const letter of ['\u{1D49C}', '\u{1F642}']) {
+    const at = letter.repeat(L.who), over = letter.repeat(L.who + 1);
+    assert.equal(at.length, 2 * L.who, 'twice as many UTF-16 units as letters: the old count refused it');
+    // at the limit: taken, and it is the words a refusal names the piece by
+    assert.throws(() => build({ blocks: [{ name: 'web', size: [2, 2, 1], colours: { base: 'red' }, who: at }], area: [0, 0, 1600, 900] }, P.film), (e) => e.message.includes(`${at}: colours' base is a colour`));
+    assert.doesNotThrow(() => build({ blocks: [{ name: 'web', size: [2, 2, 1], who: at }], who: at, area: [0, 0, 1600, 900] }, P.film));
+    // one over: refused, for a piece and for the map
+    assert.throws(() => build({ blocks: [{ name: 'web', size: [2, 2, 1], who: over }], area: [0, 0, 1600, 900] }, P.film), /blocks\[0\] \("web"\)'s who is the tool's words for where it was written, 1 to 200 letters/);
+    assert.throws(() => build({ blocks: [{ name: 'web', size: [2, 2, 1] }], who: over, area: [0, 0, 1600, 900] }, P.film), /the map's who is the tool's words .*1 to 200 letters/);
+  }
+});
+
 test('restyle makes a style again from a built map\'s record, with a tool\'s own choices handed again', async () => {
   const { isoStyle: style, restyle: again, paintPiece: paint, isometric: iso } = await import('../isometric.js');
   const mark = { column: 'texture', name: 'test:mark', apply: (items, { piece }) => [...items, { item: 'lines', role: 'mark', of: piece.name, segments: [[0, 0, 1, 1]], fill: null, stroke: null }] };

@@ -309,7 +309,7 @@ export interface PaintStroke { readonly colour: string | null; readonly alpha: n
 interface PaintBase { readonly role: string; readonly of: string; readonly fill: PaintFill | null; readonly stroke: PaintStroke | null }
 /** One segment of a path: move, line, an arc of an ellipse from angle `from` to `to` (radians, y down, as a canvas's `ellipse`), or close. */
 export type PaintSegment = readonly ['move', number, number] | readonly ['line', number, number] | readonly ['arc', number, number, number, number, number, number, boolean] | readonly ['close'];
-/** One item of a paint list: what a painter draws, in order. Points are any finite numbers; an arc spans more than 0 and at most π, reached by a line from the pen. `role` says what it is (`top`, `left`, `right`, `side`, `ground`, `grid`, or a style's own); `of` names the piece. */
+/** One item of a paint list: what a painter draws, in order. Points are any finite numbers; an arc spans more than 0 and at most π, its radii both above 0, reached by a line from the pen (none when the pen is already at its start). `role` says what it is (`top`, `left`, `right`, `side`, `ground`, `grid`, or a style's own); `of` names the piece. */
 export type PaintItem =
   | (PaintBase & { readonly item: 'polygon'; readonly points: readonly (readonly [number, number])[] })
   | (PaintBase & { readonly item: 'ellipse'; readonly cx: number; readonly cy: number; readonly rx: number; readonly ry: number })
@@ -321,7 +321,7 @@ export type PaintItem =
 export const PAINT_ITEMS: readonly ['polygon', 'ellipse', 'path', 'lines', 'stroke'];
 export const MOST_PAINT_ITEMS: number;
 export const MOST_PAINT_POINTS: number;
-/** `hex` mixed `share` of the way toward `toward`, each channel rounded (`#rrggbb` in and out): CSS `color-mix` in srgb. */
+/** `hex` mixed `share` of the way toward `toward`, each channel rounded: CSS `color-mix` in srgb. Each colour in is `#rgb` or `#rrggbb`, any case (anything else is refused); the colour out is lower-case `#rrggbb`. */
 export function mixColour(hex: string, toward: string, share: number): string;
 
 /** The columns of a style, in the order they run. */
