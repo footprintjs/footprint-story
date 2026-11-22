@@ -56,19 +56,25 @@ function subjectBall(things) {
   return { at, radius: Math.max(...things.map((t) => Math.hypot(...sub(t.at, at)) + reach(t))), flat: false };
 }
 
-function planned(rawShot, rawScene, f) {
-  const scene = sceneFrom(rawScene, f, 'scene'), shot = scene ? shotFrom(rawShot, scene, f) : null;
+/** The camera a shot asks for, read into `f` (its problems under `at`); null when it has one. A camera move reads its ends here. */
+export function shotCamera(rawShot, scene, f, at = '') {
+  const here = (key) => (at ? `${at}.${key}` : key), shot = shotFrom(rawShot, scene, f, at);
   if (!shot) return null;
-  const { at, radius, flat } = subjectBall(shot.on.map((n) => scene.things.find((t) => t.name === n)));
-  if (!radius) return f.say('on', `"${shot.on[0]}" has no size to frame: give it an r or a size, or name more things`);
-  if (radius > FAR) return f.say('on', `spans ${radius}, and ${FAR} is the most a shot can frame: name fewer things`);
-  const view = viewFrom(shot.from, f, 'from'), focal = LENSES[shot.lens], distance = flat ? 2 * radius * focal / SIZES[shot.size] : distanceFor(radius, SIZES[shot.size], focal);
-  if (distance > FAR) return f.say('on', `would need the camera ${distance} away: make the subject smaller or the size wider`);
-  const camera = { target: at, azimuth: view.azimuth, elevation: view.elevation, distance, focal, aperture: shot.focus === 'all' ? 0 : apertureFor(distance) };
+  const { at: centre, radius, flat } = subjectBall(shot.on.map((n) => scene.things.find((t) => t.name === n)));
+  if (!radius) return f.say(here('on'), `"${shot.on[0]}" has no size to frame: give it an r or a size, or name more things`);
+  if (radius > FAR) return f.say(here('on'), `spans ${radius}, and ${FAR} is the most a shot can frame: name fewer things`);
+  const view = viewFrom(shot.from, f, here('from')), focal = LENSES[shot.lens], distance = flat ? 2 * radius * focal / SIZES[shot.size] : distanceFor(radius, SIZES[shot.size], focal);
+  if (distance > FAR) return f.say(here('on'), `would need the camera ${distance} away: make the subject smaller or the size wider`);
+  const camera = { target: centre, azimuth: view.azimuth, elevation: view.elevation, distance, focal, aperture: shot.focus === 'all' ? 0 : apertureFor(distance) };
   if (!shot.focus || shot.focus === 'all' || shot.on.includes(shot.focus) && shot.on.length === 1) return camera;
-  const ce = Math.cos(view.elevation), back = [ce * Math.sin(view.azimuth), Math.sin(view.elevation), ce * Math.cos(view.azimuth)], eye = add(at, mul(back, distance));
+  const ce = Math.cos(view.elevation), back = [ce * Math.sin(view.azimuth), Math.sin(view.elevation), ce * Math.cos(view.azimuth)], eye = add(centre, mul(back, distance));
   const focus = dot(sub(scene.things.find((t) => t.name === shot.focus).at, eye), mul(back, -1));
-  return focus > 0 ? { ...camera, focus } : f.say('focus', `"${shot.focus}" is behind the camera from ${shot.from}: focus on what it can see`);
+  return focus > 0 ? { ...camera, focus } : f.say(here('focus'), `"${shot.focus}" is behind the camera from ${shot.from}: focus on what it can see`);
+}
+
+function planned(rawShot, rawScene, f) {
+  const scene = sceneFrom(rawScene, f, 'scene');
+  return scene ? shotCamera(rawShot, scene, f) : null;
 }
 
 /** The camera a shot asks for: frozen {target, azimuth, elevation, distance, focal, aperture, focus?}. Throws, listing every problem. */

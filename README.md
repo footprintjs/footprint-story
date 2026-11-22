@@ -34,7 +34,7 @@ Ten doors, nothing else. A door loads only when you import it, so a page that on
 | `footprint-story/voice` | the voice port, the clip cache, its two adapters: the Chatterbox kit and your own recorded takes | **Node only** (files, child processes) |
 | `footprint-story/motion` | eases and springs, moves, transitions as data, pace, turns (an order written once) | anywhere — browser or Node; no dependencies |
 | `footprint-story/storyboard` | a story written as data on a named shape, read and checked for both tools to draw | anywhere — browser or Node; no dependencies |
-| `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text | anywhere — browser or Node; no dependencies |
+| `footprint-story/shot` | a camera in 3D as data, its projection maths, and a check of what it sees, in text; camera moves between shots (slerp, arc or cut, timed by minimum jerk, checked by critics); the geometry they stand on (angles, quaternions, slerp, squad, spherical places, look-at) | anywhere — browser or Node; no dependencies |
 | `footprint-story/isometric` | a floor of tiles seen from a corner: where a point lands, a box's faces, the order to draw in — and where things stand, worked out from what is joined to what | anywhere — browser or Node; no dependencies |
 | `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
@@ -385,6 +385,15 @@ other things in front`, or `no other things given`. A flat layer over the pictur
 add it as a thing, and every thing with a size is solid. Two things in one shot's `on` can hide each other, and that is reported:
 name a tight cluster as one ball. The sizes, the lenses and "too small" are starting choices, not measurements. Nothing here draws, and no tool reads a shot yet. More in [src/shot/README.md](src/shot/README.md).
 
+**Moving between shots.** `planCameraMove({do: 'fly', from: shotA, to: shotB}, scene)` or `{do: 'orbit', around, by}` picks
+how the camera goes from a rule table and says why: a turn of at most 45° keeps its height and turns at one speed (a slerp), a
+larger one rises 10° over its middle (an arc), and a fly past 150° cuts. The seconds come from the minimum-jerk law and a
+comfort limit (45°/s, ours) unless given. `cameraTrack(move)` samples it, each sample a camera with its eye and its look as a
+quaternion, both ends exactly the cameras handed in. `checkCameraMove(move, {scene, frame})` says what still looks wrong:
+the subject hidden on the way (`in-sight`), a turn too fast (`turn-speed`), a crossing of the line between two subjects
+(`line-of-action`), a horizon that leans (`horizon`) — each finding names `who` and the fix in the intent's keys
+(`lift: 25`, `seconds: 3.8`). The geometry is a leaf of its own: [src/geom/README.md](src/geom/README.md).
+
 ## A floor seen from a corner (isometric)
 
 **Why:** a system drawn as blocks on a floor reads at a glance, and a film and a deck should place those blocks the same
@@ -574,6 +583,8 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/shot` `project`, `unproject`, `boxOf` | a point on a frame and back; the box a thing fills |
 | `/shot` `checkShot`, `shotLine` | what a camera sees of a subject, as a report and as one line of text |
 | `/shot` `ROUNDS`, `HEIGHTS`, `SIZES`, `LENSES`, `MOST_THINGS` | the camera's words, and the most things a scene may hold |
+| `/shot` `planCameraMove`, `sampleCameraMove`, `cameraTrack`, `checkCameraMove`, `CAMERA_MOVES`, `CAMERA_MOVE_RULES`, `CAMERA_MOVE_KINDS`, `CAMERA_MOVE_DOS`, `CAMERA_CRITICS`, `SIGHT_DROP`, `HORIZON_MOST`, `MOST_MOVE_SECONDS`, `MOST_ORBIT`, `MOST_LIFT`, `MOST_CAMERA_SAMPLES` | camera moves between shots: planned from an intent (its reason in words), sampled in time, checked by critics that say the fix: [src/shot/README.md](src/shot/README.md) |
+| `/shot` `angleAt`, `dihedral`, `wrapAngle`, `shortestTurn`, `unwrapAngles`, `quatFromAxisAngle`, `quatMultiply`, `quatNormalize`, `quatRotate`, `quatAngle`, `quatLook`, `quatForward`, `quatFromAxes`, `slerp`, `squad`, `toSpherical`, `fromSpherical`, `greatCircle`, `lookAt`, `horizonRoll` | the geometry leaf: angles between points, angles that wrap, quaternions, even turns (Shoemake), places on a sphere, a camera's look and its lean: [src/geom/README.md](src/geom/README.md) |
 | `/isometric` `isometric`, `readThing`, `MOST_ISOMETRIC_THINGS`, `arrange`, `MOST_LINKS`, `gridFor`, `MOST_ALSO`, `routes`, `routeNote`, `NO_ROUTE`, `MOST_ROUTES`, `MOST_WORK`, `MOST_PORTS`, `readPorts`, `rounded`, `wordsToFit` | a floor seen from a corner: the grid (with `backToFront`, the order to draw in), a thing checked, the most things ordered; where things stand from what is joined to what, the most links read; the grid on which a picture fills a box |
 | `/isometric` `hairpins`, `HAIRPINS`, `floorUnder`, `crossesBox`, `UNDER_CELL`, `MOST_UNDER_SQUARES`, `NO_UNDER`, `floorLabelPlace`, `MOST_FLOOR_LABEL`, `FLOOR_LABEL_ICON`, `MOST_COVER_POINTS`, `MOST_OUTLINE_POINTS`, `MOST_LABEL_LOOKS`, `arrangeByGroup`, `GROUP_MARGIN` | where a way doubles back; the floor under a box of the frame and whether a way runs through one; where a floor's name lies; placing by group |
 | `/isometric` `isoStyle`, `paintPiece`, `ISO_STYLE_COLUMNS`, `ISO_STYLE_CHOICES`, `USUAL_STYLE`, `MOST_EFFECTS`, `MOST_OWN_CHOICES`, `PAINT_ITEMS`, `MOST_PAINT_ITEMS`, `MOST_PAINT_POINTS`, `mixColour` | a map's look as a row of named choices, and a piece's paint list in it |

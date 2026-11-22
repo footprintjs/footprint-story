@@ -10,6 +10,12 @@
  *
  * u is how far through its time the move is, clamped to 0..1. A move over D px in T s goes D·minJerk(t/T) px by t, at
  * D/T·minJerkSpeed(t/T) px a second.
+ *
+ * WHY a shared leaf, imported by two doors: a hand's reach (src/human/models/minJerk.js) and a camera's move between
+ * shots (src/shot/move.js) both start and stop as a purposeful move does. Two copies of the law could drift apart. This
+ * file imports nothing, so a page that flies a camera never loads the human maths, nor the other way round; the human
+ * door hands it out (one door per name) and test/doors.test.js allows exactly this file in both. Moved here from
+ * src/human/laws/ in the release after 0.27.0, unchanged.
  */
 
 const clamp01 = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u);

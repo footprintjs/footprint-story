@@ -151,3 +151,128 @@ export interface ShotReport {
 export function checkShot(scene: unknown, camera: unknown, frame: unknown, shot: { readonly on: string | readonly string[] }): ShotReport;
 /** The report as one line of text a model reads, with a fix for each fault. `about` before a view means the camera stands near it. `label` leads the line in quotes. Throws on anything but a report. */
 export function shotLine(report: ShotReport, options?: { readonly label?: string }): string;
+
+// ── geometry (the shared leaf src/geom/) ──────────────────────────────────────────────────────────────────
+
+/** A quaternion [w, x, y, z]: a turn in 3D. q and −q are the same turn. */
+export type Quat = readonly [number, number, number, number];
+export type Point = readonly [number, number] | readonly [number, number, number];
+
+/** The angle at b in a–b–c, radians 0..π, all 2D or all 3D; null when a or c sits on b. */
+export function angleAt(a: Point, b: Point, c: Point): number | null;
+/** The twist about b→c from a's side to d's, radians −π..π (IUPAC's sign: right hand about b→c); null when three of them are in a line. */
+export function dihedral(a: Vector, b: Vector, c: Vector, d: Vector): number | null;
+/** The same angle in (−π, π]. */
+export function wrapAngle(angle: number): number;
+/** The smallest turn from one angle to another, (−π, π]; exactly half a turn is +π. */
+export function shortestTurn(from: number, to: number): number;
+/** The angles moved by whole turns so no step between neighbours is past half a turn; the first is kept. */
+export function unwrapAngles(angles: readonly number[]): number[];
+
+/** The turn by `angle` radians (right hand) about `axis`. */
+export function quatFromAxisAngle(axis: Vector, angle: number): Quat;
+/** Hamilton's product: b, then a. */
+export function quatMultiply(a: Quat, b: Quat): Quat;
+/** Length 1 again. A quaternion of no length is refused. */
+export function quatNormalize(q: Quat): Quat;
+/** A vector turned by q. */
+export function quatRotate(q: Quat, v: Vector): Vector;
+/** How far apart two turns are, radians 0..π. */
+export function quatAngle(a: Quat, b: Quat): number;
+/** The turn pointing a camera (it looks along −z, x right, y up) along `forward` with its horizon level to `up` (+y). */
+export function quatLook(forward: Vector, up?: Vector): Quat;
+/** Where a camera turned by q looks. */
+export function quatForward(q: Quat): Vector;
+/** The turn whose x, y, z axes land on right, up, back (orthonormal). */
+export function quatFromAxes(right: Vector, up: Vector, back: Vector): Quat;
+/** The turn s of the way from a to b, at constant angular speed, the shorter way (Shoemake 1985). */
+export function slerp(a: Quat, b: Quat, s: number): Quat;
+/** A smooth turn through the keys (2 or more), passing each: key i at s = i / (keys − 1) (Shoemake's squad). */
+export function squad(keys: readonly Quat[], s: number): Quat;
+
+/** A place round a point, as the shot camera holds it: azimuth from +z towards +x, elevation up, +y up. */
+export interface Spherical { readonly azimuth: number; readonly elevation: number; readonly distance: number }
+export function toSpherical(v: Vector): Spherical;
+export function fromSpherical(place: Spherical): Vector;
+/** The unit direction s of the way from a to b on their great circle; opposite directions go over the top. */
+export function greatCircle(a: Vector, b: Vector, s: number): Vector;
+/** The turn aiming a camera at `eye` towards `target`, its horizon level; null when they meet. */
+export function lookAt(eye: Vector, target: Vector, up?: Vector): Quat | null;
+/** How far the horizon leans, radians (positive: the frame's right side raised); null looking straight up or down. */
+export function horizonRoll(q: Quat): number | null;
+
+// ── camera moves ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** What a camera move may do. */
+export const CAMERA_MOVE_DOS: readonly ['fly', 'orbit'];
+export const MOST_MOVE_SECONDS: number;
+/** The most an orbit may turn, in degrees, either way. */
+export const MOST_ORBIT: number;
+/** The highest lift, in degrees. */
+export const MOST_LIFT: number;
+/** The numbers the rule table and the timing use, each ours: degrees, and degrees a second for `comfort`. */
+export const CAMERA_MOVES: { readonly smallTurn: number; readonly cutPast: number; readonly rise: number; readonly highest: number; readonly comfort: number; readonly planShare: number; readonly leastSeconds: number };
+export type CameraMoveKind = 'slerp' | 'arc' | 'cut';
+export type CameraMoveRule = 'turn-past-cut' | 'small-turn' | 'large-turn';
+/** The rule table, first match. */
+export const CAMERA_MOVE_RULES: readonly { readonly rule: CameraMoveRule; readonly kind: CameraMoveKind; readonly when: string }[];
+export const CAMERA_MOVE_KINDS: readonly CameraMoveKind[];
+export const MOST_CAMERA_SAMPLES: number;
+
+/** One end of a fly: a shot in words (framed on the scene) or a camera in numbers (it has a `target`). */
+export type MoveEnd = Shot | Camera;
+interface MoveCommon {
+  /** Seconds; from the comfort limit when not given. */
+  readonly seconds?: number;
+  /** Degrees an arc rises over its middle (a small turn too, when given), 0 to MOST_LIFT. */
+  readonly lift?: number;
+  /** The two things the line of action runs between; the subjects when they are two. */
+  readonly line?: readonly [string, string];
+  /** Its words for where it was written, named in every finding. */
+  readonly who?: string;
+}
+export interface FlyIntent extends MoveCommon { readonly do: 'fly'; readonly from: MoveEnd; readonly to: MoveEnd; /** Degrees past which the look's turn cuts; 180 never cuts. */ readonly cutPast?: number }
+/** `by` in degrees, positive from front towards right; `from` is the view it starts from (front unless given). It never cuts. */
+export interface OrbitIntent extends MoveCommon { readonly do: 'orbit'; readonly around: string | readonly string[]; readonly by: number; readonly from?: ViewName | Omit<Shot, 'on' | 'shot'> }
+export type CameraMoveIntent = FlyIntent | OrbitIntent;
+
+export interface CameraMove {
+  readonly do: 'fly' | 'orbit';
+  readonly kind: CameraMoveKind;
+  readonly who: string;
+  readonly seconds: number;
+  readonly from: ReadCamera;
+  readonly to: ReadCamera;
+  /** The subjects the sight critic keeps in view. */
+  readonly on: readonly string[];
+  readonly line: readonly string[] | null;
+  readonly reason: string;
+  readonly choice: { readonly rule: CameraMoveRule; readonly kind: CameraMoveKind; readonly turn: number; readonly smallTurn: number; readonly cutPast: number | null };
+  readonly basis: { readonly turn: number; readonly swing: number | null; readonly lift: number | null; readonly liftCapped: boolean; readonly seconds: number; readonly secondsGiven: boolean; readonly comfort: number; readonly peak: number };
+  readonly plan: { readonly azimuth: number; readonly swing: number; readonly elevation: readonly [number, number]; readonly lift: number; readonly focusFollows: boolean } | null;
+}
+export interface CameraSample { readonly t: number; readonly progress: number; readonly camera: ReadCamera; readonly eye: Vector; readonly look: Quat; readonly cut?: true }
+export interface CameraTrack { readonly who: string; readonly kind: CameraMoveKind; readonly seconds: number; readonly on: readonly string[]; readonly line: readonly string[] | null; readonly samples: readonly CameraSample[] }
+
+/** A camera move planned from its intent. Throws, listing every problem at once. */
+export function planCameraMove(intent: CameraMoveIntent, scene?: Scene): CameraMove;
+/** Where the camera is t seconds in. */
+export function sampleCameraMove(move: CameraMove, t: number): CameraSample;
+/** The move sampled `rate` times a second (60), both ends included. */
+export function cameraTrack(move: CameraMove, settings?: { readonly rate?: number }): CameraTrack;
+
+export type CameraCriticName = 'in-sight' | 'turn-speed' | 'line-of-action' | 'horizon';
+export const CAMERA_CRITICS: readonly CameraCriticName[];
+/** The most of its subject a move may lose beyond what its shots show. */
+export const SIGHT_DROP: number;
+/** The most the horizon may lean, in degrees. */
+export const HORIZON_MOST: number;
+export interface CameraFinding { readonly critic: CameraCriticName; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: Readonly<Record<string, string | number | boolean | null>> }
+/** A path made by hand: samples in time, each a camera and, when it leans, its own look. */
+export interface HandCameraPath { readonly samples: readonly { readonly t: number; readonly camera: Camera; readonly look?: Quat; readonly cut?: boolean }[]; readonly who?: string; readonly on?: string | readonly string[]; readonly line?: readonly [string, string] }
+/** A move's path checked by the critics. Without a scene the sight and line critics measure null. Throws, listing every problem. */
+export function checkCameraMove(move: CameraMove | HandCameraPath, settings?: { readonly scene?: Scene; readonly frame?: Frame; readonly on?: string | readonly string[]; readonly line?: readonly [string, string]; readonly rate?: number; readonly who?: string }): {
+  readonly measures: Readonly<Record<CameraCriticName, number | null>>;
+  readonly bases: Readonly<Record<CameraCriticName, Readonly<Record<string, string | number | boolean | null>> | null>>;
+  readonly findings: readonly CameraFinding[];
+};

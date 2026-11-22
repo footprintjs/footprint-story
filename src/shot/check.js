@@ -51,7 +51,8 @@ function rowOf(lens, camera, subject, others) {
 
 const union = (boxes) => boxes.reduce((a, b) => ({ y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1) }));
 
-function reportOf(scene, camera, frame, names) {
+/** The report on read data (a read scene, camera and frame, and names it holds): what a camera move's sight critic reads at each moment. */
+export function reportOf(scene, camera, frame, names) {
   const lens = aim(camera, frame), all = scene.things.map((t) => { const solid = solidOf(t), box = boxFor(lens, solid); return { solid, box, outline: outlineOf(lens, solid, box) }; });
   const subjects = names.map((n) => all.find((a) => a.solid.thing.name === n)), rows = subjects.map((s) => rowOf(lens, camera, s, all));
   const seen = subjects.filter((s) => s.box.state === 'seen').map((s) => s.box), seenRows = rows.filter((r) => r.state === 'seen'), view = viewOf(camera.azimuth, camera.elevation);

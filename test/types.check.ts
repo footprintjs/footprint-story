@@ -101,6 +101,24 @@ const shotIssues: readonly ShotProblem[] = [...sceneProblems(set), ...shotProble
 const shotMisc: unknown[] = [ROUNDS.front, HEIGHTS.high, SIZES.wide, LENSES.normal, MOST_THINGS, readView('low').azimuth, distanceFor(1, 0.4, 1.25), apertureFor(2), unproject(1, 2, 3, lensCamera, frame)[0], landed, box.state, report.faults[0]?.kind, shotText, shotIssues];
 export { shotMisc };
 
+import { angleAt, dihedral, wrapAngle, shortestTurn, unwrapAngles, quatFromAxisAngle, quatMultiply, quatNormalize, quatRotate, quatAngle, quatLook, quatForward, quatFromAxes,
+  slerp, squad, toSpherical, fromSpherical, greatCircle, lookAt, horizonRoll, CAMERA_MOVE_DOS, MOST_MOVE_SECONDS, MOST_ORBIT, MOST_LIFT, CAMERA_MOVES, CAMERA_MOVE_RULES, CAMERA_MOVE_KINDS,
+  MOST_CAMERA_SAMPLES, planCameraMove, sampleCameraMove, cameraTrack, CAMERA_CRITICS, SIGHT_DROP, HORIZON_MOST, checkCameraMove } from 'footprint-story/shot';
+import type { Quat, CameraMove, CameraSample, CameraTrack, CameraFinding, CameraMoveIntent, Spherical } from 'footprint-story/shot';
+
+const turnQ: Quat = quatMultiply(quatFromAxisAngle([0, 1, 0], 1), quatNormalize([1, 0, 0, 0]));
+const place: Spherical = toSpherical(quatRotate(turnQ, [0, 0, 1]));
+const angles: (number | null)[] = [angleAt([1, 0], [0, 0], [0, 1]), dihedral([1, 0, 0], [0, 0, 0], [0, 0, 1], [0, 1, 1]), wrapAngle(4), shortestTurn(0, 3), ...unwrapAngles([3, -3]), quatAngle(turnQ, quatLook([0, 0, -1])), horizonRoll(lookAt([0, 0, 5], [0, 0, 0]) ?? turnQ)];
+const geomMisc: unknown[] = [quatForward(turnQ), quatFromAxes([1, 0, 0], [0, 1, 0], [0, 0, 1]), slerp(turnQ, [1, 0, 0, 0], 0.5), squad([turnQ, [1, 0, 0, 0], turnQ], 0.3), fromSpherical(place), greatCircle([0, 0, 1], [1, 0, 0], 0.5), angles];
+const flyIntent: CameraMoveIntent = { do: 'fly', from: { on: 'door', from: 'front' }, to: lensCamera, cutPast: 160, who: 'shots[1]' };
+const moved: CameraMove = planCameraMove(flyIntent, set);
+const circled: CameraMove = planCameraMove({ do: 'orbit', around: ['door', 'sign'], by: -90, from: 'front-left high', lift: 5, line: ['door', 'sign'] }, set);
+const sampled: CameraSample = sampleCameraMove(moved, 0.5);
+const pathOf: CameraTrack = cameraTrack(circled, { rate: 30 });
+const found: readonly CameraFinding[] = checkCameraMove(moved, { scene: set, frame, rate: 20 }).findings;
+const byHand = checkCameraMove({ samples: [{ t: 0, camera: lensCamera }, { t: 1, camera: lensCamera, look: turnQ }], on: 'door' }, { scene: set, frame }).measures['turn-speed'];
+export const moveMisc: unknown[] = [geomMisc, sampled.look, pathOf.samples.length, found[0]?.fix, byHand, CAMERA_MOVE_DOS[0], MOST_MOVE_SECONDS, MOST_ORBIT, MOST_LIFT, CAMERA_MOVES.comfort, CAMERA_MOVE_RULES[0].rule, CAMERA_MOVE_KINDS, MOST_CAMERA_SAMPLES, CAMERA_CRITICS, SIGHT_DROP, HORIZON_MOST, moved.choice.kind, circled.basis.swing];
+
 import type { Turn, TurnTimes } from 'footprint-story/motion';
 const order: readonly Turn[] = readTurns(['camera laptop (dns server) w1:1.2', { names: ['db'], takes: 1 }], { where: 'route', isName: (text) => text === 'w1:2' });
 const times: TurnTimes = turnTimes(order, { step: 0.35, takes: (turn, index) => (turn.names.includes('camera') ? 1 + index : undefined) });
