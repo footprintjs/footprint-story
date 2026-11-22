@@ -419,3 +419,12 @@ export const moving: unknown[] = [footOf([0, 0], [1, 1, 1]), topOf([0, 0], [1, 1
   orderAt(grid, [{ at: [0, 0], size: [1, 1, 1] }]), hidden, coverFinding('a', 'A').fix, NAME_WIDTH];
 // @ts-expect-error a finding's critic is 'contact' or 'covers', with no tool's prefix
 export const prefixed: IsoMotionFinding['critic'] = 'reel:contact';
+
+// a name's ink (Unreleased): the colour measures behind it
+import { luminance, contrastRatio, readableInk, deltaE76 } from 'footprint-story/isometric';
+import type { ReadableInk } from 'footprint-story/isometric';
+const nameOnFace: ReadableInk = readableInk('#d9e4f3', ['#14181f', '#f5f7fa'], { least: 4.5 });
+const namedBare: ReadableInk = readableInk('#d9e4f3', ['#14181f']);
+// @ts-expect-error the inks are a list of colours
+readableInk('#d9e4f3', '#14181f');
+export const inks: [string, number, boolean, number, number, number, boolean] = [nameOnFace.ink, nameOnFace.ratio, nameOnFace.reads, luminance('#fff'), contrastRatio('#777', '#fff'), deltaE76('#000', '#fff'), namedBare.reads];

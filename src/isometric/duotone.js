@@ -23,6 +23,7 @@
  * style is made, naming the ratio and the fix. The usual inks stand 7.0 : 1 at worst, and the tools' usual ink
  * (#14181f) 9.4 : 1.
  */
+import { luminance, contrastRatio } from './colour.js';
 import { mixColour, readColour } from './paint.js';
 import { refuse } from './thing.js';
 
@@ -38,18 +39,6 @@ import { refuse } from './thing.js';
 export const DUOTONE = Object.freeze({ ink: '#22304a', accent: '#e07b39', paper: '#ffffff', most: 0.6, text: 4.5 });
 /** How finely the check walks the tints, paper to deepest: a step of 1% of the way. */
 const STEPS = 100;
-
-const linear = (c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
-/** A colour's relative luminance (WCAG 2): 0 black, 1 white. */
-export function luminance(hex) {
-  const h = readColour(hex, 'the colour'), [r, g, b] = [1, 3, 5].map((i) => linear(parseInt(h.slice(i, i + 2), 16)));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-/** The contrast ratio of two colours (WCAG 2): 1 (the same) to 21 (black on white). */
-export function contrastRatio(a, b) {
-  const x = luminance(a), y = luminance(b);
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
 
 /** The duotone's three inks, its options read (each a colour as this package reads one). */
 function inksOf(options) {
