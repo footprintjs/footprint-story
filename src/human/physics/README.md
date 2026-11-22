@@ -112,7 +112,8 @@ die.reason;                   // "… spinning at 23.4 rad/s (the usual: the spi
 `overshoot(move, {by, share, feel})` take any move and give a move: its plan wrapped (`{wrapper, seconds, inner, pushes,
 why, basis, …its numbers}`), its reason carrying the wrapper's words, `wrappers` naming each. They add
 `share × seconds`, `share × seconds`, `seconds` and `settleSeconds(feel)`; each keeps the move's start and end exactly.
-`by` left out is 8% of the move's straight distance. `sampleMove` reads a wrapped move like any other.
+`by` left out is 8% of the move's straight distance. `sampleMove` reads a wrapped move like any other. A plan that names
+`turnVector` [Tx, Ty] (a roll's) is turned as it is moved: its angle gains T · the offset, so a wrapped roll still rolls.
 
 ```js
 import { anticipate, overshoot } from 'footprint-story/human';
@@ -133,10 +134,17 @@ step, over the steps that roll: Σ|drawn − owed| / Σ|owed| over 5% finds a wh
 turning the wrong way; the basis's `rate` says which, and the fix names the radius, or the radius it is drawn at) and
 `spin` (a drawn angle that jumps between two samples, one step standing over 10% off both neighbours the same way; and in
 flight, a spin that changes by over 10%, where nothing can change it), with `contact` and, for a tumble's flight,
-`spacing`. Each turn between two samples is read the short way round (`src/geom/angles.js` · `wrapAngle`,
-`shortestTurn`), so an angle drawn wrapped into (−π, π] is no fault; a turn of over half a turn between samples looks
-the same on the frame either way, and is read the short way too. A wrapper moves a roll without turning it, and
-`roll-slip` says so.
+`spacing`. A drawn angle wrapped into (−π, π] is no fault for either (`src/geom/angles.js` · `wrapAngle`). A fast spin,
+over half a turn between samples, is read as it turns: `roll-slip` takes the drawn turn nearest the one the drawn
+distance owes, and `spin` the one nearest its samples' own `spin` × the step. A hand-drawn track with no `spin` is read
+the short way (`shortestTurn`), and `spin`'s basis says the fastest spin that can tell (`mostReadable`, half a turn a
+sample: π × the rate); `checkMove(move, {rate})` samples more densely to read faster. A flick is a step off both its
+neighbours and off both sides' trends, measured against at least a turn a second (`SPIN_FLOOR`), so a spin that starts
+at once, stops dead or changes at a landing is never one.
+
+A wrapped roll stays a roll: the `no-slip` plan names `turnVector` (its turn per px of travel), and every wrapper turns
+it by that over the way it moves it, its spin by that over the offset's speed, a hold stopping it. So `overshoot(roll)`
+still turns distance / radius and `roll-slip` passes it; a slide's or a tumble's angle stays its own.
 
 ## The laws it keeps
 

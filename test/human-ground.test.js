@@ -230,8 +230,6 @@ test('a roll is the same for the same intent, plain data, and every model\'s own
   // the angle is unwrapped and continuous: unwrapping it changes nothing
   const angles = sampleTrack(m).samples.map((s) => s.angle);
   unwrapAngles(angles).forEach((a, i) => near(a, angles[i]));
-  // a wrapper that moves it without turning it is caught by roll-slip: honest about what the wrapper did
-  const pushed = checkMove(overshoot(m, { by: 60 }));
-  assert.ok(pushed.findings.some((f) => f.critic === 'roll-slip'));
+  near(m.plan.turnVector[0], 1 / 15); assert.equal(m.plan.turnVector[1], 0);
   assert.ok(MOST_PHYSICS_SECONDS >= m.plan.seconds);
 });

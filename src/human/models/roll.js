@@ -9,6 +9,7 @@
  *   sample   { x, y, angle, spin } and on the floor `heading` (radians): `angle` its turn — side on, + clockwise on the
  *            frame (y down), so a roll to the right turns it +; on the floor, about the line in the floor across its
  *            heading — always distance / radius from its start turn, unwrapped (it never jumps back at ±π); `spin` dθ/dt
+ *   plan     its glide, and `turnVector` [Tx, Ty]: the turn per px of travel, so a wrapper keeps it rolling
  *   basis    { plane, slope, radius, shape, inertia, resistance, gravity, speed, speedDefaulted, distance, turn, turns,
  *              seconds, endedBy ('rest' | 'end' | 'box'), endSpeed, hitSpeed, box, rolledBack }
  *
@@ -45,6 +46,8 @@ function plan(intent, { who, options }) {
   return {
     seconds: glide.seconds, plane: line.plane, from: [...line.from], to: line.to && [...line.to], u: line.u, turnSign: line.turnSign, heading: line.heading,
     radius, angle, glide, world: line.world, pushes: 1,
+    // its wheel's turn per px of travel (turn = T · travel): a wrapper that moves it turns it too (wrap.js)
+    turnVector: [(line.turnSign * line.u[0]) / radius, (line.turnSign * line.u[1]) / radius],
     basis: { plane: line.plane, slope: line.slope, radius, shape, inertia, resistance, gravity, speed, speedDefaulted: defaulted, distance: glide.travelled, turn, turns: turn / (2 * Math.PI), seconds: glide.seconds, endedBy: glide.endedBy, endSpeed: Math.abs(glide.v), hitSpeed: glide.hitSpeed, box: stoppedBy(line, glide), rolledBack },
     why: `a ${shape} of radius ${round(radius, 1)} px rolling ${round(glide.travelled, 1)} px ${floorWords(line)} ${how}${rolledBack ? ', climbs, stops and rolls back' : ''}, ${endWords(line, glide)}, turning ${round(Math.abs(turn) / (2 * Math.PI), 2)} turns: distance / radius`,
   };

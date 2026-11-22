@@ -23,7 +23,7 @@ const roll = (o = {}) => checkMove(planMove({ do: 'roll', who, model: { name: 'r
 
 test('the critics are the door\'s, with their limits', () => {
   assert.ok(HUMAN_CRITICS.includes('roll-slip') && HUMAN_CRITICS.includes('spin'));
-  assert.deepEqual([ROLL_SLIP_MOST, SPIN_MOST, SPIN_FLOOR], [0.05, 0.1, 1]);
+  assert.deepEqual([ROLL_SLIP_MOST, SPIN_MOST, SPIN_FLOOR], [0.05, 0.1, 2 * Math.PI]);
 });
 
 test('roll-slip passes a wheel turning distance / radius — side on, on the floor, its angle wrapped into (−π, π] or not', () => {
@@ -72,6 +72,14 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
   // a step the same way for good (an angle set once by hand) flicks too
   const stepped = { ...wheel, name: 'reel:stepped', sample: (p, t) => ({ x: 200 * t, y: 0, angle: 20 * t + (t >= 1 ? 1 : 0) }) };
   assert.equal(checkMove(planMove({ do: 'roll', model: 'reel:stepped' }, { models: [stepped] }), { models: [stepped] }).bases.spin.kind, 'jump');
+  // a spin sped up hard and stopped dead, or started at once from rest, changes its rate — it never flicks
+  const spun = (name, angle) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 100 * t, y: 0, angle: angle(t) }) }; return checkMove(planMove({ do: 'roll', model: name }, { models: [m] }), { models: [m] }); };
+  assert.ok(spun('reel:stopped', (t) => 200 * Math.min(t, 0.05) ** 2).measures.spin <= SPIN_MOST, 'sped up, then stopped dead');
+  assert.ok(spun('reel:started', (t) => (t < 1 ? 0 : 200 * (t - 1) ** 2)).measures.spin <= SPIN_MOST, 'started at once from rest');
+  // a spin sped up in uneven strides (each step between its neighbours, 2, 4, 12, 14, 22, …) changes its rate unevenly — still no flick
+  const strides = [0];
+  for (let k = 0; k < 240; k += 1) strides.push(strides[k] + (2 * k + 6 * Math.floor(k / 2) + 2) / 120);
+  assert.ok(spun('reel:strides', (t) => strides[Math.round(t * 120)]).measures.spin <= SPIN_MOST, 'uneven strides one way');
   // a wrapped angle never jumps: the turn between samples is read the short way
   assert.ok(roll({ wrap: true }).measures.spin < 1e-6);
   assert.equal(roll({ still: true }).measures.spin, null, 'under three steps: nothing to compare');

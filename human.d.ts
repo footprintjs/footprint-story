@@ -237,8 +237,8 @@ export interface HumanIntent {
 export interface HumanContext { readonly who: string; readonly name: string | null; readonly options: HumanOptions; random(): number; readonly frame: HumanPoint | null }
 /** A flat record of the numbers (and words, true/false) a plan or a critic chose by: data for a record, beside the words. */
 export type HumanBasis = Readonly<Record<string, number | string | boolean | null>>;
-/** A plan: plain data with how long the move takes; `why` in words, `basis` its numbers, `pushes` how many pushes it is made of. */
-export interface HumanPlan { readonly seconds: number; readonly why?: string; readonly basis?: HumanBasis; readonly pushes?: number; readonly [key: string]: unknown }
+/** A plan: plain data with how long the move takes; `why` in words, `basis` its numbers, `pushes` how many pushes it is made of; `turnVector` (a roll's) its wheel's turn per px of travel, so a wrapper turns it as it moves it. */
+export interface HumanPlan { readonly seconds: number; readonly why?: string; readonly basis?: HumanBasis; readonly pushes?: number; readonly turnVector?: readonly [number, number]; readonly [key: string]: unknown }
 /** What a sample may hold besides x and y: a number, or a list of at most MOST_SAMPLE_LIST numbers or points (a hanging chain). */
 export type HumanSampleValue = number | readonly number[] | readonly HumanPoint[];
 /** A sample: where the move is, and any other numbers or lists the model gives. */
@@ -316,7 +316,7 @@ export const VOLUME_MOST: number;
 export const CONTACT_MOST: number;
 /** The most a drawn turn may stray from distance / radius (5%). */
 export const ROLL_SLIP_MOST: number;
-/** The most a spin may spread in flight or a step stand off its neighbours (10%), and the slowest spin a share is read against (1 rad/s). */
+/** The most a spin may spread in flight or a step stand off its neighbours (10%), and the slowest spin a share is read against (2π rad/s: a turn a second). */
 export const SPIN_MOST: number;
 export const SPIN_FLOOR: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }

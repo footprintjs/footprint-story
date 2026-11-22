@@ -41,5 +41,5 @@ Rolling, tumbling and sliding (0.30.0): rolling resistance 0.05 (larger than lif
 steepest floor (45°), the least roll radius (1 px), the fastest start (1e5 px/s), `to`'s leeway off its floor (0.5 px),
 the most friction (2), a box stopping a roll dead (no bounce), the skid at a landing not drawn, a tumble's usual spin
 (v / r, or the nearest to it that lands a box on a face), and the critics' limits (5% astray from distance / radius,
-10% of spin, read against at least 1 rad/s).
+10% of spin, read against at least a turn a second).
 Each is a named constant beside its reason, and a test pins it.

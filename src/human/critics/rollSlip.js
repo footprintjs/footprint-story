@@ -15,6 +15,8 @@
  * right turns clockwise, + in y down) — true on any floor no steeper than vertical.
  * WHY the drawn turn is read nearest the owed one (geom/angles.js · wrapAngle of their difference): an angle drawn
  * wrapped into (−π, π], or a whole turn ahead, looks the same on the frame, so only what differs on the frame counts.
+ * It also means a fast wheel turning more than half a turn between samples is read as it turns, whatever its speed:
+ * the turn owed by the drawn distance picks which of the drawn turn's equals is meant.
  */
 import { wrapAngle } from '../../geom/angles.js';
 import { basePlan } from '../models/wrap.js';

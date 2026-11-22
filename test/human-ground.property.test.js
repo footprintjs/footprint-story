@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { planMove, sampleMove, sampleTrack, checkMove, depthIn, makeWorld, ROLL_SHAPES, GRAVITY, CONTACT_MOST, ROLL_SLIP_MOST, SPIN_MOST } from '../human.js';
+import { planMove, sampleMove, sampleTrack, checkMove, anticipate, followThrough, hold, overshoot, depthIn, makeWorld, ROLL_SHAPES, GRAVITY, CONTACT_MOST, ROLL_SLIP_MOST, SPIN_MOST } from '../human.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 300;
 // a track is sampled at 120 a second over up to 30 s: the critics' properties run a tenth as often
@@ -114,5 +114,22 @@ test('the same intent, the same plan; every model\'s own track passes roll-slip 
       const bad = checkMove(planMove({ do: 'roll', model: 'reel:scaled' }, { models: [scaled] }), { models: [scaled] });
       assert.ok(bad.measures['roll-slip'] > ROLL_SLIP_MOST, `factor ${factor}`);
       assert.ok(close(bad.bases['roll-slip'].rate, factor, 1e-6));
+    }), { numRuns: HEAVY });
+});
+
+test('a wrapped roll stays a roll: every wrapper over any roll passes roll-slip and spin', () => {
+  const wrapper = fc.constantFrom(
+    (m, by) => overshoot(m, { by }), (m) => anticipate(m, { share: 0.25 }), (m, by) => followThrough(m, { by }),
+    (m) => hold(m, { at: m.plan.seconds / 2, seconds: 0.3 }));
+  fc.assert(fc.property(fc.double({ min: 30, max: 900, noNaN: true }), fc.double({ min: 1, max: 40, noNaN: true }), fc.double({ min: -20, max: 20, noNaN: true }),
+    fc.boolean(), wrapper, fc.double({ min: 0, max: 80, noNaN: true }), (distance, radius, slope, floor, wrap, by) => {
+      const phi = (slope * Math.PI) / 180;
+      const intent = floor ? { do: 'roll', plane: 'floor', from: [0, 0], to: [distance * Math.cos(phi), distance * Math.sin(phi)], radius }
+        : { do: 'roll', from: [0, 0], to: [distance * Math.cos(phi), distance * Math.sin(phi)], slope, radius };
+      const roll = refused(() => planMove(intent));
+      if (roll === null) return;
+      const c = checkMove(wrap(roll, by));
+      assert.ok(c.measures['roll-slip'] === null || c.measures['roll-slip'] <= ROLL_SLIP_MOST, `roll-slip ${c.measures['roll-slip']}`);
+      assert.ok(c.measures.spin <= SPIN_MOST, `spin ${c.measures.spin}`);
     }), { numRuns: HEAVY });
 });

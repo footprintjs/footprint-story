@@ -142,7 +142,8 @@ checkMove(planMove({ do: 'throw', who: 'b', from: [0, 500], to: [600, 500], boxe
 A roll, a slide and a tumble are planned the same way (`do: 'roll'`, `'slide'`, `'tumble'`): their samples carry `angle` and
 `spin` beside x and y, a tumble's also `air` and `rolls`, and `roll-slip` (the drawn turn against distance / radius) and
 `spin` (a drawn angle that jumps, or a spin that changes in flight) say in words when a drawn turn is wrong — reading
-turns the short way round with the geometry leaf (`src/geom/angles.js`), reused, never copied.
+turns with the geometry leaf (`src/geom/angles.js`), reused, never copied. A wrapper over a roll turns it as it moves it
+(the plan's `turnVector`), so a wrapped roll still rolls.
 
 The critics `spacing` (a fall or a throw that accelerates down at under half its gravity reads as slid, not falling),
 `volume` (a squash that changes the area reads as rubber), `contact` (a body that passes into the floor or a box) and

@@ -19,8 +19,14 @@
 - **Two critics: `roll-slip`** (the drawn angle's change against distance / radius, over the steps that roll: over 5%
   astray it skids, slides without turning or turns the wrong way; the fix names the radius, or the radius it is drawn
   at) **and `spin`** (a drawn angle that jumps between two samples, or a spin that changes by over 10% in flight). Both
-  read the drawn track, turns taken the short way round. `spacing` now reads only a track's flight when its samples
-  mark `air: 0` on the floor.
+  read the drawn track. A fast spin, over half a turn between samples, is read as it turns: `roll-slip` nearest the turn
+  the drawn distance owes, `spin` nearest its samples' own `spin`; a hand-drawn track with no spin is read the short way
+  and `spin`'s basis says the fastest spin it can tell (`mostReadable`, π × the rate). A flick stands off both
+  neighbours and both sides' trends, against at least a turn a second (`SPIN_FLOOR`). `spacing` now reads only a
+  track's flight when its samples mark `air: 0` on the floor.
+- **A wrapped roll stays a roll:** the `no-slip` plan names `turnVector` (its turn per px of travel), and `anticipate`,
+  `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
+  wrapped roll still turns distance / radius; a slide's and a tumble's angle stay their own.
 - **The physics under them, on the door:** `glide`, `glideAt`, `restSpeed` (straight-line motion in closed form),
   `touchAlong` (a line's first touch of a box, the slab test of Kay & Kajiya 1986), `rollTurn`, `rollingPush`,
   `landRoll`, `slidingPush`, `slideDistance`, `spinAt`, `faceSpin`, and their constants (`MOST_SLOPE`, `ROLL_KEYS`,
