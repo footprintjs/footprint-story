@@ -36,13 +36,13 @@ test('the rule table: a small turn keeps its height, a large one arcs, a fly pas
     assert.equal(move.choice.kind, kind);
     assert.equal(move.choice.turn, turn);
   }
-  assert.deepEqual(CAMERA_MOVE_RULES.map((r) => [r.rule, r.kind]), [['turn-past-cut', 'cut'], ['small-turn', 'slerp'], ['large-turn', 'arc']]);
+  assert.deepEqual(CAMERA_MOVE_RULES.map((r) => [r.rule, r.kind]), [['turn-past-cut', 'cut'], ['too-far', 'cut'], ['small-turn', 'slerp'], ['large-turn', 'arc']]);
   assert.equal(table[6][0].choice.cutPast, null, 'an orbit has no cut to pass');
 });
 
 test('the reason says the choice and its numbers, in words a record keeps', () => {
-  assert.equal(fly('front', 'right').reason, "do: 'fly' → arc: the look turns 90°, more than 45° and not past cutPast 150°, so it rises 10° over its middle to keep the subject in sight, over 4.42 s of minimum jerk, set so its fastest turn (40.4°/s) stays under 45°/s");
-  assert.equal(fly('front', 'front-right', { seconds: 3 }).reason, "do: 'fly' → slerp: the look turns 45°, at most 45°, so it keeps its height and turns at one speed, over the 3 s given, of minimum jerk (its fastest turn 28.1°/s)");
+  assert.equal(fly('front', 'right').reason, "do: 'fly' → arc: the look turns 90°, more than 45° and not past cutPast 150°, so it rises 10° over its middle to keep the subject in sight, over 4.42 s of minimum jerk, set by its turn — at its fastest it turns 40.4°/s (limit 45), slides 0 frame heights a second (limit 1) and zooms 1× a second (limit 2×)");
+  assert.equal(fly('front', 'front-right', { seconds: 3 }).reason, "do: 'fly' → slerp: the look turns 45°, at most 45°, so it keeps its height and turns at one speed, over the 3 s given, of minimum jerk — at its fastest it turns 28.1°/s (limit 45), slides 0 frame heights a second (limit 1) and zooms 1× a second (limit 2×)");
   assert.equal(fly('front', 'back', { seconds: 2 }).reason, "do: 'fly' → cut: the look turns 180°, past cutPast 150° — a swing that far turns the whole world round, and a cut reads cleaner; seconds: 2 is not used");
   const high = planCameraMove({ do: 'orbit', around: 'db', by: 90, from: 'front high', lift: 45 }, scene);
   assert.match(high.reason, /, so it rises 45° over its middle to keep the subject in sight, over /);
@@ -98,15 +98,21 @@ test('an arc rises by its lift over its middle; the timing is minimum jerk, so p
   near(half.distance, Math.sqrt(wide.from.distance * wide.to.distance), 1e-9);
   near(half.focus, half.distance, 0, 'the focus follows the distance when both ends focus on their subject');
   assert.equal(wide.kind, 'slerp');
-  assert.equal(wide.seconds, CAMERA_MOVES.leastSeconds, 'a move that does not turn takes the shortest beat');
+  assert.equal(wide.basis.limitedBy, 'zoom', 'a move that does not turn is timed by how fast its subject grows');
+  near(wide.basis.zoom, CAMERA_MOVES.zoom ** CAMERA_MOVES.planShare, 0.01);
+  const still = planCameraMove({ do: 'orbit', around: 'db', by: 0 }, scene);
+  assert.equal(still.seconds, CAMERA_MOVES.leastSeconds, 'a move that does not move takes the shortest beat');
+  assert.equal(still.basis.limitedBy, 'least');
+  assert.match(still.reason, /does not turn, over 0\.5 s of minimum jerk, set by the shortest beat: it barely moves/);
 });
 
-test('the seconds come from the comfort limit: the planned path\'s fastest turn, sampled finely, stays under it', () => {
+test('the seconds come from the limits: the planned path\'s fastest turn, slide and zoom, sampled finely, stay under them', () => {
   for (const move of [fly('front', 'right'), fly('front', 'back', { cutPast: 180 }), planCameraMove({ do: 'orbit', around: ['db', 'cache'], by: 720, from: 'low' }, scene)]) {
     assert.equal(move.basis.secondsGiven, false);
     assert.ok(move.basis.peak <= CAMERA_MOVES.comfort * CAMERA_MOVES.planShare + 0.05);
-    const measured = checkCameraMove(move, { rate: 240 }).measures['turn-speed'];
-    assert.ok(measured <= CAMERA_MOVES.comfort, `${measured}°/s at 240 samples a second`);
+    const { measures } = checkCameraMove(move, { rate: 240 });
+    assert.ok(measures['turn-speed'] <= CAMERA_MOVES.comfort, `${measures['turn-speed']}°/s at 240 samples a second`);
+    assert.ok(measures['travel-speed'] <= 1);
   }
 });
 
@@ -134,7 +140,7 @@ test('a cut is its two views at 0 s; it turns nothing while the viewer watches',
   assert.deepEqual(track.samples[1].camera, cut.to);
   assert.equal(track.samples[1].cut, true);
   assert.equal(sampleCameraMove(cut, 0).cut, true);
-  assert.deepEqual(checkCameraMove(cut, { scene, frame }).measures, { 'in-sight': 0, 'turn-speed': 0, 'line-of-action': null, horizon: 0 });   // one subject: no line
+  assert.deepEqual(checkCameraMove(cut, { scene, frame }).measures, { 'in-sight': 0, 'turn-speed': 0, 'travel-speed': 0, 'line-of-action': null, horizon: 0 });   // one subject: no line
 });
 
 test('the same intent, the same move; a structured copy samples the same, and every answer is frozen', () => {
@@ -153,16 +159,20 @@ test('in-sight: a fly through the front, behind a wall, is found with lift as it
   const [found] = low.findings;
   assert.equal(found.critic, 'in-sight');
   assert.equal(found.level, 'warn');
-  assert.match(found.message, /^shots\[2\]: at \d+\.\d s it shows 0% of its subject, against 100% at its ends — "wall" covers it on the way$/);
+  assert.match(found.message, /^shots\[2\]: at \d+\.\d s it shows 0% of "db", where its ends lead you to expect 100% — "wall" covers it on the way$/);
   assert.equal(found.fix, 'lift it over: lift: 25');
   assert.equal(found.basis.blocker, 'wall');
   const mid = checkCameraMove(planCameraMove({ ...intent, lift: 25 }, walled), { scene: walled, frame });
   assert.equal(mid.findings[0].fix, 'lift it over: lift: 40');
   assert.deepEqual(checkCameraMove(planCameraMove({ ...intent, lift: 40 }, walled), { scene: walled, frame }).findings, []);
-  // at the highest lift, a fly is told to cut; an orbit to start higher or wider
-  const top = checkCameraMove(planCameraMove({ ...intent, lift: 45, from: { on: 'db', from: 'left low' }, to: { on: 'db', from: 'right low' } }, walled), { scene: walled, frame });
-  assert.match(top.findings[0].fix, /^cut instead: cutPast: \d+$/);
-  const orbit = checkCameraMove(planCameraMove({ do: 'orbit', around: 'db', by: 180, from: 'left low', lift: 45 }, walled), { scene: walled, frame });
+  // from low, a rise of 45° is what hides it: the level path is measured, passes, and is named first — and it does clear
+  const low45 = { ...intent, lift: 45, from: { on: 'db', from: 'left low' }, to: { on: 'db', from: 'right low' } };
+  assert.equal(checkCameraMove(planCameraMove(low45, walled), { scene: walled, frame }).findings[0].fix, 'keep it level, its rise is what hides it: lift: 0');
+  assert.deepEqual(checkCameraMove(planCameraMove({ ...low45, lift: 0 }, walled), { scene: walled, frame }).findings, []);
+  // a wall too tall to rise over and too wide to pass level: a fly is told to cut
+  const tall = { things: [{ name: 'db', at: [0, 1, 0], r: 1 }, { name: 'wall', at: [0, 1, 3], size: [2.4, 40] }] };
+  assert.equal(checkCameraMove(planCameraMove(intent, tall), { scene: tall, frame }).findings[0].fix, 'cut instead: cutPast: 179');
+  const orbit = checkCameraMove(planCameraMove({ do: 'orbit', around: 'db', by: 180, from: 'left' }, tall), { scene: tall, frame });
   assert.equal(orbit.findings[0].fix, "start from a higher or wider view: from: {from: 'front high', size: 'wide'}");
   assert.ok(SIGHT_DROP > 0 && SIGHT_DROP < 1);
 });
@@ -171,12 +181,12 @@ test('in-sight: a path made by hand that swings away from its subject is found; 
   const at = frameOf({ on: 'db', from: 'front' }, scene), away = { ...at, target: [30, 1, 0] };
   const swing = { samples: [{ t: 0, camera: at }, { t: 1, camera: away }, { t: 2, camera: at }], on: 'db', who: 'reel[4]' };
   const found = checkCameraMove(swing, { scene, frame }).findings.find((f) => f.critic === 'in-sight');
-  assert.equal(found.message, 'reel[4]: at 1 s it shows 0% of its subject, against 100% at its ends — it leaves the frame on the way');
+  assert.equal(found.message, 'reel[4]: at 1 s it shows 0% of "db", where its ends lead you to expect 100% — it leaves the frame on the way');
   assert.equal(found.fix, 'keep the subject in frame on the way, or cut');
-  // a path that starts and ends behind the wall, and stays there, loses nothing the move added
+  // a path that starts and ends behind the wall sees nothing at either end: nothing to lose, so the critic cannot say (null, not 0)
   const hidden = frameOf({ on: 'db', from: 'front' }, walled);
   const still = { samples: [{ t: 0, camera: hidden }, { t: 1, camera: { ...hidden, azimuth: 0.01 } }, { t: 2, camera: hidden }], on: 'db' };
-  assert.equal(checkCameraMove(still, { scene: walled, frame }).measures['in-sight'], 0);
+  assert.equal(checkCameraMove(still, { scene: walled, frame }).measures['in-sight'], null);
   // a hand path behind a blocker names it, and with no intent to lift says to go round
   const round = { samples: [{ t: 0, camera: frameOf({ on: 'db', from: 'left' }, walled) }, { t: 1, camera: hidden }, { t: 2, camera: frameOf({ on: 'db', from: 'right' }, walled) }], on: 'db' };
   assert.equal(checkCameraMove(round, { scene: walled, frame }).findings[0].fix, 'take the path over or round "wall", or cut');
@@ -187,8 +197,8 @@ test('turn-speed: too few seconds is found, with the seconds that fix it; the fi
   const [found] = checkCameraMove(fast, { scene, frame }).findings;
   assert.equal(found.critic, 'turn-speed');
   assert.match(found.message, /^shots\[5\]: its look turns \d+\.\d°\/s at \d+\.\d s, past 45°\/s — the picture smears and the viewer loses their place$/);
-  const need = Number(found.fix.match(/^slow it: seconds: (\d+(?:\.\d)?)$/)[1]);
-  assert.ok(need > 3 && need < 5);
+  const need = Number(found.fix.match(/^slow it: seconds: (\d+(?:\.\d+)?)$/)[1]);
+  assert.equal(need, fast.basis.comfortSeconds, 'the fix is the seconds the planner would choose: its limits at planShare');
   assert.deepEqual(checkCameraMove(fly('front', 'right', { seconds: need }), { scene, frame }).findings, []);
   // a jump made by hand that is not marked a cut is a very fast turn
   const at = frameOf({ on: 'db', from: 'front' }, scene);
@@ -231,7 +241,7 @@ test('horizon: a planned path never leans; a hand path that blends in a roll is 
   assert.match(found.message, /^reel\[1\]: leans the horizon 5\.7° at \d+\.\d s — the ground looks to tip$/);
   assert.match(found.fix, /^keep it level: plan it as \{do: 'fly', from, to\}/);
   assert.ok(HORIZON_MOST < 5.7);
-  assert.deepEqual(CAMERA_CRITICS, ['in-sight', 'turn-speed', 'line-of-action', 'horizon']);
+  assert.deepEqual(CAMERA_CRITICS, ['in-sight', 'turn-speed', 'travel-speed', 'line-of-action', 'horizon']);
 });
 
 test('a good move passes every critic', () => {

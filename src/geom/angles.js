@@ -11,13 +11,13 @@
  * atan2 of the cross and dot products keeps them all. Each vector is made unit length first, so a huge or tiny scene
  * neither overflows nor underflows.
  */
-import { cross, dot, numberOf, sub, unit, vectorOf } from './vec.js';
+import { cross, dot, numberOf, sub, together, unit, vectorOf } from './vec.js';
 
 const TURN = 2 * Math.PI;
 
 /** The angle at b between the rays b→a and b→c, in radians from 0 to π. Points are all 2D or all 3D. */
 export function angleAt(a, b, c) {
-  const p = vectorOf(a, [2, 3], 'angleAt\'s a'), q = vectorOf(b, [p.length], 'angleAt\'s b'), r = vectorOf(c, [p.length], 'angleAt\'s c');
+  const [p, q, r] = together(vectorOf(a, [2, 3], 'angleAt\'s a'), vectorOf(b, [a.length], 'angleAt\'s b'), vectorOf(c, [a.length], 'angleAt\'s c'));
   const u = unit(sub(p, q)), v = unit(sub(r, q));
   if (!u || !v) return null;
   const across = u.length === 2 ? Math.abs(u[0] * v[1] - u[1] * v[0]) : Math.hypot(...cross(u, v));
@@ -30,7 +30,7 @@ export function angleAt(a, b, c) {
  * clockwise to cover c–d). The formula is atan2(|b₂| b₁·(b₂×b₃), (b₁×b₂)·(b₂×b₃)), with bᵢ the three bonds.
  */
 export function dihedral(a, b, c, d) {
-  const [p, q, r, s] = [a, b, c, d].map((v, i) => vectorOf(v, [3], `dihedral's ${'abcd'[i]}`));
+  const [p, q, r, s] = together(...[a, b, c, d].map((v, i) => vectorOf(v, [3], `dihedral's ${'abcd'[i]}`)));
   const b1 = unit(sub(q, p)), b2 = unit(sub(r, q)), b3 = unit(sub(s, r));
   if (!b1 || !b2 || !b3) return null;
   const n1 = cross(b1, b2), n2 = cross(b2, b3);

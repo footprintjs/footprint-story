@@ -13,9 +13,11 @@ import { deepFreeze, orRefuse, readAll } from './fields.js';
 import { aim } from './lens.js';
 import { cameraFrom, frameFrom } from './camera.js';
 import { namesFrom, sceneFrom } from './scene.js';
-import { cameraTrack, lookOf, CAMERA_MOVE_KINDS, MOST_CAMERA_SAMPLES } from './move.js';
-import { filled } from './moveRead.js';
-import { CAMERA_CRITICS_LIST } from './moveCritics.js';
+import { cameraTrack, MOST_CAMERA_SAMPLES } from './move.js';
+import { CAMERA_MOVE_KINDS } from './moveRules.js';
+import { lookOf } from './movePace.js';
+import { filled, MOST_LIFT } from './moveRead.js';
+import { CAMERA_CRITICS_LIST, SIGHT_DROP } from './moveCritics.js';
 
 const SETTINGS = ['scene', 'frame', 'on', 'line', 'rate', 'who'], SAMPLE = ['t', 'camera', 'look', 'cut', 'progress', 'eye'], TRACK = ['samples', 'who', 'on', 'line', 'kind', 'seconds'];
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -47,7 +49,10 @@ function handFrom(raw, f) {
     if (look && Math.hypot(...look) === 0) f.say(`${at}.look`, 'has no length: it is no turn');
     const before = samples[samples.length - 1];
     if (t !== null && before && (t < before.t || (t === before.t && !cut))) f.say(`${at}.t`, `is ${t}, before or at the sample before (${before.t}): times go forward, and only a cut takes none`);
-    if (t !== null && camera) samples.push({ t, camera: filled(camera), look: look ?? lookOf(camera), eye: aim(camera, [1, 1]).eye, cut: Boolean(cut) });
+    const eye = camera ? aim(camera, [1, 1]).eye : null;
+    // an eye is worked out from the camera; one handed in (a track read back) must say the same, or the path says two things
+    if (eye && s.eye !== undefined && !(Array.isArray(s.eye) && s.eye.length === 3 && s.eye.every((v, k) => Math.abs(v - eye[k]) <= 1e-9 * Math.max(1, Math.abs(eye[k]))))) f.say(`${at}.eye`, 'is not where its camera stands: leave it out, and it is worked out from the camera');
+    if (t !== null && camera) samples.push({ t, camera: filled(camera), look: look ?? lookOf(camera), looked: look !== null, eye, cut: Boolean(cut) });
   });
   return { who: own.who, on: own.on, line: own.line, samples };
 }
@@ -59,7 +64,8 @@ function worldFrom(settings, track, f) {
   const named = (given, own, at) => (given !== undefined ? (scene ? namesFrom(given, scene, f, at) : f.say(at, 'names things in the scene: pass it, {scene}')) : scene && own?.length ? namesFrom(own, scene, f, `move.${at}`) : null);
   const on = named(settings.on, track.on, 'on'), line = named(settings.line, track.line, 'line');
   if (line && line.length !== 2) f.say('line', 'must name two different things');
-  return { scene, frame, on: on ?? [], line };
+  // two subjects are the line of action unless one is named: a planned move and a hand path alike
+  return { scene, frame, on: on ?? [], line: line ?? (on?.length === 2 ? on : null) };
 }
 
 /** The checks run over a camera move's path: the numbers, and a finding for each past its limit. Throws, listing every problem at once. */
@@ -72,10 +78,17 @@ export const checkCameraMove = (move, settings = undefined) => deepFreeze(orRefu
   const track = hand ? read : cameraTrack(read, { rate }), world = worldFrom(own, track, f);
   const who = own.who === undefined ? (typeof track.who === 'string' ? track.who : 'the camera move') : f.name(own.who, 'who', { most: 120 });
   if (f.problems.length) return null;
-  const hint = hand ? null : { do: move.do, turn: move.choice?.turn ?? 0, lift: move.basis?.lift ?? null, swing: move.basis?.swing ?? null, seconds: move.seconds };
+  const hint = hand ? null : { do: move.do, turn: move.choice?.turn ?? 0, lift: move.basis?.lift ?? null, swing: move.basis?.swing ?? null, seconds: move.seconds, comfortSeconds: move.basis?.comfortSeconds ?? null };
   const measures = {}, bases = {}, findings = [];
   for (const critic of CAMERA_CRITICS_LIST) {
     const got = critic.measure({ ...track, on: world.on, line: world.line }, world);
+    // a move that hides its subject: the same move kept level, and lifted 15° more, are measured too, so the fix it names is
+    // one that helps (an arc whose rise is what hides it is told lift: 0 first), never a guess that sends the author round
+    if (critic.name === 'in-sight' && got && got.value > SIGHT_DROP && hint && move.plan) {
+      const tried = (lift) => critic.measure({ ...cameraTrack({ ...move, plan: { ...move.plan, lift: lift * Math.PI / 180 } }, { rate }), on: world.on, line: world.line }, world)?.value ?? null;
+      hint.levelDrop = move.plan.lift > 0 ? tried(0) : null;
+      hint.higherDrop = (hint.lift ?? 0) < MOST_LIFT ? tried(Math.min(MOST_LIFT, (hint.lift ?? 0) + 15)) : null;
+    }
     measures[critic.name] = got ? got.value : null;
     bases[critic.name] = got ? got.basis : null;
     const found = got ? critic.finding(got.value, who, got.basis, hint) : null;

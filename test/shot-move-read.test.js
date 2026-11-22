@@ -93,6 +93,8 @@ test('a check refuses a move that went astray, a hand path out of order, and set
     'move.samples[2].t is 0.5, before or at the sample before (1): times go forward, and only a cut takes none',
     'move.samples[3] must be an object with t, camera, look, cut, progress, eye',
   ]);
+  // an eye handed in must be where its camera stands
+  assert.deepEqual(problems(() => checkCameraMove({ samples: [{ t: 0, camera: at, eye: [0, 0, 0] }, { t: 1, camera: at }] })), ['move.samples[0].eye is not where its camera stands: leave it out, and it is worked out from the camera']);
   // a sample cameraTrack made is read back as a hand path, extra keys and all
   const track = cameraTrack(move, { rate: 4 });
   assert.deepEqual(checkCameraMove({ samples: track.samples, who: 'again' }).measures.horizon < 1e-9, true);

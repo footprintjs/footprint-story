@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { planCameraMove, sampleCameraMove, cameraTrack, checkCameraMove, readCamera, CAMERA_MOVES } from '../shot.js';
 import { quatAngle } from '../geometry.js';
-import { lookOf } from '../src/shot/move.js';
+import { lookOf } from '../src/shot/movePace.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 200;
 // a move is sampled hundreds of times: a share of the runs keeps the deep sweep to minutes
@@ -23,9 +23,11 @@ const views = fc.constantFrom('front', 'front-right', 'right high', 'back-right 
 test('property: a fly between any two cameras starts and ends on them exactly, by the rule table, every sample a camera', () => {
   fc.assert(fc.property(camera, camera, fc.option(fc.integer({ min: 0, max: 180 })), (a, b, cutPast) => {
     const move = planCameraMove({ do: 'fly', from: a, to: b, ...(cutPast === null ? {} : { cutPast }) });
-    const turn = Number((quatAngle(lookOf(readCamera(a)), lookOf(readCamera(b))) / DEG).toFixed(6));
-    const kind = turn > (cutPast ?? CAMERA_MOVES.cutPast) ? 'cut' : turn <= CAMERA_MOVES.smallTurn ? 'slerp' : 'arc';
+    const turn = Number((quatAngle(lookOf(readCamera(a)), lookOf(readCamera(b))) / DEG).toFixed(1));
+    const tooFar = move.basis.comfortSeconds > CAMERA_MOVES.longest;
+    const kind = turn > (cutPast ?? CAMERA_MOVES.cutPast) || tooFar ? 'cut' : turn <= CAMERA_MOVES.smallTurn ? 'slerp' : 'arc';
     assert.equal(move.kind, kind);
+    assert.equal(move.choice.turn, turn);
     assert.deepEqual(move.from, readCamera(a));
     assert.deepEqual(move.to, readCamera(b));
     const track = cameraTrack(move, { rate: 12 });
@@ -56,5 +58,18 @@ test('property: an orbit turns by exactly its by, never cuts, and the same inten
     assert.deepEqual(planCameraMove(intent, scene), move);
     const t = move.seconds * 0.37;
     assert.deepEqual(sampleCameraMove(move, t), sampleCameraMove(structuredClone(move), t));
+  }), runs(0.5));
+});
+
+test('property: a move given too few seconds is found too fast, and planned again with the seconds the fix names it passes', () => {
+  fc.assert(fc.property(camera, camera, fc.double({ min: 0.05, max: 1, noNaN: true }), (a, b, share) => {
+    const free = planCameraMove({ do: 'fly', from: a, to: b, cutPast: 180, seconds: 1 });
+    const fast = planCameraMove({ do: 'fly', from: a, to: b, cutPast: 180, seconds: Math.max(0.01, free.basis.comfortSeconds * share) });
+    const speed = checkCameraMove(fast, { rate: 60 }).findings.filter((f) => f.critic === 'turn-speed' || f.critic === 'travel-speed');
+    if (!speed.length) return;
+    if (speed.some((f) => !/seconds: [\d.]+$/.test(f.fix))) { assert.ok(speed.every((f) => /leave seconds out, and it cuts$|seconds: [\d.]+$/.test(f.fix))); return; }
+    const need = Math.max(...speed.map((f) => Number(f.fix.match(/seconds: ([\d.]+)$/)[1])));
+    const again = checkCameraMove(planCameraMove({ do: 'fly', from: a, to: b, cutPast: 180, seconds: need }), { rate: 60 }).findings;
+    assert.deepEqual(again.filter((f) => f.critic === 'turn-speed' || f.critic === 'travel-speed'), []);
   }), runs(0.5));
 });

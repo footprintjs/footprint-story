@@ -17,6 +17,8 @@
 import { cross, dot, numberOf, unit, vectorOf } from './vec.js';
 
 const quatOf = (q, what) => vectorOf(q, [4], what);
+/** How far from length 1 and right angles three axes may be and still be read as a turn: rounding, not a shear. */
+const AXES_WITHIN = 1e-6;
 
 /** q scaled to length 1. A quaternion of no length is no turn: refused. */
 export function quatNormalize(q) {
@@ -60,7 +62,12 @@ export function quatAngle(a, b) {
  * read from its rotation matrix by Shepperd's method — the largest of four sums first, so no division by a small number.
  */
 export function quatFromAxes(right, up, back) {
-  const [m00, m10, m20] = vectorOf(right, [3], 'quatFromAxes\' right'), [m01, m11, m21] = vectorOf(up, [3], 'quatFromAxes\' up'), [m02, m12, m22] = vectorOf(back, [3], 'quatFromAxes\' back');
+  const r0 = vectorOf(right, [3], 'quatFromAxes\' right'), u0 = vectorOf(up, [3], 'quatFromAxes\' up'), b0 = vectorOf(back, [3], 'quatFromAxes\' back');
+  // a turn keeps lengths, right angles and handedness: anything else is not a turn, and the matrix read would mean nothing
+  const off = Math.max(...[r0, u0, b0].map((v) => Math.abs(Math.hypot(...v) - 1)), Math.abs(dot(r0, u0)), Math.abs(dot(u0, b0)), Math.abs(dot(r0, b0)));
+  if (off > AXES_WITHIN) throw new TypeError(`quatFromAxes takes three axes of length 1 at right angles — these are ${off.toPrecision(3)} off`);
+  if (dot(cross(r0, u0), b0) < 0) throw new TypeError('quatFromAxes takes a right-handed frame (back = right × up): these three are a mirror, which no turn makes');
+  const [m00, m10, m20] = r0, [m01, m11, m21] = u0, [m02, m12, m22] = b0;
   const trace = m00 + m11 + m22, sums = [trace, m00 - m11 - m22, m11 - m00 - m22, m22 - m00 - m11], big = sums.indexOf(Math.max(...sums));
   const r = Math.sqrt(1 + sums[big]) * 2;
   const q = big === 0 ? [r / 4, (m21 - m12) / r, (m02 - m20) / r, (m10 - m01) / r]

@@ -26,16 +26,25 @@ test('angleAt: a sliver keeps its digits (acos would lose half), and huge or tin
   near(angleAt([1, 1e-10], [0, 0], [1, 0]), 1e-10, 1e-24);
   near(angleAt([1e200, 0, 0], [0, 0, 0], [0, 1e200, 0]), PI / 2);
   near(angleAt([1e-200, 0], [0, 0], [0, 1e-200]), PI / 2);
+  // points near ±1e308, whose differences overflow unless scaled first, and subnormal points, whose 1/length is Infinity
+  near(angleAt([1e308, 0], [-1e308, 0], [-1e308, 1e308]), PI / 2);
+  near(angleAt([1.7e308, 1.7e308, 0], [0, 0, 0], [-1.7e308, 1.7e308, 0]), PI / 2);
+  near(angleAt([5e-324, 0], [0, 0], [0, 5e-324]), PI / 2);
+  near(angleAt([1e-320, 3e-321, 0], [0, 0, 0], [3e-321, 1e-320, 0]), Math.PI / 2 - 2 * Math.atan2(3, 10), 1e-3);   // subnormals carry few digits
+  near(dihedral([1e308, 0, 0], [0, 0, 0], [0, 0, 1e308], [0, -1e308, 1e308]), -PI / 2);
+  near(dihedral([5e-324, 0, 0], [0, 0, 0], [0, 0, 5e-324], [0, 5e-324, 5e-324]), PI / 2);
+  assert.deepEqual(quatForward(lookAt([0, 0, 1e308], [0, 0, -1e308])).map((v) => Math.round(v * 1e12) / 1e12 + 0), [0, 0, -1]);
+  assert.deepEqual(quatForward(quatLook([5e-324, 0, 0])).map((v) => Math.round(v * 1e12) / 1e12 + 0), [1, 0, 0]);
 });
 
 test('angleAt: a point on b gives no angle (null); bad points are refused in words', () => {
   assert.equal(angleAt([0, 0], [0, 0], [1, 0]), null);
   assert.equal(angleAt([1, 2, 3], [4, 5, 6], [4, 5, 6]), null);
   assert.throws(() => angleAt([0, 0], [0, 0, 0], [1, 0]), /angleAt's b is a list of 2 finite numbers/);
-  assert.throws(() => angleAt([0, NaN], [0, 0], [1, 0]), /angleAt's a is a list of 2 or 3 finite numbers — not \[0,null\]/);
+  assert.throws(() => angleAt([0, NaN], [0, 0], [1, 0]), /angleAt's a is a list of 2 or 3 finite numbers — not \[0,NaN\]/);
   assert.throws(() => angleAt('a', [0, 0], [1, 0]), /not "a"/);
   const loop = []; loop.push(loop);
-  assert.throws(() => angleAt(loop, [0, 0], [1, 0]), /not object/, 'a value JSON cannot show is named by its type');
+  assert.throws(() => angleAt(loop, [0, 0], [1, 0]), /not \[\[object\]\]/, 'a value JSON cannot show is named by its type');
 });
 
 test('dihedral: the twist about b→c is the angle d turns round the axis, right-handed (IUPAC), across the whole circle', () => {
@@ -115,6 +124,13 @@ test('quatFromAxes: every branch of Shepperd\'s method gives back the turn, half
   for (const q of [[1, 0, 0, 0], ...each, quatFromAxisAngle([1, -2, 0.5], 2.9), quatFromAxisAngle([0, 1, 1], 0.2)]) {
     sameTurn(quatFromAxes(quatRotate(q, [1, 0, 0]), quatRotate(q, [0, 1, 0]), quatRotate(q, [0, 0, 1])), q, 1e-12);
   }
+});
+
+test('quatFromAxes refuses three axes that are no turn: stretched, sheared or mirrored, in words', () => {
+  assert.throws(() => quatFromAxes([2, 0, 0], [0, 1, 0], [0, 0, 1]), /three axes of length 1 at right angles — these are 1\.00 off/);
+  assert.throws(() => quatFromAxes([1, 0, 0], [Math.SQRT1_2, Math.SQRT1_2, 0], [0, 0, 1]), /at right angles — these are 0\.707 off/);
+  assert.throws(() => quatFromAxes([1, 0, 0], [0, 1, 0], [0, 0, -1]), /a right-handed frame \(back = right × up\): these three are a mirror/);
+  sameTurn(quatFromAxes([1, 0, 0], [0, 1, 0], [0, 0, 1 + 1e-9]), [1, 0, 0, 0]);   // rounding is not a shear
 });
 
 test('quatLook and quatForward: a camera points where it is told, horizon level, even straight up or down (gimbal lock)', () => {

@@ -164,9 +164,9 @@ export const MOST_ORBIT: number;
 /** The highest lift, in degrees. */
 export const MOST_LIFT: number;
 /** The numbers the rule table and the timing use, each ours: degrees, and degrees a second for `comfort`. */
-export const CAMERA_MOVES: { readonly smallTurn: number; readonly cutPast: number; readonly rise: number; readonly highest: number; readonly comfort: number; readonly planShare: number; readonly leastSeconds: number };
+export const CAMERA_MOVES: { readonly smallTurn: number; readonly cutPast: number; readonly rise: number; readonly highest: number; readonly comfort: number; readonly slide: number; readonly zoom: number; readonly planShare: number; readonly leastSeconds: number; readonly longest: number };
 export type CameraMoveKind = 'slerp' | 'arc' | 'cut';
-export type CameraMoveRule = 'turn-past-cut' | 'small-turn' | 'large-turn';
+export type CameraMoveRule = 'turn-past-cut' | 'too-far' | 'small-turn' | 'large-turn';
 /** The rule table, first match. */
 export const CAMERA_MOVE_RULES: readonly { readonly rule: CameraMoveRule; readonly kind: CameraMoveKind; readonly when: string }[];
 export const CAMERA_MOVE_KINDS: readonly CameraMoveKind[];
@@ -201,7 +201,8 @@ export interface CameraMove {
   readonly line: readonly string[] | null;
   readonly reason: string;
   readonly choice: { readonly rule: CameraMoveRule; readonly kind: CameraMoveKind; readonly turn: number; readonly smallTurn: number; readonly cutPast: number | null };
-  readonly basis: { readonly turn: number; readonly swing: number | null; readonly lift: number | null; readonly liftCapped: boolean; readonly seconds: number; readonly secondsGiven: boolean; readonly comfort: number; readonly peak: number };
+  /** `peak` the fastest turn (°/s), `slide` the fastest slide (frame heights a second), `zoom` the fastest growth (a factor a second), at `seconds`; `comfortSeconds` what the limits ask, `limitedBy` which one set it. */
+  readonly basis: { readonly turn: number; readonly swing: number | null; readonly lift: number | null; readonly liftCapped: boolean; readonly seconds: number; readonly secondsGiven: boolean; readonly comfortSeconds: number; readonly limitedBy: 'turn' | 'slide' | 'zoom' | 'least' | null; readonly comfort: number; readonly peak: number; readonly slide: number; readonly zoom: number };
   readonly plan: { readonly azimuth: number; readonly swing: number; readonly elevation: readonly [number, number]; readonly lift: number; readonly focusFollows: boolean } | null;
 }
 export interface CameraSample { readonly t: number; readonly progress: number; readonly camera: ReadCamera; readonly eye: Vector; readonly look: Quat; readonly cut?: true }
@@ -214,7 +215,7 @@ export function sampleCameraMove(move: CameraMove, t: number): CameraSample;
 /** The move sampled `rate` times a second (60), both ends included. */
 export function cameraTrack(move: CameraMove, settings?: { readonly rate?: number }): CameraTrack;
 
-export type CameraCriticName = 'in-sight' | 'turn-speed' | 'line-of-action' | 'horizon';
+export type CameraCriticName = 'in-sight' | 'turn-speed' | 'travel-speed' | 'line-of-action' | 'horizon';
 export const CAMERA_CRITICS: readonly CameraCriticName[];
 /** The most of its subject a move may lose beyond what its shots show. */
 export const SIGHT_DROP: number;

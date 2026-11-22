@@ -388,12 +388,13 @@ name a tight cluster as one ball. The sizes, the lenses and "too small" are star
 
 **Moving between shots.** `planCameraMove({do: 'fly', from: shotA, to: shotB}, scene)` or `{do: 'orbit', around, by}` picks
 how the camera goes from a rule table and says why: a turn of at most 45° keeps its height and turns at one speed (a slerp), a
-larger one rises 10° over its middle (an arc), and a fly past 150° cuts. The seconds come from the minimum-jerk law and a
-comfort limit (45°/s, ours) unless given. `cameraTrack(move)` samples it, each sample a camera with its eye and its look as a
+larger one rises 10° over its middle (an arc), and a fly past 150°, or one that would take longer than 12 s at a comfortable
+pace, cuts. The seconds come from the minimum-jerk law and three limits (a turn of 45°/s, a slide of 1 frame height a second,
+a growth of 2× a second; ours) unless given. `cameraTrack(move)` samples it, each sample a camera with its eye and its look as a
 quaternion, both ends exactly the cameras handed in. `checkCameraMove(move, {scene, frame})` says what still looks wrong:
-the subject hidden on the way (`in-sight`), a turn too fast (`turn-speed`), a crossing of the line between two subjects
+the subject hidden on the way (`in-sight`), a turn too fast (`turn-speed`), a slide or a zoom too fast (`travel-speed`), a crossing of the line between two subjects
 (`line-of-action`), a horizon that leans (`horizon`) — each finding names `who` and the fix in the intent's keys
-(`lift: 25`, `seconds: 3.8`). The geometry it stands on has its own door, `footprint-story/geometry`: [src/geom/README.md](src/geom/README.md).
+(`lift: 25`, `seconds: 4.42`). The geometry it stands on has its own door, `footprint-story/geometry`: [src/geom/README.md](src/geom/README.md).
 
 ## A floor seen from a corner (isometric)
 

@@ -153,5 +153,15 @@ test('the minimum-jerk law and the geometry are leaves: they import nothing outs
   const door = reach('geometry.js');
   for (const f of geom) assert.ok(door.has(path.join(root, f)), `${f} is behind no door`);
   for (const [file] of door) assert.ok(relative(file) === 'geometry.js' || relative(file).startsWith(GEOM), `${relative(file)}: the geometry door loads only src/geom/`);
-  for (const dir of ['src/shot', 'src/human', 'src/motion', 'src/isometric']) for (const f of filesUnder(dir)) assert.doesNotMatch(readFileSync(path.join(root, f), 'utf8'), /function (?:slerp|quatMultiply|minJerk)\b/, `${f}: a second copy of a shared law`);
+});
+
+test('one copy: no file outside the shared leaves defines any name they hand out, as a function or as a const, let or var', async () => {
+  const names = [...Object.keys(await import('../geometry.js')), ...Object.keys(await import('../src/timing/minJerk.js'))];
+  assert.ok(names.length >= 24);
+  const dirs = readdirSync(path.join(root, 'src')).filter((d) => d !== 'geom' && d !== 'timing' && statSync(path.join(root, 'src', d)).isDirectory());
+  const files = [...dirs.flatMap((d) => filesUnder(`src/${d}`)), ...readdirSync(root).filter((f) => f.endsWith('.js'))];
+  for (const f of files) {
+    const text = readFileSync(path.join(root, f), 'utf8');
+    for (const name of names) assert.doesNotMatch(text, new RegExp(`\\bfunction\\s*\\*?\\s*${name}\\s*\\(|\\b(?:const|let|var)\\s+${name}\\s*=|[{,]\\s*${name}\\s*[:=]\\s*(?:function|\\()`), `${f}: a second copy of ${name}, which a shared leaf hands out`);
+  }
 });

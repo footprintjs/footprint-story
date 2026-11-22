@@ -31,7 +31,10 @@ dihedral([1, 0, 0], [0, 0, 0], [0, 0, 1], [0, 1, 1]);   // π/2: d is turned a q
 dihedral([0, 0, 0], [0, 0, 1], [0, 0, 2], [1, 0, 3]);   // null: three in a line leave no plane
 ```
 
-`angleAt` is atan2(|u×v|, u·v) on unit vectors: every digit near 0 and π, and no overflow in a huge scene. `dihedral`'s sign
+`angleAt` is atan2(|u×v|, u·v) on unit vectors: every digit near 0 and π. The points are first scaled together by a power of
+two (exact, and an angle does not change), so points near ±1e308, whose differences would overflow, and subnormal points,
+whose 1/length is Infinity, still give their angle (`vec.js · together`; `unit` divides by the length, never multiplies by
+its inverse). `dihedral`'s sign
 is IUPAC's (positive: seen along b→c, a–b turns clockwise to cover c–d); a mirror flips it and reading the four backwards
 keeps it.
 
@@ -57,7 +60,8 @@ quatAngle(q, q.map((c) => -c));            // 0: q and −q are one turn
 quatNormalize([2, 0, 0, 0]);               // [1, 0, 0, 0]
 quatForward(quatLook([3, -4, 0]));         // [0.6, -0.8, 0]: a camera aimed there, horizon level
 quatLook([0, -1, 0]);                      // straight down: no level, so it takes +x's side, the same every time
-quatFromAxes(right, up, back);             // the turn whose axes land there (Shepperd's method)
+quatFromAxes(right, up, back);             // the turn whose axes land there (Shepperd's method); stretched, sheared or
+                                           // mirrored axes are refused in words: no turn makes them
 ```
 
 A camera's own axes are the graphics ones: it looks along −z, x is the frame's right, y its top. `quatAngle` is the size of

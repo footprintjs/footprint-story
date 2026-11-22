@@ -22,6 +22,7 @@ export { shotLine } from './src/shot/line.js';
 
 // camera moves — between two views, planned from an intent, sampled in time, checked by critics
 export { CAMERA_MOVE_DOS, MOST_MOVE_SECONDS, MOST_ORBIT, MOST_LIFT } from './src/shot/moveRead.js';
-export { CAMERA_MOVES, CAMERA_MOVE_RULES, CAMERA_MOVE_KINDS, MOST_CAMERA_SAMPLES, planCameraMove, sampleCameraMove, cameraTrack } from './src/shot/move.js';
+export { CAMERA_MOVES, CAMERA_MOVE_RULES, CAMERA_MOVE_KINDS } from './src/shot/moveRules.js';
+export { MOST_CAMERA_SAMPLES, planCameraMove, sampleCameraMove, cameraTrack } from './src/shot/move.js';
 export { CAMERA_CRITICS, SIGHT_DROP, HORIZON_MOST } from './src/shot/moveCritics.js';
 export { checkCameraMove } from './src/shot/moveCheck.js';

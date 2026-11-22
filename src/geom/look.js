@@ -10,11 +10,11 @@
  * with yaw, pitch p and roll φ these are sin φ cos p and cos φ cos p, so it is exact until cos p is rounding.
  */
 import { quatLook, quatRotate } from './quat.js';
-import { sub, vectorOf } from './vec.js';
+import { sub, together, vectorOf } from './vec.js';
 
 /** The turn that aims a camera at `eye` towards `target` with its top towards `up` (world +y unless given). */
 export function lookAt(eye, target, up = [0, 1, 0]) {
-  const e = vectorOf(eye, [3], 'lookAt\'s eye'), t = vectorOf(target, [3], 'lookAt\'s target'), forward = sub(t, e);
+  const [e, t] = together(vectorOf(eye, [3], 'lookAt\'s eye'), vectorOf(target, [3], 'lookAt\'s target')), forward = sub(t, e);
   return Math.hypot(...forward) > 0 ? quatLook(forward, up) : null;
 }
 
