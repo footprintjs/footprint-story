@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — the intent decider
+## 0.28.0 — the intent decider
 
 - **`planIntents(intents, {models, critics, frame})` and `HUMAN_STEPS`** (`footprint-story/human`; docs/design/2026-11-human-motion.md ·
   "The decider"): an author's list of intents in, every move decided by named, pure steps in one list — read → choose →
