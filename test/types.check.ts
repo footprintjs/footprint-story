@@ -366,6 +366,8 @@ export const rolling: unknown[] = [rolled, slid, tumbled, piece?.a, landingRule?
 import { stoppingCoefficient } from 'footprint-story/human';
 import { STUTTER_STEPS } from 'footprint-story/human';
 export const stutterSteps: number = STUTTER_STEPS;
+import { settleCarry } from 'footprint-story/human';
+export const carried: number = settleCarry(0.1, 'snappy');
 export const stopping: number = stoppingCoefficient({ along: 0, normal: 1960, speed: 100, seconds: 30, share: 1.4 });
 // @ts-expect-error a roll's do is 'roll', never 'rolling'
 planMove({ do: 'rolling' });

@@ -35,7 +35,10 @@
   (`air: 0`). **Wrappers respect their plan's world:** every offset (wind-up, follow-through, overshoot) is cut back
   along itself to where the body first touches the floor or a box its model's plan names, never turned aside. An
   anticipation is sized by the part it winds up for (`plan.lead`): a tumble's flight (its plan's `opening`), not the
-  roll after it lands.
+  roll after it lands. A follow-through leaves the end at the speed the move arrives with (swinging out from rest when
+  it arrives at rest, carrying on further than `by` when its speed alone takes it there) and ends still; an overshoot's
+  settle carries that speed too (`settleCarry`, the spring's impulse response): no jump in speed or spin at the
+  hand-over, on any roll.
 - **The 30 s refusal names the value that stops it** (`stoppingCoefficient`: above tan θ on a slope, at least (1 + k)·v /
   (g · 30 s) on the level for a roll, v / (g · 30 s) for a slide), and following it plans. A box tumble given its own
   spin keeps it and may land at a slant: `basis.slant` and the reason say so.

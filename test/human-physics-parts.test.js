@@ -301,3 +301,17 @@ test('the parts underneath: launch, a fall\'s time, bounces, a world, collisions
   assert.equal(run.steps, 8, 'rounded up to whole frames');
   assert.equal(run.frames.length, 3);
 });
+
+test('settleCarry: the spring carrying a start speed of 1 px a second — the derivative of its step over k, exactly 0 at the end', async () => {
+  const { settleCarry, settleSeconds } = await import('../src/human/physics/settle.js');
+  const { spring, FEELS } = await import('../src/motion/spring.js');
+  for (const feel of ['snappy', 'default', 'heavy', 'playful', { k: 100, d: 30 }]) {
+    const { k } = typeof feel === 'string' ? FEELS[feel] : feel, total = settleSeconds(feel);
+    assert.equal(settleCarry(0, feel), 0); assert.equal(settleCarry(total, feel), 0); assert.equal(settleCarry(-1, feel), 0);
+    assert.ok(Math.abs(settleCarry(1e-6, feel) / 1e-6 - 1) < 1e-3, 'it leaves at 1 px a second');
+    for (const t of [0.05, 0.2, total / 2]) {
+      const h = 1e-6, slope = (spring(t + h, feel) - spring(t - h, feel)) / (2 * h) / k;
+      assert.ok(Math.abs(settleCarry(t, feel) - slope) < 1e-3 + Math.abs(slope) * 1e-3, `${JSON.stringify(feel)} at ${t}`);
+    }
+  }
+});

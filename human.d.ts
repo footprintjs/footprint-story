@@ -134,6 +134,8 @@ export type SpringFeel = 'snappy' | 'default' | 'heavy' | 'playful' | { readonly
 /** How much of the way back is still to go at t on a spring: 1 at 0, exactly 0 at settleSeconds. */
 export function settleLeft(t: number, feel?: SpringFeel): number;
 export function settleSeconds(feel?: SpringFeel): number;
+/** How far a settle carries a start speed of 1 px a second on the same spring: 0 at 0, moving at 1 there, exactly 0 again at settleSeconds. */
+export function settleCarry(t: number, feel?: SpringFeel): number;
 /** How near its end a spring must come to count as settled (0.005). */
 export const SETTLED_WITHIN: number;
 /** Refuses a spring that does not settle within the motion spring's scan (30 s); gives its settle seconds. */

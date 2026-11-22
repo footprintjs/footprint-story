@@ -114,3 +114,31 @@ test('a follow-through\'s end sample is held like the rest of its tail; a last s
   assert.equal(sampleMove(overshoot(roll, { by: 5 }), 1e9).spin, 0);
   assert.equal(sampleMove(anticipate(roll), 1e9).spin, sampleMove(roll, roll.plan.seconds).spin, 'an anticipation ends as its move does');
 });
+
+test('a follow-through and an overshoot leave the end at the speed the move arrives with: no jump at the hand-over, on any roll', () => {
+  const speedAt = (move, t, h = 1e-7) => { const a = sampleMove(move, t - h), b = sampleMove(move, t + h); return [(b.x - a.x) / (2 * h), (b.angle - a.angle) / (2 * h)]; };
+  const level = planMove({ do: 'roll', from: [0, 490], to: [30, 490], radius: 1 });   // to rest at to
+  const downhill = planMove({ do: 'roll', from: [0, 0], to: [200 * Math.cos(0.2), 200 * Math.sin(0.2)], slope: (0.2 * 180) / Math.PI, radius: 5 });   // arrives moving
+  for (const roll of [level, downhill]) {
+    const d = roll.plan.seconds, arrive = speedAt(roll, d - 1e-6), same = (a, b) => assert.ok(Math.abs(a - b) <= 0.05 + 1e-3 * Math.abs(b), `${a} ≉ ${b}`);
+    for (const move of [followThrough(roll, { by: 8 }), followThrough(roll, { by: 0.3 }), overshoot(roll, { by: 6 })]) {
+      const before = speedAt(move, d - 1e-6), after = speedAt(move, d + 1e-6);
+      same(after[0], before[0]); same(after[1], before[1]);
+      if (move.wrappers[0] === 'follow-through') same(after[0], arrive[0]);
+      assert.ok(checkMove(move).measures.spin <= SPIN_MOST, `${move.wrappers[0]} ${checkMove(move).measures.spin}`);
+    }
+  }
+  // a move that arrives fast follows through further than asked, never stopping dead: all carry
+  const fast = followThrough(downhill, { by: 0.3 }), d = downhill.plan.seconds;
+  const furthest = Math.max(...sampleTrack(fast).samples.filter((s) => s.t > d).map((s) => Math.hypot(s.x - sampleMove(downhill, d).x, s.y - sampleMove(downhill, d).y)));
+  assert.ok(furthest > 0.3);
+});
+
+test('the property\'s counterexamples, pinned: a short roll followed through, at rest or arriving', () => {
+  for (const [distance, slope, by] of [[30, 0, 8.212139378517993], [30, -6.188254797266435, 0.237935905405177], [30, 16.461549113929117, 0.2924279980798362]]) {
+    const phi = (slope * Math.PI) / 180;
+    const roll = planMove({ do: 'roll', from: [0, 0], to: [distance * Math.cos(phi), distance * Math.sin(phi)], slope, radius: 1 });
+    const c = checkMove(followThrough(roll, { by }));
+    assert.ok(c.measures.spin <= SPIN_MOST && c.measures['roll-slip'] <= 0.05, `${slope}°: spin ${c.measures.spin}`);
+  }
+});

@@ -32,7 +32,7 @@ export { bounces, bounceAt, MIN_BOUNCE, MOST_BOUNCES } from './src/human/physics
 export { runChain, relaxChain, pinAt, substepsFor, stretchOf, MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK, MOST_STEP_SAG, MOST_SUBSTEPS, LAYOUT_ROUNDS } from './src/human/physics/chain.js';
 export { makeWorld, readWorld, pushOut, collide, depthIn, MOST_BOXES } from './src/human/physics/collide.js';
 export { verletStep, simulate, PHYSICS_STEP, STEPS_PER_FRAME, GRAVITY, MOST_PHYSICS_SECONDS } from './src/human/physics/step.js';
-export { settleLeft, settleSeconds, checkSettles, SETTLED_WITHIN } from './src/human/physics/settle.js';
+export { settleLeft, settleSeconds, settleCarry, checkSettles, SETTLED_WITHIN } from './src/human/physics/settle.js';
 export { glide, glideAt, restSpeed } from './src/human/physics/glide.js';
 export { touchAlong } from './src/human/physics/collide.js';
 export { ROLL_SHAPES, ROLLING_RESISTANCE, MOST_SLOPE, rollTurn, rollingPush, landRoll } from './src/human/physics/rolling.js';

@@ -4,9 +4,12 @@
  *
  *   anticipate(move, { share, by })        a small move opposite first: adds share × the part it winds up for before it
  *                                          (the move's seconds, or its model's `opening`: a tumble's flight)
- *   followThrough(move, { share, by })     carries on past the end and swings back: adds share × its seconds after
+ *   followThrough(move, { share, by })     carries on past the end and swings back: adds share × its seconds after;
+ *                                          it leaves the end at the speed the move arrives with (further than `by`
+ *                                          when that speed alone carries it further), and ends still
  *   hold(move, { at, seconds })            stops at the move's time `at` for `seconds`: adds `seconds`
- *   overshoot(move, { by, share, feel })   arrives `by` px past the end, then settles back on a spring: adds settleTime(feel)
+ *   overshoot(move, { by, share, feel })   arrives `by` px past the end, then settles back on a spring that also carries
+ *                                          the speed the move arrives with: adds settleTime(feel)
  *
  * A wrapped move is the move with its plan wrapped, its `reason` carrying the wrapper's words and `wrappers` naming
  * each, innermost first. The wrapped plan is plain frozen data, the inner plan inside it unchanged:
@@ -42,7 +45,7 @@
  */
 import { refuse, shown, stored, isRecord, finite, readNumber, onlyKeys, MOST_SECONDS } from '../read.js';
 import { plainCopy } from '../plain.js';
-import { checkSettles, settleLeft, settleSeconds } from '../physics/settle.js';
+import { checkSettles, settleCarry, settleLeft, settleSeconds } from '../physics/settle.js';
 import { FEEL_NAMES } from '../../motion/spring.js';
 import { round } from './options.js';
 import { readWorld, touchAlong } from '../physics/collide.js';
@@ -59,8 +62,35 @@ export const ADDED_BELLS = Object.freeze({ anticipate: 2, 'follow-through': 2, o
 
 const smooth = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 /** One swing out and back, 0 at both ends and 1 at its peak: sin(πu)·(1 − u), scaled by its own peak. */
-const swing = (u) => Math.sin(Math.PI * u) * (1 - u);
+/** One swing out and back from rest, 0 at both ends and still at both: sin²(πu)·(1 − u), scaled by its own peak. */
+const swing = (u) => Math.sin(Math.PI * u) ** 2 * (1 - u);
 const SWING_PEAK = (() => { let m = 0; for (let i = 1; i < 1000; i += 1) m = Math.max(m, swing(i / 1000)); return m; })();
+/** A carry out and back that starts at speed 1 (per unit of u) and ends still: u·(1 − u)², its peak 4/27 at a third. */
+const carryOn = (u) => u * (1 - u) ** 2;
+const CARRY_PEAK = 4 / 27;
+
+/**
+ * The speed the inner move arrives with, along `dir` (px a second, at least 0), read over its last instant. WHY: a
+ * wrapper that carries on past the end must start at that speed — a jump in speed there is a kink the eye sees (and
+ * the spin critic, on a roll).
+ */
+function arrivalSpeed(at, d, dir) {
+  if (!(d > 0)) return 0;
+  const e = Math.min(1e-3, d / 1000), a = at(d - e), b = at(d);
+  return Math.max(0, ((b.x - a.x) * dir[0] + (b.y - a.y) * dir[1]) / e);
+}
+
+/**
+ * A follow-through's offset at x (0 to 1 over its time `span`), in px: out and back, starting at the speed `speed` it
+ * arrives with and ending still. A share λ = speed·span·4/27 / by of it is the carry (carryOn), the rest the swing from
+ * rest (swing), so it leaves at exactly `speed` and reaches about `by`; when the speed alone carries it further than
+ * `by` (λ > 1), it is all carry — a move that arrives fast follows through further than asked, never stops dead.
+ */
+function followOffset(x, by, speed, span) {
+  const u = Math.min(1, Math.max(0, x)), carried = speed * span * CARRY_PEAK, share = by > 0 ? carried / by : Infinity;
+  if (share >= 1) return speed * span * carryOn(u);
+  return by * ((1 - share) * (swing(u) / SWING_PEAK) + share * (carryOn(u) / CARRY_PEAK));
+}
 
 export const isWrapped = (plan) => isRecord(plan) && typeof plan.wrapper === 'string';
 
@@ -286,13 +316,19 @@ export function sampleWrapped(plan, t, sampleInner) {
     }
     case 'follow-through': {
       if (u <= d) return at(u);
-      const dir = way(true), s = at(d), w = (v) => swing(Math.max(0, (v - d) / (plan.seconds - d))) / SWING_PEAK;
-      return dir ? moved(s, dir, amount(), w, u, { T, still: true, from: rollStart(inner), at, world, radius }) : s;
+      const dir = way(true), s = at(d);
+      if (!dir) return s;
+      const span = plan.seconds - d, speed = arrivalSpeed(at, d, dir), by = amount(), px = (v) => followOffset((v - d) / span, by, speed, span);
+      return moved(s, dir, 1, px, u, { T, still: true, from: rollStart(inner), at, world, radius });
     }
     case 'overshoot': {
       // past the end over the inner's last `share`, then back on the spring (physics/settle.js · settleLeft: exactly 0 at the end)
-      const dir = way(true), s = at(Math.min(u, d)), w = (v) => (v <= d ? smooth((v - d * (1 - plan.share)) / (d * plan.share)) : settleLeft(v - d, plan.feel));
-      return dir ? moved(s, dir, amount(), w, u, { T, still: u > d, from: rollStart(inner), at, world, radius }) : s;
+      // past it, the spring also carries the speed the move arrives with (settleCarry), so it never stops dead at the end
+      const dir = way(true), s = at(Math.min(u, d));
+      if (!dir) return s;
+      const by = amount(), speed = u > d ? arrivalSpeed(at, d, dir) : 0;
+      const px = (v) => (v <= d ? by * smooth((v - d * (1 - plan.share)) / (d * plan.share)) : by * settleLeft(v - d, plan.feel) + speed * settleCarry(v - d, plan.feel));
+      return moved(s, dir, 1, px, u, { T, still: u > d, from: rollStart(inner), at, world, radius });
     }
     default: return refuse(`a wrapped plan's wrapper is one of ${WRAPPER_NAMES.join(', ')} — not ${shown(plan.wrapper)}`);
   }

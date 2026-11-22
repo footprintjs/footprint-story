@@ -159,7 +159,8 @@ wide) first touches the floor or a box the model's plan names — cut, never tur
 against the move it winds up for. So the default anticipation over a tumble, whose release runs through its landing,
 stops at the floor, and a roll between boxes winds up and overshoots only to their sides. An anticipation is sized by
 the part it winds up for: the move's seconds, or its model's `opening` — a tumble's flight, not the roll after it lands
-(`plan.lead` says its seconds). A body already in
+(`plan.lead` says its seconds). A follow-through and an overshoot leave the end at the speed the move arrives with — no
+jump in speed or spin at the hand-over on a roll of any length (an overshoot's spring carries it, `settleCarry`). A body already in
 something keeps its offset (the contact critic says so).
 
 ## The laws it keeps
