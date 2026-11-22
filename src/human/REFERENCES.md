@@ -21,6 +21,9 @@
 | Projectile motion, restitution | `physics/flight.js`, `physics/bounce.js`, `models/ballistic.js`, `models/bounce.js` | D. Halliday, R. Resnick, J. Walker, *Fundamentals of Physics*, Wiley, chapters 4 and 9 | the parabola x₀ + vt + ½gt²; the 45° launch reaches furthest for a speed (R = v² sin 2θ / g); a landing gives back its restitution of the speed, at most all of it |
 | The pendulum's period, a damped spring's overshoot | `physics/chain.js`, `models/spring.js` | the same text, chapter 15 | T = 2π√(L/g), so half a swing is π√(L/g); the overshoot e^(−πζ/√(1 − ζ²)) of a spring with damping ratio ζ under 1 |
 | Anticipation, follow-through, holds, overshoot, squash and stretch, timing | `models/wrap.js`, `critics/spacing.js`, `critics/volume.js` | F. Thomas, O. Johnston, *The Illusion of Life: Disney Animation*, Abbeville Press, 1981 | a move opposite before the move; parts carrying on past the stop; a squash that keeps the volume; a fall's drawings spaced wider as it speeds up |
+| The fewest strokes that draw a set of lines | `strokes/graph.js` (`leastStrokes`), `strokes/penLifts.js` | L. Euler, "Solutio problematis ad geometriam situs pertinentis", *Commentarii academiae scientiarum Petropolitanae* 8, 1736 (published 1741) | a connected set of lines is drawn without lifting only if at most two of its corners meet an odd number of lines; so the fewest strokes is one a part, or half its odd corners |
+| Fleury's rule | `strokes/graph.js` (`isBridge`), `strokes/order.js` | M. Fleury, "Deux problèmes de géométrie de situation", *Journal de mathématiques élémentaires*, 1883 | a trail never crosses a bridge of the lines left while another line is there, so it strands none |
+| How people order a drawing | `strokes/order.js` | P. Van Sommers, *Drawing and Cognition: Descriptive and Experimental Studies of Graphic Production Processes*, Cambridge University Press, 1984 | drawers anchor at the top left, start a line at an end, and chain lines that meet without lifting the pen |
 
 **Ours:** every default not in a row above — Fitts's a (0.1 s), b (0.2 s a bit) and the usual target (40 px); the power law's floor
 (0.00025 per px) and ramp (a tenth at each end); the pen's speed (400 px a second); the tremor's amplitude (0.8 px),
@@ -33,4 +36,8 @@ s either side of a landing), a chain's damping (0.9 lost a second), its stronges
 tolerance (5%), its most links (64) and seconds (10), a wrapper's usual `by` (8% of the move's distance), its least
 travel (0.01 px), the critics' limits (half the gravity, 10% of area, 0.5 px into something solid, 5% stretch), a throw's least time (one frame, 1/60 s), and a settle's
 least overshoot said (half a percent).
+The strokes' (`strokes/`): a hook at a turn of 60° or more, 15% of the shorter line and at most 3 px; widths thinning to
+65% at top speed, tapered over min(8 px, a quarter of the stroke) from 30%; detail at 70% and fills at 40% of the width;
+fills at 800 px a second with half the tremor; a lift of 0.06 s and 1500 px a second; a hatch at −45° and 8 px; corners
+within 0.5 px one; the boil held 3 frames; the critics' limits (no extra stroke, no early stroke, a band of 1.5 spacings).
 Each is a named constant beside its reason, and a test pins it.

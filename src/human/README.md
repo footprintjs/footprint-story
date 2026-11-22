@@ -19,10 +19,12 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/curvature.js` | the curvature at each point (`curvatures`; a hairpin is the sharpest bend, never straight), and over a width (`curvaturesOver`, what the pen and its critic read) |
 | `paths/resample.js` | points again, evenly by distance (`resample`) |
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
+| `paths/wobble.js` | the tremor laid across a line within its room (`wobbleRooms`, `wobbleAcross`): one cap for the pen and the strokes |
 | `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring — see [physics/README.md](physics/README.md) |
 | `models/` | the model interface and registry (`registry.js`), how a model is chosen as data (`rules.js` · `CHOOSE_RULES`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
 | `intents/` | the intent decider: an author's list of intents in, every move decided by steps in one list (`HUMAN_STEPS`, `planIntents` in `steps.js`; the reader `read.js`; the bounded track summary `summary.js`; the per-intent keys `keys.js`) — see below |
 | `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, and `checkMove` (`check.js`) |
+| `strokes/` | hand-drawn strokes: a drawing's order (outline, detail, fills; the fewest strokes), each stroke's pace, width, hooks and tremor, hatching and scribbles clipped exactly, a frame-to-frame boil, the `hand-sketch` model and its critics `pen-lifts`, `stroke-order`, `hatch-gaps`, and two isometric style choices on strokes — see [strokes/README.md](strokes/README.md) |
 | `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
 
@@ -66,6 +68,7 @@ family or a list of them (a ballistic flight is a throw and a fall alike: one st
 | `fall` | `fall` | `ballistic`: down to the floor; or `bounce` | `from`, `floor`, `velocity`, `boxes`, `radius` | as for a throw |
 | `hang` | `hang` | `verlet`: a chain pinned at `from`, swinging until it has been still for half a swing | `from`, `to` or `length`, `path` (the pin's moves), `seconds`, `floor`, `boxes` | `gravity` (at most 1e5), `links` (8, or as many as fit), `damping` (0.9), `jitter` (0, seeded) |
 | `settle` | `settle` | `spring`: to rest on the motion spring, its seconds the feel's | `from`, `to` | `feel` (default), or `k` and `d` |
+| `sketch` | `sketch` | `hand-sketch`: shapes drawn as a hand draws them — outline, then detail, then fills, piece by piece from the top left, in the fewest strokes their corners allow; each stroke by the power law, thinner when fast, tapered, hooked at sharp corners, with the capped tremor; the pen lifting between ([strokes/README.md](strokes/README.md)) | `shapes`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `width` (2.5 px), `overshoot` (3 px) |
 
 Every intent may also hold `name` (its piece: part of the seed), `who` (its words for where it was written, named in
 every refusal and finding) and `model`. Every family has a usual model.
@@ -116,6 +119,27 @@ checkMove(planMove({ do: 'reach', who: 'b1', from: [0, 0], to: [300, 0], model: 
 ```
 
 A tool's own critic is handed in `critics` under its prefix, as a model is.
+
+## Hand-drawn strokes: a drawing, drawn
+
+**Why:** a drawing looks hand-made when it is drawn as a hand draws it — in an order, with few lifts, each stroke
+paced, thinned, tapered and wobbling — not when a finished outline is jittered. `do: 'sketch'` takes shapes and plans
+every stroke; `planSketch` is the same plan without a move around it; `boilSketch` redraws it each held frame.
+
+```js
+import { planMove, checkMove, boilSketch } from 'footprint-story/human';
+
+const move = planMove({ do: 'sketch', name: 'box', shapes: [
+  { points: [[100, 100], [300, 100], [300, 300], [100, 300]], closed: true, fill: { kind: 'hatch', spacing: 10 } },
+  { points: [[100, 200], [300, 200]], layer: 'detail' },
+] });
+move.plan.order[0];            // { stroke: 0, layer: 'outline', group: '', rule: 'first', at: [100, 100] }
+checkMove(move).findings;      // []: no extra lift, no detail before its outline, no gap in the hatch
+boilSketch(move.plan, 7).held; // 2: the same drawing for frames 6 to 8
+```
+
+The order rule, the pen's numbers, the fills, the boil, the critics `pen-lifts`, `stroke-order` and `hatch-gaps`, the
+paint list's `stroke` item and the style choices `human:sketchy` and `human:hatch`: [strokes/README.md](strokes/README.md).
 
 ## Physics and wrappers
 

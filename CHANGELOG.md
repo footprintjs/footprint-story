@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — hand-drawn strokes
+
+- **`do: 'sketch'` and the model `hand-sketch`** (new family `sketch`; `footprint-story/human`;
+  docs/design/2026-11-human-motion.md · "Hand-drawn strokes"): shapes in (`{points, closed?, layer?: 'outline' |
+  'detail', group?, edge?, fill?, holes?}`), every stroke a hand would draw out, as frozen plain data — the order and the
+  rule that put each stroke there (`plan.order`), each stroke's corners, timed points, widths, smooth line and tremor room
+  (`plan.strokes`), the pen's lifts (`plan.lifts`), and the fewest strokes each layer allows (`plan.least`).
+  `planSketch(shapes, {random | seed, …})` is the same plan without a move; `sampleSketch(plan, t)` says where the pen
+  is, down or in the air (`planMove` / `sampleMove` read them for `do: 'sketch'`).
+- **The order rule (`ORDER_RULE`):** piece by piece (`group`) from the top left; in each its outline, then its detail,
+  then its fills; in a layer of lines a line two shapes share is drawn once, each stroke starts at the corner nearest
+  the pen (a corner meeting an odd number of lines first) and follows the straightest line left that does not cut the
+  rest in two (Fleury). A property test finds random line drawings drawn with every line once in exactly the fewest
+  strokes Euler's count allows (`leastStrokes`).
+- **The pen (`CORNER`, `PEN_WIDTH`, `SKETCH`, `WIDTH_SHARE`, `LIFT`; ours):** a 3 px hook (15% of the shorter line) past
+  a turn of 60° or more; paced by the two-thirds power law at 400 px a second (fills 800); widths thinning to 65% at top
+  speed and tapered over 8 px from 30%, detail at 70% and fills at 40% of 2.5 px; the seeded tremor capped at half the gap
+  to another leg and, for a fill, at the distance to its shape's edge; lifts of 0.06 s plus 1500 px a second.
+- **Fills by hand:** `hatchLines` cuts lines at a stated angle (−45°) and spacing (8 px) exactly to a shape and out of
+  its holes, centred, the margin above 0 and at most half a spacing; `hatch` (one flick a line), `cross-hatch` (+90°,
+  `CROSS_TURN`), `scribble` (joined back and forth where the link stays inside). A drawn fill, tremor and all, stays
+  inside its shape.
+- **`boilSketch(plan, frame, {every, amplitude})`:** a fresh seeded tremor every 3 frames (`BOIL`), within each
+  stroke's room and amplitude of its line; the same frame, the same drawing.
+- **Critics `pen-lifts`, `stroke-order`, `hatch-gaps`** (`PEN_LIFTS_MOST` 0, `STROKE_ORDER_MOST` 0, `HATCH_GAP_MOST`
+  1.5): more strokes than the order needs, detail or fill begun before its piece's outline is finished, a band across a
+  hatch wider than 1.5 spacings with no line — each naming `who` and the fix in the intent's keys.
+- **The paint list has a `stroke` item** (`footprint-story/isometric`, `PAINT_ITEMS`): `{item: 'stroke', role, of,
+  points: [[x, y, width, t], …], fill: null, stroke}`, checked by `checkPaint` (each width within the stroke's, times
+  rising). This package's own style choices never give one, so every map draws as before. A painter that knows the five
+  kinds must add it before it offers the choices below.
+- **Two style choices on strokes, handed in, never built in:** `sketchyLine` (`human:sketchy`: a piece's silhouette then
+  its inner edges drawn by hand, the faces' ink line dropped) and `hatchTexture` (`human:hatch`: left faces and sides
+  hatched, right faces cross-hatched, kept out of the faces painted over them, timed after the line), with
+  `shapesOfPaint`, `strokeItems` and `strokeOutline` (the ring a painter fills). The isometric door still never loads
+  `src/human`.
+- **The `power-law` pen's tremor cap now lives in `src/human/paths/wobble.js`**, shared with the strokes; its plans are
+  unchanged byte for byte.
+
 ## 0.28.0 — the intent decider
 
 - **`planIntents(intents, {models, critics, frame})` and `HUMAN_STEPS`** (`footprint-story/human`; docs/design/2026-11-human-motion.md ·
