@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.35.1 — the check on the place along a rounded way
+
+- **A test asked the wrong thing; the code was right, and nothing draws differently.** The property "rounded: the place
+  along a way" said that 200 even steps along a way add up to at least 98% of its length. A step that crosses a corner
+  cuts it, and at a hairpin (two runs nearly back on each other) it cuts almost a whole step, so a way of several
+  hairpins falls short by more than any fixed share — seed 857978823 found one at 97.99% (the same way with sharp corners
+  reaches only 98.3%). `way.at` was measuring the way correctly all along.
+- **The check now asks laws that hold exactly:** `at(0)` is the start and `at(1)` the last point; every place is on a
+  piece of the way (a straight piece, or inside a rounded corner's triangle); no step is longer than its share; and a
+  step along one straight piece is exactly its share (within 1e-6, the last digits), so the walk can neither jump nor
+  dawdle. A walk that lags, or one that slides unevenly along a straight piece, fails it (both were tried). The
+  counterexample is pinned as a plain test, and the property now runs `FC_RUNS` times when that is set.
+
 ## 0.35.0 — named looks: paper grain and duotone
 
 - **Two more named looks** (`src/isometric/looks.js` · `ISO_LOOKS`), each a style row under a name, as 0.34.0's:
