@@ -1,6 +1,6 @@
 /**
  * What the critics read of a sampled track: the speed at each sample and the distance along. A track is
- * `{who, family, model, seconds, pushes, samples: [{t, x, y}, …]}` (src/human/models/move.js · sampleTrack makes it).
+ * `{who, family, model, seconds, pushes, samples: [{t, x, y, …}, …], plan}` (src/human/models/move.js · sampleTrack makes it).
  */
 
 /** The speed between each two samples, in px a second, set at the time between them: [{t, speed, along}]. */

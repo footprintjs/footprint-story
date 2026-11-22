@@ -5,6 +5,10 @@
 import { minJerkModel } from './minJerk.js';
 import { powerLawModel } from './powerLawPen.js';
 import { sigmaLognormalModel } from './sigmaLetter.js';
+import { ballisticModel } from './ballistic.js';
+import { bounceModel } from './bounce.js';
+import { verletModel } from './verlet.js';
+import { springModel } from './spring.js';
 
-export const BUILT_IN_MODELS = Object.freeze([minJerkModel, powerLawModel, sigmaLognormalModel]);
-export const USUAL_MODELS = Object.freeze({ reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal' });
+export const BUILT_IN_MODELS = Object.freeze([minJerkModel, powerLawModel, sigmaLognormalModel, ballisticModel, bounceModel, verletModel, springModel]);
+export const USUAL_MODELS = Object.freeze({ reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal', throw: 'ballistic', fall: 'ballistic', hang: 'verlet', settle: 'spring' });

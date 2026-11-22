@@ -33,6 +33,11 @@ const filesUnder = (dir) => readdirSync(path.join(root, dir)).flatMap((f) => (st
 
 const NODE = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
 const relative = (file) => path.relative(root, file);
+/** The one seed rule (FNV-1a, then mulberry32), a leaf that imports nothing: shared by the isometric and human doors
+ *  since 0.27.0, so their seeded marks can never drift apart. Every door may reach exactly this one shared file. */
+const SEED = 'src/seed/seeded.js';
+/** The package's closed-form spring: the human door's physics settles on it (src/human/physics/settle.js), reused, never copied. */
+const SPRING = 'src/motion/spring.js';
 
 test('the pure door, the motion door, the storyboard door, the shot door, the isometric door and the layout door reach no Node module and no package: they run in a browser', () => {
   for (const [file, specs] of [...reach('index.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js')]) {
@@ -53,7 +58,7 @@ test('every source file is behind exactly one door, only the voice door reaches 
   assert.ok([...pure, ...voice, ...motion, ...board].every((f) => !f.startsWith('src/shot/')), 'src/shot loads only through its own door');
   assert.ok(shot.every((f) => f === 'shot.js' || f.startsWith('src/shot/')), 'the shot door reaches nothing else');
   assert.ok([...pure, ...voice, ...motion, ...board, ...shot].every((f) => !f.startsWith('src/isometric/')), 'src/isometric loads only through its own door');
-  assert.ok(iso.every((f) => f === 'isometric.js' || f.startsWith('src/isometric/')), 'the isometric door reaches nothing else');
+  assert.ok(iso.every((f) => f === 'isometric.js' || f.startsWith('src/isometric/') || f === SEED), 'the isometric door reaches nothing else (but the shared seed rule)');
   assert.ok([...pure, ...voice, ...motion, ...board, ...shot, ...iso].every((f) => !f.startsWith('src/layout/')), 'src/layout loads only through its own door');
   assert.ok(layout.every((f) => f === 'layout.js' || f.startsWith('src/layout/')), 'the layout door reaches nothing else');
   const files = ['spoken', 'sentences', 'captions', 'chapters', 'said', 'differs', 'voice', 'motion', 'storyboard', 'shot', 'isometric', 'layout'].flatMap((d) => readdirSync(path.join(root, 'src', d)).filter((f) => f.endsWith('.js')).map((f) => `src/${d}/${f}`));
@@ -97,14 +102,22 @@ test('the mapflow door reaches footprintjs alone, its own folder, and the isomet
     const f = relative(file);
     assert.ok(f === 'mapflow.js' || f.startsWith('src/mapflow/') || steps.has(f), `${f}: the mapflow door reaches its own folder and the map's steps`);
   }
-  assert.ok(steps.has('src/isometric/mapSpec.js') && [...steps].every((f) => f.startsWith('src/isometric/')), 'the steps reach the isometric folder only');
+  assert.ok(steps.has('src/isometric/mapSpec.js') && [...steps].every((f) => f.startsWith('src/isometric/') || f === SEED), 'the steps reach the isometric folder only (and the shared seed rule)');
   for (const f of readdirSync(path.join(root, 'src', 'mapflow')).filter((x) => x.endsWith('.js'))) assert.ok(flow.has(path.join(root, 'src', 'mapflow', f)), `src/mapflow/${f} is behind no door`);
+});
+
+test('the shared seed rule is one leaf: it imports nothing, both the isometric and the human door reach it, and no other file of src/seed exists', () => {
+  assert.deepEqual(specifiers(path.join(root, SEED)), [], `${SEED} imports nothing`);
+  assert.deepEqual(specifiers(path.join(root, SPRING)), [], `${SPRING} imports nothing`);
+  assert.deepEqual(filesUnder('src/seed'), [SEED]);
+  for (const door of ['isometric.js', 'human.js']) assert.ok([...reach(door).keys()].map(relative).includes(SEED), `${door} reaches the shared seed rule`);
+  for (const door of ['index.js', 'voice.js', 'motion.js', 'storyboard.js', 'shot.js', 'layout.js', 'record.js']) assert.ok(![...reach(door).keys()].map(relative).includes(SEED), `${door} has no seeded numbers`);
 });
 
 test('the human door is pure — no Node module, no package — and loads only src/human; no other door reaches src/human, and every file there is behind it', () => {
   const human = reach('human.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js'), ...reach('record.js'), ...reach('mapflow.js')];
   for (const [file, specs] of human) {
-    assert.ok(relative(file) === 'human.js' || relative(file).startsWith('src/human/'), `${relative(file)}: the human door reaches its own folder only (a page that moves a hand never loads the isometric maths)`);
+    assert.ok(relative(file) === 'human.js' || relative(file).startsWith('src/human/') || relative(file) === SEED || relative(file) === SPRING, `${relative(file)}: the human door reaches its own folder, the shared seed rule and the motion spring only (a page that moves a hand never loads the isometric maths)`);
     for (const s of specs) {
       assert.ok(!NODE.has(s) && !s.startsWith('node:'), `${relative(file)} imports ${s}: the human door must run in a browser`);
       assert.ok(s.startsWith('.'), `${relative(file)} imports the package ${s}: footprint-story/human has no dependencies`);

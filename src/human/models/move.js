@@ -4,21 +4,27 @@
  * reason lands on a record). Each frame then samples the plan: the same t, the same answer, in a deck and in a film.
  *
  *   planMove(intent, {models, critics, frame})  → {model, family, do, who, options, choice, reason, plan, checks}: frozen plain data
- *   sampleMove(move, t, {models})               → {x, y, …}: frozen; t in seconds from the move's start
- *   sampleTrack(move, {rate, models})           → {who, family, model, seconds, pushes, samples: [{t, x, y}]}: what the critics read
+ *   sampleMove(move, t, {models})               → {x, y, …}: frozen; t in seconds from the move's start; a wrapped
+ *                                                 move (models/wrap.js) samples its wrappers over its model's own sample
+ *   sampleTrack(move, {rate, models})           → {who, family, model, seconds, pushes, samples: [{t, x, y, …}], plan}: what
+ *                                                 the critics read — each sample whole (a squash's sx and sy, a chain's
+ *                                                 points), and the plan (the contact critic reads the world it names);
+ *                                                 a wrapped move adds `base`: {seconds, pushes, samples}, its model's own
+ *                                                 plan sampled alone, so the jerk critic scores the model and the wrappers apart
  *
  * A model's random() is seeded from the model's name, its options, the piece's `name` and the intent's shape — every key
  * but `who` (the words for where it was written: moving an entry in its list must not change its wobble) and the
  * timing keys `seconds` and `speed` (a slower draw keeps its wobble's shape) — by the rule the isometric styles keep
- * (src/human/seed.js). The same entry draws the same tremor wherever it is listed; another piece another one.
+ * (src/seed/seeded.js). The same entry draws the same tremor wherever it is listed; another piece another one.
  * WHY data beside the words: `choice` says how the model was picked and each plan's `basis` its numbers, so a
  * decider (round 2) records data, and the `reason` is only their sentence.
  * What a tool's own model throws comes out as it is; what it gives back is checked (src/human/plain.js) before use.
  */
 import { refuse, shown, stored, isRecord, finite, readPoint, MOST_SECONDS } from '../read.js';
 import { plainCopy } from '../plain.js';
-import { seeded } from '../seed.js';
+import { seeded } from '../../seed/seeded.js';
 import { HUMAN_DOS, modelsWith, chooseModel } from './registry.js';
+import { basePlan, isWrapped, sampleWrapped, wrappedPushes } from './wrap.js';
 
 export const MOST_TRACK_SAMPLES = 100000;
 /** The most numbers or points one list in a sample may hold (a hanging chain's links, say). */
@@ -97,7 +103,7 @@ function sampleList(v, what) {
 export function sampleMove(move, t, settings = undefined) {
   const model = modelOf(move, settings, 'sampleMove');
   if (!finite(t)) refuse(`sampleMove's t is seconds from the move's start, a finite number — not ${shown(t)}`);
-  const s = model.sample(move.plan, t), who = `${move.who ?? 'the move'}: the model "${model.name}"'s sample`;
+  const s = isWrapped(move.plan) ? sampleWrapped(move.plan, t, model.sample) : model.sample(move.plan, t), who = `${move.who ?? 'the move'}: the model "${model.name}"'s sample`;
   if (!isRecord(s)) refuse(`${who} is {x, y, …} — not ${shown(s)}`);
   const out = {};
   for (const k of Object.keys(s)) {
@@ -111,15 +117,20 @@ export function sampleMove(move, t, settings = undefined) {
 
 /** The move sampled at `rate` a second (120 unless given) from 0 to its seconds, both ends in: what a critic measures. */
 export function sampleTrack(move, settings = undefined) {
-  modelOf(move, settings, 'sampleTrack');
+  const model = modelOf(move, settings, 'sampleTrack');
   const rate = isRecord(settings) && stored(settings, 'rate', "sampleTrack's rate") !== undefined ? settings.rate : 120;
   if (!(finite(rate) && rate >= 1 && rate <= 1000)) refuse(`sampleTrack's rate is samples a second, from 1 to 1000 — not ${shown(rate)}`);
-  const seconds = move.plan.seconds, count = Math.ceil(seconds * rate - 1e-9) + 1;
-  if (count > MOST_TRACK_SAMPLES) refuse(`a track of ${round1(seconds)} s at ${rate} a second is ${count} samples — at most ${MOST_TRACK_SAMPLES}: give a lower rate`);
-  const samples = Array.from({ length: Math.max(count, 2) }, (_, i) => {
-    const t = i >= count - 1 ? seconds : i / rate, p = sampleMove(move, t, settings);
-    return Object.freeze({ t, x: p.x, y: p.y });
-  });
-  return Object.freeze({ who: move.who ?? 'the move', family: move.family, model: move.model, seconds, pushes: move.plan.pushes ?? 1, samples: Object.freeze(samples) });
+  const walk = (m) => {
+    const seconds = m.plan.seconds, count = Math.ceil(seconds * rate - 1e-9) + 1;
+    if (count > MOST_TRACK_SAMPLES) refuse(`a track of ${round1(seconds)} s at ${rate} a second is ${count} samples — at most ${MOST_TRACK_SAMPLES}: give a lower rate`);
+    return Object.freeze(Array.from({ length: Math.max(count, 2) }, (_, i) => Object.freeze({ ...sampleMove(m, i >= count - 1 ? seconds : i / rate, settings), t: i >= count - 1 ? seconds : i / rate })));
+  };
+  const pushes = wrappedPushes(move.plan, model.sample), track = { who: move.who ?? 'the move', family: move.family, model: move.model, seconds: move.plan.seconds, pushes, samples: walk(move), plan: move.plan };
+  // a wrapped move also carries its model's own plan, sampled alone: the critics score the model and the wrappers apart
+  if (isWrapped(move.plan)) {
+    const own = basePlan(move.plan);
+    track.base = Object.freeze({ seconds: own.seconds, pushes: own.pushes ?? 1, samples: walk({ ...move, plan: own }) });
+  }
+  return Object.freeze(track);
 }
 const round1 = (n) => Math.round(n * 10) / 10;

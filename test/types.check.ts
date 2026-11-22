@@ -266,3 +266,32 @@ const basis: HumanBasis | undefined = chained.plan.basis;
 const links: HumanSampleValue = sampleMove(chained, 0, { models: [chain] }).chain;
 const based: HumanCritic = { name: 'reel:b', limit: 1, measure: () => ({ value: 2, basis: { exponent: 0.3 } }), finding: (v, who, b) => (b && v > 1 ? { level: 'warn', message: who, fix: 'x' } : null) };
 export const reviewed: unknown[] = [by, basis, links, based, curvaturesOver([[0, 0], [1, 1], [2, 0]], 1)[1], legGaps([[0, 0], [4, 0], [1, 0]], 2)[0], MOST_BEND + BEND_WIDTH + MOST_SAMPLE_LIST, UNSEEDED_KEYS, checkMove(chained, { models: [chain] }).bases];
+// 0.27.0: light physics on the human door — models for throw, fall, hang and settle; wrappers; the physics parts; critics
+import { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES, launch, flightAt, headingAt, fallSeconds,
+  APEX_SHARE, MIN_APEX, bounces, bounceAt, MIN_BOUNCE, MOST_BOUNCES, runChain, relaxChain, pinAt, MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK,
+  makeWorld, readWorld, pushOut, collide, depthIn, MOST_BOXES, verletStep, simulate, PHYSICS_STEP, STEPS_PER_FRAME, GRAVITY, MOST_PHYSICS_SECONDS, settleLeft, settleSeconds,
+  THROW_KEYS, FALL_KEYS, SQUASH_SECONDS, MOST_CHAIN_LINKS, MOST_CHAIN_SECONDS, MOST_PATH_KEYS, OVERSHOOT_SEEN, SPACING_LEAST, VOLUME_MOST, CONTACT_MOST } from 'footprint-story/human';
+import type { HumanWorld, WrappedPlan, WrapperName, SpringFeel, BounceSegment } from 'footprint-story/human';
+const thrown: HumanMove = planMove({ do: 'throw', who: 'ball', from: [0, 600], to: [600, 600], boxes: [{ x: 250, y: 300, w: 100, h: 100 }] });
+const lively: HumanMove = overshoot(anticipate(thrown, { share: 0.2 }), { by: 12, feel: 'snappy' });
+const kept: HumanMove = hold(followThrough(lively), { at: 0.1, seconds: 0.2 });
+const names: readonly WrapperName[] = kept.wrappers ?? [];
+const wrappedPlan: WrappedPlan | null = isWrapped(kept.plan) ? kept.plan : null;
+const ownFeel: SpringFeel = { k: 200, d: 20 };
+const world: HumanWorld = makeWorld({ floor: 900, boxes: [{ x: 0, y: 0, w: 10, h: 10 }] });
+const bounced = bounces([0, 0], [0, 0], { floor: 100, gravity: GRAVITY, restitution: 0.5, keep: 1 });
+const segment: BounceSegment = bounced.segments[0];
+const chainRun = runChain({ pin: [0, 0], path: [[1, 10, 0]], points: [0, 0, 0, 10], rest: 10, gravity: GRAVITY, keep: 1, world, steps: 8, settle: false });
+const physicsNumbers: number[] = [BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, launch([0, 0], [10, 0], { apex: 5, gravity: GRAVITY }).seconds, flightAt([0, 0], [1, 1], GRAVITY, 0.1)[1], headingAt([1, 0], GRAVITY, 0.1),
+  fallSeconds(0, 0, 100, GRAVITY) ?? 0, APEX_SHARE, MIN_APEX, bounceAt({ ...bounced, landed: bounced.duration, gravity: GRAVITY }, 0.1)[1], MIN_BOUNCE, MOST_BOUNCES, chainRun.frames.length,
+  relaxChain([0, 0, 0, 12], 10, [0, 0])[3], pinAt([0, 0], [[1, 10, 0]], 0.5)[0], MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK, pushOut(5, 5, world)[0],
+  collide([0, 0, 5, 950], world)[3], depthIn(5, 5, world, 1), MOST_BOXES, verletStep([0, 0], [0, 0], [0, GRAVITY], PHYSICS_STEP)[1], simulate({ points: [0, 0] }, (s) => s, { steps: 4 }).steps,
+  STEPS_PER_FRAME, MOST_PHYSICS_SECONDS, settleLeft(0.1, ownFeel), settleSeconds('heavy'), SQUASH_SECONDS, MOST_CHAIN_LINKS, MOST_CHAIN_SECONDS, MOST_PATH_KEYS, OVERSHOOT_SEEN,
+  SPACING_LEAST, VOLUME_MOST, CONTACT_MOST, segment.at, readWorld({ floor: 1 }, 'me').boxes.length];
+const dropModel: HumanModel = { family: ['fall', 'throw'], name: 'reel:drop', plan: () => ({ seconds: 1 }), sample: (plan, t) => ({ x: 0, y: t }) };
+export const physics: unknown[] = [names, wrappedPlan, basePlan(kept.plan).seconds, WRAPPER_NAMES, THROW_KEYS, FALL_KEYS, physicsNumbers, dropModel, sampleTrack(kept).plan, checkMove(lively).findings];
+// @ts-expect-error a hold says when and for how long
+hold(thrown, { seconds: 1 });
+// 0.27.0, last round: bells counted from the motion; one settle rule; spacing's upper bound
+import { wrappedPushes, checkSettles, SETTLED_WITHIN, SPACING_MOST } from 'footprint-story/human';
+export const lastRound: number[] = [wrappedPushes(kept.plan, (p, t) => ({ x: t, y: 0 })), checkSettles('snappy', 'me'), SETTLED_WITHIN, SPACING_MOST];

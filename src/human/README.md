@@ -19,9 +19,10 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/curvature.js` | the curvature at each point (`curvatures`; a hairpin is the sharpest bend, never straight), and over a width (`curvaturesOver`, what the pen and its critic read) |
 | `paths/resample.js` | points again, evenly by distance (`resample`) |
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
-| `models/` | the model interface and registry (`registry.js`), this package's three models, and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
-| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, and `checkMove` (`check.js`) |
-| `read.js`, `plain.js`, `seed.js`, `names.js` | reading what a caller hands in; plain frozen data checked; seeded numbers; the strategies' names |
+| `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring — see [physics/README.md](physics/README.md) |
+| `models/` | the model interface and registry (`registry.js`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
+| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, and `checkMove` (`check.js`) |
+| `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
 
 ## The laws
@@ -52,16 +53,21 @@ curvatures(resample(line, { spacing: 8 }));   // 1 / radius at each point
 ## Models: an intent in, a plan and samples out
 
 A model is a named strategy, one interface for all (`models/registry.js`):
-`{family, name, options, check?, plan(intent, context) → plan, sample(plan, t) → {x, y, …}, checks}`. This package's:
+`{family, name, options, check?, plan(intent, context) → plan, sample(plan, t) → {x, y, …}, checks}`; `family` is one
+family or a list of them (a ballistic flight is a throw and a fall alike: one strategy, one name). This package's:
 
 | do | family | model (the usual) | the intent's keys | options (under `model: {name, …}`) |
 |---|---|---|---|---|
 | `reach` | `reach` | `min-jerk`: minimum jerk, seconds from Fitts unless given | `from`, `to`, `target` (px, 40), `seconds` | `bend` (0.06, at most 0.3), `a`, `b` |
 | `draw` | `pen` | `power-law`: a Catmull-Rom line traced slower in the bends (the law read on the smooth line, before the tremor), with a tremor that swings to and fro, never larger than half the gap to another leg of the line | `path`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `ramp`, `floor` |
 | `write` | `letter` | `sigma-lognormal`: one lognormal stroke a point, overlapping | `points`, or `strokes` and `at`; `seconds` | `mu`, `sigma`, `gap`, `bend` |
+| `throw` | `throw` | `ballistic`: through the air in closed form, the usual apex a 45° throw; or `bounce`: lands on the floor at `to` and bounces to rest | `from`, `to`, `apex` or `seconds`, `floor`, `boxes`, `radius` | `gravity` (1960 px/s²); bounce: `restitution` (0.5, at most 1), `keep`, `squash` |
+| `fall` | `fall` | `ballistic`: down to the floor; or `bounce` | `from`, `floor`, `velocity`, `boxes`, `radius` | as for a throw |
+| `hang` | `hang` | `verlet`: a chain pinned at `from`, swinging until it has been still for half a swing | `from`, `to` or `length`, `path` (the pin's moves), `seconds`, `floor`, `boxes` | `gravity` (at most 1e5), `links` (8, or as many as fit), `damping` (0.9), `jitter` (0, seeded) |
+| `settle` | `settle` | `spring`: to rest on the motion spring, its seconds the feel's | `from`, `to` | `feel` (default), or `k` and `d` |
 
 Every intent may also hold `name` (its piece: part of the seed), `who` (its words for where it was written, named in
-every refusal and finding) and `model`. `settle`, `fall`, `throw` and `hang` are families with no model yet.
+every refusal and finding) and `model`. Every family has a usual model.
 
 ```js
 import { planMove, sampleMove, checkMove } from 'footprint-story/human';
@@ -86,7 +92,7 @@ sampleMove(move, t, { models: [chalk] });
 ```
 
 The model's `random()` is seeded from its name, its options, the piece's `name` and the intent's shape (FNV-1a, then
-mulberry32, as the isometric styles do) — never from `who` (moving an entry in its list keeps its wobble) nor the
+mulberry32: `src/seed/seeded.js`, the one leaf the isometric styles use too) — never from `who` (moving an entry in its list keeps its wobble) nor the
 timing keys `seconds` and `speed` (a slower draw keeps its wobble's shape): `UNSEEDED_KEYS`. The same entry wobbles
 the same way, another piece another way. A model's plan and
 samples are checked as plain data (`plain.js`); what its own code throws comes out as it is.
@@ -109,6 +115,31 @@ checkMove(planMove({ do: 'reach', who: 'b1', from: [0, 0], to: [300, 0], model: 
 ```
 
 A tool's own critic is handed in `critics` under its prefix, as a model is.
+
+## Physics and wrappers
+
+`do: 'throw'`, `'fall'`, `'hang'` and `'settle'` plan from physics: the duration is the flight's, the bounces', the swing's
+or the spring's, never a guess, and the plan's basis carries the numbers (a throw's apex, launch angle and speed; a
+bounce's count; a chain's link length and whether it settled). The wrappers reshape any move — a reach as well as a
+throw — and `sampleMove` reads the wrapped move like any other:
+
+```js
+import { planMove, sampleMove, checkMove, anticipate, overshoot } from 'footprint-story/human';
+
+const ball = planMove({ do: 'throw', who: 'blocks[2] ("ball")', from: [100, 600], to: [700, 600] });
+ball.reason;   // "do: 'throw' → ballistic, the usual for do: 'throw' — a throw over 0.78 s, up 150 px above its higher end (the usual: a quarter of the 600 px across), launched at 45° under 1960 px/s²"
+const lively = overshoot(anticipate(ball, { share: 0.2 }), { by: 12 });
+lively.wrappers;                         // ['anticipate', 'overshoot']; lively.reason says each
+sampleMove(lively, lively.plan.seconds); // { x: 700, y: 600, angle }: the throw's own end, exactly
+checkMove(planMove({ do: 'throw', who: 'b', from: [0, 500], to: [600, 500], boxes: [{ x: 250, y: 300, w: 100, h: 100 }] })).findings;
+// [{ critic: 'contact', level: 'warn', message: 'b: at 0.39 s it goes 49.7 px into a box — it passes through something solid', fix: "raise its path (apex: …", basis: { at, into } }]
+```
+
+The critics `spacing` (a fall or a throw that accelerates down at under half its gravity reads as slid, not falling),
+`volume` (a squash that changes the area reads as rubber), `contact` (a body that passes into the floor or a box) and
+`stretch` (a chain's link drawn over 5% long) are measured on the track. Each wrapper adds the speed bells it makes to
+the plan's `pushes` (`ADDED_BELLS`), so `jerk` reads a wrapped reach as meant; `sampleTrack` keeps each sample whole (a squash's `sx` and `sy`, a chain's `points`) and the plan, whose `world`
+the contact critic reads. Details, the laws each part keeps and their sources: [physics/README.md](physics/README.md).
 
 ## For the next builders
 

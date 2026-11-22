@@ -93,8 +93,9 @@ test('a letter: sigma-lognormal, one stroke a point, landing on the last exactly
 });
 
 test('the registry: this package\'s models by family, the usual one each, and the word each family\'s do says', () => {
-  assert.deepEqual(HUMAN_MODELS, { reach: ['min-jerk'], pen: ['power-law'], letter: ['sigma-lognormal'], settle: [], fall: [], throw: [], hang: [] });
-  assert.deepEqual(USUAL_MODELS, { reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal' });
+  // 0.27.0: the physics fills settle, fall, throw and hang; ballistic and bounce serve a throw and a fall alike
+  assert.deepEqual(HUMAN_MODELS, { reach: ['min-jerk'], pen: ['power-law'], letter: ['sigma-lognormal'], settle: ['spring'], fall: ['ballistic', 'bounce'], throw: ['ballistic', 'bounce'], hang: ['verlet'] });
+  assert.deepEqual(USUAL_MODELS, { reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal', throw: 'ballistic', fall: 'ballistic', hang: 'verlet', settle: 'spring' });
   assert.equal(HUMAN_DOS.draw, 'pen'); assert.equal(HUMAN_DOS.write, 'letter');
 });
 
@@ -115,14 +116,21 @@ test("a tool's own model, under its prefix: chosen when named, handed context, i
   assert.throws(() => planMove({ do: 'draw', path: [[0, 0], [1, 0]], model: 'reel:chalk' }), /there is no model "reel:chalk" — the models are "min-jerk", "power-law", "sigma-lognormal"/);
   const noUsual = { ...chalk, family: 'fall', name: 'reel:drop' };
   assert.equal(planMove({ do: 'fall', path: [[0, 0], [1, 0]], model: 'reel:drop' }, { models: [noUsual] }).family, 'fall');
-  assert.throws(() => planMove({ do: 'fall' }), /no model for do: 'fall' yet — name one of a tool's own with model: 'prefix:name' and hand it in planMove's models/);
+  // every family has a usual model since 0.27.0: a fall that names none takes ballistic, which reads its own keys
+  assert.throws(() => planMove({ do: 'fall' }), /the move's fall needs the floor it lands on/);
+  // a tool's own model may serve several families, as ballistic does
+  const both = { ...chalk, family: ['fall', 'throw'], name: 'reel:arc' };
+  assert.equal(planMove({ do: 'throw', path: [[0, 0], [1, 0]], model: 'reel:arc' }, { models: [both] }).family, 'throw');
+  assert.throws(() => planMove({ do: 'draw', path: [[0, 0], [1, 0]], model: 'reel:arc' }, { models: [both] }), /the model "reel:arc" is for a fall or a throw, and this intent is do: 'draw' \(a pen\)/);
 });
 
 test("a tool's own model that breaks the interface is refused, naming it and what to give", () => {
   const good = { family: 'reach', name: 'reel:ok', plan: () => ({ seconds: 1 }), sample: () => ({ x: 0, y: 0 }) };
   const bad = (m, re) => assert.throws(() => planMove({ do: 'reach', from: [0, 0], to: [1, 1] }, { models: [m] }), re);
   bad({ ...good, name: 'ok' }, /models\[0\]'s name is the tool's prefix and a name, lower case \("reel:chalk-pen"\): a name with no prefix is this package's — not "ok"/);
-  bad({ ...good, family: 'swim' }, /models\[0\]'s family is one of reach, pen, letter, settle, fall, throw, hang — not "swim"/);
+  bad({ ...good, family: 'swim' }, /models\[0\]'s family is one of reach, pen, letter, settle, fall, throw, hang, or a list of them \(each once\) — not "swim"/);
+  bad({ ...good, family: ['reach', 'reach'] }, /models\[0\]'s family is one of .*, or a list of them \(each once\)/);
+  bad({ ...good, family: [] }, /models\[0\]'s family is one of .*, or a list of them/);
   bad({ ...good, plan: 1 }, /models\[0\] \(reel:ok\) gives plan\(intent, context\) and sample\(plan, t\) — not 1/);
   bad({ ...good, check: 'x' }, /models\[0\] \(reel:ok\)'s check is a function/);
   bad({ ...good, options: ['Bad'] }, /models\[0\] \(reel:ok\)'s options is a list of at most 16 names/);
