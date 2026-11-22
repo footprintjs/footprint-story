@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import {
   planMove, sampleMove, checkMove, anticipate, followThrough, hold, overshoot, basePlan, flightAt, verletStep, makeWorld, pushOut,
-  settleSeconds, PHYSICS_STEP, CHAIN_LENGTH_TOLERANCE, CONTACT_MOST,
+  settleSeconds, PHYSICS_STEP, CHAIN_LENGTH_TOLERANCE, CONTACT_MOST, MOST_CHAIN_GRAVITY, GRAVITY, MIN_THROW_SECONDS,
 } from '../human.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 1000;
@@ -25,6 +25,7 @@ test('a throw with an apex: the textbook closed form, its top at the apex, its e
     const top = Math.min(from[1], to[1]) - apex, up = Math.sqrt(2 * (from[1] - top) / g), T = up + Math.sqrt(2 * (to[1] - top) / g);
     const intent = { do: 'throw', from, to, apex, model: { name: 'ballistic', gravity: g } };
     if (!(T > 0)) { assert.throws(() => planMove(intent), /no time in the air/); return; }
+    if (T < MIN_THROW_SECONDS) { assert.throws(() => planMove(intent), /under one frame/); return; }
     const move = planMove(intent), size = Math.hypot(...from) + Math.hypot(...to) + apex;
     assert.ok(close(move.plan.seconds, T, 1e-12));
     const t = share * T, s = sampleMove(move, t);
@@ -83,22 +84,25 @@ test('a fall lands when the closed form says; a bounce never gains energy, keeps
   }), { numRuns: RUNS });
 });
 
+// the accepted ranges: 1 to 64 links of at least 4 px, gravity from 1 to MOST_CHAIN_GRAVITY, jitter to 100 px, any damping
 const chainIntent = fc.record({
   from: fc.tuple(fc.double({ min: -500, max: 500, noNaN: true }), fc.double({ min: -500, max: 500, noNaN: true })),
-  links: fc.integer({ min: 1, max: 24 }),
-  extra: fc.double({ min: 0, max: 400, noNaN: true }),
+  links: fc.oneof(fc.integer({ min: 1, max: 64 }), fc.constant(64)),
+  extra: fc.oneof(fc.double({ min: 0, max: 600, noNaN: true }), fc.constant(0)),
   angle: fc.double({ min: 0, max: 2 * Math.PI, noNaN: true }),
   damping: fc.double({ min: 0, max: 0.99, noNaN: true }),
   seconds: fc.double({ min: 0.05, max: 1.2, noNaN: true }),
-  g: fc.double({ min: 200, max: 4000, noNaN: true }),
-}).map(({ from, links, extra, angle, damping, seconds, g }) => {
+  g: fc.oneof(fc.double({ min: 1, max: MOST_CHAIN_GRAVITY, noNaN: true }), fc.constantFrom(1, GRAVITY, MOST_CHAIN_GRAVITY)),
+  jitter: fc.oneof(fc.constant(0), fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(100)),
+}).map(({ from, links, extra, angle, damping, seconds, g, jitter }) => {
   const length = links * 4 + extra;
-  return { do: 'hang', from, to: [from[0] + Math.cos(angle) * length, from[1] + Math.sin(angle) * length], seconds, model: { name: 'verlet', links, damping, gravity: g } };
+  return { do: 'hang', from, to: [from[0] + Math.cos(angle) * length, from[1] + Math.sin(angle) * length], seconds, model: { name: 'verlet', links, damping, gravity: g, jitter } };
 });
 
-test('a chain keeps every link within CHAIN_LENGTH_TOLERANCE of its length, its pin exactly where it is, at every frame', () => {
-  fc.assert(fc.property(chainIntent, (intent) => {
-    const move = planMove(intent), { plan } = move;
+test('a chain keeps every link within CHAIN_LENGTH_TOLERANCE of its length, its pin exactly where it is, at every frame — over the accepted ranges', () => {
+  fc.assert(fc.property(chainIntent, fc.string({ maxLength: 8 }), (intent, name) => {
+    const move = planMove({ ...intent, name: `c${name}` }), { plan } = move;
+    assert.ok(plan.basis.stretch <= CHAIN_LENGTH_TOLERANCE, `basis.stretch ${plan.basis.stretch}`);
     for (const f of plan.frames) {
       assert.deepEqual([f[0], f[1]], [intent.from[0], intent.from[1]]);
       for (let i = 0; i + 2 < f.length; i += 2) {
@@ -113,7 +117,7 @@ test('a chain keeps every link within CHAIN_LENGTH_TOLERANCE of its length, its 
 
 test('a chain is the same for the same entry, and its jitter follows the entry\'s seed', () => {
   fc.assert(fc.property(chainIntent, fc.string({ minLength: 1, maxLength: 12 }), fc.double({ min: 0.5, max: 20, noNaN: true }), (intent, name, jitter) => {
-    const make = (n, who) => planMove({ ...intent, name: n, who, seconds: 0.1, model: { ...intent.model, jitter } });
+    const make = (n, who) => planMove({ ...intent, name: n, who, seconds: 0.1, model: { ...intent.model, jitter, gravity: GRAVITY } });
     const a = make(name, 'the rope'), b = make(name, 'blocks[9]');
     assert.deepEqual(a.plan, b.plan, 'who is not in the seed: moving an entry keeps its wobble');
     assert.notDeepEqual(a.plan.frames[0], make(`${name}!`, 'the rope').plan.frames[0]);

@@ -98,14 +98,22 @@ export function fallSeconds(y0: number, vy: number, floor: number, gravity: numb
 export interface BounceSegment { readonly at: number; readonly seconds: number; readonly from: HumanPoint; readonly velocity: HumanPoint }
 export const MIN_BOUNCE: number;
 export const MOST_BOUNCES: number;
-export function bounces(from: HumanPoint, velocity: HumanPoint, options: { readonly floor: number; readonly gravity: number; readonly restitution: number; readonly keep: number; readonly firstSeconds?: number | null }): { readonly segments: readonly BounceSegment[]; readonly impacts: readonly { readonly at: number; readonly speed: number }[]; readonly rest: HumanPoint; readonly duration: number };
+export function bounces(from: HumanPoint, velocity: HumanPoint, options: { readonly floor: number; readonly gravity: number; readonly restitution: number; readonly keep: number; readonly firstSeconds?: number | null }): { readonly segments: readonly BounceSegment[]; readonly impacts: readonly { readonly at: number; readonly speed: number }[]; readonly rest: HumanPoint; readonly duration: number; readonly stoppedBy: 'low' | 'count' | 'time'; readonly nextHeight: number };
 export function bounceAt(plan: { readonly segments: readonly BounceSegment[]; readonly rest: HumanPoint; readonly landed: number; readonly gravity: number }, t: number): [number, number];
 export const MIN_CHAIN_PASSES: number;
 export const CHAIN_REST_SPEED: number;
 export const CHAIN_LENGTH_TOLERANCE: number;
 export const MIN_CHAIN_LINK: number;
+/** How far gravity may move a point in one sub-step, as a share of a link (0.005); the most sub-steps a step is cut into; the most rounds a chain's layout is relaxed before its first frame. */
+export const MOST_STEP_SAG: number;
+export const MOST_SUBSTEPS: number;
+export const LAYOUT_ROUNDS: number;
+/** The sub-steps a step is cut into for this gravity and link length. */
+export function substepsFor(gravity: number, rest: number): number;
+/** The longest any link is past its length, as a share of it (flat points, the pin first). */
+export function stretchOf(points: readonly number[], rest: number): number;
 /** A chain's kept frames (flat [x0, y0, x1, y1, …], the pin first, every STEPS_PER_FRAME steps). */
-export function runChain(options: { readonly pin: HumanPoint; readonly path: readonly (readonly [number, number, number])[]; readonly points: readonly number[]; readonly rest: number; readonly gravity: number; readonly keep: number; readonly world: HumanWorld; readonly steps: number; readonly settle: boolean }): { readonly frames: readonly (readonly number[])[]; readonly steps: number };
+export function runChain(options: { readonly pin: HumanPoint; readonly path: readonly (readonly [number, number, number])[]; readonly points: readonly number[]; readonly rest: number; readonly gravity: number; readonly keep: number; readonly world: HumanWorld; readonly steps: number; readonly settle: boolean }): { readonly frames: readonly (readonly number[])[]; readonly steps: number; readonly substeps: number; readonly stretch: number };
 export function relaxChain(points: number[], rest: number, pin: HumanPoint, passes?: number): number[];
 export function pinAt(pin: HumanPoint, path: readonly (readonly [number, number, number])[], t: number): HumanPoint;
 export const MOST_BOXES: number;
@@ -150,11 +158,17 @@ export const MOST_TRACK_SAMPLES: number;
 /** The intent keys of a throw and of a fall (the ballistic and bounce models read them). */
 export const THROW_KEYS: readonly string[];
 export const FALL_KEYS: readonly string[];
+/** The shortest a throw may take: one frame at 60 a second. */
+export const MIN_THROW_SECONDS: number;
 /** A landing squashes a bouncing body for this long either side of it (s). */
 export const SQUASH_SECONDS: number;
 export const MOST_CHAIN_LINKS: number;
 export const MOST_CHAIN_SECONDS: number;
 export const MOST_PATH_KEYS: number;
+/** The strongest gravity a chain takes (px/s²), its links and damping when the intent names none. */
+export const MOST_CHAIN_GRAVITY: number;
+export const USUAL_LINKS: number;
+export const USUAL_DAMPING: number;
 /** The least overshoot a settle's reason mentions (half a percent of the way). */
 export const OVERSHOOT_SEEN: number;
 
@@ -228,6 +242,8 @@ export const BY_SHARE: number;
 export const MIN_TRAVEL: number;
 export const MOST_WRAPPERS: number;
 export const WRAPPER_NAMES: readonly WrapperName[];
+/** The speed bells each wrapper adds to a move's pushes (none when its by is 0; a hold only inside the move). */
+export const ADDED_BELLS: Readonly<Record<WrapperName, number>>;
 
 // ── critics ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -236,7 +252,7 @@ export const FINDING_LEVELS: readonly ('warn' | 'note')[];
 export const JERK_PEAK_SHARE: number;
 export const ARC_LEAST: number;
 export const PEN_SPEED_MOST: number;
-/** The least variation of a fall's speed that reads as falling (5%), the most a squash may change the area (10%), the deepest a body may go into something solid (0.5 px). */
+/** The least share of its gravity a fall's vertical acceleration must show to read as falling (0.5), the most a squash may change the area (10%), the deepest a body may go into something solid (0.5 px). */
 export const SPACING_LEAST: number;
 export const VOLUME_MOST: number;
 export const CONTACT_MOST: number;

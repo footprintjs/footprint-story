@@ -3,7 +3,9 @@
  * came down with (and `keep` of its speed across), until a bounce would be under MIN_BOUNCE px high; then it rests.
  *
  *   bounces([x, y], [vx, vy], { floor, gravity, restitution, keep, firstSeconds })
- *     → { segments: [{ at, seconds, from, velocity }], impacts: [{ at, speed }], rest: [x, floor], duration }
+ *     → { segments: [{ at, seconds, from, velocity }], impacts: [{ at, speed }], rest: [x, floor], duration, stoppedBy }
+ *   stoppedBy: 'low' (the next bounce would be under MIN_BOUNCE: it rests), 'count' (MOST_BOUNCES drawn: it stops at
+ *   that landing, still lively), 'time' (the next would end past MOST_PHYSICS_SECONDS: it stops there)
  *   bounceAt(plan, t)   → [x, y]; `plan.landed` is when it lands for the last time (bounces' duration)
  *
  * WHY restitution is at most 1: a floor gives back at most what it was given. Below 1 every bounce is lower than the
@@ -32,10 +34,9 @@ export function bounces(from, velocity, { floor, gravity: g, restitution: e, kee
     at += seconds;
     impacts.push(Object.freeze({ at, speed: Math.hypot(v[0], down) }));
     const up = e * down, next = (2 * up) / g;
-    // a bounce lower than MIN_BOUNCE, past the count, or past the longest plan: it rests where it landed
-    if ((up * up) / (2 * g) < MIN_BOUNCE || segments.length >= MOST_BOUNCES + 1 || at + next > MOST_PHYSICS_SECONDS) {
-      return Object.freeze({ segments: Object.freeze(segments), impacts: Object.freeze(impacts), rest: Object.freeze(land), duration: at });
-    }
+    // a bounce lower than MIN_BOUNCE: it rests; past the count or the longest plan: it stops where it landed, and says why
+    const stoppedBy = (up * up) / (2 * g) < MIN_BOUNCE ? 'low' : segments.length >= MOST_BOUNCES + 1 ? 'count' : at + next > MOST_PHYSICS_SECONDS ? 'time' : null;
+    if (stoppedBy) return Object.freeze({ segments: Object.freeze(segments), impacts: Object.freeze(impacts), rest: Object.freeze(land), duration: at, stoppedBy, nextHeight: stoppedBy === 'low' ? 0 : (up * up) / (2 * g) });
     start = land; v = [v[0] * keep, -up]; seconds = next;
   }
 }

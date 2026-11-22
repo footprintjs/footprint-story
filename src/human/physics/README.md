@@ -7,7 +7,7 @@ the same plan in a deck and in a film. Nothing here draws (design: `docs/design/
 
 This folder holds the maths, as `laws/` does for a reach and a pen; the models that plan from it are in `../models/`
 (`ballistic.js`, `bounce.js`, `verlet.js`, `spring.js`), the wrappers in `../models/wrap.js`, the critics in `../critics/`
-(`spacing.js`, `volume.js`, `contact.js`). All of it is on the door `footprint-story/human`.
+(`spacing.js`, `volume.js`, `contact.js`, `stretch.js`). All of it is on the door `footprint-story/human`.
 
 | file | holds |
 |---|---|
@@ -63,15 +63,25 @@ sampleMove(lively, 0.5);   // the throw with a wind-up first, landing 12 px past
 
 ## Critics
 
-`spacing` (under 5% variation of speed: it reads as slid, not falling), `volume` (over 10% change of area: rubber),
-`contact` (over 0.5 px into the floor or a box: it passes through). `checkMove(move)` runs the ones the model names.
+`spacing` (vertical acceleration under half the plan's gravity: it reads as slid, not falling — measured on the vertical
+second difference, so a fast sideways throw that falls as it should is never taken for a slide), `volume` (over 10%
+change of area: rubber), `contact` (over 0.5 px into the floor or a box: it passes through; the fix in the family's own
+keys), `stretch` (a drawn chain's link over 5% past its length: elastic). `checkMove(move)` runs the ones the model names.
 
 ## The laws it keeps
 
 - A fixed step, never a clock: 1/240 s, frames kept at 60 a second. The same input gives the same frames anywhere.
 - Restitution is at most 1, so a bounce never gains energy (tested bounce by bounce, and the restitution law itself).
-- A chain keeps every link within 5% of its length with nothing in the way (a relaxation pass per link: 16 passes let
-  a 64-link chain stretch 13%); its pin never moves off its place; links are at least 4 px.
+- A chain keeps every link within 5% of its length with nothing in the way, over the accepted ranges (up to 64 links,
+  gravity up to 1e5 px/s², jitter up to 100 px): a relaxation pass per link (16 passes let a 64-link chain stretch 13%),
+  a step cut into sub-steps so gravity moves a point at most 0.005 of a link in each (without them, 3e4 px/s² left a
+  link 12% long), and the jittered layout relaxed before its first frame. `basis.stretch` says the worst; its pin never
+  moves off its place, nor along its path into the floor or a box; links are at least 4 px.
+- A chain left to settle uses damping 0.9 (90% of its speed lost a second): at 0.7, 23 of 40 random hangs were still
+  swinging at 10 s; at 0.9, all 40 settled, the longest in 8.2 s.
+- A bounce that the most bounces (24) or the longest plan (30 s) cuts short says so (`basis.stoppedBy`), never "at rest".
+- Each wrapper adds the speed bells it makes to `pushes` (anticipate 2, follow-through 2, overshoot 1, a hold inside
+  the move 1, none when `by` is 0); a wrapped move is at most 3600 s.
 - After every step no free point is inside a box or below the floor. Boxes may touch but not overlap, and stand on or
   above the floor: then one push suffices.
 - A wrapper reads a direction only from at least a hundredth of a pixel of travel (`MIN_TRAVEL`): a settled chain's

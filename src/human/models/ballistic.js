@@ -19,6 +19,9 @@ import { readWorld } from '../physics/collide.js';
 import { GRAVITY, MOST_PHYSICS_SECONDS } from '../physics/step.js';
 import { intentKeys, optionNumber, readSeconds, round } from './options.js';
 
+/** The shortest a throw may take: one frame at 60 a second. WHY: a throw over in 1e-9 s would fly at 1e11 px a second, a
+ *  number no painter can draw and no viewer can see — refused with the fix rather than sampled. */
+export const MIN_THROW_SECONDS = 1 / 60;
 export const THROW_KEYS = Object.freeze(['from', 'to', 'apex', 'seconds', 'floor', 'boxes', 'radius']);
 export const FALL_KEYS = Object.freeze(['from', 'floor', 'velocity', 'boxes', 'radius']);
 
@@ -32,8 +35,10 @@ export function readThrow(intent, who, gravity, { extra = [], world = null } = {
   const from = readPoint(stored(intent, 'from', `${who}'s from`), `${who}'s from`), to = readPoint(stored(intent, 'to', `${who}'s to`), `${who}'s to`);
   const apex = stored(intent, 'apex', `${who}'s apex`) === undefined ? undefined : readNumber(intent, 'apex', who, { lo: 0 });
   const given = readSeconds(intent, who);
+  if (given !== undefined && given < MIN_THROW_SECONDS) refuse(`${who}'s seconds is at least ${round(MIN_THROW_SECONDS, 4)} for a throw (one frame at 60 a second) — not ${given}`);
   if (given !== undefined && given > MOST_PHYSICS_SECONDS) refuse(`${who}'s seconds is at most ${MOST_PHYSICS_SECONDS} for a throw — not ${given}`);
   const { velocity, seconds } = launch(from, to, { apex, seconds: given, gravity }, who);
+  if (seconds < MIN_THROW_SECONDS) refuse(`${who}'s throw would be over in ${seconds.toPrecision(2)} s, under one frame (${round(MIN_THROW_SECONDS, 4)} s) — a higher apex, or less gravity`);
   if (!(seconds <= MOST_PHYSICS_SECONDS)) refuse(`${who}'s throw would take ${seconds.toFixed(2)} s — at most ${MOST_PHYSICS_SECONDS} s: a lower apex, or seconds`);
   const across = Math.abs(to[0] - from[0]), top = Math.min(from[1], to[1]);
   const usual = Math.max(MIN_APEX, APEX_SHARE * across);

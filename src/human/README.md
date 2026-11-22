@@ -21,7 +21,7 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
 | `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring — see [physics/README.md](physics/README.md) |
 | `models/` | the model interface and registry (`registry.js`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
-| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, and `checkMove` (`check.js`) |
+| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, and `checkMove` (`check.js`) |
 | `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
 
@@ -63,7 +63,7 @@ family or a list of them (a ballistic flight is a throw and a fall alike: one st
 | `write` | `letter` | `sigma-lognormal`: one lognormal stroke a point, overlapping | `points`, or `strokes` and `at`; `seconds` | `mu`, `sigma`, `gap`, `bend` |
 | `throw` | `throw` | `ballistic`: through the air in closed form, the usual apex a 45° throw; or `bounce`: lands on the floor at `to` and bounces to rest | `from`, `to`, `apex` or `seconds`, `floor`, `boxes`, `radius` | `gravity` (1960 px/s²); bounce: `restitution` (0.5, at most 1), `keep`, `squash` |
 | `fall` | `fall` | `ballistic`: down to the floor; or `bounce` | `from`, `floor`, `velocity`, `boxes`, `radius` | as for a throw |
-| `hang` | `hang` | `verlet`: a chain pinned at `from`, swinging until it has been still for half a swing | `from`, `to` or `length`, `path` (the pin's moves), `seconds`, `floor`, `boxes` | `gravity`, `links` (8), `damping` (0.7), `jitter` (0, seeded) |
+| `hang` | `hang` | `verlet`: a chain pinned at `from`, swinging until it has been still for half a swing | `from`, `to` or `length`, `path` (the pin's moves), `seconds`, `floor`, `boxes` | `gravity` (at most 1e5), `links` (8, or as many as fit), `damping` (0.9), `jitter` (0, seeded) |
 | `settle` | `settle` | `spring`: to rest on the motion spring, its seconds the feel's | `from`, `to` | `feel` (default), or `k` and `d` |
 
 Every intent may also hold `name` (its piece: part of the seed), `who` (its words for where it was written, named in
@@ -135,9 +135,10 @@ checkMove(planMove({ do: 'throw', who: 'b', from: [0, 500], to: [600, 500], boxe
 // [{ critic: 'contact', level: 'warn', message: 'b: at 0.39 s it goes 49.7 px into a box — it passes through something solid', fix: "raise its path (apex: …", basis: { at, into } }]
 ```
 
-The critics `spacing` (a fall or a throw whose drawings sit evenly apart reads as slid, not falling), `volume` (a squash
-that changes the area reads as rubber) and `contact` (a body that passes into the floor or a box) are measured on the
-track; `sampleTrack` keeps each sample whole (a squash's `sx` and `sy`, a chain's `points`) and the plan, whose `world`
+The critics `spacing` (a fall or a throw that accelerates down at under half its gravity reads as slid, not falling),
+`volume` (a squash that changes the area reads as rubber), `contact` (a body that passes into the floor or a box) and
+`stretch` (a chain's link drawn over 5% long) are measured on the track. Each wrapper adds the speed bells it makes to
+the plan's `pushes` (`ADDED_BELLS`), so `jerk` reads a wrapped reach as meant; `sampleTrack` keeps each sample whole (a squash's `sx` and `sy`, a chain's `points`) and the plan, whose `world`
 the contact critic reads. Details, the laws each part keeps and their sources: [physics/README.md](physics/README.md).
 
 ## For the next builders

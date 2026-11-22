@@ -5,5 +5,6 @@ import { penSpeed } from './penSpeed.js';
 import { spacing } from './spacing.js';
 import { volume } from './volume.js';
 import { contact } from './contact.js';
+import { stretch } from './stretch.js';
 
-export const BUILT_IN_CRITICS = Object.freeze([jerk, penSpeed, arc, spacing, volume, contact]);
+export const BUILT_IN_CRITICS = Object.freeze([jerk, penSpeed, arc, spacing, volume, contact, stretch]);

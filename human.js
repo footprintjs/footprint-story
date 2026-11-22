@@ -28,7 +28,7 @@ export { legGaps } from './src/human/paths/gap.js';
 // physics — flight, bounces, chains, collisions on a fixed step (Jakobsen 2001), and settling on the motion spring
 export { launch, flightAt, headingAt, fallSeconds, APEX_SHARE, MIN_APEX } from './src/human/physics/flight.js';
 export { bounces, bounceAt, MIN_BOUNCE, MOST_BOUNCES } from './src/human/physics/bounce.js';
-export { runChain, relaxChain, pinAt, MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK } from './src/human/physics/chain.js';
+export { runChain, relaxChain, pinAt, substepsFor, stretchOf, MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK, MOST_STEP_SAG, MOST_SUBSTEPS, LAYOUT_ROUNDS } from './src/human/physics/chain.js';
 export { makeWorld, readWorld, pushOut, collide, depthIn, MOST_BOXES } from './src/human/physics/collide.js';
 export { verletStep, simulate, PHYSICS_STEP, STEPS_PER_FRAME, GRAVITY, MOST_PHYSICS_SECONDS } from './src/human/physics/step.js';
 export { settleLeft, settleSeconds } from './src/human/physics/settle.js';
@@ -39,13 +39,13 @@ export { planMove, sampleMove, sampleTrack, MOST_TRACK_SAMPLES, MOST_SAMPLE_LIST
 export { MIN_JERK_BEND, MOST_BEND } from './src/human/models/minJerk.js';
 export { PEN_SPEED, BEND_WIDTH } from './src/human/models/powerLawPen.js';
 export { MOST_STROKES } from './src/human/models/sigmaLetter.js';
-export { THROW_KEYS, FALL_KEYS } from './src/human/models/ballistic.js';
+export { THROW_KEYS, FALL_KEYS, MIN_THROW_SECONDS } from './src/human/models/ballistic.js';
 export { SQUASH_SECONDS } from './src/human/models/bounce.js';
-export { MOST_CHAIN_LINKS, MOST_CHAIN_SECONDS, MOST_PATH_KEYS } from './src/human/models/verlet.js';
+export { MOST_CHAIN_LINKS, MOST_CHAIN_SECONDS, MOST_PATH_KEYS, MOST_CHAIN_GRAVITY, USUAL_LINKS, USUAL_DAMPING } from './src/human/models/verlet.js';
 export { OVERSHOOT_SEEN } from './src/human/models/spring.js';
 
 // wrappers — a move reshaped by the animation principles, read by sampleMove like any other
-export { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES } from './src/human/models/wrap.js';
+export { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES, ADDED_BELLS } from './src/human/models/wrap.js';
 
 // critics — what still looks wrong, measured and said
 export { HUMAN_CRITICS, FINDING_LEVELS } from './src/human/critics/registry.js';

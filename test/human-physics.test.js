@@ -74,11 +74,20 @@ test('a bounce: lower each time, at rest on the floor exactly; a squash keeps th
   assert.deepEqual(end(move), { x: 0, y: 900, sx: 1, sy: 1 });
   const hit = at(move, p.impacts[0].at);
   assert.ok(Math.abs(hit.sy - 0.7) < 1e-12 && Math.abs(hit.sx * hit.sy - 1) < 1e-12);
-  assert.deepEqual(p.basis, { restitution: 0.6, keep: 1, squash: 0.3, bounces: p.segments.length - 1, landed: p.landed, gravity: GRAVITY, seconds: p.seconds, firstSeconds: p.segments[0].seconds });
+  assert.deepEqual(p.basis, { restitution: 0.6, keep: 1, squash: 0.3, bounces: p.segments.length - 1, landed: p.landed, gravity: GRAVITY, seconds: p.seconds, firstSeconds: p.segments[0].seconds, stoppedBy: 'low', nextHeight: 0 });
   assert.match(move.reason, /then 6 bounces \(each giving back 60% of its speed\), at rest on the floor at y 900 after 3\.49 s, squashed 30%/);
   assert.deepEqual(Object.keys(at(planMove({ do: 'fall', from: [0, 100], floor: 900, model: 'bounce' }), 0.2)), ['x', 'y']);
   assert.equal(planMove({ do: 'fall', from: [0, 100], floor: 900, model: { name: 'bounce', restitution: 0 } }).plan.segments.length, 1);
   assert.match(planMove({ do: 'fall', from: [0, 899], floor: 900, model: { name: 'bounce', restitution: 0 } }).reason, /then 0 bounces/);
+  // a bounce cut short says so: by the count, or by the longest physics plan — never "at rest"
+  const count = planMove({ do: 'fall', from: [0, 890], floor: 900, model: { name: 'bounce', restitution: 1 } });
+  assert.deepEqual([count.plan.basis.stoppedBy, count.plan.segments.length - 1], ['count', 24]);
+  assert.ok(Math.abs(count.plan.basis.nextHeight - 10) < 1e-9);
+  assert.match(count.reason, /stopped on the floor at y 900 after [0-9.]+ s by the most bounces drawn \(24\), its next bounce 10 px high — lower restitution to let it come to rest$/);
+  assert.doesNotMatch(count.reason, /at rest/);
+  const time = planMove({ do: 'fall', from: [0, 100], floor: 900, model: { name: 'bounce', restitution: 1 } });
+  assert.equal(time.plan.basis.stoppedBy, 'time');
+  assert.match(time.reason, /stopped on the floor at y 900 after 29\.82 s by the longest physics plan \(30 s\), its next bounce 800 px high — lower restitution or a nearer floor$/);
   // a thrown bounce lands on `to`, then bounces along the floor at `to`'s y; keep slows it across
   const thrown = planMove({ do: 'throw', from: [0, 300], to: [200, 500], radius: 5, model: { name: 'bounce', keep: 0.5 } });
   const s = thrown.plan.segments;
@@ -101,6 +110,12 @@ test('a hang: pinned at from, swings and settles below its pin; a moving pin tra
   const timed = planMove({ do: 'hang', from: [0, 0], length: 100, model: { name: 'verlet', links: 4 }, seconds: 0.5 });
   assert.ok(timed.plan.seconds >= 0.5 && timed.plan.seconds < 0.5 + 1 / 60);
   assert.match(timed.reason, /the seconds the intent gave/);
+  // the usual damping settles a chain: the usual links fit a short one
+  const usual = planMove({ do: 'hang', from: [0, 0], to: [500, 0] });
+  assert.deepEqual([usual.plan.basis.links, usual.plan.basis.linksGiven, usual.plan.basis.damping, usual.plan.basis.settled], [8, false, 0.9, true]);
+  assert.ok(usual.plan.basis.stretch <= 0.05 && usual.plan.basis.substeps === 1);
+  const short = planMove({ do: 'hang', from: [0, 0], length: 13 });
+  assert.deepEqual([short.plan.basis.links, short.plan.basis.linksGiven], [3, false]);
   const long = planMove({ do: 'hang', from: [0, 0], to: [1000, 0], model: { name: 'verlet', links: 20, damping: 0 } });
   assert.equal(long.plan.seconds, MOST_CHAIN_SECONDS); assert.equal(long.plan.basis.settled, false);
   assert.match(long.reason, /still swinging at 10 s, the most a chain runs/);
@@ -173,6 +188,12 @@ test('refusals name the entry and the fix', () => {
     [{ do: 'hang', who, from: [0, 0], length: 8, path: [[1, 1]], model: { name: 'verlet', links: 2 } }, /path\[0\] is a key \[t, x, y\]/],
     [{ do: 'hang', who, from: [0, 0], length: 8, path: [[1, 1, 1], [0.5, 2, 2]], model: { name: 'verlet', links: 2 } }, /path\[1\]'s t is a number above 1/],
     [{ do: 'hang', who, from: [0, 0], length: 8, path: 3, model: { name: 'verlet', links: 2 } }, /path is a list of at most 64 keys/],
+    [{ do: 'hang', who, from: [0, 0], length: 8, floor: 100, path: [[0.5, 0, 200]], model: { name: 'verlet', links: 2 } }, /path\[0\] puts the pin below the floor — move that key above y 100/],
+    [{ do: 'hang', who, from: [0, 0], length: 8, boxes: [{ x: 40, y: 40, w: 20, h: 20 }], path: [[0.5, 0, 0], [1, 50, 50]], model: { name: 'verlet', links: 2 } }, /path\[1\] puts the pin inside a box — move that key out of boxes/],
+    [{ do: 'hang', who, from: [0, 0], length: 8, model: { name: 'verlet', links: 2, gravity: 200000 } }, /model "verlet"'s gravity is a number from 1 to 100000/],
+    [{ do: 'settle', who, from: [0, 0], to: [1, 1], model: { name: 'spring', k: 1, d: 0.1 } }, /its spring \(k 1, d 0\.1\) does not settle within 30 s, the longest a settle is read — a larger k or d/],
+    [{ do: 'throw', who, from: [0, 0], to: [1, 0], seconds: 1e-9 }, /seconds is at least 0\.0167 for a throw \(one frame at 60 a second\) — not 1e-9/],
+    [{ do: 'throw', who, from: [0, 0], to: [1, 0], model: { name: 'ballistic', gravity: 1e6 } }, /throw would be over in 0\.014 s, under one frame \(0\.0167 s\) — a higher apex, or less gravity/],
     [{ do: 'hang', who, from: [50, 50], length: 8, boxes: [{ x: 0, y: 0, w: 100, h: 100 }], model: { name: 'verlet', links: 2 } }, /pin \(from\) is inside a box/],
     [{ do: 'hang', who, from: [0, 600], length: 8, floor: 500, model: { name: 'verlet', links: 2 } }, /pin \(from\) is below the floor/],
     [{ do: 'fall', who, from: [0, 0], floor: 500, boxes: [{ x: 0, y: 450, w: 10, h: 100 }] }, /boxes\[0\] reaches below the floor .* stand it on the floor: y 400/],

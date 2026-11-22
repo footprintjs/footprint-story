@@ -1,27 +1,38 @@
 /**
- * The `spacing` critic: how much a fall's or a throw's speed varies along the way (the coefficient of variation of the
- * speed between samples). Gravity spaces a falling thing's drawings wider and wider apart (slow at the top of a throw,
- * fast at the bottom); drawings evenly apart read as a thing slid along a line, not falling (the animators' "slow in
- * and slow out" and "timing", Thomas & Johnston 1981). Under the limit, it reads as linear.
+ * The `spacing` critic: how much of its gravity a fall or a throw shows — the median of its vertical acceleration (the
+ * second difference of y over time) over the gravity its plan names (GRAVITY when it names none). Gravity spaces a
+ * falling thing's drawings wider and wider apart down the frame; drawings evenly apart read as a thing slid along a
+ * line, not falling (the animators' "timing", Thomas & Johnston 1981). Under the limit, it reads as slid.
+ * WHY the vertical acceleration and not the variation of speed: a fast sideways throw keeps a near-even speed and still
+ * falls exactly as it should; its vertical acceleration is its gravity whatever its speed across. WHY the median: a
+ * landing is a spike of acceleration upward, and a bounce lands many times; the flights between are most of the track.
  */
-import { speedsOf } from './track.js';
+import { basePlan } from '../models/wrap.js';
+import { GRAVITY } from '../physics/step.js';
+import { finite } from '../read.js';
 
-/** The least variation of speed that reads as falling: 5%. Ours. */
-export const SPACING_LEAST = 0.05;
+/** The least share of its gravity a fall's drawings must show to read as falling: a half. Ours. */
+export const SPACING_LEAST = 0.5;
 
 export const spacing = Object.freeze({
   name: 'spacing',
   limit: SPACING_LEAST,
   measure(track) {
-    const speeds = speedsOf(track.samples).map((s) => s.speed).filter((v) => v > 1e-6);
-    if (speeds.length < 2) return null;   // nothing moves: there is no spacing to read
-    const mean = speeds.reduce((s, v) => s + v, 0) / speeds.length;
-    const value = Math.sqrt(speeds.reduce((s, v) => s + (v - mean) ** 2, 0) / speeds.length) / mean;
-    return { value, basis: { mean, least: Math.min(...speeds), most: Math.max(...speeds), steps: speeds.length } };
+    const s = track.samples, accel = [];
+    for (let i = 1; i + 1 < s.length; i += 1) {
+      const a = s[i - 1], b = s[i], c = s[i + 1];
+      if (!(b.t > a.t && c.t > b.t)) continue;
+      accel.push((2 * ((c.y - b.y) / (c.t - b.t) - (b.y - a.y) / (b.t - a.t))) / (c.t - a.t));
+    }
+    if (accel.length < 3) return null;   // too short a track to read an acceleration
+    accel.sort((x, y) => x - y);
+    const median = accel.length % 2 ? accel[(accel.length - 1) / 2] : (accel[accel.length / 2 - 1] + accel[accel.length / 2]) / 2;
+    const named = track.plan ? basePlan(track.plan).gravity : undefined, gravity = finite(named) && named > 0 ? named : GRAVITY;
+    return { value: median / gravity, basis: { acceleration: median, gravity, steps: accel.length } };
   },
-  finding(value, who) {
+  finding(value, who, basis) {
     if (!(value < SPACING_LEAST)) return null;
-    return { level: 'warn', message: `${who}: its speed varies by only ${(value * 100).toFixed(1)}% along the way — its drawings sit evenly apart, so it reads as slid along a line, not falling`,
-      fix: "use do: 'fall' or do: 'throw' (model: 'ballistic') so gravity spaces it, or a higher apex" };
+    return { level: 'warn', message: `${who}: its drawings fall at ${(value * 100).toFixed(0)}% of its gravity (${Math.round(basis.acceleration)} of ${Math.round(basis.gravity)} px/s²) — evenly spaced, it reads as slid along a line, not falling`,
+      fix: "use do: 'fall' or do: 'throw' (model: 'ballistic') so gravity spaces it" };
   },
 });

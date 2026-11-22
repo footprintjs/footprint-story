@@ -7,16 +7,26 @@
  *   options       gravity; restitution (0 to 1, 0.5: the share of its speed a landing gives back); keep (0 to 1, 1:
  *                 the share of its speed across a landing keeps); squash (0 to 0.5, 0: how flat a landing presses it)
  *   sample        { x, y }, and with a squash { sx, sy }: sx · sy = 1 (its area kept), scaled about its foot
- *   basis         { restitution, keep, squash, bounces, landed, gravity, seconds, firstSeconds }
+ *   basis         { restitution, keep, squash, bounces, landed, gravity, seconds, firstSeconds, stoppedBy, nextHeight }:
+ *                 stoppedBy 'low' (at rest), 'count' (MOST_BOUNCES drawn) or 'time' (the longest physics plan), and the
+ *                 height the next bounce would have reached (0 at rest)
  *
  * WHY restitution is at most 1: a floor gives back at most what it was given, so a bounce never gains energy. With a
  * squash the plan runs on SQUASH_SECONDS past the last landing, so its end is the body at rest and unsquashed.
  */
 import { refuse, stored } from '../read.js';
-import { bounceAt, bounces } from '../physics/bounce.js';
+import { bounceAt, bounces, MOST_BOUNCES } from '../physics/bounce.js';
+import { MOST_PHYSICS_SECONDS } from '../physics/step.js';
 import { readWorld } from '../physics/collide.js';
 import { readFall, readGravity, readThrow } from './ballistic.js';
 import { optionNumber, round } from './options.js';
+
+/** How the reason ends, by what stopped the bounces: at rest only when it truly is. */
+const STOPPED = {
+  low: (floor, s) => `at rest on the floor at y ${floor} after ${s} s`,
+  count: (floor, s, h) => `stopped on the floor at y ${floor} after ${s} s by the most bounces drawn (${MOST_BOUNCES}), its next bounce ${h} px high — lower restitution to let it come to rest`,
+  time: (floor, s, h) => `stopped on the floor at y ${floor} after ${s} s by the longest physics plan (${MOST_PHYSICS_SECONDS} s), its next bounce ${h} px high — lower restitution or a nearer floor`,
+};
 
 /** A landing squashes the body for SQUASH_SECONDS either side of it. */
 export const SQUASH_SECONDS = 0.06;
@@ -51,8 +61,8 @@ function plan(intent, { who, options }) {
   const seconds = made.duration + (b.squash ? SQUASH_SECONDS : 0), count = made.segments.length - 1;
   return {
     seconds, landed: made.duration, gravity, segments: made.segments, impacts: made.impacts, rest: made.rest, squash: b.squash, world, radius: flight.radius, pushes: 1,
-    basis: { restitution: b.restitution, keep: b.keep, squash: b.squash, bounces: count, landed: made.duration, gravity, seconds, firstSeconds: first },
-    why: `a ${intent.do} landing after ${round(first)} s, then ${count} bounce${count === 1 ? '' : 's'} (each giving back ${round(b.restitution * 100, 0)}% of its speed), at rest on the floor at y ${round(land + flight.radius, 1)} after ${round(made.duration)} s${b.squash ? `, squashed ${round(b.squash * 100, 0)}% at the first landing, its area kept` : ''}`,
+    basis: { restitution: b.restitution, keep: b.keep, squash: b.squash, bounces: count, landed: made.duration, gravity, seconds, firstSeconds: first, stoppedBy: made.stoppedBy, nextHeight: made.nextHeight },
+    why: `a ${intent.do} landing after ${round(first)} s, then ${count} bounce${count === 1 ? '' : 's'} (each giving back ${round(b.restitution * 100, 0)}% of its speed), ${STOPPED[made.stoppedBy](round(land + flight.radius, 1), round(made.duration), round(made.nextHeight, 0))}${b.squash ? `, squashed ${round(b.squash * 100, 0)}% at the first landing, its area kept` : ''}`,
   };
 }
 

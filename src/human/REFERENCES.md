@@ -29,8 +29,8 @@ the gap to another leg of the line; the letter's mu (−1.6), sigma (0.3) and ga
 critics' limits (no extra speed peak, a 2% bow, 20% off the law) and the way `pen-speed` walks and smooths a track.
 The physics' (0.27.0): gravity 1960 px/s² (9.8 m/s² at 200 px to the metre), the step (1/240 s, frames at 60 a second),
 the usual apex's floor (24 px), restitution 0.5, the least bounce drawn (1 px) and the most (24), the squash's time (0.06
-s either side of a landing), a chain's damping (0.7 lost a second), its least link (4 px), its rest speed (4 px/s), its
+s either side of a landing), a chain's damping (0.9 lost a second), its strongest gravity (1e5 px/s²), its sub-step sag (0.005 of a link), its least link (4 px), its rest speed (4 px/s), its
 tolerance (5%), its most links (64) and seconds (10), a wrapper's usual `by` (8% of the move's distance), its least
-travel (0.01 px), the critics' limits (5% variation of speed, 10% of area, 0.5 px into something solid), and a settle's
+travel (0.01 px), the critics' limits (half the gravity, 10% of area, 0.5 px into something solid, 5% stretch), a throw's least time (one frame, 1/60 s), and a settle's
 least overshoot said (half a percent).
 Each is a named constant beside its reason, and a test pins it.

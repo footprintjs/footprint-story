@@ -3,12 +3,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  planMove, sampleMove, sampleTrack, checkMove, anticipate, followThrough, hold, overshoot, basePlan, isWrapped, MOST_WRAPPERS, BY_SHARE,
+  planMove, sampleMove, sampleTrack, checkMove, anticipate, followThrough, hold, overshoot, basePlan, isWrapped, MOST_WRAPPERS, BY_SHARE, ADDED_BELLS, CHAIN_LENGTH_TOLERANCE,
   makeWorld, readWorld, pushOut, collide, depthIn, launch, fallSeconds, bounces, settleLeft, settleSeconds, simulate, verletStep, PHYSICS_STEP,
 } from '../human.js';
 import { spacing } from '../src/human/critics/spacing.js';
 import { volume } from '../src/human/critics/volume.js';
 import { contact } from '../src/human/critics/contact.js';
+import { stretch } from '../src/human/critics/stretch.js';
 import { sampleWrapped } from '../src/human/models/wrap.js';
 import { settleTime } from '../src/motion/spring.js';
 
@@ -31,7 +32,7 @@ test('wrappers: a move in, a move out — the record nests, the reason says it, 
   assert.equal(f.plan.seconds, d + 0.25 * d);
   assert.equal(h.plan.seconds, d + 0.5);
   assert.equal(o.plan.seconds, d + settleTime('snappy'));
-  assert.deepEqual([a.plan.wrapper, a.plan.share, a.plan.by, a.plan.pushes], ['anticipate', 0.2, null, 2]);
+  assert.deepEqual([a.plan.wrapper, a.plan.share, a.plan.by, a.plan.pushes], ['anticipate', 0.2, null, 3]);
   assert.deepEqual(o.plan.basis, { share: 0.2, by: 10, added: settleTime('snappy'), seconds: o.plan.seconds, innerSeconds: d });
   assert.match(a.reason, /then anticipate: a pull back of 8% of its distance over 0\.16 s, released into the move$/);
   assert.match(o.reason, /then overshoot: arrives 10 px past the end and settles back over [0-9.]+ s$/);
@@ -50,10 +51,34 @@ test('wrappers: a move in, a move out — the record nests, the reason says it, 
   const n = overshoot(hold(anticipate(move), { at: 0, seconds: 0.1 }), { by: 3, feel: { k: 200, d: 20 } });
   assert.deepEqual(n.wrappers, ['anticipate', 'hold', 'overshoot']);
   assert.deepEqual(basePlan(n.plan), move.plan); assert.ok(isWrapped(n.plan) && !isWrapped(move.plan));
-  assert.deepEqual(n.plan.feel, { k: 200, d: 20 }); assert.equal(n.plan.pushes, 3);
+  assert.deepEqual(n.plan.feel, { k: 200, d: 20 }); assert.equal(n.plan.pushes, 1 + 2 + 0 + 1, 'anticipate 2, a hold at 0 none, overshoot 1');
   assert.deepEqual(s(n, n.plan.seconds), s(move, d));
   // the critics read a wrapped move too
   assert.deepEqual(checkMove(n).findings, []);
+});
+
+/** A tool's own reach that stops and starts: two minimum-jerk bells, planned as one push. */
+const h5 = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * v * (10 - 15 * v + 6 * v * v); };
+const twitch = { family: 'reach', name: 'test:twitch', checks: ['jerk'], plan: () => ({ seconds: 2, pushes: 1 }), sample: (p, t) => { const u = Math.min(1, Math.max(0, t / 2)); return { x: 100 * (h5(u * 2) + h5(u * 2 - 1)), y: 0 }; } };
+
+test('each wrapper counts the speed bells it adds: a wrapped reach is never twitchy, and a twitchy move under a wrapper that adds nothing still is', () => {
+  const reach = planMove({ do: 'reach', from: [0, 0], to: [300, 0] }), d = reach.plan.seconds;
+  const wrapped = { anticipate: anticipate(reach), 'follow-through': followThrough(reach), overshoot: overshoot(reach), hold: hold(reach, { at: d / 2, seconds: 0.3 }) };
+  for (const [name, w] of Object.entries(wrapped)) {
+    assert.equal(w.plan.pushes, 1 + ADDED_BELLS[name], name);
+    const c = checkMove(w);
+    assert.equal(c.measures.jerk, 0, `${name}: the bells it adds are the pushes it declares`);
+    assert.deepEqual(c.findings, [], name);
+  }
+  assert.deepEqual(ADDED_BELLS, { anticipate: 2, 'follow-through': 2, overshoot: 1, hold: 1 });
+  const models = [twitch], tm = planMove({ do: 'reach', from: [0, 0], to: [1, 1], model: 'test:twitch' }, { models });
+  assert.equal(checkMove(tm, { models }).measures.jerk, 1);
+  for (const [name, w] of [['anticipate', anticipate(tm, { by: 0 })], ['follow-through', followThrough(tm, { by: 0 })], ['overshoot', overshoot(tm, { by: 0 })], ['hold at 0', hold(tm, { at: 0, seconds: 0.2 })], ['hold at the end', hold(tm, { at: 2, seconds: 0.2 })]]) {
+    assert.equal(w.plan.pushes, 1, `${name} adds no motion, so no push`);
+    const c = checkMove(w, { models });
+    assert.equal(c.measures.jerk, 1, `${name}: the model's own stop-and-start is still found`);
+    assert.equal(c.findings[0].critic, 'jerk');
+  }
 });
 
 test('wrappers over any model: a reach overshoots and the jerk critic counts its pushes; a still chain is not pushed some noisy way', () => {
@@ -90,6 +115,7 @@ test('wrapper refusals name the entry and the fix', () => {
     [() => anticipate(null), /anticipate wraps a move planMove made/],
     [() => anticipate({ model: 'x', who: 'me', plan: { seconds: -1 } }), /me: anticipate wraps a plan with its seconds/],
     [() => sampleMove({ ...move, plan: { wrapper: 'spin', inner: move.plan, seconds: 1 } }, 0.5), /wrapper is one of anticipate, follow-through, hold, overshoot — not "spin"/],
+    [() => hold(hold(move, { at: 0, seconds: 3000 }), { at: 0, seconds: 1000 }), /blocks\[2\] \("ball"\): hold would make it 4000\.8 s long — a move is at most 3600 s: a shorter hold, or fewer wrappers/],
   ];
   for (const [fn, re] of cases) assert.throws(fn, re);
   let deep = move;
@@ -102,25 +128,41 @@ test('wrapper refusals name the entry and the fix', () => {
 test('critics through checkMove: measured on the track with their basis, a finding in words with the fix, null when fine', () => {
   const blocked = planMove({ do: 'throw', who, from: [0, 500], to: [600, 500], boxes: [{ x: 250, y: 300, w: 100, h: 100 }] });
   const checked = checkMove(blocked);
-  assert.ok(checked.measures.contact > 40 && checked.measures.spacing > 0.05);
-  assert.deepEqual(Object.keys(checked.bases.spacing), ['mean', 'least', 'most', 'steps']);
+  assert.ok(checked.measures.contact > 40);
+  assert.ok(Math.abs(checked.measures.spacing - 1) < 1e-6, 'a ballistic flight shows its whole gravity');
+  assert.deepEqual(Object.keys(checked.bases.spacing), ['acceleration', 'gravity', 'steps']);
   assert.equal(checked.findings.length, 1);
   const [found] = checked.findings;
-  assert.deepEqual([found.critic, found.level, found.basis.into], ['contact', 'warn', 'a box']);
+  assert.deepEqual([found.critic, found.level, found.basis.into, found.basis.family], ['contact', 'warn', 'a box', 'throw']);
   assert.match(found.message, /^blocks\[2\] \("ball"\): at 0\.3[0-9] s it goes [0-9.]+ px into a box — it passes through something solid$/);
   assert.match(found.fix, /apex: a larger number.*model: 'bounce' with the floor/);
   // through the floor
   const under = checkMove(planMove({ do: 'throw', who, from: [0, 300], to: [600, 600], floor: 520 }));
   assert.equal(under.findings[0].basis.into, 'the floor');
+  // the fix in the family's own keys: a fall and a hang take no apex and no to
+  const fallen = { who, samples: [{ t: 0, x: 5, y: 5 }], family: 'fall', plan: { world: { floor: null, boxes: [{ x: 0, y: 0, w: 10, h: 10 }] } } };
+  assert.match(contact.finding(5, who, contact.measure(fallen).basis).fix, /^move what it falls into out of its way \(boxes: \[\.\.\.\]\), or let it land on it: floor: <the box's top>$/);
+  assert.match(contact.finding(5, who, { ...contact.measure(fallen).basis, family: 'hang' }).fix, /out of its swing .* a shorter chain/);
+  assert.doesNotMatch(contact.finding(5, who, contact.measure(fallen).basis).fix, /apex|to:/);
+  // a plan's world read as an intent's: refused in words, a floor alone is a world
+  assert.equal(contact.measure({ who, samples: [{ t: 0, x: 0, y: 950 }], plan: { world: { floor: 900 } } }).value, 50);
+  assert.throws(() => contact.measure({ who, samples: [], plan: { world: { floor: 900, boxes: 'x' } } }), /blocks\[2\] \("ball"\): its plan's world's boxes are a list of at most 32 boxes/);
+  assert.throws(() => contact.measure({ who, samples: [], plan: { world: 7 } }), /its plan's world is \{floor, boxes\} — not 7/);
   // no world: nothing to pass through
   assert.equal(checkMove(planMove({ do: 'throw', from: [0, 0], to: [100, 0] })).measures.contact, null);
-  // a linear slide: even spacing → found
-  const linear = { who, samples: Array.from({ length: 30 }, (_, i) => ({ t: i / 30, x: i * 10, y: 0 })) };
+  // a linear slide down the frame: no acceleration → found
+  const linear = { who, samples: Array.from({ length: 30 }, (_, i) => ({ t: i / 30, x: i * 10, y: i * 20 })) };
   const lv = spacing.measure(linear);
-  assert.ok(lv.value < 1e-9);
-  assert.match(spacing.finding(lv.value, who).message, /reads as slid along a line, not falling/);
-  assert.match(spacing.finding(lv.value, who).fix, /do: 'fall' or do: 'throw'/);
+  assert.ok(Math.abs(lv.value) < 1e-9 && lv.basis.gravity === 1960);
+  assert.match(spacing.finding(lv.value, who, lv.basis).message, /its drawings fall at 0% of its gravity \(0 of 1960 px\/s²\) — evenly spaced, it reads as slid along a line, not falling/);
+  assert.match(spacing.finding(lv.value, who, lv.basis).fix, /do: 'fall' or do: 'throw'/);
   assert.equal(spacing.measure({ samples: [{ t: 0, x: 0, y: 0 }, { t: 1, x: 0, y: 0 }] }), null);
+  // ballistic's own fast sideways flights show their gravity (the old speed-variation measure fired on these)
+  for (const intent of [{ do: 'fall', from: [0, 0], floor: 900, velocity: [5000, 0] }, { do: 'throw', from: [0, 500], to: [1800, 500], apex: 2 }, { do: 'fall', from: [0, 0], floor: 900, model: { name: 'bounce', restitution: 0.7, gravity: 500 } }]) {
+    const c = checkMove(planMove(intent));
+    assert.ok(Math.abs(c.measures.spacing - 1) < 1e-6, `${JSON.stringify(intent)}: ${c.measures.spacing}`);
+    assert.deepEqual(c.findings, []);
+  }
   // a squash that does not keep its area
   const rubber = { who, samples: [{ t: 0, x: 0, y: 0 }, { t: 0.1, x: 0, y: 0, sx: 1.3, sy: 0.7 }] };
   assert.ok(Math.abs(volume.measure(rubber).value - 0.09) < 1e-12);
@@ -137,9 +179,19 @@ test('critics through checkMove: measured on the track with their basis, a findi
   const hung = planMove({ do: 'hang', from: [0, 0], length: 40, seconds: 0.1, model: { name: 'verlet', links: 2 } });
   assert.equal(sampleTrack(hung).samples[0].points.length, 3);
   assert.deepEqual(sampleTrack(hung).plan, hung.plan);
+  // stretch: a drawn chain whose link runs long past its length is found; this package's chain is not
+  const loose = { who, samples: [{ t: 0.5, x: 0, y: 0, points: [[0, 0], [0, 10], [0, 22]] }], plan: { rest: 10 } };
+  const sv = stretch.measure(loose);
+  assert.deepEqual(sv, { value: sv.value, basis: { at: 0.5, link: 1, rest: 10 } });
+  assert.ok(Math.abs(sv.value - 0.2) < 1e-12);
+  assert.match(stretch.finding(sv.value, who, sv.basis).message, /its link 1 stretches 20\.0% past its length at 0\.50 s — it reads as elastic, not a rope/);
+  assert.equal(stretch.finding(0.04, who, sv.basis), null);
+  assert.equal(stretch.measure({ who, samples: [], plan: { world: null } }), null);
+  const rope = checkMove(planMove({ do: 'hang', from: [0, 0], to: [300, 0], seconds: 2, model: { name: 'verlet', links: 64, gravity: 100000 } }));
+  assert.ok(rope.measures.stretch <= CHAIN_LENGTH_TOLERANCE, `${rope.measures.stretch}`);
   // a chain's points are checked too
   const box = { who, samples: [{ t: 0, x: 0, y: 0, points: [[0, 0], [50, 50]] }], plan: { world: { floor: null, boxes: [{ x: 40, y: 40, w: 20, h: 20 }] } } };
-  assert.deepEqual(contact.measure(box), { value: 10, basis: { at: 0, into: 'a box' } });
+  assert.deepEqual(contact.measure(box), { value: 10, basis: { at: 0, into: 'a box', family: null } });
 });
 
 test('the parts underneath: launch, a fall\'s time, bounces, a world, collisions, settle, the fixed step', () => {
