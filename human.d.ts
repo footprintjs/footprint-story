@@ -268,3 +268,66 @@ export const VOLUME_MOST: number;
 export const CONTACT_MOST: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }
 export function checkMove(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): { readonly measures: Readonly<Record<string, number | null>>; readonly bases: Readonly<Record<string, HumanBasis | null>>; readonly findings: readonly HumanFinding[] };
+
+// ── the intent decider ─────────────────────────────────────────────────────────────────────────────────────
+
+/** A rule of the choice, in the shape of footprintjs decide() rules: tests over an intent's facts {do, family, named, usual}. */
+export interface ChooseRule { readonly when: Readonly<Record<string, Readonly<{ eq?: unknown; ne?: unknown }>>>; readonly then: 'named' | 'usual'; readonly label: string }
+/** How a model is chosen, first match wins: the model the intent names, else its family's usual. */
+export const CHOOSE_RULES: readonly ChooseRule[];
+/** The most intents planIntents takes in one list. */
+export const MOST_INTENTS: number;
+/** The most samples a track summary keeps. */
+export const SUMMARY_POINTS: number;
+/** A wrapper an intent asks for: its name and its options (as anticipate, followThrough, hold and overshoot take them). */
+export type HumanWrapEntry = { readonly wrapper: WrapperName; readonly [option: string]: unknown };
+/** An intent as an author writes it in a list: an intent, and the wrappers it asks for, innermost first. */
+export type HumanIntentEntry = HumanIntent & { readonly wrap?: readonly HumanWrapEntry[] };
+/** Each intent's choice: its family by its do, its model by the first rule that held (the rule's words), and whether the model is a tool's own. */
+export interface HumanChoice { readonly who: string; readonly do: HumanDo; readonly family: HumanFamily; readonly model: string; readonly by: 'named' | 'usual'; readonly rule: string; readonly own: boolean }
+/** A move's sampled track, summed up: at most SUMMARY_POINTS points [t, x, y]. */
+export interface HumanTrackSummary { readonly seconds: number; readonly count: number; readonly pushes: number; readonly distance: number; readonly peakSpeed: number; readonly bounds: readonly [number, number, number, number]; readonly points: readonly (readonly [number, number, number])[] }
+/** What planIntents gives: the last state of HUMAN_STEPS, each list in the intents' order. */
+export interface HumanIntentsResult extends HumanPerIntent {
+  readonly intents: readonly (HumanIntent & { readonly who: string })[];
+  readonly wraps: readonly (readonly HumanWrapEntry[])[];
+  readonly frame: HumanPoint | null;
+  readonly choices: readonly HumanChoice[];
+  /** 'ours' when this package's models plan every move, 'own' when a tool's own model plans one (its code is outside a record). */
+  readonly chose: 'ours' | 'own';
+  readonly choseWhy: string;
+  readonly plans: readonly HumanMove[];
+  readonly moves: readonly HumanMove[];
+  readonly durations: readonly { readonly seconds: number; readonly model: string; readonly basis: HumanBasis | null; readonly wrappers: readonly WrapperName[]; readonly who: string }[];
+  readonly tracks: readonly HumanTrackSummary[];
+  readonly checks: readonly ReturnType<typeof checkMove>[];
+  readonly findings: readonly { readonly intent: number; readonly who: string; readonly model: string; readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string }[];
+}
+/** What is decided per intent, written under a key of its own beside the list keys, and the step that decides it. */
+export const PER_INTENT: Readonly<{ model: 'choose'; duration: 'wrap'; findings: 'findings' }>;
+/** The key one intent's value is written under: intentKey('duration', 3) → 'duration-3' (ask whyFromRecord for it). */
+export function intentKey<W extends keyof typeof PER_INTENT>(what: W, i: number): `${W}-${number}`;
+/** One intent's duration under its own key: the seconds and its model's basis, flat; a wrapped move's wrappers and the model's own seconds. */
+export type HumanIntentDuration = Readonly<{ seconds: number; wrappers?: string; planned?: number | null }> & Readonly<Record<string, number | string | boolean | null>>;
+/** The per-intent keys of planIntents' result. */
+export type HumanPerIntent = {
+  readonly [key: `model-${number}`]: { readonly model: string; readonly family: HumanFamily; readonly by: 'named' | 'usual'; readonly rule: string; readonly own: boolean };
+  readonly [key: `duration-${number}`]: HumanIntentDuration;
+  readonly [key: `findings-${number}`]: readonly { readonly critic: string; readonly level: 'warn' | 'note'; readonly fix: string }[];
+};
+/** A step of the intent decider: the keys it reads and writes, and its pure run; a step that chooses has `decides` and `branches`. */
+export interface HumanStep {
+  readonly name: string; readonly about: string; readonly reads: readonly string[]; readonly writes: readonly string[];
+  run(state: any, tools?: { readonly models?: readonly HumanModel[]; readonly critics?: readonly HumanCritic[] }): any;
+  readonly input?: true;
+  /** The per-intent prefixes it writes (PER_INTENT): one key per intent each. */
+  readonly each: readonly string[];
+  readonly decides?: { readonly key: string; readonly why: string; readonly name: string; readonly reads: readonly string[]; readonly writes: readonly string[]; readonly each: readonly string[]; run(state: any, tools: any): any };
+  readonly branches?: Readonly<Record<string, { readonly name: string; readonly reads: readonly string[]; readonly writes: readonly string[]; readonly each: readonly string[]; run(state: any, tools: any): any }>>;
+}
+/** read → choose? (ours | own: plan) → wrap → sample → check → findings. */
+export const HUMAN_STEPS: readonly HumanStep[];
+/** The keys the read step writes: intents, wraps, frame. */
+export const HUMAN_INPUT: readonly string[];
+/** An author's intents decided: per intent the model and why, the plan and its basis, the wrapped move, a track summary, the critics' measures and findings. Frozen plain data. */
+export function planIntents(intents: readonly HumanIntentEntry[], settings?: (HumanSettings & { readonly frame?: HumanPoint | null }) | null): HumanIntentsResult;

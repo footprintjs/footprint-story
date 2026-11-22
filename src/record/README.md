@@ -35,7 +35,7 @@ answer alike and are hardened alike.
 
 **The record is read as a file anyone may have written** (`WHY_LIMITS`): only as a plain file of at most 8 MB, never
 through a link; it must hold one run (its own log, and one for each chart it mounted: the run's own is walked, and the answer says
-when there are others); a name or a value in it starts no line of the answer; a step keeps at most 200
+when there are others); a name or a value in it starts no line of the answer; the value asked for is shown on one line up to 1000 characters (`WHY_LIMITS.asked`: it is the answer, asked of one key to be seen whole) and every other name up to 200 (`WHY_LIMITS.value`); a step keeps at most 200
 rows and 200 keys read (more are cut, and the answer says so); a saved decision is used only when it names an earlier
 step of this record. A record that is not whole says so first, and a value it lacks is then "not found in what could
 be read", never "never written". A record written without the reads (before a tool kept them) says so under its answer.

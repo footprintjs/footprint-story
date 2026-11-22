@@ -13,6 +13,7 @@ import { refuse, shown, stored, isRecord } from '../read.js';
 import { BUILT_IN_NAME, OWN_NAME, MOST_OWN } from '../names.js';
 import { BUILT_IN_MODELS, USUAL_MODELS } from './builtIn.js';
 import { criticsWith, holdsStill } from '../critics/registry.js';
+import { CHOOSE_RULES, firstRule } from './rules.js';
 
 /** The families of move there are (this round fills reach, pen and letter), and the word an intent's `do` says for each. */
 export const HUMAN_FAMILIES = Object.freeze(['reach', 'pen', 'letter', 'settle', 'fall', 'throw', 'hang']);
@@ -65,15 +66,26 @@ export function modelsWith(list = undefined, criticList = undefined) {
   return out;
 }
 
-/** The model an intent names, or its family's usual one; refused, naming the ones there are, when there is none. */
-export function chooseModel(models, family, named, doWord) {
-  if (named !== undefined) {
+/** The family an intent's `do` word means (HUMAN_DOS), or a refusal naming the words there are. */
+export function familyOf(doWord, who) {
+  if (typeof doWord !== 'string' || !Object.hasOwn(HUMAN_DOS, doWord)) refuse(`${who}'s do is ${Object.keys(HUMAN_DOS).map((d) => `'${d}'`).join(', ')} — not ${shown(doWord)}`);
+  return HUMAN_DOS[doWord];
+}
+
+/**
+ * The model an intent names, or its family's usual one, by the first rule of CHOOSE_RULES (rules.js) that holds:
+ * {model, how (planMove's words), by ('named' | 'usual'), rule (the rule's label)}. Refused, naming the intent (`who`)
+ * and the ones there are, when there is none or the named one serves another family — in words that hold whether
+ * planMove or planIntents asked (a tool's own is handed in as `models` to either).
+ */
+export function chooseModel(models, family, named, doWord, who) {
+  const chosen = firstRule(CHOOSE_RULES, { do: doWord, family, named: named !== undefined, usual: USUAL_MODELS[family] ?? null });
+  if (!chosen) refuse(`${who}: no model for do: '${doWord}' yet — name one of a tool's own with model: 'prefix:name' and hand it in as models`);
+  if (chosen.then === 'named') {
     const m = models.byName.get(named);
-    if (!m) refuse(`there is no model ${shown(named)} — the models are ${[...models.byName.keys()].map((k) => `"${k}"`).join(', ')} (a tool's own goes in planMove's models)`);
-    if (!familiesOf(m).includes(family)) refuse(`the model "${named}" is for a ${familiesOf(m).join(' or a ')}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => familiesOf(x).includes(family)).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
-    return { model: m, how: 'named by the intent', by: 'named' };
+    if (!m) refuse(`${who}: there is no model ${shown(named)} — the models are ${[...models.byName.keys()].map((k) => `"${k}"`).join(', ')} (a tool's own is handed in as models)`);
+    if (!familiesOf(m).includes(family)) refuse(`${who}: the model "${named}" is for a ${familiesOf(m).join(' or a ')}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => familiesOf(x).includes(family)).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
+    return { model: m, how: 'named by the intent', by: 'named', rule: chosen.label };
   }
-  const usual = USUAL_MODELS[family];
-  if (!usual) refuse(`no model for do: '${doWord}' yet — name one of a tool's own with model: 'prefix:name' and hand it in planMove's models`);
-  return { model: models.byName.get(usual), how: `the usual for do: '${doWord}'`, by: 'usual' };
+  return { model: models.byName.get(USUAL_MODELS[family]), how: `the usual for do: '${doWord}'`, by: 'usual', rule: chosen.label };
 }

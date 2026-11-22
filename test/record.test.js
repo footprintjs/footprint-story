@@ -53,6 +53,7 @@ test('why: the value, the stage that wrote it, the decision that let it run, and
   // the cut of a long answer says how to see the rest, when the caller says how
   const long = await whyFromRecord({ file, control, key: 'verdict', more: 'add --all' });
   assert.ok(long.split('\n').length <= WHY_LIMITS.lines + 2);
+  assert.deepEqual([WHY_LIMITS.value, WHY_LIMITS.asked], [200, 1000]);
   // what a run saves: an edge for each step a decision let run, and nothing for a recorder that cannot answer
   assert.deepEqual(control, { 'fix#5': { deciderId: 'verdict#4', label: 'there is something to fix' } });
   assert.deepEqual(controlEdges([{ runtimeStageId: 'a#0' }, null, { runtimeStageId: 5 }], { lookup: () => { throw new Error('no'); } }), {});
@@ -127,4 +128,21 @@ test('oneLine: what a project\'s files say stays on its row; an error is one lin
   assert.equal(errorText(new Error('Phrase not in story: "a\nFORGED"')), 'Phrase not in story: "a\\nFORGED"');
   assert.equal(errorText(Object.assign(new Error('2 problems:\n- a\n- b'), { rows: ['2 problems:', '- a', '- b\nFORGED'] })), '2 problems:\n- a\n- b\\nFORGED');
   assert.equal(errorText('not an error'), 'not an error');
+});
+
+test('the value asked for is shown up to WHY_LIMITS.asked characters, cut by code point: an emoji at the cut is never split', async (t) => {
+  const dir = temp(t), ask = async (text) => {
+    const file = path.join(dir, `${text.length}.record.jsonl`), sink = fileSink(file);
+    const executor = new FlowChartExecutor(flowChart('say', (s) => { s.text = text; }, 'say', 'a long text').setLogger(QUIET).build(), { sink, writeProvenance: 'reads-prefix' });
+    try { await executor.run(); } finally { await sink.close(); }
+    return (await whyFromRecord({ file, key: 'text' })).split('\n')[0];
+  };
+  const smile = String.fromCodePoint(0x1F600);
+  // '"' and 997 letters, then the emoji as the 999th character shown: kept whole, then the cut
+  const cut = await ask(`${'a'.repeat(997)}${smile}${'b'.repeat(40)}`);
+  assert.equal(cut, `text = "${'a'.repeat(997)}${smile}…`);
+  assert.doesNotMatch(cut, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/, 'no half of a pair');
+  // within the bound, the value whole, though longer than any other name the answer shows
+  const whole = 'c'.repeat(WHY_LIMITS.value * 2);
+  assert.equal(await ask(whole), `text = "${whole}"`);
 });

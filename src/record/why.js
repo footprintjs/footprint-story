@@ -30,13 +30,21 @@ import { readRecordFile } from 'footprintjs/sinks';
 import { readStoredRecord, sliceForKey, formatSlice, findLastWriter, commitValueAt, keysReadFromMap, controlDepsFromMap } from 'foottrace';
 import { oneLine } from '../said/oneline.js';
 
-/** The most lines an answer holds, the most characters of a value or a name it shows, the most bytes of a record it reads, the most steps, and the most rows and keys read a step keeps. */
-export const WHY_LIMITS = Object.freeze({ lines: 40, value: 200, bytes: 8 * 1024 * 1024, steps: 5000, rows: 200, reads: 200 });
+/**
+ * The most lines an answer holds, the most characters of a name or any other value it shows (`value`), the most
+ * characters of the value that was ASKED for (`asked`), the most bytes of a record it reads, the most steps, and the most
+ * rows and keys read a step keeps. WHY the asked value has its own, larger bound: it is the answer — a caller asks for one
+ * entry by its own key (footprint-story/humanflow · `duration-3`) to see it whole — while every other name is context,
+ * kept short. Still one line, and still bounded, since the record is a file anyone may have written.
+ */
+export const WHY_LIMITS = Object.freeze({ lines: 40, value: 200, asked: 1000, bytes: 8 * 1024 * 1024, steps: 5000, rows: 200, reads: 200 });
 const OUTSIDE = '(a stage also uses what it is given from outside the run\'s own state: the record holds what stages read and wrote, and no more)';
-const { lines: LINES, value: VALUE, bytes: BYTES, steps: STEPS, rows: ROWS, reads: READS } = WHY_LIMITS;
+const { lines: LINES, value: VALUE, asked: ASKED, bytes: BYTES, steps: STEPS, rows: ROWS, reads: READS } = WHY_LIMITS;
 
 const name = (text) => { const said = oneLine(String(text ?? '')); return said.length > VALUE ? `${said.slice(0, VALUE - 1)}…` : said; };
-const shown = (value) => { const said = oneLine(JSON.stringify(value) ?? String(value)); return said.length > VALUE ? `${said.slice(0, VALUE - 1)}…` : said; };
+/** The asked value as the answer's first line shows it: one line, cut at ASKED characters — counted by code point, so
+ *  a character outside the basic plane (an emoji) is never split in two at the cut. */
+const shown = (value) => { const said = [...oneLine(JSON.stringify(value) ?? String(value))]; return said.length > ASKED ? `${said.slice(0, ASKED - 1).join('')}…` : said.join(''); };
 
 /** A commit as the walk may show it (see the head). `cut.lists` counts the steps shortened. */
 function plainCommit(bundle, cut) {
