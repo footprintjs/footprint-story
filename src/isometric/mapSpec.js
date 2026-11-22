@@ -107,11 +107,15 @@ function wordsOf(v, most, who, key) {
   return v;
 }
 
-/** A piece's `who`: the tool's words, or the place in the spec when it gives none. */
+/**
+ * A piece's `who`: the tool's words, or the place in the spec when it gives none. WHY letters (code points, `[...who]`),
+ * not `who.length`: a name and a label count letters, and the same limit counted in UTF-16 units refused a `who` of 200
+ * letters from beyond the Basic Multilingual Plane ("𝒜", an emoji) at 101 — one rule counts one way.
+ */
 function whoOf(o, fallback) {
   const who = stored(o, 'who', `${fallback}'s who`);
   if (who === undefined || who === null) return fallback;
-  if (typeof who !== 'string' || !who.trim() || who.length > ISO_MAP_LIMITS.who) refuse(`${fallback}'s who is the tool's words for where it was written, 1 to ${ISO_MAP_LIMITS.who} letters ('blocks[2] ("db")') — not ${shown(who)}`);
+  if (typeof who !== 'string' || !who.trim() || [...who].length > ISO_MAP_LIMITS.who) refuse(`${fallback}'s who is the tool's words for where it was written, 1 to ${ISO_MAP_LIMITS.who} letters ('blocks[2] ("db")') — not ${shown(who)}`);
   return who;
 }
 

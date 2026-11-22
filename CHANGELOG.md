@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.32.2 — a map's `who` counted in letters, as a name and a label are
+
+- **A `who` is counted in letters (code points), not UTF-16 units** (`src/isometric/mapSpec.js · whoOf`). A name and a
+  label already counted letters, so the same 200-letter limit refused a `who` of letters from beyond the Basic
+  Multilingual Plane ("𝒜", an emoji) at 101 of them. Now 200 such letters are taken and 201 are refused, for a piece and
+  for the map. Nothing either tool draws changed; a `who` that was taken before is still taken.
+
 ## 0.32.1 — a cable test that held the film's labels to the old rule
 
 - **A test fix only: no code changed, nothing either tool draws changed.** The property test "StoryReel's straight
