@@ -20,7 +20,8 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/resample.js` | points again, evenly by distance (`resample`) |
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
 | `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring — see [physics/README.md](physics/README.md) |
-| `models/` | the model interface and registry (`registry.js`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
+| `models/` | the model interface and registry (`registry.js`), how a model is chosen as data (`rules.js` · `CHOOSE_RULES`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
+| `intents/` | the intent decider: an author's list of intents in, every move decided by steps in one list (`HUMAN_STEPS`, `planIntents` in `steps.js`; the reader `read.js`; the bounded track summary `summary.js`) — see below |
 | `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, and `checkMove` (`check.js`) |
 | `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
@@ -141,6 +142,53 @@ The critics `spacing` (a fall or a throw that accelerates down at under half its
 the plan's `pushes` (`ADDED_BELLS`), so `jerk` reads a wrapped reach as meant; `sampleTrack` keeps each sample whole (a squash's `sx` and `sy`, a chain's `points`) and the plan, whose `world`
 the contact critic reads. Details, the laws each part keeps and their sources: [physics/README.md](physics/README.md).
 
+## The intent decider: a list of intents, every move decided
+
+**Why:** the author writes intents, the tool decides the rest. A scene is many moves; an author — a person or a model —
+should write each as what happens (`{do: 'reach', from, to}`) and get back every model, duration, curve and finding,
+with why. `planIntents` runs the decider as named, pure steps in one list (`HUMAN_STEPS`), the shape of the map's steps
+(docs/design/2026-11-map-flow.md), so `footprint-story/humanflow` runs the same list as a footprintjs chart and a run's
+record answers why ([../humanflow/README.md](../humanflow/README.md)).
+
+```
+read → choose? (ours | own: plan) → wrap → sample → check → findings
+```
+
+```js
+import { planIntents } from 'footprint-story/human';
+
+const r = planIntents([
+  { do: 'reach', name: 'hand', from: [200, 600], to: [500, 200] },
+  { do: 'throw', who: 'blocks[2] ("ball")', from: [100, 600], to: [700, 600], wrap: [{ wrapper: 'anticipate', share: 0.2 }] },
+  { do: 'reach', from: [0, 0], to: [300, 0], model: { name: 'min-jerk', bend: 0 } },
+]);
+r.choices[0];    // { who: 'intents[0] ("hand")', do: 'reach', family: 'reach', model: 'min-jerk', by: 'usual', rule: "the intent names none: its family's usual", own: false }
+r.durations[0];  // { seconds: 0.85…, model: 'min-jerk', basis: { distance: 500, target: 40, targetDefaulted: true, bits: 3.75…, … }, wrappers: [], who: … }
+r.findings;      // [{ intent: 2, who: 'intents[2]', model: 'min-jerk', critic: 'arc', level: 'warn', message: 'intents[2]: its move runs straight …', fix: "bow it: model: {name: 'min-jerk', bend: 0.06}" }]
+```
+
+- **read** — at most `MOST_INTENTS` (256) intents, each copied by its own stored fields (a getter is never run), named
+  (its `who`, else `intents[i]` with its piece's name), its `wrap` taken apart (`wraps[i]`, at most 4 wrappers).
+- **choose** — by rules as data: the family by `do` (`HUMAN_DOS`), then the first rule of `CHOOSE_RULES` that holds,
+  in the shape of footprintjs `decide()` rules: `{when: {named: {eq: true}}, then: 'named'}` (the model the intent
+  names), else `{when: {usual: {ne: null}}, then: 'usual'}` (its family's usual). `planMove` reads the same table
+  (`registry.js` · `chooseModel`), so the two never choose apart. It writes `choices` (each with its rule's words),
+  and one choice for the list — `chose: 'ours'` when this package's models plan every move, `'own'` when a tool's own
+  plans one, whose code no record holds — and its reason `choseWhy`.
+- **plan** — the branch chosen: `planMove` per intent, its model checked to be the one chosen; `plans` keep the reason
+  and `plan.basis`.
+- **wrap** — each plan wrapped as asked, innermost first (`moves`), and `durations`: each move's seconds beside its
+  model's basis and the wrappers' names.
+- **sample** — `tracks`: each move's track summed up in a bounded record (`summary.js`: seconds, sample count, distance,
+  peak speed, bounds, and at most `SUMMARY_POINTS` (16) samples, both ends in).
+- **check** — `checks`: `checkMove` per move.
+- **findings** — every intent's findings in one list, each naming its intent (by place and by `who`), its model, the
+  critic and the fix.
+
+Each step reads only the keys it names and gives back the keys it names (a test hands each only those). A tool's own
+`models` and `critics` go in the settings as for `planMove` (`planIntents(intents, {models, critics, frame})`): code is
+never state, so each step is handed them beside it. The result is frozen plain data, the same for the same intents.
+
 ## For the next builders
 
 - A new model: an object with the interface, in `models/`, added to `models/builtIn.js` (`BUILT_IN_MODELS`, and
@@ -148,3 +196,5 @@ the contact critic reads. Details, the laws each part keeps and their sources: [
 - A new critic: in `critics/`, added to `critics/builtIn.js` (`BUILT_IN_CRITICS`); a model names it in `checks`.
 - Each new file goes behind the door (`human.js`) with its types (`human.d.ts`); `test/doors.test.js` refuses one that is not.
 - A list of models or critics is read once and kept beside a copy of what it held; a list changed since is read again.
+- A new step of the intent decider: a pure function in `intents/steps.js` with the keys it reads and writes, in `HUMAN_STEPS`;
+  the chart (`src/humanflow/`) builds itself from the list, and its property test checks the two still agree.
