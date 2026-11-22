@@ -77,8 +77,8 @@ change in focal / distance). `basis.limitedBy` says which set them, `basis.comfo
 
 | critic | measures | finds fault when | the fix it names |
 |---|---|---|---|
-| `in-sight` | the most it shows of any one subject (in frame × not covered, by `check.js · reportOf`) against the most any subject is owed, each owed its two ends' shares blended by progress (by time on a hand path); null when nothing is seen at either end | it shows more than a tenth less than owed | the one that helps, measured: `lift: 0` when its rise is what hides it, else 15° more `lift`, else `cutPast` |
-| `turn-speed` | the fastest the look turns, °/s | over 45°/s | `seconds`: the planner's own for the limits, so following it clears it |
+| `in-sight` | the larger of two drops in the share seen (in frame × not covered, by `check.js · reportOf`): the hand-over — the most it shows of any one subject against the most any is owed, each owed its two ends' shares blended by progress (by time on a hand path) — and each subject's own, against the worse of its two ends (0 for one that enters late); null when nothing is seen at either end | it shows more than a tenth less than owed | the one that helps, measured: `lift: 0` when its rise is what hides it, else 15° more `lift`, else `cutPast`; a fly that leaves the frame without turning, `size: 'wide'` on its ends |
+| `turn-speed` | the fastest the look turns, °/s | over 45°/s | `seconds`: the planner's own for the limits, so following it clears it; on a hand path, the same number as `travel-speed` names (the larger) |
 | `travel-speed` | the fastest slide (frame heights a second) or growth (× a second), as a share of its limit | over 1 or over 2× | `seconds`, as above; past 600 s, leave seconds out and it cuts |
 | `line-of-action` | how often the two subjects (`line`, or the subjects when they are two) swap sides of the frame, read through each look | a cut across: `warn`; a move across: `note` (the accepted way across, but they swap sides) | `cutPast: 180`; the other way round (`by`) |
 | `horizon` | the most the horizon leans (`horizonRoll`), degrees | over 0.5° | plan it as a fly, whose every look keeps world up |

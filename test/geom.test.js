@@ -104,6 +104,9 @@ test('quaternions: axis-angle turns as the right hand says, the product composes
   nearAll(quatNormalize([2, 0, 0, 0]), [1, 0, 0, 0]);
   nearAll(quatRotate([3, 0, 0, 0], [1, 2, 3]), [1, 2, 3], 1e-15);   // a scaled identity still turns nothing
   assert.throws(() => quatNormalize([0, 0, 0, 0]), /has no length: it is no turn/);
+  nearAll(quatNormalize([1e308, 1e308, 1e308, 1e308]), [0.5, 0.5, 0.5, 0.5]);   // its length overflows unless scaled first
+  near(quatAngle([1e308, 1e308, 1e308, 1e308], [1e308, -1e308, -1e308, -1e308]), 2 * PI / 3, 1e-12);   // ±120° about (1,1,1)
+  nearAll(quatNormalize([5e-324, 0, 0, 0]), [1, 0, 0, 0]);
   assert.throws(() => quatFromAxisAngle([0, 0, 0], 1), /a turn needs a line to turn about/);
   assert.throws(() => quatMultiply([1, 0, 0], [1, 0, 0, 0]), /quatMultiply's a is a list of 4 finite numbers/);
 });

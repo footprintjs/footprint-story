@@ -14,7 +14,7 @@ import { aim } from './lens.js';
 import { cameraFrom, frameFrom } from './camera.js';
 import { namesFrom, sceneFrom } from './scene.js';
 import { cameraTrack, MOST_CAMERA_SAMPLES } from './move.js';
-import { CAMERA_MOVE_KINDS } from './moveRules.js';
+import { CAMERA_MOVES, CAMERA_MOVE_KINDS } from './moveRules.js';
 import { lookOf } from './movePace.js';
 import { filled, MOST_LIFT } from './moveRead.js';
 import { CAMERA_CRITICS_LIST, SIGHT_DROP } from './moveCritics.js';
@@ -78,21 +78,26 @@ export const checkCameraMove = (move, settings = undefined) => deepFreeze(orRefu
   const track = hand ? read : cameraTrack(read, { rate }), world = worldFrom(own, track, f);
   const who = own.who === undefined ? (typeof track.who === 'string' ? track.who : 'the camera move') : f.name(own.who, 'who', { most: 120 });
   if (f.problems.length) return null;
-  const hint = hand ? null : { do: move.do, turn: move.choice?.turn ?? 0, lift: move.basis?.lift ?? null, swing: move.basis?.swing ?? null, seconds: move.seconds, comfortSeconds: move.basis?.comfortSeconds ?? null };
-  const measures = {}, bases = {}, findings = [];
+  const hint = hand ? { hand: true } : { do: move.do, turn: move.choice?.turn ?? 0, lift: move.basis?.lift ?? null, swing: move.basis?.swing ?? null, seconds: move.seconds, comfortSeconds: move.basis?.comfortSeconds ?? null };
+  const measures = {}, bases = {}, findings = [], got = {};
   for (const critic of CAMERA_CRITICS_LIST) {
-    const got = critic.measure({ ...track, on: world.on, line: world.line }, world);
-    // a move that hides its subject: the same move kept level, and lifted 15° more, are measured too, so the fix it names is
-    // one that helps (an arc whose rise is what hides it is told lift: 0 first), never a guess that sends the author round
-    if (critic.name === 'in-sight' && got && got.value > SIGHT_DROP && hint && move.plan) {
-      const tried = (lift) => critic.measure({ ...cameraTrack({ ...move, plan: { ...move.plan, lift: lift * Math.PI / 180 } }, { rate }), on: world.on, line: world.line }, world)?.value ?? null;
-      hint.levelDrop = move.plan.lift > 0 ? tried(0) : null;
-      hint.higherDrop = (hint.lift ?? 0) < MOST_LIFT ? tried(Math.min(MOST_LIFT, (hint.lift ?? 0) + 15)) : null;
-    }
-    measures[critic.name] = got ? got.value : null;
-    bases[critic.name] = got ? got.basis : null;
-    const found = got ? critic.finding(got.value, who, got.basis, hint) : null;
-    if (found) findings.push({ critic: critic.name, ...found, basis: got.basis });
+    got[critic.name] = critic.measure({ ...track, on: world.on, line: world.line }, world);
+    measures[critic.name] = got[critic.name] ? got[critic.name].value : null;
+    bases[critic.name] = got[critic.name] ? got[critic.name].basis : null;
+  }
+  // a hand path has no planner's seconds: its turn and travel fixes name one number, the larger the two ask for
+  if (hand) hint.speedRatio = Math.max(measures['turn-speed'] / CAMERA_MOVES.comfort, measures['travel-speed']);
+  // a move that hides its subject: the same move kept level, and lifted 15° more, are measured too, so the fix it names is
+  // one that helps (an arc whose rise is what hides it is told lift: 0 first), never a guess that sends the author round
+  const sight = CAMERA_CRITICS_LIST.find((c) => c.name === 'in-sight');
+  if (measures['in-sight'] > SIGHT_DROP && !hand && move.plan) {
+    const tried = (lift) => sight.measure({ ...cameraTrack({ ...move, plan: { ...move.plan, lift: lift * Math.PI / 180 } }, { rate }), on: world.on, line: world.line }, world)?.value ?? null;
+    hint.levelDrop = move.plan.lift > 0 ? tried(0) : null;
+    hint.higherDrop = (hint.lift ?? 0) < MOST_LIFT ? tried(Math.min(MOST_LIFT, (hint.lift ?? 0) + 15)) : null;
+  }
+  for (const critic of CAMERA_CRITICS_LIST) {
+    const one = got[critic.name], found = one ? critic.finding(one.value, who, one.basis, hint) : null;
+    if (found) findings.push({ critic: critic.name, ...found, basis: one.basis });
   }
   return { measures, bases, findings };
 }), 'camera move check'));

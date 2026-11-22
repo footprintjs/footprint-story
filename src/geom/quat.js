@@ -14,7 +14,7 @@
  * camera: three angles (yaw, pitch, roll) lose a turn's axis looking straight up or down — gimbal lock — and blend badly;
  * a quaternion has neither fault (Shoemake 1985). Every angle uses atan2 of a sine and a cosine, never acos (see angles.js).
  */
-import { cross, dot, numberOf, unit, vectorOf } from './vec.js';
+import { cross, dot, numberOf, together, unit, vectorOf } from './vec.js';
 
 const quatOf = (q, what) => vectorOf(q, [4], what);
 /** How far from length 1 and right angles three axes may be and still be read as a turn: rounding, not a shear. */
@@ -22,7 +22,7 @@ const AXES_WITHIN = 1e-6;
 
 /** q scaled to length 1. A quaternion of no length is no turn: refused. */
 export function quatNormalize(q) {
-  const v = quatOf(q, 'quatNormalize\'s q'), n = Math.hypot(...v);
+  const [v] = together(quatOf(q, 'quatNormalize\'s q')), n = Math.hypot(...v);   // scaled first: the length of [1e308, …] overflows
   if (!(n > 0) || !Number.isFinite(n)) throw new TypeError('quatNormalize\'s q has no length: it is no turn');
   return v.map((c) => c / n);
 }

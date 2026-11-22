@@ -28,9 +28,10 @@
   `sampleCameraMove(move, t)` and `cameraTrack(move, {rate})` give `{t, progress, camera, eye, look}`: every camera one
   `readCamera` takes, both ends exactly the cameras handed in.
 - **Critics on a camera's path:** `checkCameraMove(move, {scene, frame, on, line, rate, who})`, for a planned move or a
-  path made by hand (`{samples: [{t, camera, look?, cut?}]}`, its own `look` honoured): `in-sight` (the most the move
-  shows of any one subject against the most any is owed, each owed its two ends' shares blended by progress, read by the
-  shot check's own outlines; over a tenth; null when nothing is seen at either end), `turn-speed` (over 45°/s),
+  path made by hand (`{samples: [{t, camera, look?, cut?}]}`, its own `look` honoured): `in-sight` (the larger of the hand-over —
+  the most the move shows of any one subject against the most any is owed, each owed its two ends' shares blended by
+  progress — and each subject's own drop below the worse of its two ends, read by the shot check's own outlines; over a
+  tenth; null when nothing is seen at either end), `turn-speed` (over 45°/s),
   `travel-speed` (a slide over 1 frame height a second or a growth over 2× a second), `line-of-action` (the two subjects
   swapping sides of the frame: on a cut a `warn`, in a move a `note`), `horizon` (a lean over 0.5°). Each finding names
   `who` and the fix in the intent's keys (`lift: 0` when an arc's rise is what hides it, `lift: 25`, `seconds: 4.42` — the

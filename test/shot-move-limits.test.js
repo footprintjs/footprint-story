@@ -113,3 +113,25 @@ test('a hand path\'s own look is honoured: in-sight sees through it, the line of
   assert.equal(measures['line-of-action'], 2);
   assert.deepEqual([bases['line-of-action'].a, bases['line-of-action'].b], ['db', 'cache']);
 });
+
+test('in-sight: one of two subjects hidden whole on the way is found, though the other stays in view; a clear 8 m pan passes', () => {
+  const scene = { unit: 'm', things: [{ name: 'db', at: [0, 1, 0], r: 1 }, { name: 'cache', at: [4, 1, 0], r: 1 }, { name: 'wall', at: [4, 1, 3], size: [2, 2.6] }] };
+  const move = planCameraMove({ do: 'fly', from: { on: ['db', 'cache'], from: 'front-left', size: 'wide' }, to: { on: ['db', 'cache'], from: 'front-right', size: 'wide' }, who: 'shots[3]' }, scene);
+  const { measures, bases, findings } = checkCameraMove(move, { scene, frame });
+  assert.ok(measures['in-sight'] > 0.9, `${measures['in-sight']}`);
+  assert.deepEqual([bases['in-sight'].kind, bases['in-sight'].subject, bases['in-sight'].blocker], ['own', 'cache', 'wall']);
+  assert.match(findings.find((f) => f.critic === 'in-sight').message, /^shots\[3\]: at \d+(\.\d)? s it shows \d+% of "cache", where both its ends show at least 100% — "wall" covers it on the way$/);
+  const pan = { unit: 'm', things: [{ name: 'db', at: [0, 1, 0], r: 1 }, { name: 'cache', at: [8, 1, 0], r: 1 }] };
+  const clear = checkCameraMove(planCameraMove({ do: 'fly', from: { on: 'db', from: 'front' }, to: { on: 'cache', from: 'front' } }, pan), { scene: pan, frame });
+  assert.ok(clear.measures['in-sight'] <= SIGHT_DROP, `${clear.measures['in-sight']}`);
+});
+
+test('a fly that leaves the frame without turning is told to frame its ends wider; a hand path\'s two speed fixes name one number', () => {
+  const pan = { unit: 'm', things: [{ name: 'db', at: [0, 1, 0], r: 1 }, { name: 'cache', at: [20, 1, 0], r: 1 }] };
+  const [found] = checkCameraMove(planCameraMove({ do: 'fly', from: { on: 'db', from: 'front', size: 'close' }, to: { on: 'cache', from: 'front', size: 'close' }, seconds: 9 }, pan), { scene: pan, frame }).findings.filter((f) => f.critic === 'in-sight');
+  assert.equal(found.fix, "frame its ends wider: size: 'wide' on from and to");
+  const a = camAt(0), b = camAt(60, { target: [20, 1, 0] });
+  const fixes = checkCameraMove({ samples: [{ t: 0, camera: a }, { t: 1, camera: b }] }).findings.filter((f) => f.critic === 'turn-speed' || f.critic === 'travel-speed').map((f) => f.fix);
+  assert.equal(fixes.length, 2);
+  assert.equal(fixes[0], fixes[1]);
+});

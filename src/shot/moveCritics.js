@@ -4,10 +4,11 @@
  * null from `measure` means it cannot say (no scene, no subject, no line, nothing seen at either end); null from `finding`
  * means within its limit.
  *
- *   in-sight       how much less of its subjects the move shows, at its worst moment, than its ends lead you to expect:
- *                  the most it shows of any one subject (in frame times not covered, by the shot check's own outlines,
- *                  `check.js · reportOf`) against the most any subject is owed, each owed its share at the two ends
- *                  blended by progress (by time on a hand path)
+ *   in-sight       how much less of its subjects the move shows, at its worst moment, than its ends lead you to expect,
+ *                  the larger of two drops (shares seen = in frame times not covered, by `check.js · reportOf`): the
+ *                  hand-over (the most it shows of any one subject against the most any is owed, each owed its two ends'
+ *                  shares blended by progress, by time on a hand path) and each subject's own (the worse of its two ends
+ *                  against what it shows)
  *   turn-speed     the fastest the look turns, in degrees a second, against CAMERA_MOVES.comfort (45°/s, ours)
  *   travel-speed   the fastest the target slides across the frame (frame heights a second, against 1) or the subject
  *                  grows or shrinks (a factor a second, against 2×), as a share of its limit (ours, both)
@@ -19,7 +20,9 @@
  * neither end says what the middle should show; each subject is owed what its ends make of that moment, and a wall that
  * hides both in the middle is found. WHY the most of any one, not each: a subject's share is not linear in progress — on
  * a clear pan between two balls 8 m apart the second enters the frame late, and judged alone it read as 29% lost; what a
- * viewer needs is something of the subjects in sight, and one passing behind the other is the shot's matter (checkShot). A shot that is itself hidden is that shot's fault (checkShot says so); what the move
+ * viewer needs is something of the subjects in sight. And WHY each one's own as well: two subjects in both shots, one of
+ * them hidden whole on the way, kept "the most of any one" high; against the worse of its own ends a subject that enters
+ * late owes nothing, and one a wall hides owes all it showed. A shot that is itself hidden is that shot's fault (checkShot says so); what the move
  * hides beyond it is the move's. Two blockers over one part count twice: it says more is hidden, never less.
  */
 import { quatAngle, quatRotate } from '../geom/quat.js';
@@ -59,11 +62,15 @@ const inSight = {
     const s = track.samples, first = rowsAt(world, track.on, s[0]), last = rowsAt(world, track.on, s[s.length - 1]);
     if (first.every((r) => r.seen === 0) && last.every((r) => r.seen === 0)) return null;   // nothing seen at either end: nothing to lose
     const t0 = s[0].t, span = s[s.length - 1].t - t0;
-    let worst = { drop: 0, subject: null, seen: null, expected: null, inFrame: null, blocker: null, at: null };
+    let worst = { drop: 0, kind: null, subject: null, seen: null, expected: null, inFrame: null, blocker: null, at: null };
+    const keep = (drop, kind, row, expected, at) => { if (drop > worst.drop) worst = { drop, kind, subject: row.name, seen: row.seen, expected, inFrame: row.inFrame, blocker: row.blocker, at }; };
     for (let i = 1; i < s.length - 1; i++) {
       const p = s[i].progress ?? (span > 0 ? (s[i].t - t0) / span : 0), rows = rowsAt(world, track.on, s[i]);
-      const expected = Math.max(...first.map((r, k) => (1 - p) * r.seen + p * last[k].seen)), best = rows.reduce((a, r) => (r.seen > a.seen ? r : a));
-      if (expected - best.seen > worst.drop) worst = { drop: expected - best.seen, subject: best.name, seen: best.seen, expected, inFrame: best.inFrame, blocker: best.blocker, at: s[i].t };
+      // the hand-over: the most of any one subject against the most any is owed, each owed its ends blended by progress
+      const owed = Math.max(...first.map((r, k) => (1 - p) * r.seen + p * last[k].seen)), best = rows.reduce((a, r) => (r.seen > a.seen ? r : a));
+      keep(owed - best.seen, 'hand-over', best, owed, s[i].t);
+      // each subject against the worse of its own two ends: 0 for one that enters late, the whole of one a wall hides
+      rows.forEach((row, k) => keep(Math.min(first[k].seen, last[k].seen) - row.seen, 'own', row, Math.min(first[k].seen, last[k].seen), s[i].t));
     }
     const { drop, ...basis } = worst;
     return { value: drop, basis: { ...basis, many: track.on.length > 1 } };
@@ -71,12 +78,14 @@ const inSight = {
   finding(drop, who, basis, hint) {
     if (!(drop > SIGHT_DROP)) return null;
     const what = basis.blocker ? `"${basis.blocker}" covers it` : 'it leaves the frame';
-    const most = basis.many ? `the most it shows of its subjects is ${pct(basis.seen)} ("${basis.subject}")` : `it shows ${pct(basis.seen)} of "${basis.subject}"`;
-    const message = `${who}: at ${tenth(basis.at)} s ${most}, where its ends lead you to expect ${pct(basis.expected)} — ${what} on the way`;
+    const most = basis.many && basis.kind === 'hand-over' ? `the most it shows of its subjects is ${pct(basis.seen)} ("${basis.subject}")` : `it shows ${pct(basis.seen)} of "${basis.subject}"`;
+    const owed = basis.kind === 'own' && basis.many ? `where both its ends show at least ${pct(basis.expected)}` : `where its ends lead you to expect ${pct(basis.expected)}`;
+    const message = `${who}: at ${tenth(basis.at)} s ${most}, ${owed} — ${what} on the way`;
     const helps = (d) => d !== undefined && d !== null && d < drop;
     const fix = helps(hint?.levelDrop) && hint.levelDrop <= SIGHT_DROP ? 'keep it level, its rise is what hides it: lift: 0'
       : helps(hint?.higherDrop) ? `lift it over: lift: ${Math.min(MOST_LIFT, (hint.lift ?? 0) + 15)}`
         : hint?.do === 'fly' && hint.turn > 0 ? `cut instead: cutPast: ${Math.max(0, Math.floor(hint.turn) - 1)}`
+          : hint?.do === 'fly' && !basis.blocker ? "frame its ends wider: size: 'wide' on from and to"
           : hint?.do === 'orbit' ? "start from a higher or wider view: from: {from: 'front high', size: 'wide'}"
             : basis.blocker ? `take the path over or round "${basis.blocker}", or cut` : 'keep the subject in frame on the way, or cut';
     return { level: 'warn', message, fix };
@@ -88,7 +97,8 @@ const inSight = {
  * same pace the planner read, so following the fix clears the finding), or a hand path's length scaled by how far over it is.
  */
 function slower(ratio, basis, hint) {
-  const need = hint?.comfortSeconds && hint.comfortSeconds > hint.seconds ? hint.comfortSeconds : Math.max(ceil1((basis.seconds * ratio) / CAMERA_MOVES.planShare), ceil1(basis.seconds + 0.1));
+  const most = Math.max(ratio, hint?.speedRatio ?? 0);   // a hand path's turn and travel fixes agree on the larger
+  const need = hint?.comfortSeconds && hint.comfortSeconds > hint.seconds ? hint.comfortSeconds : Math.max(ceil1((basis.seconds * most) / CAMERA_MOVES.planShare), ceil1(basis.seconds + 0.1));
   if (need <= MOST_MOVE_SECONDS) return `slow it: seconds: ${need}`;
   return hint?.do === 'fly' ? `too far to fly at a comfortable pace (${need} s): leave seconds out, and it cuts` : `too far to move at a comfortable pace (${need} s): cut instead`;
 }
