@@ -23,8 +23,8 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring; rolling, sliding and spinning in closed form — see [physics/README.md](physics/README.md) |
 | `models/` | the model interface and registry (`registry.js`), how a model is chosen as data (`rules.js` · `CHOOSE_RULES`), this package's eleven models (the `hand-sketch` model lives in `strokes/`), the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
 | `intents/` | the intent decider: an author's list of intents in, every move decided by steps in one list (`HUMAN_STEPS`, `planIntents` in `steps.js`; the reader `read.js`; the bounded track summary `summary.js`; the per-intent keys `keys.js`) — see below |
-| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, `pen-lifts`, `stroke-order`, `hatch-gaps` (from `strokes/`), `roll-slip`, `spin`, and `checkMove` (`check.js`) |
-| `strokes/` | hand-drawn strokes: a drawing's order (outline, detail, fills; the fewest strokes), each stroke's pace, width, hooks and tremor, hatching and scribbles clipped exactly, a frame-to-frame boil, the `hand-sketch` model and its critics `pen-lifts`, `stroke-order`, `hatch-gaps`, and two isometric style choices on strokes — see [strokes/README.md](strokes/README.md) |
+| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, `pen-lifts`, `stroke-order`, `hatch-gaps`, `pace` (from `strokes/`), `roll-slip`, `spin`, and `checkMove` (`check.js`) |
+| `strokes/` | hand-drawn strokes: a drawing's order (outline, detail, fills; the fewest strokes), each stroke's pace, width, hooks and tremor, hatching and scribbles clipped exactly, a frame-to-frame boil, the `hand-sketch` model and its critics `pen-lifts`, `stroke-order`, `hatch-gaps`, `pace`, and two isometric style choices on strokes — see [strokes/README.md](strokes/README.md) |
 | `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
 
@@ -143,7 +143,7 @@ checkMove(move).findings;      // []: no extra lift, no detail before its outlin
 boilSketch(move.plan, 7).held; // 2: the same drawing for frames 6 to 8
 ```
 
-The order rule, the pen's numbers, the fills, the boil, the critics `pen-lifts`, `stroke-order` and `hatch-gaps`, the
+The order rule, the pen's numbers, the fills, the boil, the critics `pen-lifts`, `stroke-order`, `hatch-gaps` and `pace`, the
 paint list's `stroke` item and the style choices `human:sketchy` and `human:hatch`: [strokes/README.md](strokes/README.md).
 
 ## Physics and wrappers

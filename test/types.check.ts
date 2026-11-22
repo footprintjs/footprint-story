@@ -346,7 +346,7 @@ humanFlow({ frame: [1, 1] });
 // hand-drawn strokes: a drawing planned as a hand draws it, sampled, boiled; fills; the paint list's stroke item; the style choices
 import { planSketch, sampleSketch, boilSketch, hatchLines, leastStrokes, withOvershoot, shapesOfPaint, strokeItems, strokeOutline, sketchyLine, hatchTexture, ROLE_FILLS, SKETCH, WIDTH_SHARE,
   LIFT, MOST_SKETCH_POINTS, BOIL, MOST_BOIL_FRAME, MIN_PIECE, MOST_HATCH_LINES, CROSS_TURN, ORDER_RULE, MOST_BRIDGE_EDGES, MERGE, CORNER, PEN_WIDTH, STROKE_STEP, SKETCH_LAYERS,
-  FILL_KINDS, HATCH, MOST_SHAPES, MOST_SHAPE_POINTS, MOST_SKETCH_INPUT, ELLIPSE_POINTS, HIDDEN, SKETCH_KEYS, PEN_LIFTS_MOST, STROKE_ORDER_MOST, HATCH_GAP_MOST } from 'footprint-story/human';
+  FILL_KINDS, HATCH, MOST_SHAPES, MOST_SHAPE_POINTS, MOST_SKETCH_INPUT, ELLIPSE_POINTS, HIDDEN, SKETCH_KEYS, PEN_LIFTS_MOST, STROKE_ORDER_MOST, HATCH_GAP_MOST, PACE_MOST } from 'footprint-story/human';
 import type { SketchShape, SketchPlan, SketchStroke, SketchSet, FillKind } from 'footprint-story/human';
 const sketchShapes: SketchShape[] = [{ points: [[0, 0], [100, 0], [100, 100], [0, 100]], closed: true, group: 'box', fill: { kind: 'hatch', spacing: 10 } }, { points: [[0, 50], [100, 50]], layer: 'detail' }];
 const sketch: SketchPlan = planSketch(sketchShapes, { seed: 'box', tremor: 1 });
@@ -357,7 +357,7 @@ export const strokes: unknown[] = [sampleSketch(sketch, 0.5).down, boilSketch(sk
   leastStrokes({ corners: [[0, 0], [1, 0]], edges: [{ a: 0, b: 1 }] }), withOvershoot([[0, 0], [10, 0], [10, 10]]), shapesOfPaint([{ item: 'polygon', role: 'top', points: [[0, 0], [1, 0], [0, 1]] }]),
   strokeItem.points[0][3], strokeOutline(strokeItem.points), sketchyLine.name, hatchTexture.column, ROLE_FILLS.left, firstStroke.ws[0], kind, sketchMove.plan.seconds, SKETCH.speed, WIDTH_SHARE.fill,
   LIFT.seconds, MOST_SKETCH_POINTS, BOIL.every, MOST_BOIL_FRAME, MIN_PIECE, MOST_HATCH_LINES, CROSS_TURN, ORDER_RULE, MOST_BRIDGE_EDGES, MERGE, CORNER.angle, PEN_WIDTH.thin, STROKE_STEP, SKETCH_LAYERS,
-  FILL_KINDS, HATCH.spacing, MOST_SHAPES, MOST_SHAPE_POINTS, MOST_SKETCH_INPUT, ELLIPSE_POINTS, HIDDEN, SKETCH_KEYS, PEN_LIFTS_MOST, STROKE_ORDER_MOST, HATCH_GAP_MOST,
+  FILL_KINDS, HATCH.spacing, MOST_SHAPES, MOST_SHAPE_POINTS, MOST_SKETCH_INPUT, ELLIPSE_POINTS, HIDDEN, SKETCH_KEYS, PEN_LIFTS_MOST, STROKE_ORDER_MOST, HATCH_GAP_MOST, PACE_MOST,
   isoStyle({ line: 'human:sketchy' }, { choices: [sketchyLine] }).row.line];
 // @ts-expect-error a fill kind that is not one
 planSketch([{ points: [[0, 0], [1, 0], [0, 1]], closed: true, fill: { kind: 'dots' } }], { seed: 'x' });

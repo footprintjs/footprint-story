@@ -97,3 +97,4 @@ export { SKETCH_KEYS } from './src/human/strokes/model.js';
 export { PEN_LIFTS_MOST } from './src/human/strokes/penLifts.js';
 export { STROKE_ORDER_MOST } from './src/human/strokes/strokeOrder.js';
 export { HATCH_GAP_MOST, REGION_LEAST } from './src/human/strokes/hatchGaps.js';
+export { PACE_MOST } from './src/human/strokes/pace.js';

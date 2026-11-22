@@ -27,11 +27,11 @@ const sparse = made('test:sparse', () => [{ layer: 'outline', path: [...square(0
 const models = [traced, twice, detailFirst, sparse];
 const check = (name) => checkMove(planMove({ do: 'sketch', who: `blocks[3] ("${name}")`, shapes: box, model: `test:${name}` }, { models }), { models });
 
-test('the registry: do: sketch is the family sketch, its usual model hand-sketch, which names the three stroke critics', () => {
+test('the registry: do: sketch is the family sketch, its usual model hand-sketch, which names the three stroke critics and the pace', () => {
   assert.equal(HUMAN_DOS.sketch, 'sketch'); assert.equal(USUAL_MODELS.sketch, 'hand-sketch');
   assert.deepEqual(SKETCH_KEYS, ['shapes', 'seconds', 'speed']);
   const move = planMove({ do: 'sketch', name: 'box', who: 'blocks[1] ("box")', shapes: box });
-  assert.deepEqual(move.checks, ['pen-lifts', 'stroke-order', 'hatch-gaps']);
+  assert.deepEqual(move.checks, ['pen-lifts', 'stroke-order', 'hatch-gaps', 'pace']);
   assert.match(move.reason, /^do: 'sketch' → hand-sketch, the usual for do: 'sketch' — 3 shapes drawn in \d+ strokes \(3 of lines, the least the corners allow being 3; 1 set of fill lines\) over [\d.]+ s — outline, then detail, then fills, from the top left/);
   assert.equal(move.plan.basis.leastStrokes, 3); assert.equal(move.plan.basis.strokes, move.plan.strokes.length);
   assert.equal(move.plan.basis.speedDefaulted, true); assert.equal(move.plan.basis.secondsGiven, false);

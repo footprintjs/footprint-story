@@ -2,7 +2,7 @@
  * What the sketch critics read of a track: the plan's strokes, checked enough to measure. A tool's own sketch model
  * gives its plan as it likes; a critic measures what it can read and says null (it cannot say) for the rest.
  *
- *   sketchOf(track) → {strokes: [{layer, group, start, seconds, path?, set?, xs?, ys?}], sets} | null
+ *   sketchOf(track) → {strokes: [{layer, group, start, seconds, length?, path?, set?, xs?, ys?}], sets} | null
  */
 import { basePlan } from '../models/wrap.js';
 import { finite, isRecord } from '../read.js';
@@ -16,6 +16,7 @@ export function sketchOf(track) {
   if (!isRecord(plan) || !Array.isArray(plan.strokes) || !plan.strokes.length) return null;
   const strokes = plan.strokes.filter((s) => isRecord(s) && LAYERS.includes(s.layer) && finite(s.start) && finite(s.seconds)).map((s, i) => ({
     index: i, layer: s.layer, group: typeof s.group === 'string' ? s.group : '', start: s.start, seconds: s.seconds,
+    length: finite(s.length) && s.length >= 0 ? s.length : null,
     path: points(s.path) ? s.path : null, set: Number.isInteger(s.set) ? s.set : null,
     xs: Array.isArray(s.xs) && Array.isArray(s.ys) && s.xs.length === s.ys.length && s.xs.every(finite) && s.ys.every(finite) ? s.xs : null, ys: s.ys,
   }));
