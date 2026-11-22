@@ -292,3 +292,6 @@ const dropModel: HumanModel = { family: ['fall', 'throw'], name: 'reel:drop', pl
 export const physics: unknown[] = [names, wrappedPlan, basePlan(kept.plan).seconds, WRAPPER_NAMES, THROW_KEYS, FALL_KEYS, physicsNumbers, dropModel, sampleTrack(kept).plan, checkMove(lively).findings];
 // @ts-expect-error a hold says when and for how long
 hold(thrown, { seconds: 1 });
+// 0.27.0, last round: bells counted from the motion; one settle rule; spacing's upper bound
+import { wrappedPushes, checkSettles, SETTLED_WITHIN, SPACING_MOST } from 'footprint-story/human';
+export const lastRound: number[] = [wrappedPushes(kept.plan, (p, t) => ({ x: t, y: 0 })), checkSettles('snappy', 'me'), SETTLED_WITHIN, SPACING_MOST];

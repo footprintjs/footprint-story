@@ -12,8 +12,8 @@
  * intent never guesses it.
  */
 import { readPoint, refuse, shown, stored } from '../read.js';
-import { FEEL_NAMES, FEELS, spring } from '../../motion/spring.js';
-import { settleLeft, settleSeconds } from '../physics/settle.js';
+import { FEEL_NAMES, FEELS } from '../../motion/spring.js';
+import { checkSettles, settleLeft, settleSeconds } from '../physics/settle.js';
 import { intentKeys, optionNumber, round } from './options.js';
 
 /** The least overshoot the reason mentions: half a percent of the way (the default feel's, e^−40, is not seen). */
@@ -42,7 +42,7 @@ export const springModel = Object.freeze({
     const from = readPoint(stored(intent, 'from', `${who}'s from`), `${who}'s from`), to = readPoint(stored(intent, 'to', `${who}'s to`), `${who}'s to`);
     const feel = readSpringFeel(options), { k, d } = typeof feel === 'string' ? FEELS[feel] : feel, seconds = settleSeconds(feel);
     // a spring of one's own may be too soft to settle within the motion spring's scan (30 s): refused, never cut short
-    if (Math.abs(1 - spring(seconds, feel)) > 0.005) refuse(`${who}: its spring (k ${k}, d ${d}) does not settle within ${round(seconds, 0)} s, the longest a settle is read — a larger k or d`);
+    checkSettles(feel, who);
     const ratio = d / (2 * Math.sqrt(k)), distance = Math.hypot(to[0] - from[0], to[1] - from[1]);
     const overshoot = ratio < 1 ? Math.exp((-Math.PI * ratio) / Math.sqrt(1 - ratio * ratio)) : 0;
     return { seconds, from: [...from], to: [...to], feel, pushes: 1,

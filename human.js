@@ -31,7 +31,7 @@ export { bounces, bounceAt, MIN_BOUNCE, MOST_BOUNCES } from './src/human/physics
 export { runChain, relaxChain, pinAt, substepsFor, stretchOf, MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK, MOST_STEP_SAG, MOST_SUBSTEPS, LAYOUT_ROUNDS } from './src/human/physics/chain.js';
 export { makeWorld, readWorld, pushOut, collide, depthIn, MOST_BOXES } from './src/human/physics/collide.js';
 export { verletStep, simulate, PHYSICS_STEP, STEPS_PER_FRAME, GRAVITY, MOST_PHYSICS_SECONDS } from './src/human/physics/step.js';
-export { settleLeft, settleSeconds } from './src/human/physics/settle.js';
+export { settleLeft, settleSeconds, checkSettles, SETTLED_WITHIN } from './src/human/physics/settle.js';
 
 // models — an intent planned by a named model, and sampled
 export { HUMAN_FAMILIES, HUMAN_DOS, HUMAN_MODELS, USUAL_MODELS } from './src/human/models/registry.js';
@@ -45,7 +45,7 @@ export { MOST_CHAIN_LINKS, MOST_CHAIN_SECONDS, MOST_PATH_KEYS, MOST_CHAIN_GRAVIT
 export { OVERSHOOT_SEEN } from './src/human/models/spring.js';
 
 // wrappers — a move reshaped by the animation principles, read by sampleMove like any other
-export { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES, ADDED_BELLS } from './src/human/models/wrap.js';
+export { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES, ADDED_BELLS, wrappedPushes } from './src/human/models/wrap.js';
 
 // critics — what still looks wrong, measured and said
 export { HUMAN_CRITICS, FINDING_LEVELS } from './src/human/critics/registry.js';
@@ -53,6 +53,6 @@ export { checkMove } from './src/human/critics/check.js';
 export { JERK_PEAK_SHARE } from './src/human/critics/jerk.js';
 export { ARC_LEAST } from './src/human/critics/arc.js';
 export { PEN_SPEED_MOST } from './src/human/critics/penSpeed.js';
-export { SPACING_LEAST } from './src/human/critics/spacing.js';
+export { SPACING_LEAST, SPACING_MOST } from './src/human/critics/spacing.js';
 export { VOLUME_MOST } from './src/human/critics/volume.js';
 export { CONTACT_MOST } from './src/human/critics/contact.js';

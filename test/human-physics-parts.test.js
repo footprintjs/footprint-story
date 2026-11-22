@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   planMove, sampleMove, sampleTrack, checkMove, anticipate, followThrough, hold, overshoot, basePlan, isWrapped, MOST_WRAPPERS, BY_SHARE, ADDED_BELLS, CHAIN_LENGTH_TOLERANCE,
+  MIN_TRAVEL, wrappedPushes, checkSettles, SPACING_MOST,
   makeWorld, readWorld, pushOut, collide, depthIn, launch, fallSeconds, bounces, settleLeft, settleSeconds, simulate, verletStep, PHYSICS_STEP,
 } from '../human.js';
 import { spacing } from '../src/human/critics/spacing.js';
@@ -32,7 +33,8 @@ test('wrappers: a move in, a move out — the record nests, the reason says it, 
   assert.equal(f.plan.seconds, d + 0.25 * d);
   assert.equal(h.plan.seconds, d + 0.5);
   assert.equal(o.plan.seconds, d + settleTime('snappy'));
-  assert.deepEqual([a.plan.wrapper, a.plan.share, a.plan.by, a.plan.pushes], ['anticipate', 0.2, null, 3]);
+  assert.deepEqual([a.plan.wrapper, a.plan.share, a.plan.by, sampleTrack(a).pushes], ['anticipate', 0.2, null, 3]);
+  assert.equal(a.plan.pushes, undefined, 'the count is the motion\'s, read when sampled, not written on the plan');
   assert.deepEqual(o.plan.basis, { share: 0.2, by: 10, added: settleTime('snappy'), seconds: o.plan.seconds, innerSeconds: d });
   assert.match(a.reason, /then anticipate: a pull back of 8% of its distance over 0\.16 s, released into the move$/);
   assert.match(o.reason, /then overshoot: arrives 10 px past the end and settles back over [0-9.]+ s$/);
@@ -51,7 +53,7 @@ test('wrappers: a move in, a move out — the record nests, the reason says it, 
   const n = overshoot(hold(anticipate(move), { at: 0, seconds: 0.1 }), { by: 3, feel: { k: 200, d: 20 } });
   assert.deepEqual(n.wrappers, ['anticipate', 'hold', 'overshoot']);
   assert.deepEqual(basePlan(n.plan), move.plan); assert.ok(isWrapped(n.plan) && !isWrapped(move.plan));
-  assert.deepEqual(n.plan.feel, { k: 200, d: 20 }); assert.equal(n.plan.pushes, 1 + 2 + 0 + 1, 'anticipate 2, a hold at 0 none, overshoot 1');
+  assert.deepEqual(n.plan.feel, { k: 200, d: 20 }); assert.equal(sampleTrack(n).pushes, 1 + 2 + 0 + 1, 'anticipate 2, a hold at 0 none, overshoot 1');
   assert.deepEqual(s(n, n.plan.seconds), s(move, d));
   // the critics read a wrapped move too
   assert.deepEqual(checkMove(n).findings, []);
@@ -65,7 +67,8 @@ test('each wrapper counts the speed bells it adds: a wrapped reach is never twit
   const reach = planMove({ do: 'reach', from: [0, 0], to: [300, 0] }), d = reach.plan.seconds;
   const wrapped = { anticipate: anticipate(reach), 'follow-through': followThrough(reach), overshoot: overshoot(reach), hold: hold(reach, { at: d / 2, seconds: 0.3 }) };
   for (const [name, w] of Object.entries(wrapped)) {
-    assert.equal(w.plan.pushes, 1 + ADDED_BELLS[name], name);
+    assert.equal(sampleTrack(w).pushes, 1 + ADDED_BELLS[name], name);
+    assert.equal(wrappedPushes(w.plan, (p, t) => sampleMove({ ...reach, plan: p }, t)), 1 + ADDED_BELLS[name]);
     const c = checkMove(w);
     assert.equal(c.measures.jerk, 0, `${name}: the bells it adds are the pushes it declares`);
     assert.deepEqual(c.findings, [], name);
@@ -73,12 +76,38 @@ test('each wrapper counts the speed bells it adds: a wrapped reach is never twit
   assert.deepEqual(ADDED_BELLS, { anticipate: 2, 'follow-through': 2, overshoot: 1, hold: 1 });
   const models = [twitch], tm = planMove({ do: 'reach', from: [0, 0], to: [1, 1], model: 'test:twitch' }, { models });
   assert.equal(checkMove(tm, { models }).measures.jerk, 1);
-  for (const [name, w] of [['anticipate', anticipate(tm, { by: 0 })], ['follow-through', followThrough(tm, { by: 0 })], ['overshoot', overshoot(tm, { by: 0 })], ['hold at 0', hold(tm, { at: 0, seconds: 0.2 })], ['hold at the end', hold(tm, { at: 2, seconds: 0.2 })]]) {
-    assert.equal(w.plan.pushes, 1, `${name} adds no motion, so no push`);
+  const nothing = [['anticipate', anticipate(tm, { by: 0 })], ['follow-through', followThrough(tm, { by: 0 })], ['overshoot', overshoot(tm, { by: 0 })], ['hold at 0', hold(tm, { at: 0, seconds: 0.2 })], ['hold at the end', hold(tm, { at: 2, seconds: 0.2 })],
+    // under MIN_TRAVEL is no motion either: a billionth of a pixel clears nothing
+    ['anticipate by 1e-9', anticipate(tm, { by: 1e-9 })], ['follow-through by 1e-9', followThrough(tm, { by: 1e-9 })], ['overshoot by 1e-9', overshoot(tm, { by: MIN_TRAVEL / 2 })]];
+  for (const [name, w] of nothing) {
+    assert.equal(sampleTrack(w, { models }).pushes, 1, `${name} adds no motion, so no push`);
     const c = checkMove(w, { models });
     assert.equal(c.measures.jerk, 1, `${name}: the model's own stop-and-start is still found`);
     assert.equal(c.findings[0].critic, 'jerk');
   }
+});
+
+test('a still move under the usual by, or a hold where it is still, adds no bells: the count is the motion\'s', () => {
+  const still = planMove({ do: 'hang', from: [0, 0], length: 40, seconds: 0.1, model: { name: 'verlet', links: 2 } });
+  for (const w of [anticipate(still), followThrough(still), overshoot(still), hold(still, { at: 0.05, seconds: 0.1 })]) assert.equal(sampleTrack(w).pushes, 1, w.plan.wrapper);
+  // a large by with no direction of travel to push along makes no motion either: no bells
+  for (const w of [anticipate(still, { by: 20 }), followThrough(still, { by: 20 }), overshoot(still, { by: 20 })]) {
+    assert.equal(sampleTrack(w).pushes, 1, `${w.plan.wrapper} by 20, no direction`);
+    assert.deepEqual(sampleTrack(w).samples.at(-1).points, sampleTrack(still).samples.at(-1).points);
+  }
+  // a move held where it is still (inside an earlier hold) is not cut in two again
+  const reach = planMove({ do: 'reach', from: [0, 0], to: [300, 0] }), first = hold(reach, { at: 0.3, seconds: 0.4 });
+  assert.equal(sampleTrack(first).pushes, 2);
+  assert.equal(sampleTrack(hold(first, { at: 0.5, seconds: 0.1 })).pushes, 2, 'held again inside the first hold: still');
+  assert.equal(sampleTrack(hold(first, { at: 0.9, seconds: 0.1 })).pushes, 3, 'held again where it moves: one more');
+});
+
+test('overshoot refuses a spring that never settles, by the one rule the spring model keeps (physics/settle.js · checkSettles)', () => {
+  const reach = planMove({ do: 'reach', who, from: [0, 0], to: [100, 0] });
+  assert.throws(() => overshoot(reach, { feel: { k: 1, d: 0.1 } }), /^Error: human: blocks\[2\] \("ball"\): overshoot's feel: its spring \(k 1, d 0\.1\) does not settle within 30 s, the longest a settle is read — a larger k or d$/);
+  assert.throws(() => planMove({ do: 'settle', who, from: [0, 0], to: [1, 0], model: { name: 'spring', k: 1, d: 0.1 } }), /blocks\[2\] \("ball"\): its spring \(k 1, d 0\.1\) does not settle within 30 s/);
+  assert.equal(checkSettles('heavy', 'x'), settleTime('heavy'));
+  assert.throws(() => checkSettles({ k: 1, d: 0.1 }, 'mine'), /^Error: human: mine: its spring/);
 });
 
 test('wrappers over any model: a reach overshoots and the jerk critic counts its pushes; a still chain is not pushed some noisy way', () => {
@@ -157,6 +186,13 @@ test('critics through checkMove: measured on the track with their basis, a findi
   assert.match(spacing.finding(lv.value, who, lv.basis).message, /its drawings fall at 0% of its gravity \(0 of 1960 px\/s²\) — evenly spaced, it reads as slid along a line, not falling/);
   assert.match(spacing.finding(lv.value, who, lv.basis).fix, /do: 'fall' or do: 'throw'/);
   assert.equal(spacing.measure({ samples: [{ t: 0, x: 0, y: 0 }, { t: 1, x: 0, y: 0 }] }), null);
+  // and the upper bound: a fall much faster than its gravity reads as thrown down
+  const hurled = { who, samples: Array.from({ length: 30 }, (_, i) => ({ t: i / 30, x: 0, y: 0.5 * 3 * 1960 * (i / 30) ** 2 })) };
+  const hv = spacing.measure(hurled);
+  assert.ok(Math.abs(hv.value - 3) < 1e-9);
+  assert.match(spacing.finding(hv.value, who, hv.basis).message, /falls? at 300% of its gravity \(5880 of 1960 px\/s²\) — faster than twice its gravity, it reads as thrown down/);
+  assert.match(spacing.finding(hv.value, who, hv.basis).fix, /name the gravity it falls under/);
+  assert.equal(spacing.finding(SPACING_MOST, who, hv.basis), null);
   // ballistic's own fast sideways flights show their gravity (the old speed-variation measure fired on these)
   for (const intent of [{ do: 'fall', from: [0, 0], floor: 900, velocity: [5000, 0] }, { do: 'throw', from: [0, 500], to: [1800, 500], apex: 2 }, { do: 'fall', from: [0, 0], floor: 900, model: { name: 'bounce', restitution: 0.7, gravity: 500 } }]) {
     const c = checkMove(planMove(intent));
@@ -182,10 +218,19 @@ test('critics through checkMove: measured on the track with their basis, a findi
   // stretch: a drawn chain whose link runs long past its length is found; this package's chain is not
   const loose = { who, samples: [{ t: 0.5, x: 0, y: 0, points: [[0, 0], [0, 10], [0, 22]] }], plan: { rest: 10 } };
   const sv = stretch.measure(loose);
-  assert.deepEqual(sv, { value: sv.value, basis: { at: 0.5, link: 1, rest: 10 } });
+  assert.deepEqual(sv, { value: sv.value, basis: { at: 0.5, link: 1, rest: 10, cause: 'gravity' } });
   assert.ok(Math.abs(sv.value - 0.2) < 1e-12);
   assert.match(stretch.finding(sv.value, who, sv.basis).message, /its link 1 stretches 20\.0% past its length at 0\.50 s — it reads as elastic, not a rope/);
   assert.equal(stretch.finding(0.04, who, sv.basis), null);
+  // the fix names the cause the plan shows: a pin on a path, something in the way, or else gravity
+  assert.match(stretch.finding(0.2, who, sv.basis).fix, /fewer, longer links .* or less gravity/);
+  const onPath = stretch.measure({ ...loose, plan: { rest: 10, basis: { pathKeys: 2 }, world: { floor: 900, boxes: [] } } });
+  assert.equal(onPath.basis.cause, 'path');
+  assert.match(stretch.finding(0.2, who, onPath.basis).fix, /^slow its pin: put its path keys further apart in time/);
+  const crowded = stretch.measure({ ...loose, plan: { rest: 10, basis: { pathKeys: 0 }, world: { floor: null, boxes: [{ x: 0, y: 0, w: 1, h: 1 }] } } });
+  assert.equal(crowded.basis.cause, 'world');
+  assert.match(stretch.finding(0.2, who, crowded.basis).fix, /^give it room: move the boxes or the floor out of its swing/);
+  assert.equal(stretch.measure({ ...loose, plan: { rest: 10, world: { floor: 500, boxes: [] } } }).basis.cause, 'world');
   assert.equal(stretch.measure({ who, samples: [], plan: { world: null } }), null);
   const rope = checkMove(planMove({ do: 'hang', from: [0, 0], to: [300, 0], seconds: 2, model: { name: 'verlet', links: 64, gravity: 100000 } }));
   assert.ok(rope.measures.stretch <= CHAIN_LENGTH_TOLERANCE, `${rope.measures.stretch}`);

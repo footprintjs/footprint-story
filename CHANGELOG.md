@@ -21,10 +21,15 @@
   the move's start and end exactly and adds the time it states (a move stays at most 3600 s); `sampleMove` (so
   `sampleTrack` and `checkMove`) reads a wrapped move over its model's own sample. Each wrapper adds the speed bells it
   makes to the plan's `pushes` (`ADDED_BELLS`: anticipate 2, follow-through 2, overshoot 1, a hold inside the move 1;
-  none when its `by` is 0), so `jerk` reads a wrapped reach as meant and still finds a model's own stop-and-start.
-- **Critics** `spacing` (a fall's vertical acceleration under half its plan's gravity: slid, not falling), `volume` (over
+  none when it makes no motion: its amount under `MIN_TRAVEL`, no direction to push along, or a hold where the move is
+  still), counted from the motion when the track is sampled (`wrappedPushes`), so `jerk` reads a wrapped reach as meant
+  and still finds a model's own stop-and-start. `overshoot` refuses a spring that never settles, by the spring model's
+  own rule (`checkSettles`).
+- **Critics** `spacing` (a fall's vertical acceleration under half its plan's gravity: slid, not falling; over twice it,
+  `SPACING_MOST`: thrown down), `volume` (over
   10% change of area: rubber), `contact` (over 0.5 px into the floor or a box; the plan's world read as an intent's,
-  refused in words; the fix in the family's own keys), `stretch` (a drawn chain's link over 5% past its length), each
+  refused in words; the fix in the family's own keys), `stretch` (a drawn chain's link over 5% past its length; the fix
+  names the cause the plan shows: a pin on a path, something in the way, or gravity), each
   `{value, basis}`.
   `sampleTrack` now keeps each sample whole (a squash's `sx`/`sy`, a chain's `points`) and the move's `plan`.
 - **The physics underneath**, on the door for a tool's own model: a fixed step (`PHYSICS_STEP` 1/240 s,

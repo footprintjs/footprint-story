@@ -22,7 +22,7 @@ import { refuse, shown, stored, isRecord, finite, readPoint, MOST_SECONDS } from
 import { plainCopy } from '../plain.js';
 import { seeded } from '../../seed/seeded.js';
 import { HUMAN_DOS, modelsWith, chooseModel } from './registry.js';
-import { isWrapped, sampleWrapped } from './wrap.js';
+import { isWrapped, sampleWrapped, wrappedPushes } from './wrap.js';
 
 export const MOST_TRACK_SAMPLES = 100000;
 /** The most numbers or points one list in a sample may hold (a hanging chain's links, say). */
@@ -115,7 +115,7 @@ export function sampleMove(move, t, settings = undefined) {
 
 /** The move sampled at `rate` a second (120 unless given) from 0 to its seconds, both ends in: what a critic measures. */
 export function sampleTrack(move, settings = undefined) {
-  modelOf(move, settings, 'sampleTrack');
+  const model = modelOf(move, settings, 'sampleTrack');
   const rate = isRecord(settings) && stored(settings, 'rate', "sampleTrack's rate") !== undefined ? settings.rate : 120;
   if (!(finite(rate) && rate >= 1 && rate <= 1000)) refuse(`sampleTrack's rate is samples a second, from 1 to 1000 — not ${shown(rate)}`);
   const seconds = move.plan.seconds, count = Math.ceil(seconds * rate - 1e-9) + 1;
@@ -124,6 +124,6 @@ export function sampleTrack(move, settings = undefined) {
     const t = i >= count - 1 ? seconds : i / rate, p = sampleMove(move, t, settings);
     return Object.freeze({ ...p, t });
   });
-  return Object.freeze({ who: move.who ?? 'the move', family: move.family, model: move.model, seconds, pushes: move.plan.pushes ?? 1, samples: Object.freeze(samples), plan: move.plan });
+  return Object.freeze({ who: move.who ?? 'the move', family: move.family, model: move.model, seconds, pushes: wrappedPushes(move.plan, model.sample), samples: Object.freeze(samples), plan: move.plan });
 }
 const round1 = (n) => Math.round(n * 10) / 10;

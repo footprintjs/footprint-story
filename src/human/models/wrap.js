@@ -10,7 +10,7 @@
  * A wrapped move is the move with its plan wrapped, its `reason` carrying the wrapper's words and `wrappers` naming
  * each, innermost first. The wrapped plan is plain frozen data, the inner plan inside it unchanged:
  *
- *   { wrapper: 'anticipate' | 'follow-through' | 'hold' | 'overshoot', seconds, inner, pushes, why, basis, …its numbers }
+ *   { wrapper: 'anticipate' | 'follow-through' | 'hold' | 'overshoot', seconds, inner, why, basis, …its numbers }
  *
  *   anticipate      { share, by }           by: px, or null for BY_SHARE of the move's straight distance
  *   follow-through  { share, by }
@@ -18,11 +18,13 @@
  *   overshoot       { share, by, feel, tail }   tail = settleTime(feel); `share` of the inner's end the rise is spread over
  *
  * Every wrapper keeps the inner's start (its sample at 0) and its end (at its seconds) exactly; every other field a
- * sample gives (angle, sx, …) is the inner's; a wrapper moves x and y, and each point of `points` alike. `pushes`
- * adds the speed bells each wrapper adds (ADDED_BELLS: anticipate 2 — the pull back, and its release into the move;
- * follow-through 2 — out past the end, and back; overshoot 1 — back from past the end; a hold inside the move 1 — the
- * move is cut in two), none when its `by` is 0 (it adds no motion), so the `jerk` critic reads what a wrapper meant and
- * still finds a model's own stop-and-start under a wrapper that adds nothing.
+ * sample gives (angle, sx, …) is the inner's; a wrapper moves x and y, and each point of `points` alike.
+ * The pushes a wrapped move is made of (wrappedPushes, what sampleTrack hands the `jerk` critic) add the speed bells
+ * each wrapper makes (ADDED_BELLS: anticipate 2 — the pull back, and its release into the move; follow-through 2 — out
+ * past the end, and back; overshoot 1 — back from past the end; a hold 1 — the move cut in two), and none when it makes
+ * no motion: its amount (its `by`, or BY_SHARE of the move's distance) under MIN_TRAVEL, no direction of travel to push
+ * along, or a hold where the move is still. WHY counted when sampled: a `by` left out is a share of the move's own
+ * distance, which only the model's sample knows — so the count is the motion's, never a guess written on the plan.
  * WHY sampleMove reads a wrapped plan (move.js · sampleMove → sampleWrapped), not a wrapper model of its own: a
  * wrapper never plans from an intent, it reshapes a plan, and its inner plan must be sampled by its own model — which
  * only sampleMove can find, by name, a tool's own handed in again. A wrapper model would have to carry the registry.
@@ -30,7 +32,7 @@
  */
 import { refuse, shown, stored, isRecord, finite, readNumber, onlyKeys, MOST_SECONDS } from '../read.js';
 import { plainCopy } from '../plain.js';
-import { settleLeft, settleSeconds } from '../physics/settle.js';
+import { checkSettles, settleLeft, settleSeconds } from '../physics/settle.js';
 import { FEEL_NAMES } from '../../motion/spring.js';
 import { round } from './options.js';
 
@@ -41,9 +43,8 @@ export const BY_SHARE = 0.08;
 export const MIN_TRAVEL = 0.01;
 export const MOST_WRAPPERS = 4;
 export const WRAPPER_NAMES = Object.freeze(['anticipate', 'follow-through', 'hold', 'overshoot']);
-/** The speed bells each wrapper adds to a move (a hold only when it is inside the move). */
+/** The speed bells each wrapper adds to a move, when it makes motion (wrappedPushes). */
 export const ADDED_BELLS = Object.freeze({ anticipate: 2, 'follow-through': 2, overshoot: 1, hold: 1 });
-const bellsOf = (name, by) => (by === 0 ? 0 : ADDED_BELLS[name]);
 
 const smooth = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 /** One swing out and back, 0 at both ends and 1 at its peak: sin(πu)·(1 − u), scaled by its own peak. */
@@ -83,9 +84,9 @@ const readBy = (o, who, name) => (stored(o, 'by', `${who}: ${name}'s by`) === un
 const byWords = (by) => (by === null ? `${BY_SHARE * 100}% of its distance` : `${round(by, 1)} px`);
 
 /** The move with its plan wrapped: the reason says the wrapper, `wrappers` names each, innermost first. */
-function wrapped(move, name, inner, seconds, numbers, pushes, why, basis) {
+function wrapped(move, name, inner, seconds, numbers, why, basis) {
   if (!(seconds <= MOST_SECONDS)) refuse(`${move.who ?? 'the move'}: ${name} would make it ${round(seconds, 1)} s long — a move is at most ${MOST_SECONDS} s: a shorter hold, or fewer wrappers`);
-  const plan = { wrapper: name, seconds, inner, ...numbers, pushes: (inner.pushes ?? 1) + pushes, why, basis: { ...basis, seconds, innerSeconds: inner.seconds } };
+  const plan = { wrapper: name, seconds, inner, ...numbers, why, basis: { ...basis, seconds, innerSeconds: inner.seconds } };
   const out = { ...move, plan, reason: `${move.reason}; then ${name}: ${why}`, wrappers: [...(move.wrappers ?? []), name] };
   return plainCopy(out, `${move.who ?? 'the move'}: ${name}`);
 }
@@ -93,19 +94,19 @@ function wrapped(move, name, inner, seconds, numbers, pushes, why, basis) {
 export function anticipate(move, options = undefined) {
   const { who, seconds: d } = readMove(move, 'anticipate'), o = readOptions(options, ['share', 'by'], who, 'anticipate');
   const share = readNumber(o, 'share', `${who}: anticipate`, { lo: 0, hi: 0.5, above: true, usual: 0.15 }), by = readBy(o, who, 'anticipate');
-  return wrapped(move, 'anticipate', move.plan, d + share * d, { share, by }, bellsOf('anticipate', by), `a pull back of ${byWords(by)} over ${round(share * d)} s, released into the move`, { share, by, added: share * d });
+  return wrapped(move, 'anticipate', move.plan, d + share * d, { share, by }, `a pull back of ${byWords(by)} over ${round(share * d)} s, released into the move`, { share, by, added: share * d });
 }
 
 export function followThrough(move, options = undefined) {
   const { who, seconds: d } = readMove(move, 'followThrough'), o = readOptions(options, ['share', 'by'], who, 'followThrough');
   const share = readNumber(o, 'share', `${who}: followThrough`, { lo: 0, hi: 1, above: true, usual: 0.25 }), by = readBy(o, who, 'followThrough');
-  return wrapped(move, 'follow-through', move.plan, d + share * d, { share, by }, bellsOf('follow-through', by), `carries on ${byWords(by)} past the end and swings back over ${round(share * d)} s`, { share, by, added: share * d });
+  return wrapped(move, 'follow-through', move.plan, d + share * d, { share, by }, `carries on ${byWords(by)} past the end and swings back over ${round(share * d)} s`, { share, by, added: share * d });
 }
 
 export function hold(move, options) {
   const { who, seconds: d } = readMove(move, 'hold'), o = readOptions(options, ['at', 'seconds'], who, 'hold');
   const at = readNumber(o, 'at', `${who}: hold`, { lo: 0, hi: d }), held = readNumber(o, 'seconds', `${who}: hold`, { lo: 0, hi: MOST_SECONDS, above: true });
-  return wrapped(move, 'hold', move.plan, d + held, { at, held }, at > 0 && at < d ? ADDED_BELLS.hold : 0, `still for ${round(held)} s at ${round(at)} s`, { at, held, added: held });
+  return wrapped(move, 'hold', move.plan, d + held, { at, held }, `still for ${round(held)} s at ${round(at)} s`, { at, held, added: held });
 }
 
 export function overshoot(move, options = undefined) {
@@ -114,8 +115,10 @@ export function overshoot(move, options = undefined) {
   const f = stored(o, 'feel', `${who}: overshoot's feel`) ?? 'default';
   const own = isRecord(f) && Object.keys(f).every((k) => k === 'k' || k === 'd') && finite(stored(f, 'k', `${who}: overshoot's feel.k`)) && finite(stored(f, 'd', `${who}: overshoot's feel.d`)) && f.k > 0 && f.d > 0;
   if (!(FEEL_NAMES.includes(f) || own)) refuse(`${who}: overshoot's feel is a spring's name (${FEEL_NAMES.join(', ')}) or {k, d} above 0 — not ${shown(f)}`);
-  const feel = own ? { k: f.k, d: f.d } : f, tail = settleSeconds(feel);
-  return wrapped(move, 'overshoot', move.plan, d + tail, { share, by, feel, tail }, bellsOf('overshoot', by), `arrives ${byWords(by)} past the end and settles back over ${round(tail)} s`, { share, by, added: tail });
+  const feel = own ? { k: f.k, d: f.d } : f;
+  checkSettles(feel, `${who}: overshoot's feel`);
+  const tail = settleSeconds(feel);
+  return wrapped(move, 'overshoot', move.plan, d + tail, { share, by, feel, tail }, `arrives ${byWords(by)} past the end and settles back over ${round(tail)} s`, { share, by, added: tail });
 }
 
 /** The unit direction from a to b, or null when they are under MIN_TRAVEL apart. */
@@ -132,6 +135,28 @@ function moved(s, ox, oy) {
   return out;
 }
 
+/** The direction of travel at the start or the end of a plan sampled by `at` over `d` s (two samples), else its start
+ *  → its end, else none. */
+const wayOf = (at, d, end) => unit(end ? at(d - d / 100) : at(0), end ? at(d) : at(d / 100)) ?? unit(at(0), at(d));
+/** How far a wrapper moves the inner: its `by`, or BY_SHARE of the inner's straight distance. */
+const amountOf = (plan, at, d) => plan.by ?? BY_SHARE * Math.hypot(at(d).x - at(0).x, at(d).y - at(0).y);
+
+/**
+ * The pushes a (wrapped) plan is made of: its model's own (`pushes`, 1 when it names none), and the bells each wrapper
+ * adds when it makes motion — its amount at least MIN_TRAVEL along a direction there is (a hold: where the move is not
+ * still). sampleTrack hands this to the critics.
+ */
+export function wrappedPushes(plan, sampleInner) {
+  if (!isWrapped(plan)) return plan.pushes ?? 1;
+  const inner = plan.inner, d = inner.seconds, at = (u) => sampleWrapped(inner, u, sampleInner), below = wrappedPushes(inner, sampleInner);
+  if (plan.wrapper === 'hold') {
+    const e = d / 100, moving = plan.at > 0 && plan.at < d && unit(at(Math.max(0, plan.at - e)), at(Math.min(d, plan.at + e))) !== null;
+    return below + (moving ? ADDED_BELLS.hold : 0);
+  }
+  const moves = wayOf(at, d, plan.wrapper !== 'anticipate') !== null && amountOf(plan, at, d) >= MIN_TRAVEL;
+  return below + (moves ? ADDED_BELLS[plan.wrapper] : 0);
+}
+
 /**
  * A wrapped plan at t, its innermost plan sampled by `sampleInner` (the model's own sample). t is clamped to
  * [0, seconds]; at both ends the inner's own end is given. sampleMove calls it for a wrapped plan.
@@ -142,9 +167,7 @@ export function sampleWrapped(plan, t, sampleInner) {
   const u = t > 0 ? Math.min(t, plan.seconds) : 0;
   if (u <= 0) return at(0);
   if (u >= plan.seconds) return at(d);
-  // the direction of travel at the start or the end (two samples of the inner), else start → end, else none
-  const way = (end) => unit(end ? at(d - d / 100) : at(0), end ? at(d) : at(d / 100)) ?? unit(at(0), at(d));
-  const amount = () => plan.by ?? BY_SHARE * Math.hypot(at(d).x - at(0).x, at(d).y - at(0).y);
+  const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d);
   switch (plan.wrapper) {
     case 'hold': return u < plan.at ? at(u) : u < plan.at + plan.held ? at(plan.at) : at(u - plan.held);
     case 'anticipate': {

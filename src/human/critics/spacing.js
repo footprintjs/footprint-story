@@ -2,7 +2,8 @@
  * The `spacing` critic: how much of its gravity a fall or a throw shows — the median of its vertical acceleration (the
  * second difference of y over time) over the gravity its plan names (GRAVITY when it names none). Gravity spaces a
  * falling thing's drawings wider and wider apart down the frame; drawings evenly apart read as a thing slid along a
- * line, not falling (the animators' "timing", Thomas & Johnston 1981). Under the limit, it reads as slid.
+ * line, not falling (the animators' "timing", Thomas & Johnston 1981). Under the limit, it reads as slid; over
+ * SPACING_MOST, as thrown down.
  * WHY the vertical acceleration and not the variation of speed: a fast sideways throw keeps a near-even speed and still
  * falls exactly as it should; its vertical acceleration is its gravity whatever its speed across. WHY the median: a
  * landing is a spike of acceleration upward, and a bounce lands many times; the flights between are most of the track.
@@ -11,8 +12,10 @@ import { basePlan } from '../models/wrap.js';
 import { GRAVITY } from '../physics/step.js';
 import { finite } from '../read.js';
 
-/** The least share of its gravity a fall's drawings must show to read as falling: a half. Ours. */
+/** The least share of its gravity a fall's drawings must show to read as falling: a half; and the most: twice — faster
+ *  than that it reads as thrown down, not falling (a tool's own fall, or a track drawn by hand). Ours. */
 export const SPACING_LEAST = 0.5;
+export const SPACING_MOST = 2;
 
 export const spacing = Object.freeze({
   name: 'spacing',
@@ -31,6 +34,10 @@ export const spacing = Object.freeze({
     return { value: median / gravity, basis: { acceleration: median, gravity, steps: accel.length } };
   },
   finding(value, who, basis) {
+    if (value > SPACING_MOST) {
+      return { level: 'warn', message: `${who}: its drawings fall at ${(value * 100).toFixed(0)}% of its gravity (${Math.round(basis.acceleration)} of ${Math.round(basis.gravity)} px/s²) — faster than twice its gravity, it reads as thrown down, not falling`,
+        fix: "let gravity space it: do: 'fall' (model: 'ballistic'), or name the gravity it falls under (model: {name: 'ballistic', gravity: …})" };
+    }
     if (!(value < SPACING_LEAST)) return null;
     return { level: 'warn', message: `${who}: its drawings fall at ${(value * 100).toFixed(0)}% of its gravity (${Math.round(basis.acceleration)} of ${Math.round(basis.gravity)} px/s²) — evenly spaced, it reads as slid along a line, not falling`,
       fix: "use do: 'fall' or do: 'throw' (model: 'ballistic') so gravity spaces it" };

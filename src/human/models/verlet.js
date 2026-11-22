@@ -8,7 +8,7 @@
  *           each second); jitter (0 to 100 px, 0: each free point nudged off the straight line by the seeded random)
  *   sample  { x, y, angle, points }: the free end, the heading of its last link, every point (the pin first)
  *   basis   { length, links, linkLength, damping, jitter, gravity, seconds, secondsGiven, settled, swing, passes, substeps,
- *             stretch, linksGiven }: stretch the longest any link was past its length after any step (the `stretch` critic reads the drawn one)
+ *             stretch, linksGiven, pathKeys }: stretch the longest any link was past its length after any step (the `stretch` critic reads the drawn one)
  *
  * WHY its time is how long it swings: with no seconds it runs until every point has stayed slower than CHAIN_REST_SPEED for
  * half a swing (π√(L/g)) after the pin's last move, at most MOST_CHAIN_SECONDS — never a number somebody guessed.
@@ -89,7 +89,7 @@ function plan(intent, { who, options, random }) {
   const seconds = run.steps * PHYSICS_STEP, settled = given === undefined && run.steps < cap, swing = Math.PI * Math.sqrt(length / gravity);
   return {
     seconds, frameSeconds: PHYSICS_STEP * STEPS_PER_FRAME, links, rest, frames: run.frames, world, radius: 0, pushes: 1,
-    basis: { length, links, linksGiven, linkLength: rest, damping, jitter, gravity, seconds, secondsGiven: given !== undefined, settled, swing, passes: Math.max(MIN_CHAIN_PASSES, links), substeps: run.substeps, stretch: run.stretch },
+    basis: { length, links, linksGiven, linkLength: rest, damping, jitter, gravity, seconds, secondsGiven: given !== undefined, settled, swing, passes: Math.max(MIN_CHAIN_PASSES, links), substeps: run.substeps, stretch: run.stretch, pathKeys: path.length },
     why: `a chain of ${links} link${links === 1 ? '' : 's'}, ${round(length, 1)} px, pinned at its top${path.length ? ` and moved along ${path.length} key${path.length === 1 ? '' : 's'}` : ''}: ${given !== undefined ? `${round(seconds)} s (the seconds the intent gave)` : settled ? `swings for ${round(seconds)} s, until still for half a swing (${round(swing)} s)` : `still swinging at ${MOST_CHAIN_SECONDS} s, the most a chain runs`}`,
   };
 }

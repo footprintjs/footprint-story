@@ -134,6 +134,10 @@ export type SpringFeel = 'snappy' | 'default' | 'heavy' | 'playful' | { readonly
 /** How much of the way back is still to go at t on a spring: 1 at 0, exactly 0 at settleSeconds. */
 export function settleLeft(t: number, feel?: SpringFeel): number;
 export function settleSeconds(feel?: SpringFeel): number;
+/** How near its end a spring must come to count as settled (0.005). */
+export const SETTLED_WITHIN: number;
+/** Refuses a spring that does not settle within the motion spring's scan (30 s); gives its settle seconds. */
+export function checkSettles(feel: SpringFeel, who: string): number;
 
 // ── models ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -223,7 +227,7 @@ export function sampleTrack(move: HumanMove, settings?: (HumanSettings & { reado
 
 export type WrapperName = 'anticipate' | 'follow-through' | 'hold' | 'overshoot';
 /** A wrapped plan: the inner plan unchanged, the wrapper's name and numbers, its seconds the inner's plus what it adds. */
-export type WrappedPlan = HumanPlan & { readonly wrapper: WrapperName; readonly inner: HumanPlan; readonly pushes: number } & (
+export type WrappedPlan = HumanPlan & { readonly wrapper: WrapperName; readonly inner: HumanPlan } & (
   | { readonly wrapper: 'anticipate' | 'follow-through'; readonly share: number; readonly by: number | null }
   | { readonly wrapper: 'hold'; readonly at: number; readonly held: number }
   | { readonly wrapper: 'overshoot'; readonly share: number; readonly by: number | null; readonly feel: SpringFeel; readonly tail: number });
@@ -244,6 +248,8 @@ export const MOST_WRAPPERS: number;
 export const WRAPPER_NAMES: readonly WrapperName[];
 /** The speed bells each wrapper adds to a move's pushes (none when its by is 0; a hold only inside the move). */
 export const ADDED_BELLS: Readonly<Record<WrapperName, number>>;
+/** The pushes a plan is made of: its model's own, and the bells each wrapper adds when it makes motion (what sampleTrack hands the critics). */
+export function wrappedPushes(plan: HumanPlan, sampleInner: (plan: any, t: number) => { readonly x: number; readonly y: number }): number;
 
 // ── critics ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -254,6 +260,8 @@ export const ARC_LEAST: number;
 export const PEN_SPEED_MOST: number;
 /** The least share of its gravity a fall's vertical acceleration must show to read as falling (0.5), the most a squash may change the area (10%), the deepest a body may go into something solid (0.5 px). */
 export const SPACING_LEAST: number;
+/** The most share of its gravity a fall may show before it reads as thrown down (2). */
+export const SPACING_MOST: number;
 export const VOLUME_MOST: number;
 export const CONTACT_MOST: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }
