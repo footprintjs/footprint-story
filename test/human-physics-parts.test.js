@@ -11,6 +11,7 @@ import { spacing } from '../src/human/critics/spacing.js';
 import { volume } from '../src/human/critics/volume.js';
 import { contact } from '../src/human/critics/contact.js';
 import { stretch } from '../src/human/critics/stretch.js';
+import { jerk } from '../src/human/critics/jerk.js';
 import { sampleWrapped } from '../src/human/models/wrap.js';
 import { settleTime } from '../src/motion/spring.js';
 
@@ -85,6 +86,36 @@ test('each wrapper counts the speed bells it adds: a wrapped reach is never twit
     assert.equal(c.measures.jerk, 1, `${name}: the model's own stop-and-start is still found`);
     assert.equal(c.findings[0].critic, 'jerk');
   }
+});
+
+test('jerk scores the model and its wrappers apart: no wrapper excuses the model\'s own bell, and a wrapper making more peaks than its table is found', () => {
+  // a 500 px reach that stops half way and starts again: two bells, planned as one push (raw jerk 1)
+  const two = { family: 'reach', name: 'test:two-bells', checks: ['jerk'], plan: () => ({ seconds: 1, pushes: 1 }), sample: (p, t) => { const u = Math.min(1, Math.max(0, t)); return { x: 250 * (h5(u * 2) + h5(u * 2 - 1)), y: 0 }; } };
+  const models = [two], tm = planMove({ do: 'reach', from: [0, 0], to: [1, 1], model: 'test:two-bells' }, { models });
+  const jerkOf = (w) => checkMove(w, { models }).measures.jerk;
+  assert.equal(jerkOf(tm), 1);
+  for (const by of [0.02, 1, 5]) {
+    for (const w of [anticipate(tm, { by }), followThrough(tm, { by }), overshoot(tm, { by })]) assert.equal(jerkOf(w), 1, `${w.plan.wrapper} by ${by} must not excuse the model's own bell`);
+  }
+  assert.equal(jerkOf(anticipate(tm, { share: 0.01, by: 50 })), 1, 'a jerky wind-up excuses nothing');
+  assert.equal(jerkOf(hold(tm, { at: 0.5, seconds: 0.2 })), 1, 'a hold at the model\'s own stop excuses nothing');
+  assert.equal(jerkOf(overshoot(followThrough(hold(anticipate(tm), { at: 0.2, seconds: 0.1 })), { by: 4 })), 1, 'four wrappers deep');
+  const track = sampleTrack(anticipate(tm), { models });
+  assert.deepEqual([track.base.pushes, track.base.seconds, track.base.samples.length], [1, 1, 121]);
+  // the other way: reaches under the three wrappers (and a hold inside) show jerk 0 ...
+  const reach = planMove({ do: 'reach', from: [0, 0], to: [300, 0] });
+  for (const w of [anticipate(reach), followThrough(reach), overshoot(reach), hold(reach, { at: 0.3, seconds: 0.2 })]) assert.equal(checkMove(w).measures.jerk, 0, w.plan.wrapper);
+  assert.equal(sampleTrack(reach).base, undefined, 'a move with no wrapper carries no base');
+  // ... and an overshoot whose rise starts again after the reach has come to rest makes two bells, its table one: found
+  const late = overshoot(reach, { share: 0.05, by: 20 });
+  assert.equal(checkMove(late).measures.jerk, 1);
+  assert.equal(checkMove(late).findings[0].critic, 'jerk');
+  // the score itself, on hand-made tracks: the model's term and the wrappers' term add
+  const bell = (from, to, t0, t1, n = 20) => Array.from({ length: n }, (_, i) => ({ t: t0 + ((t1 - t0) * i) / (n - 1), x: from + (to - from) * h5(i / (n - 1)), y: 0 }));
+  const one = bell(0, 100, 0, 1), twoBells = [...bell(0, 100, 0, 1), ...bell(100, 200, 1.05, 2).slice(1)];
+  assert.equal(jerk.measure({ samples: twoBells, pushes: 2, base: { samples: one, pushes: 1 } }), 0, 'one bell added, one declared');
+  assert.equal(jerk.measure({ samples: twoBells, pushes: 1, base: { samples: one, pushes: 1 } }), 1, 'one bell added, none declared');
+  assert.equal(jerk.measure({ samples: twoBells, pushes: 3, base: { samples: twoBells, pushes: 1 } }), 1, 'the model\'s own extra bell, whatever the wrappers declare');
 });
 
 test('a still move under the usual by, or a hold where it is still, adds no bells: the count is the motion\'s', () => {

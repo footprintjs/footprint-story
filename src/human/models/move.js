@@ -8,7 +8,9 @@
  *                                                 move (models/wrap.js) samples its wrappers over its model's own sample
  *   sampleTrack(move, {rate, models})           → {who, family, model, seconds, pushes, samples: [{t, x, y, …}], plan}: what
  *                                                 the critics read — each sample whole (a squash's sx and sy, a chain's
- *                                                 points), and the plan (the contact critic reads the world it names)
+ *                                                 points), and the plan (the contact critic reads the world it names);
+ *                                                 a wrapped move adds `base`: {seconds, pushes, samples}, its model's own
+ *                                                 plan sampled alone, so the jerk critic scores the model and the wrappers apart
  *
  * A model's random() is seeded from the model's name, its options, the piece's `name` and the intent's shape — every key
  * but `who` (the words for where it was written: moving an entry in its list must not change its wobble) and the
@@ -22,7 +24,7 @@ import { refuse, shown, stored, isRecord, finite, readPoint, MOST_SECONDS } from
 import { plainCopy } from '../plain.js';
 import { seeded } from '../../seed/seeded.js';
 import { HUMAN_DOS, modelsWith, chooseModel } from './registry.js';
-import { isWrapped, sampleWrapped, wrappedPushes } from './wrap.js';
+import { basePlan, isWrapped, sampleWrapped, wrappedPushes } from './wrap.js';
 
 export const MOST_TRACK_SAMPLES = 100000;
 /** The most numbers or points one list in a sample may hold (a hanging chain's links, say). */
@@ -118,12 +120,17 @@ export function sampleTrack(move, settings = undefined) {
   const model = modelOf(move, settings, 'sampleTrack');
   const rate = isRecord(settings) && stored(settings, 'rate', "sampleTrack's rate") !== undefined ? settings.rate : 120;
   if (!(finite(rate) && rate >= 1 && rate <= 1000)) refuse(`sampleTrack's rate is samples a second, from 1 to 1000 — not ${shown(rate)}`);
-  const seconds = move.plan.seconds, count = Math.ceil(seconds * rate - 1e-9) + 1;
-  if (count > MOST_TRACK_SAMPLES) refuse(`a track of ${round1(seconds)} s at ${rate} a second is ${count} samples — at most ${MOST_TRACK_SAMPLES}: give a lower rate`);
-  const samples = Array.from({ length: Math.max(count, 2) }, (_, i) => {
-    const t = i >= count - 1 ? seconds : i / rate, p = sampleMove(move, t, settings);
-    return Object.freeze({ ...p, t });
-  });
-  return Object.freeze({ who: move.who ?? 'the move', family: move.family, model: move.model, seconds, pushes: wrappedPushes(move.plan, model.sample), samples: Object.freeze(samples), plan: move.plan });
+  const walk = (m) => {
+    const seconds = m.plan.seconds, count = Math.ceil(seconds * rate - 1e-9) + 1;
+    if (count > MOST_TRACK_SAMPLES) refuse(`a track of ${round1(seconds)} s at ${rate} a second is ${count} samples — at most ${MOST_TRACK_SAMPLES}: give a lower rate`);
+    return Object.freeze(Array.from({ length: Math.max(count, 2) }, (_, i) => Object.freeze({ ...sampleMove(m, i >= count - 1 ? seconds : i / rate, settings), t: i >= count - 1 ? seconds : i / rate })));
+  };
+  const pushes = wrappedPushes(move.plan, model.sample), track = { who: move.who ?? 'the move', family: move.family, model: move.model, seconds: move.plan.seconds, pushes, samples: walk(move), plan: move.plan };
+  // a wrapped move also carries its model's own plan, sampled alone: the critics score the model and the wrappers apart
+  if (isWrapped(move.plan)) {
+    const own = basePlan(move.plan);
+    track.base = Object.freeze({ seconds: own.seconds, pushes: own.pushes ?? 1, samples: walk({ ...move, plan: own }) });
+  }
+  return Object.freeze(track);
 }
 const round1 = (n) => Math.round(n * 10) / 10;

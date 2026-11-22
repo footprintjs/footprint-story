@@ -208,7 +208,9 @@ export interface HumanModel {
 }
 /** A sampled track, as the critics read it. */
 /** A sampled track, as the critics read it: each sample whole, and the plan (a wrapped one as it is). */
-export interface HumanTrack { readonly who: string; readonly family: HumanFamily; readonly model: string; readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[]; readonly plan: HumanPlan }
+export interface HumanTrack { readonly who: string; readonly family: HumanFamily; readonly model: string; readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[]; readonly plan: HumanPlan;
+  /** A wrapped move's model's own plan, sampled alone: the jerk critic scores the model and the wrappers apart. */
+  readonly base?: { readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[] } }
 /** A critic: a number measured on a track, and a finding in words past its limit (null within it). */
 export interface HumanCritic {
   readonly name: string;

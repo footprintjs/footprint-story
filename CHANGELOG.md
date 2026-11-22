@@ -22,8 +22,10 @@
   `sampleTrack` and `checkMove`) reads a wrapped move over its model's own sample. Each wrapper adds the speed bells it
   makes to the plan's `pushes` (`ADDED_BELLS`: anticipate 2, follow-through 2, overshoot 1, a hold inside the move 1;
   none when it makes no motion: its amount under `MIN_TRAVEL`, no direction to push along, or a hold where the move is
-  still), counted from the motion when the track is sampled (`wrappedPushes`), so `jerk` reads a wrapped reach as meant
-  and still finds a model's own stop-and-start. `overshoot` refuses a spring that never settles, by the spring model's
+  still), counted from the motion when the track is sampled (`wrappedPushes`). `jerk` scores a wrapped move in two parts —
+  the model's own plan, sampled alone (`track.base`), against its pushes; the wrapped track's further peaks against the
+  bells the wrappers declare — so no wrapper excuses a model's own stop-and-start, and a wrapper that makes more peaks
+  than its table (an overshoot rising again after a reach has come to rest) is found. `overshoot` refuses a spring that never settles, by the spring model's
   own rule (`checkSettles`).
 - **Critics** `spacing` (a fall's vertical acceleration under half its plan's gravity: slid, not falling; over twice it,
   `SPACING_MOST`: thrown down), `volume` (over
