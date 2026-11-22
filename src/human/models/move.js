@@ -23,7 +23,7 @@
 import { refuse, shown, stored, isRecord, finite, readPoint, MOST_SECONDS } from '../read.js';
 import { plainCopy } from '../plain.js';
 import { seeded } from '../../seed/seeded.js';
-import { HUMAN_DOS, modelsWith, chooseModel } from './registry.js';
+import { familyOf, modelsWith, chooseModel } from './registry.js';
 import { basePlan, isWrapped, sampleWrapped, wrappedPushes } from './wrap.js';
 
 export const MOST_TRACK_SAMPLES = 100000;
@@ -36,7 +36,7 @@ export const UNSEEDED_KEYS = Object.freeze(['who', 'seconds', 'speed']);
 const canonical = (v) => (Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : isRecord(v) ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}` : JSON.stringify(v));
 
 /** The intent's `model`: none, a name, or {name, …options}. Gives {named, options}. */
-function readModelEntry(entry, who) {
+export function readModelEntry(entry, who) {
   if (entry === undefined) return { named: undefined, options: Object.freeze({}) };
   if (typeof entry === 'string') return { named: entry, options: Object.freeze({}) };
   if (!isRecord(entry) || typeof entry.name !== 'string') refuse(`${who}'s model is a model's name, or {name, …its options} ({name: 'min-jerk', bend: 0.1}) — not ${shown(entry)}`);
@@ -49,22 +49,29 @@ function readModelEntry(entry, who) {
   return { named: entry.name, options: Object.freeze(options) };
 }
 
+/**
+ * The intent's `who` and `name`, each by its own stored field and checked: {who, name}. `who` left out is
+ * `fallback(name)` — planMove's "the move" or the piece's name; the intent decider's `intents[i]`.
+ */
+export function whoOf(intent, fallback) {
+  const rawWho = stored(intent, 'who', "an intent's who"), rawName = stored(intent, 'name', "an intent's name");
+  if (rawName !== undefined && (typeof rawName !== 'string' || !rawName || [...rawName].length > 64)) refuse(`an intent's name is its piece's name, 1 to 64 letters — not ${shown(rawName)}`);
+  if (rawWho !== undefined && (typeof rawWho !== 'string' || !rawWho.trim() || rawWho.length > 200)) refuse(`an intent's who is the words for where it was written ('blocks[2] ("hand")'), 1 to 200 letters — not ${shown(rawWho)}`);
+  return { who: rawWho ?? fallback(rawName), name: rawName };
+}
+
 /** A move planned from an intent: the model chosen and why, its options checked once, its plan as frozen plain data. */
 export function planMove(intent, settings = undefined) {
   if (!isRecord(intent)) refuse(`planMove takes an intent {do, …} ({do: 'reach', from: [x, y], to: [x, y]}) — not ${shown(intent)}`);
   if (settings !== undefined && settings !== null && !isRecord(settings)) refuse(`planMove's settings are {models, critics, frame}, or none — not ${shown(settings)}`);
   const set = (k) => (settings ? stored(settings, k, `planMove's ${k}`) : undefined);
-  const rawWho = stored(intent, 'who', "an intent's who"), rawName = stored(intent, 'name', "an intent's name");
-  if (rawName !== undefined && (typeof rawName !== 'string' || !rawName || [...rawName].length > 64)) refuse(`an intent's name is its piece's name, 1 to 64 letters — not ${shown(rawName)}`);
-  if (rawWho !== undefined && (typeof rawWho !== 'string' || !rawWho.trim() || rawWho.length > 200)) refuse(`an intent's who is the words for where it was written ('blocks[2] ("hand")'), 1 to 200 letters — not ${shown(rawWho)}`);
-  const who = rawWho ?? (rawName !== undefined ? `"${rawName}"` : 'the move');
+  const { who, name: rawName } = whoOf(intent, (name) => (name !== undefined ? `"${name}"` : 'the move'));
   const copy = plainCopy(intent, `${who} (an intent)`);
-  const doWord = copy.do;
-  if (typeof doWord !== 'string' || !Object.hasOwn(HUMAN_DOS, doWord)) refuse(`${who}'s do is ${Object.keys(HUMAN_DOS).map((d) => `'${d}'`).join(', ')} — not ${shown(doWord)}`);
+  const doWord = copy.do, family = familyOf(doWord, who);
   const frame = set('frame') === undefined ? null : readPoint(set('frame'), "planMove's frame (its width and height)");
-  const models = modelsWith(set('models'), set('critics')), family = HUMAN_DOS[doWord];
+  const models = modelsWith(set('models'), set('critics'));
   const { named, options } = readModelEntry(copy.model, who);
-  const { model, how, by } = chooseModel(models, family, named, doWord);
+  const { model, how, by } = chooseModel(models, family, named, doWord, who);
   for (const k of Object.keys(options)) if (!model.options.includes(k)) refuse(`${who}'s model "${model.name}" takes ${model.options.length ? model.options.join(', ') : 'no options'} — not ${shown(k)}`);
   if (model.check) model.check(options);
   const shape = Object.fromEntries(Object.keys(copy).filter((k) => !UNSEEDED_KEYS.includes(k) && k !== 'model' && k !== 'name').map((k) => [k, copy[k]]));

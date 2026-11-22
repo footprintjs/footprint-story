@@ -76,7 +76,7 @@ test('every source file is behind exactly one door, only the voice door reaches 
 });
 
 test('every public symbol has one door, and its types declare it', async () => {
-  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')), 'layout.js': Object.keys(await import('../layout.js')), 'record.js': Object.keys(await import('../record.js')), 'mapflow.js': Object.keys(await import('../mapflow.js')), 'human.js': Object.keys(await import('../human.js')), 'geometry.js': Object.keys(await import('../geometry.js')) };
+  const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')), 'layout.js': Object.keys(await import('../layout.js')), 'record.js': Object.keys(await import('../record.js')), 'mapflow.js': Object.keys(await import('../mapflow.js')), 'human.js': Object.keys(await import('../human.js')), 'geometry.js': Object.keys(await import('../geometry.js')), 'humanflow.js': Object.keys(await import('../humanflow.js')) };
   const all = Object.values(doors).flat();
   assert.deepEqual(all.filter((name, i) => all.indexOf(name) !== i), [], 'a symbol with two doors');
   for (const [door, names] of Object.entries(doors)) {
@@ -143,10 +143,10 @@ test('the minimum-jerk law and the geometry are leaves: they import nothing outs
   const geom = filesUnder('src/geom');
   assert.ok(geom.length > 0);
   for (const f of geom) for (const s of specifiers(path.join(root, f))) assert.ok(s.startsWith('./') && !s.slice(2).includes('/'), `${f} imports ${s}: the geometry leaf imports only its own files`);
-  const doors = ['index.js', 'voice.js', 'motion.js', 'storyboard.js', 'shot.js', 'isometric.js', 'layout.js', 'record.js', 'mapflow.js', 'human.js', 'geometry.js'];
+  const doors = ['index.js', 'voice.js', 'motion.js', 'storyboard.js', 'shot.js', 'isometric.js', 'layout.js', 'record.js', 'mapflow.js', 'human.js', 'geometry.js', 'humanflow.js'];
   for (const door of doors) {
     const reached = [...reach(door).keys()].map(relative);
-    assert.equal(reached.includes(MIN_JERK), ['shot.js', 'human.js'].includes(door), `${door} ${reached.includes(MIN_JERK) ? 'reaches' : 'does not reach'} the minimum-jerk law`);
+    assert.equal(reached.includes(MIN_JERK), ['shot.js', 'human.js', 'humanflow.js'].includes(door), `${door} ${reached.includes(MIN_JERK) ? 'reaches' : 'does not reach'} the minimum-jerk law`);
     assert.equal(reached.some((f) => f.startsWith(GEOM)), GEOM_DOORS.includes(door), `${door} ${reached.some((f) => f.startsWith(GEOM)) ? 'reaches' : 'does not reach'} the geometry leaf`);
   }
   // one copy: the geometry door reaches every geometry file and nothing else, and no file outside src/geom defines a quaternion product or slerp
@@ -164,4 +164,20 @@ test('one copy: no file outside the shared leaves defines any name they hand out
     const text = readFileSync(path.join(root, f), 'utf8');
     for (const name of names) assert.doesNotMatch(text, new RegExp(`\\bfunction\\s*\\*?\\s*${name}\\s*\\(|\\b(?:const|let|var)\\s+${name}\\s*=|[{,]\\s*${name}\\s*[:=]\\s*(?:function|\\()`), `${f}: a second copy of ${name}, which a shared leaf hands out`);
   }
+});
+
+test('the humanflow door reaches footprintjs alone, its own folder, and what the intent decider\'s steps reach — no others', () => {
+  const flow = reach('humanflow.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js'), ...reach('record.js'), ...reach('mapflow.js'), ...reach('human.js')];
+  for (const [file] of others) assert.ok(!relative(file).startsWith('src/humanflow/'), `${relative(file)}: src/humanflow loads only through its own door`);
+  const packages = [...flow].flatMap(([, specs]) => specs.filter((s) => !s.startsWith('.'))).map((s) => s.split('/')[0]);
+  assert.deepEqual([...new Set(packages)], ['footprintjs'], 'footprintjs, the caller\'s own (an optional peer), and no Node module: a chart runs anywhere footprintjs does');
+  // what it may reach of src/human is what the steps reach (steps.js, which reads the input with read.js): it composes
+  // the one copy of the decider, never a second
+  const steps = new Set([...reach('src/human/intents/steps.js').keys()].map(relative));
+  for (const [file] of flow) {
+    const f = relative(file);
+    assert.ok(f === 'humanflow.js' || f.startsWith('src/humanflow/') || steps.has(f), `${f}: the humanflow door reaches its own folder and the decider's steps`);
+  }
+  assert.ok(steps.has('src/human/intents/read.js') && [...steps].every((f) => f.startsWith('src/human/') || f === SEED || f === SPRING || f === MIN_JERK), 'the steps reach the human folder only (and the shared seed rule and the motion spring)');
+  for (const f of readdirSync(path.join(root, 'src', 'humanflow')).filter((x) => x.endsWith('.js'))) assert.ok(flow.has(path.join(root, 'src', 'humanflow', f)), `src/humanflow/${f} is behind no door`);
 });

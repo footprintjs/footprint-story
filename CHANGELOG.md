@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — angles, rotations and camera moves
+## 0.29.0 — angles, rotations and camera moves
 
 - **A new door, `footprint-story/geometry`** (pure, no dependencies, loads only `src/geom/`), for the geometry leaf: `angleAt` (the angle at b in a–b–c, 2D or 3D, by
   atan2 so a sliver keeps its digits; null when a point sits on b), `dihedral` (the signed twist about b→c, IUPAC's sign;
@@ -44,6 +44,35 @@
 - `src/shot/camera.js` gains `shotCamera` (the camera a shot asks for, read on a read scene with its problems under a
   path), which `frameOf` and the camera moves share; `src/shot/check.js` exports `reportOf` for the sight critic.
   Neither is on a door.
+
+## 0.28.0 — the intent decider
+
+- **`planIntents(intents, {models, critics, frame})` and `HUMAN_STEPS`** (`footprint-story/human`; docs/design/2026-11-human-motion.md ·
+  "The decider"): an author's list of intents in, every move decided by named, pure steps in one list — read → choose →
+  plan → wrap → sample → check → findings. It gives frozen plain data, per intent: the choice (`choices`: family, model,
+  `by`, the rule's words, whether the model is a tool's own), the plan with its basis (`plans`), the wrapped move
+  (`moves`; an intent asks with `wrap: [{wrapper: 'anticipate', …}]`, at most 4), its duration beside its model's basis
+  (`durations`), its track summed up in a bounded record (`tracks`: at most `SUMMARY_POINTS`, 16, samples), the critics'
+  measures (`checks`), and one list of `findings`, each naming its intent, `who`, the critic and the fix. Each intent's
+  values are also written under keys of their own — `model-<i>`, `duration-<i>` (the seconds and the model's basis,
+  flat), `findings-<i>` (`intentKey`, `PER_INTENT`) — so a record answers about one entry whole, never as a cut list. At
+  most `MOST_INTENTS` (64) intents, so every step's rows stay within what the record reader keeps of a step; each read by its own stored fields (a getter never runs) and named `intents[i]` when it
+  gives no `who`.
+- **How a model is chosen is data:** `CHOOSE_RULES`, a first-match table in the shape of footprintjs `decide()` rules —
+  the model the intent names, else its family's usual. `planMove` reads the same table, so its choices are unchanged.
+- **`planMove`'s words for a model it cannot use now start with the intent's `who`** ("hand": there is no model
+  "nope" …; "the move": the model "spring" is for a settle …), and say a tool's own model "is handed in as models"
+  (was "goes in planMove's models"), since `planIntents` gives the same words.
+- **New door `footprint-story/humanflow`** (`humanFlow`, `runHumanFlow`; `footprintjs` an optional peer, as for
+  `/mapflow`): the same steps as a footprintjs chart, `choose` a decider that writes each choice and the list's reason
+  (`chose`: `'ours'`, or `'own'` when a tool's own model — code no record holds — plans a move), run with
+  `writeProvenance: 'reads-prefix'`. Its result equals `planIntents`' (a property test over random intent lists), so
+  `whyFromRecord` answers from the record file why one move took its duration (`duration-<i>`: through the plan and
+  the decision, Fitts's distance, target and bits in the answer) and why its model was chosen (`model-<i>`).
+- **`whyFromRecord` shows the value asked for up to 1000 characters** (`WHY_LIMITS.asked`; one line, as before); every
+  other name and value it shows stays at 200 (`WHY_LIMITS.value`). The cut counts code points, so an emoji at the cut
+  is never split in two. The asked value is the answer: one entry asked by its
+  own key comes back whole (a hanging chain's duration and its basis are about 300 characters).
 
 ## 0.27.0 — light physics and secondary motion on `footprint-story/human`; one seed rule
 

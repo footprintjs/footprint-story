@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Eleven doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Twelve doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -41,11 +41,12 @@ Eleven doors, nothing else. A door loads only when you import it, so a page that
 | `footprint-story/mapflow` | an isometric map built as a footprintjs chart, one stage per step, so a run's record says why each block stands where it does | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
 | `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; light physics (a throw, a fall, a bounce, a hanging chain, a spring settle); named models that plan a move from an intent, wrappers that reshape it, and critics that say what still looks wrong | anywhere — browser or Node; no dependencies |
 | `footprint-story/geometry` | angles between points and the twist about a line, angles that wrap round, quaternions, slerp and squad (Shoemake), spherical places and great circles, a camera's look and its lean | anywhere — browser or Node; no dependencies |
+| `footprint-story/humanflow` | the intent decider built as a footprintjs chart, one stage per step, so a run's record says why each move got its model and its duration | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 | `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
 
 What may join: only what both tools use, and only the shared words and maths — each tool keeps its own drawing. A
-new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency of its own (the record and mapflow doors need none:
+new topic gets its own door; a door becomes a package of its own only if it ever needs a dependency of its own (the record, mapflow and humanflow doors need none:
 `footprintjs` and `foottrace` are the caller's, optional peers that both tools already have) or a release
 pace of its own.
 
@@ -313,6 +314,23 @@ import { planMove, sampleMove, overshoot } from 'footprint-story/human';
 
 const ball = planMove({ do: 'throw', from: [100, 600], to: [700, 600] });   // a 45° throw over 0.78 s, from the physics
 sampleMove(overshoot(ball, { by: 12 }), 0.9);   // landing 12 px past and settling back on a spring
+```
+
+**A list of intents, every move decided.** `planIntents(intents)` runs the intent decider: read → choose (the model by
+rules as data, `CHOOSE_RULES`: the one the intent names, else its family's usual) → plan → wrap (an intent's `wrap:
+[{wrapper: 'anticipate', …}]`) → sample (a bounded summary) → check → findings, each a pure step of `HUMAN_STEPS`. It
+gives, per intent, the choice and its rule, the plan and its basis, the move, its track summary, the critics' measures,
+and one list of findings naming `who` and the fix. `footprint-story/humanflow` runs the same steps as a footprintjs
+chart, so a run's record answers why a hand takes 0.85 s — one entry asked by its own key, `duration-0` (`runHumanFlow`, then `whyFromRecord`):
+[src/humanflow/README.md](src/humanflow/README.md).
+
+```js
+import { planIntents } from 'footprint-story/human';
+
+const r = planIntents([{ do: 'reach', name: 'hand', from: [200, 600], to: [500, 200] }, { do: 'throw', from: [100, 600], to: [700, 600] }]);
+r.choices[1].model;    // 'ballistic' — "the intent names none: its family's usual"
+r.durations[0].basis;  // { distance: 500, target: 40, targetDefaulted: true, bits: 3.75…, … }: Fitts's numbers
+r.findings;            // []: nothing looks wrong
 ```
 
 A tool adds its own model or critic under its prefix (`'reel:chalk'`). Physics: [src/human/physics/README.md](src/human/physics/README.md). More in [src/human/README.md](src/human/README.md); the papers in
@@ -600,9 +618,11 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `planMove`, `sampleMove`, `sampleTrack`, `checkMove`, `HUMAN_FAMILIES`, `HUMAN_DOS`, `HUMAN_MODELS`, `USUAL_MODELS`, `HUMAN_CRITICS` | an intent planned by a named model (its reason in words), sampled, and checked by critics that say the fix: [src/human/README.md](src/human/README.md) |
 | `/human` `anticipate`, `followThrough`, `hold`, `overshoot`, `basePlan`, `isWrapped` | the animation principles as a move → a move, over any model, read by `sampleMove` |
 | `/human` `launch`, `flightAt`, `fallSeconds`, `bounces`, `runChain`, `relaxChain`, `makeWorld`, `pushOut`, `collide`, `depthIn`, `verletStep`, `simulate`, `settleLeft`, `PHYSICS_STEP`, `GRAVITY` | light physics on a fixed step (Jakobsen 2001), for a tool's own model: [src/human/physics/README.md](src/human/physics/README.md) |
+| `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS`, `PER_INTENT`, `intentKey` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings; each intent's values also under keys of its own (`duration-3`) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
+| `/humanflow` `humanFlow`, `runHumanFlow` | the intent decider's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/humanflow/README.md](src/humanflow/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`, `geometry.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`, `humanflow.d.ts`, `geometry.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
