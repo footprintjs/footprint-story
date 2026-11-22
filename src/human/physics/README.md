@@ -145,6 +145,12 @@ distance owes, and `spin` the one nearest its samples' own `spin` × the step. A
 the short way (`shortestTurn`), and `spin`'s basis says the fastest spin that can tell (`mostReadable`, half a turn a
 sample: π × the rate); `checkMove(move, {rate})` samples more densely to read faster.
 
+A checked move is sampled at a rate its own motion sets (`../models/resolve.js`): from 120 a second, finer until no
+step turns more than 30° (`MOST_STEP_TURN`) or travels more than 16 px (`MOST_STEP_TRAVEL`), at most
+`MOST_TRACK_SAMPLES` samples — a small ball followed through at 3500 rad/s is read at 7000 a second, not as an alias. A
+step that does not shrink as the rate rises is drawn that way and judged as drawn; when the cap binds first the track
+says `resolved: false` and `spin` says so (basis `kind: 'unresolved'`) instead of judging it.
+
 `spin`'s jumps are ONE measure (`critics/spin.js` · `burstOf`): for every run of 1 to `MOST_RUN` (6) consecutive steps,
 the turn it made is set against what each side says it should have made — each side read only outside the run, from
 up to three steps beyond it, as its speed held, its line and its curve carried on in time. The run's extra turn is how far its

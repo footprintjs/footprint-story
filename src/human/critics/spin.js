@@ -30,7 +30,8 @@
  *            sides say), flight (its spread, or null), jump, spin (the middle spin in flight, or null), readBy ('spin':
  *            every step against its samples' spin | 'short': some step the short way), mostReadable (rad/s, or null) }
  *
- * A track that marks no flight (no air) is read for bursts only.
+ * A track that marks no flight (no air) is read for bursts only. A track sampled too coarsely for its own motion even at
+ * MOST_TRACK_SAMPLES (sampleTrack's `resolved: false`) is not judged: value null, basis { kind: 'unresolved', rate }.
  */
 import { shortestTurn, wrapAngle } from '../../geom/angles.js';
 import { finite } from '../read.js';
@@ -118,6 +119,9 @@ export const spin = Object.freeze({
   name: 'spin',
   limit: SPIN_MOST,
   measure(track) {
+    // a track the motion outran (sampleTrack hit MOST_TRACK_SAMPLES before every step turned within 30°) is an alias:
+    // said, never judged
+    if (track.resolved === false) return { value: null, basis: { kind: 'unresolved', rate: track.rate ?? null } };
     const s = track.samples, rates = [];
     let longest = 0;   // the longest step read the short way (s)
     for (let i = 1; i < s.length; i += 1) {

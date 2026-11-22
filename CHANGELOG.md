@@ -28,6 +28,10 @@
   (a slow spin drifting 3 → 3.5 rad/s in flight passes); at the track's end a run easing monotonically to rest (by more
   than `RESTING`, 1e-9, a step) is a stop, at its start a run only growing is a start. `spacing` now reads only a track's flight
   when its samples mark `air: 0` on the floor.
+- **A checked move is sampled at a rate its own motion sets** (`sampleTrack` with no `rate`; `BASE_RATE`,
+  `MOST_STEP_TURN`, `MOST_STEP_TRAVEL`, `stepNeed`): from 120 a second, finer until no step turns more than 30° or
+  travels more than 16 px, at most `MOST_TRACK_SAMPLES`; the track carries `rate` and `resolved`, and `spin` says
+  `unresolved` rather than judge a track the cap left aliased. A `rate` given is used as given.
 - **A wrapped roll stays a roll:** the `no-slip` plan names `turnVector` (its turn per px of travel), and `anticipate`,
   `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
   wrapped roll still turns distance / radius; a tumble that lands into a roll turns with the wrapper after it lands

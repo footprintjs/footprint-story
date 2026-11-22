@@ -368,6 +368,8 @@ import { MOST_RUN, RESTING } from 'footprint-story/human';
 export const mostRun: number = MOST_RUN + RESTING;
 import { settleCarry } from 'footprint-story/human';
 export const carried: number = settleCarry(0.1, 'snappy');
+import { BASE_RATE, MOST_STEP_TURN, MOST_STEP_TRAVEL, stepNeed } from 'footprint-story/human';
+export const resolution: number = BASE_RATE + MOST_STEP_TURN + MOST_STEP_TRAVEL + stepNeed(sampleTrack(rolled).samples) + sampleTrack(rolled).rate + (sampleTrack(rolled).resolved ? 1 : 0);
 export const stopping: number = stoppingCoefficient({ along: 0, normal: 1960, speed: 100, seconds: 30, share: 1.4 });
 // @ts-expect-error a roll's do is 'roll', never 'rolling'
 planMove({ do: 'rolling' });

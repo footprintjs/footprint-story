@@ -42,6 +42,7 @@ export { spinAt, faceSpin } from './src/human/physics/spin.js';
 // models — an intent planned by a named model, and sampled
 export { HUMAN_FAMILIES, HUMAN_DOS, HUMAN_MODELS, USUAL_MODELS } from './src/human/models/registry.js';
 export { planMove, sampleMove, sampleTrack, MOST_TRACK_SAMPLES, MOST_SAMPLE_LIST, UNSEEDED_KEYS } from './src/human/models/move.js';
+export { BASE_RATE, MOST_STEP_TURN, MOST_STEP_TRAVEL, stepNeed } from './src/human/models/resolve.js';
 export { MIN_JERK_BEND, MOST_BEND } from './src/human/models/minJerk.js';
 export { PEN_SPEED, BEND_WIDTH } from './src/human/models/powerLawPen.js';
 export { MOST_STROKES } from './src/human/models/sigmaLetter.js';

@@ -261,6 +261,8 @@ export interface HumanModel {
 /** A sampled track, as the critics read it. */
 /** A sampled track, as the critics read it: each sample whole, and the plan (a wrapped one as it is). */
 export interface HumanTrack { readonly who: string; readonly family: HumanFamily; readonly model: string; readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[]; readonly plan: HumanPlan;
+  /** The rate it was sampled at (samples a second), and whether no step turns over MOST_STEP_TURN or travels over MOST_STEP_TRAVEL (false: MOST_TRACK_SAMPLES bound first). */
+  readonly rate: number; readonly resolved: boolean;
   /** A wrapped move's model's own plan, sampled alone: the jerk critic scores the model and the wrappers apart. */
   readonly base?: { readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[] } }
 /** A critic: a number measured on a track, and a finding in words past its limit (null within it). */
@@ -276,6 +278,12 @@ export interface HumanMove { readonly model: string; readonly family: HumanFamil
 export function planMove(intent: HumanIntent, settings?: (HumanSettings & { readonly frame?: HumanPoint }) | null): HumanMove;
 export function sampleMove(move: HumanMove, t: number, settings?: HumanSettings | null): HumanSample;
 export function sampleTrack(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): HumanTrack;
+/** The rate a checked track starts at (120 a second), the most one step may turn (30°, radians) and travel (16 px) before the rate rises. */
+export const BASE_RATE: number;
+export const MOST_STEP_TURN: number;
+export const MOST_STEP_TRAVEL: number;
+/** How many times finer samples must be for every step to turn and travel within the limits (1 or under: fine). */
+export function stepNeed(samples: readonly (HumanSample & { readonly t: number })[]): number;
 
 // ── wrappers ───────────────────────────────────────────────────────────────────────────────────────────────
 

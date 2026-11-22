@@ -108,7 +108,9 @@ samples are checked as plain data (`plain.js`); what its own code throws comes o
 
 A critic is `{name, measure(track) → number | {value, basis} | null, limit, finding(value, who, basis) → {level,
 message, fix} | null}`. `checkMove(move)` samples the move (120 a second), runs the critics its model names, and gives
-`{measures, bases, findings}`:
+`{measures, bases, findings}` — sampled at a rate the move's own motion sets, from 120 a second until no step turns more
+than 30° or travels more than 16 px (`models/resolve.js`; a `rate` given is used as given; `track.resolved` false when
+MOST_TRACK_SAMPLES binds first, and the spin critic then says so rather than judge an alias):
 
 | critic | measures | finds fault when |
 |---|---|---|

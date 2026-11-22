@@ -77,8 +77,11 @@ test('a hand-drawn track with no spin is read the short way, and its basis says 
   const tiny = planMove({ do: 'roll', from: [0, 490], to: [2000, 490], radius: 1 });
   const hand = { family: 'roll', name: 'reel:hand', checks: ['spin', 'roll-slip'], plan: () => ({ ...tiny.plan }), sample: (p, t) => { const s = sampleMove(tiny, t); return { x: s.x, y: s.y, angle: s.angle }; } };
   const move = planMove({ do: 'roll', who: 'hand', model: 'reel:hand' }, { models: [hand] });
-  const at120 = checkMove(move, { models: [hand] }), at1000 = checkMove(move, { models: [hand], rate: 1000 });
+  const at120 = checkMove(move, { models: [hand], rate: 120 }), at1000 = checkMove(move, { models: [hand], rate: 1000 });
   assert.equal(at120.bases.spin.readBy, 'short');
+  // with no rate given, the track's own motion sets it: fine enough that no step turns over 30°, so it is read as it turns
+  const own = checkMove(move, { models: [hand] }), track = sampleTrack(move, { models: [hand] });
+  assert.ok(track.resolved && track.rate > 120 && own.bases.spin.mostReadable > tiny.plan.basis.speed && own.measures.spin < 1e-6, `${track.rate}`);
   near(at120.bases.spin.mostReadable, Math.PI * 120, 1e-9);
   near(at1000.bases.spin.mostReadable, Math.PI * 1000, 1e-6);
   assert.ok(at120.bases.spin.mostReadable < tiny.plan.basis.speed && at1000.bases.spin.mostReadable > tiny.plan.basis.speed);
@@ -159,4 +162,33 @@ test('a short roll wound up from the start reads as smooth: the counterexample o
   const slope = -19.79580363280165, phi = (slope * Math.PI) / 180;
   const roll = planMove({ do: 'roll', from: [0, 0], to: [30 * Math.cos(phi), 30 * Math.sin(phi)], slope, radius: 1 });
   assert.ok(checkMove(anticipate(roll, { share: 0.25 })).measures.spin <= SPIN_MOST);
+});
+
+test('a checked move is sampled at a rate its own motion sets: no step turns over 30° or travels over 16 px', async () => {
+  const { BASE_RATE, MOST_STEP_TURN, MOST_STEP_TRAVEL } = await import('../src/human/models/resolve.js');
+  assert.deepEqual([BASE_RATE, MOST_STEP_TURN, MOST_STEP_TRAVEL], [120, Math.PI / 6, 16]);
+  // the 30 px radius-1 roll followed through by 80 px: at 120 a second it turned half a turn and more between samples
+  const phi = (-15.95648731957491 * Math.PI) / 180;
+  const roll = planMove({ do: 'roll', from: [0, 0], to: [30 * Math.cos(phi), 30 * Math.sin(phi)], slope: -15.95648731957491, radius: 1 });
+  const move = followThrough(roll, { by: 79.9999997683724 }), track = sampleTrack(move);
+  assert.ok(track.resolved && track.rate > 1000, `${track.rate}`);
+  for (let i = 1; i < track.samples.length; i += 1) {
+    const a = track.samples[i - 1], b = track.samples[i];
+    assert.ok(Math.hypot(b.x - a.x, b.y - a.y) <= MOST_STEP_TRAVEL + 1e-9 && Math.abs((a.spin + b.spin) / 2) * (b.t - a.t) <= MOST_STEP_TURN + 1e-9);
+  }
+  assert.ok(checkMove(move).measures.spin <= SPIN_MOST);
+  // a slow move keeps the base rate
+  assert.equal(sampleTrack(planMove({ do: 'roll', from: [0, 490], to: [300, 490], radius: 40 })).rate, 120);
+  // a hand-drawn spin speeding up to 600 rad/s, no spin given: at 120 a second it cannot be told past 377 rad/s (it
+  // aliases); at its own rate it is read as it turns
+  const hand = { family: 'roll', name: 'reel:whirl', checks: ['spin'], plan: () => ({ seconds: 2, radius: 10 }), sample: (p, t) => ({ x: 10 * t, y: 0, angle: 150 * t * t }) };
+  const whirl = planMove({ do: 'roll', who: 'whirl', model: 'reel:whirl' }, { models: [hand] });
+  assert.ok(checkMove(whirl, { models: [hand], rate: 120 }).bases.spin.mostReadable < 600, 'aliased at 120 a second');
+  const own = checkMove(whirl, { models: [hand] });
+  assert.ok(own.bases.spin.mostReadable > 600 && own.measures.spin < 1e-6, 'resolved at its own rate');
+  // a spin the cap cannot resolve (its samples say how fast it turns) is said, not judged
+  const blur = { ...hand, name: 'reel:blur', plan: () => ({ seconds: 20, radius: 10 }), sample: (p, t) => ({ x: 0, y: 0, angle: 3e5 * t, spin: 3e5 }) };
+  const blurred = checkMove(planMove({ do: 'roll', model: 'reel:blur' }, { models: [blur] }), { models: [blur] });
+  assert.equal(blurred.measures.spin, null); assert.equal(blurred.bases.spin.kind, 'unresolved'); assert.deepEqual(blurred.findings, []);
+  assert.equal(sampleTrack(planMove({ do: 'roll', model: 'reel:blur' }, { models: [blur] }), { models: [blur] }).resolved, false);
 });

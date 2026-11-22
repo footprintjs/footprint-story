@@ -66,7 +66,7 @@ test('roll-slip cannot say when no radius is named, no angle is drawn, or it rol
 
 test('spin catches a drawn angle that jumps between two samples, and passes a steady one', () => {
   const c = roll({ flick: 0.8 }), f = c.findings.find((x) => x.critic === 'spin');
-  assert.equal(c.bases.spin.kind, 'jump'); near(c.bases.spin.at, 1 - 1 / 240, 1e-9);
+  assert.equal(c.bases.spin.kind, 'jump'); assert.ok(Math.abs(c.bases.spin.at - 1) < 1 / 120);
   assert.match(f.message, /^scene\[4\] \("wheel"\): its drawn angle jumps at 1\.00 s — 1 step turn 45\.8° more than the turning on either side says \(\d+% off\) — it flicks instead of turning$/);
   assert.match(f.fix, /let the model turn it: do: 'roll' \(radius: …\)/);
   // a step the same way for good (an angle set once by hand) flicks too
@@ -123,7 +123,7 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
   assert.ok(drawn('reel:halt', (t) => 20 * Math.min(t, 1), false) < 1e-9, 'a sudden stop on a sample');
   assert.ok(drawn('reel:halted', (t) => 20 * Math.min(t, 1.0041), false) < 1e-9, 'a sudden stop between samples');
   // a spin sped up hard and stopped dead, or started at once from rest, changes its rate — it never flicks
-  const spun = (name, angle) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 100 * t, y: 0, angle: angle(t) }) }; return checkMove(planMove({ do: 'roll', model: name }, { models: [m] }), { models: [m] }); };
+  const spun = (name, angle, rate) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 100 * t, y: 0, angle: angle(t) }) }; return checkMove(planMove({ do: 'roll', model: name }, { models: [m] }), { models: [m], ...(rate ? { rate } : {}) }); };
   assert.ok(spun('reel:stopped', (t) => (t < 0.5 ? 0 : 8 * Math.min(t - 0.5, 0.25) ** 2)).measures.spin <= SPIN_MOST, 'sped up for 0.25 s, then stopped dead');
   // a twitch: from rest, sped up for 0.05 s (six steps) and stopped dead — turn neither side (both still) explains
   assert.ok(spun('reel:twitch', (t) => (t < 0.5 ? 0 : 200 * Math.min(t - 0.5, 0.05) ** 2)).measures.spin > SPIN_MOST, 'a twitch of six steps between rests');
@@ -131,7 +131,8 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
   // a spin sped up in uneven strides (each step between its neighbours, 2, 4, 12, 14, 22, …) changes its rate unevenly — still no flick
   const strides = [0];
   for (let k = 0; k < 240; k += 1) strides.push(strides[k] + (2 * k + 6 * Math.floor(k / 2) + 2) / 120);
-  assert.ok(spun('reel:strides', (t) => strides[Math.round(t * 120)]).measures.spin <= SPIN_MOST, 'uneven strides one way');
+  // a drawing made at 120 a second, read at that rate (finer, its strides are steps of a staircase)
+  assert.ok(spun('reel:strides', (t) => strides[Math.round(t * 120)], 120).measures.spin <= SPIN_MOST, 'uneven strides one way');
   // a wrapped angle never jumps: the turn between samples is read the short way
   assert.ok(roll({ wrap: true }).measures.spin < 1e-6);
   assert.equal(roll({ still: true }).measures.spin, null, 'under three steps: nothing to compare');

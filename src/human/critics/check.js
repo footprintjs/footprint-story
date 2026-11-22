@@ -3,6 +3,8 @@
  * and the fix. WHY: "does this look human" is answered by a number and a sentence, never by looking at frames.
  *
  *   checkMove(move, {models, critics, rate})  → {measures: {critic: number | null}, bases: {critic: {…numbers} | null},
+ *                                                (the track sampled at `rate`, or, left out, at the rate the move's own
+ *                                                motion sets — models/resolve.js: no step over 30° or 16 px)
  *                                                findings: [{critic, level, message, fix, basis}]}
  *
  * A critic's measure gives a number, null (it cannot say), or {value, basis}: the number and the others it read on the
