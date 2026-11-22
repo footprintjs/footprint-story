@@ -51,8 +51,10 @@ function rowOf(lens, camera, subject, others) {
 
 const union = (boxes) => boxes.reduce((a, b) => ({ y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1) }));
 
-function reportOf(scene, camera, frame, names) {
-  const lens = aim(camera, frame), all = scene.things.map((t) => { const solid = solidOf(t), box = boxFor(lens, solid); return { solid, box, outline: outlineOf(lens, solid, box) }; });
+/** The report on read data (a read scene, camera and frame, and names it holds): what a camera move's sight critic reads at each
+ *  moment. `lens` is the camera's own unless given: a hand-made path's sample may turn the camera its own way (its look). */
+export function reportOf(scene, camera, frame, names, lens = aim(camera, frame)) {
+  const all = scene.things.map((t) => { const solid = solidOf(t), box = boxFor(lens, solid); return { solid, box, outline: outlineOf(lens, solid, box) }; });
   const subjects = names.map((n) => all.find((a) => a.solid.thing.name === n)), rows = subjects.map((s) => rowOf(lens, camera, s, all));
   const seen = subjects.filter((s) => s.box.state === 'seen').map((s) => s.box), seenRows = rows.filter((r) => r.state === 'seen'), view = viewOf(camera.azimuth, camera.elevation);
   const height = seen.length ? round((union(seen).y1 - union(seen).y0) / lens.h) : 0, worst = seenRows.reduce((a, b) => (b.inFrame < a.inFrame ? b : a), seenRows[0]);

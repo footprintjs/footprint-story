@@ -151,3 +151,82 @@ export interface ShotReport {
 export function checkShot(scene: unknown, camera: unknown, frame: unknown, shot: { readonly on: string | readonly string[] }): ShotReport;
 /** The report as one line of text a model reads, with a fix for each fault. `about` before a view means the camera stands near it. `label` leads the line in quotes. Throws on anything but a report. */
 export function shotLine(report: ShotReport, options?: { readonly label?: string }): string;
+
+// ── camera moves ─────────────────────────────────────────────────────────────────────────────────────────
+
+import type { Quat } from './geometry.js';
+
+/** What a camera move may do. */
+export const CAMERA_MOVE_DOS: readonly ['fly', 'orbit'];
+export const MOST_MOVE_SECONDS: number;
+/** The most an orbit may turn, in degrees, either way. */
+export const MOST_ORBIT: number;
+/** The highest lift, in degrees. */
+export const MOST_LIFT: number;
+/** The numbers the rule table and the timing use, each ours: degrees, and degrees a second for `comfort`. */
+export const CAMERA_MOVES: { readonly smallTurn: number; readonly cutPast: number; readonly rise: number; readonly highest: number; readonly comfort: number; readonly slide: number; readonly zoom: number; readonly planShare: number; readonly leastSeconds: number; readonly longest: number };
+export type CameraMoveKind = 'slerp' | 'arc' | 'cut';
+export type CameraMoveRule = 'turn-past-cut' | 'too-far' | 'small-turn' | 'large-turn';
+/** The rule table, first match. */
+export const CAMERA_MOVE_RULES: readonly { readonly rule: CameraMoveRule; readonly kind: CameraMoveKind; readonly when: string }[];
+export const CAMERA_MOVE_KINDS: readonly CameraMoveKind[];
+export const MOST_CAMERA_SAMPLES: number;
+
+/** One end of a fly: a shot in words (framed on the scene) or a camera in numbers (it has a `target`). */
+export type MoveEnd = Shot | Camera;
+interface MoveCommon {
+  /** Seconds; from the comfort limit when not given. */
+  readonly seconds?: number;
+  /** Degrees an arc rises over its middle (a small turn too, when given), 0 to MOST_LIFT. */
+  readonly lift?: number;
+  /** The two things the line of action runs between; the subjects when they are two. */
+  readonly line?: readonly [string, string];
+  /** Its words for where it was written, named in every finding. */
+  readonly who?: string;
+}
+export interface FlyIntent extends MoveCommon { readonly do: 'fly'; readonly from: MoveEnd; readonly to: MoveEnd; /** Degrees past which the look's turn cuts; 180 never cuts. */ readonly cutPast?: number }
+/** `by` in degrees, positive from front towards right; `from` is the view it starts from (front unless given). It never cuts. */
+export interface OrbitIntent extends MoveCommon { readonly do: 'orbit'; readonly around: string | readonly string[]; readonly by: number; readonly from?: ViewName | Omit<Shot, 'on' | 'shot'> }
+export type CameraMoveIntent = FlyIntent | OrbitIntent;
+
+export interface CameraMove {
+  readonly do: 'fly' | 'orbit';
+  readonly kind: CameraMoveKind;
+  readonly who: string;
+  readonly seconds: number;
+  readonly from: ReadCamera;
+  readonly to: ReadCamera;
+  /** The subjects the sight critic keeps in view. */
+  readonly on: readonly string[];
+  readonly line: readonly string[] | null;
+  readonly reason: string;
+  readonly choice: { readonly rule: CameraMoveRule; readonly kind: CameraMoveKind; readonly turn: number; readonly smallTurn: number; readonly cutPast: number | null };
+  /** `peak` the fastest turn (°/s), `slide` the fastest slide (frame heights a second), `zoom` the fastest growth (a factor a second), at `seconds`; `comfortSeconds` what the limits ask, `limitedBy` which one set it. */
+  readonly basis: { readonly turn: number; readonly swing: number | null; readonly lift: number | null; readonly liftCapped: boolean; readonly seconds: number; readonly secondsGiven: boolean; readonly comfortSeconds: number; readonly limitedBy: 'turn' | 'slide' | 'zoom' | 'least' | null; readonly comfort: number; readonly peak: number; readonly slide: number; readonly zoom: number };
+  readonly plan: { readonly azimuth: number; readonly swing: number; readonly elevation: readonly [number, number]; readonly lift: number; readonly focusFollows: boolean } | null;
+}
+export interface CameraSample { readonly t: number; readonly progress: number; readonly camera: ReadCamera; readonly eye: Vector; readonly look: Quat; readonly cut?: true }
+export interface CameraTrack { readonly who: string; readonly kind: CameraMoveKind; readonly seconds: number; readonly on: readonly string[]; readonly line: readonly string[] | null; readonly samples: readonly CameraSample[] }
+
+/** A camera move planned from its intent. Throws, listing every problem at once. */
+export function planCameraMove(intent: CameraMoveIntent, scene?: Scene): CameraMove;
+/** Where the camera is t seconds in. */
+export function sampleCameraMove(move: CameraMove, t: number): CameraSample;
+/** The move sampled `rate` times a second (60), both ends included. */
+export function cameraTrack(move: CameraMove, settings?: { readonly rate?: number }): CameraTrack;
+
+export type CameraCriticName = 'in-sight' | 'turn-speed' | 'travel-speed' | 'line-of-action' | 'horizon';
+export const CAMERA_CRITICS: readonly CameraCriticName[];
+/** The most of its subject a move may lose beyond what its shots show. */
+export const SIGHT_DROP: number;
+/** The most the horizon may lean, in degrees. */
+export const HORIZON_MOST: number;
+export interface CameraFinding { readonly critic: CameraCriticName; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: Readonly<Record<string, string | number | boolean | null>> }
+/** A path made by hand: samples in time, each a camera and, when it leans, its own look. */
+export interface HandCameraPath { readonly samples: readonly { readonly t: number; readonly camera: Camera; readonly look?: Quat; readonly cut?: boolean }[]; readonly who?: string; readonly on?: string | readonly string[]; readonly line?: readonly [string, string] }
+/** A move's path checked by the critics. Without a scene the sight and line critics measure null. Throws, listing every problem. */
+export function checkCameraMove(move: CameraMove | HandCameraPath, settings?: { readonly scene?: Scene; readonly frame?: Frame; readonly on?: string | readonly string[]; readonly line?: readonly [string, string]; readonly rate?: number; readonly who?: string }): {
+  readonly measures: Readonly<Record<CameraCriticName, number | null>>;
+  readonly bases: Readonly<Record<CameraCriticName, Readonly<Record<string, string | number | boolean | null>> | null>>;
+  readonly findings: readonly CameraFinding[];
+};

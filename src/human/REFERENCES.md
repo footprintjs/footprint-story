@@ -2,7 +2,7 @@
 
 | what | used in | source | what was taken |
 |---|---|---|---|
-| Minimum jerk | `laws/minJerk.js`, `models/minJerk.js` | T. Flash, N. Hogan, "The Coordination of Arm Movements: An Experimentally Confirmed Mathematical Model", *Journal of Neuroscience* 5 (7), 1985 | the fifth-order path 10u³ − 15u⁴ + 6u⁵ from rest to rest, and that a reach's speed is one bell, highest half way |
+| Minimum jerk | `src/timing/minJerk.js` (shared with the camera's moves), `models/minJerk.js` | T. Flash, N. Hogan, "The Coordination of Arm Movements: An Experimentally Confirmed Mathematical Model", *Journal of Neuroscience* 5 (7), 1985 | the fifth-order path 10u³ − 15u⁴ + 6u⁵ from rest to rest, and that a reach's speed is one bell, highest half way |
 | Fitts's law | `laws/fitts.js` | P. M. Fitts, "The Information Capacity of the Human Motor System in Controlling the Amplitude of Movement", *Journal of Experimental Psychology* 47 (6), 1954 | that a move's time grows with the log of its distance over its target's width |
 | Fitts's law, the Shannon form | `laws/fitts.js` | I. S. MacKenzie, "Fitts' Law as a Research and Design Tool in Human-Computer Interaction", *Human-Computer Interaction* 7 (1), 1992 | the index of difficulty log2(D / W + 1), which is never below 0 |
 | Fitts's constants for pointing | `laws/fitts.js` (`FITTS.b`) | R. W. Soukoreff, I. S. MacKenzie, "Towards a Standard for Pointing Device Evaluation, Perspectives on 27 Years of Fitts' Law Research in HCI", *International Journal of Human-Computer Studies* 61 (6), 2004 | the 3.7 to 4.9 bits a second reported for a mouse, near which b = 0.2 s a bit is chosen (ours: they warn that 1/b is not throughput) |

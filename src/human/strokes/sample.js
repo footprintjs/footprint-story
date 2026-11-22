@@ -5,11 +5,11 @@
  *
  * `down` is 1 while the pen draws and 0 in the air; `width` the line it lays down there (0 in the air); `stroke` the
  * index of the stroke it is drawing or has just drawn; `progress` the share of all the strokes' length drawn so far.
- * In the air the pen goes from one stroke's end to the next's start by minimum jerk (laws/minJerk.js): a reach.
+ * In the air the pen goes from one stroke's end to the next's start by minimum jerk (src/timing/minJerk.js): a reach.
  * Before 0 it waits at the first point; from the end on it rests on the last, the pen still down.
  */
 import { indexAt } from '../paths/arcLength.js';
-import { minJerk } from '../laws/minJerk.js';
+import { minJerk } from '../../timing/minJerk.js';
 
 /** The index of the last stroke that started at or before t. */
 function strokeAt(strokes, t) {

@@ -1,6 +1,6 @@
 {
   "name": "footprint-story",
-  "version": "0.28.0",
+  "version": "0.30.0",
   "description": "Shared JavaScript narration, shown/spoken text, captions, motion, human movement, framing, line-breaking and drawing-grid primitives for StoryDeck and StoryReel, with a separate Node voice-cache entry.",
   "type": "module",
   "license": "MIT",
@@ -29,6 +29,8 @@
     "transitions",
     "storyboard",
     "camera",
+    "quaternion",
+    "slerp",
     "isometric",
     "minimum-jerk",
     "fitts-law",
@@ -83,6 +85,10 @@
       "types": "./human.d.ts",
       "default": "./human.js"
     },
+    "./geometry": {
+      "types": "./geometry.d.ts",
+      "default": "./geometry.js"
+    },
     "./humanflow": {
       "types": "./humanflow.d.ts",
       "default": "./humanflow.js"
@@ -110,6 +116,8 @@
     "mapflow.d.ts",
     "human.js",
     "human.d.ts",
+    "geometry.js",
+    "geometry.d.ts",
     "humanflow.js",
     "humanflow.d.ts",
     "src",
@@ -119,7 +127,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=layout.js --test-coverage-include=record.js --test-coverage-include=mapflow.js --test-coverage-include=human.js --test-coverage-include=humanflow.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
+    "test": "node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-include=index.js --test-coverage-include=voice.js --test-coverage-include=motion.js --test-coverage-include=storyboard.js --test-coverage-include=shot.js --test-coverage-include=isometric.js --test-coverage-include=layout.js --test-coverage-include=record.js --test-coverage-include=mapflow.js --test-coverage-include=human.js --test-coverage-include=geometry.js --test-coverage-include=humanflow.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 test/*.test.js"
   },
   "devDependencies": {
     "fast-check": "^4.10.2",
