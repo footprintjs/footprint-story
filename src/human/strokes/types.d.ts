@@ -115,3 +115,5 @@ export const SKETCH_KEYS: readonly string[];
 export const PEN_LIFTS_MOST: number;
 export const STROKE_ORDER_MOST: number;
 export const HATCH_GAP_MOST: number;
+/** The most times a hand's usual pace a sketch may be drawn before the `pace` critic finds fault (2). */
+export const PACE_MOST: number;

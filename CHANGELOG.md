@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.36.0 — a sketch drawn faster than a hand draws says so
+
+- **A new finding a tool will now see: the critic `pace` on `hand-sketch`** (`src/human/strokes/pace.js` · `pace`,
+  `PACE_MOST`). Until now a `do: 'sketch'` asked for in too short a `seconds` was squeezed with no word: the plan keeps
+  every stroke and every share of each time, so `pen-lifts`, `stroke-order` and `hatch-gaps` (which read the order) and
+  even `pen-speed` (which reads the bends) all pass it. `pace` reads the speed itself: each stroke's length at a hand's
+  usual speed for its layer (400 px a second along a line, 800 along a fill), over the seconds the plan gives the pen
+  down. Past 2× (ours: a hand in a hurry draws about as fast again as the usual quick, sure hand; faster reads as a
+  recording run fast) it warns, and the fix names the seconds the drawing needs, rounded up:
+  `slow it: seconds: 1.07 (or more; 2.14 draws it at a hand's own pace)` for the house of Nikolaus asked for in 0.05 s
+  (42.7× a hand's pace). A `speed` too high is the same finding, with the same fix. It lands where every finding does:
+  `checkMove(...).findings`, `planIntents`' `findings` and its key `findings-<i>`, the human flow's record. A tool that
+  keeps a fast drawing on purpose accepts it by its name, `'pace'` (it is in `HUMAN_CRITICS`).
+- **Nothing draws differently.** Plans, seeds, reasons and samples are 0.35.1's byte for byte (digests taken on 0.35.1
+  are pinned); a drawing at its natural pace, or slower, measures 1 or under and gives no finding (pinned, and a
+  property test over random drawings and seconds: the pace is the natural seconds over the seconds asked, and following
+  the fix clears it). `hand-sketch`'s `checks` now end in `'pace'`, so `checkMove` gives one more measure and basis.
+  The sketch critics' reader (`critique.js · sketchOf`) also carries a stroke's own `length` when it gives one.
+- **The docs say what the order critics cannot see** (`src/human/strokes/README.md` · *What each critic can see*): on
+  simple input — the fewest strokes, outline first, no fills — `pen-lifts` and `stroke-order` measure 0 and
+  `hatch-gaps` null whatever the timing, because `hand-sketch` makes its order by the very rules they check.
+
 ## 0.35.1 — the check on the place along a rounded way
 
 - **A test asked the wrong thing; the code was right, and nothing draws differently.** The property "rounded: the place

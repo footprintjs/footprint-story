@@ -20,7 +20,7 @@ const curl = Array.from({ length: 9 }, (_, i) => [200 + i * 80, 400 + 120 * Math
 const ellipse = Array.from({ length: 40 }, (_, i) => [500 + 300 * Math.cos((i / 39) * 2 * Math.PI * 0.98), 400 + 60 * Math.sin((i / 39) * 2 * Math.PI * 0.98)]);
 
 test("this package's models pass their own critics", () => {
-  assert.deepEqual(HUMAN_CRITICS, ['jerk', 'pen-speed', 'arc', 'spacing', 'volume', 'contact', 'stretch', 'pen-lifts', 'stroke-order', 'hatch-gaps', 'roll-slip', 'spin']);
+  assert.deepEqual(HUMAN_CRITICS, ['jerk', 'pen-speed', 'arc', 'spacing', 'volume', 'contact', 'stretch', 'pen-lifts', 'stroke-order', 'hatch-gaps', 'pace', 'roll-slip', 'spin']);
   assert.deepEqual(checkMove(planMove({ do: 'reach', from: [100, 500], to: [800, 300] })).findings, []);
   for (const path of [curl, ellipse]) {
     const c = checkMove(planMove({ do: 'draw', name: 'w', path }));

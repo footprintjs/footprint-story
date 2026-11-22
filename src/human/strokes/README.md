@@ -19,7 +19,7 @@ Design: `docs/design/2026-11-human-motion.md` · "Hand-drawn strokes".
 | `sample.js` | where the pen is at t: down and drawing, or in the air (`sampleSketch`) |
 | `boil.js` | a finished drawing redrawn each held frame, within its rooms (`boilSketch`, `BOIL`) |
 | `model.js` | the `hand-sketch` model, family `sketch`, for `do: 'sketch'` |
-| `critique.js`, `penLifts.js`, `strokeOrder.js`, `hatchGaps.js` | the critics `pen-lifts`, `stroke-order`, `hatch-gaps` |
+| `critique.js`, `penLifts.js`, `strokeOrder.js`, `hatchGaps.js`, `pace.js` | the critics `pen-lifts`, `stroke-order`, `hatch-gaps`, `pace` |
 | `geometry.js` | inside a ring, the distance to its edge, where a segment crosses it — one answer each |
 | `paint.js` | strokes and the isometric paint list: faces → shapes (`shapesOfPaint`), strokes → `stroke` items (`strokeItems`) |
 | `outline.js` | a stroke as a painter fills it: the ring round it with its caps (`strokeOutline`, `STROKE_CAPS`, `CAP_STEPS`), the stroke as drawn by a time (`strokeAt`) |
@@ -139,10 +139,37 @@ progress}`. Its random is seeded as every model's is (the piece's `name` and the
 | `pen-lifts` | a sketch's line strokes over the fewest that draw each piece's outline and its detail, each line once (`PEN_LIFTS_MOST` 0) | any more: a line drawn twice, or shapes traced piece by piece where they meet |
 | `stroke-order` | detail or fill strokes that start before their piece's outline is finished (`STROKE_ORDER_MOST` 0) | any |
 | `hatch-gaps` | the widest band across a set of fill lines no drawn point passes through, over its spacing — an edge band counted twice, since the margin is at most half a spacing; a band that would be faulted is measured again as its widest stretch where the shape is (a line across would cross at least `REGION_LEAST`, 1 px, of it, holes left out) (`HATCH_GAP_MOST` 1.5) | over 1.5: a missed line |
+| `pace` | how many times a hand's usual pace the pen draws: each stroke's length at the usual speed for its layer (400 px a second along a line, 800 along a fill, `SKETCH`), summed, over the seconds the plan gives the pen down; the lifts left out (`PACE_MOST` 2) | over 2: drawn faster than a hand draws — a `seconds` too short for the drawing, or a `speed` too high |
 
-They read the plan (a tool's own sketch model may give `strokes` with `layer`, `group`, `start`, `seconds`, `path`,
-`set`, `xs`, `ys`, and `sets`), and say null for what is not there. Each finding names `who` and the fix in the intent's
-keys (`layer`, `group`, `fill: {spacing}`, `model: 'hand-sketch'`).
+They read the plan (a tool's own sketch model may give `strokes` with `layer`, `group`, `start`, `seconds`, `length`,
+`path`, `set`, `xs`, `ys`, and `sets`), and say null for what is not there. Each finding names `who` and the fix in the
+intent's keys (`layer`, `group`, `fill: {spacing}`, `model: 'hand-sketch'`, `seconds`).
+
+**What each critic can see, and what it cannot.** `pen-lifts`, `stroke-order` and `hatch-gaps` read the ORDER, and
+`hand-sketch` makes its order by the very rules they check: the fewest strokes, outline first, every hatch line drawn.
+So on a sketch of this package's they find fault only where its input forces one — and on simple input (lines in the
+fewest strokes, outline first, no fills) they cannot fire at all: `pen-lifts` measures 0, `stroke-order` 0,
+`hatch-gaps` null, whatever the timing. They are there for a tool's own sketch model, or shapes handed in an order
+that defeats them. Nor does `seconds` change the order: a plan squeezed into too short a `seconds` keeps every
+stroke, every share of each time, so it still slows in the bends exactly as the power law says (and `pen-speed`, which
+reads that, would pass it too). **`pace` is the one that reads the speed itself.** The house of Nikolaus (a 100 px
+square, its two diagonals and a roof, in one stroke) takes a hand 2.14 s; asked for in 0.05 s it runs at 42.7×:
+
+```js
+checkMove(planMove({ do: 'sketch', shapes: house, seconds: 0.05 })).findings;
+// [{ critic: 'pace', level: 'warn',
+//    message: "…: its pen draws at 42.7× a hand's pace (17085 px a second along its lines, where a hand draws 400) — past 2×, it reads as a drawing played fast, not a hand drawing it",
+//    fix: "slow it: seconds: 1.07 (or more; 2.14 draws it at a hand's own pace)" }]
+```
+
+The fix names the seconds that bring it to the limit, rounded up to the hundredth, and the seconds at a hand's own pace
+beside them; `seconds` scales every time (the lifts too), so it is the fix for a `speed` too high as well. Past
+`MOST_SECONDS` (3600) it says to draw it in parts. A tool that keeps a fast drawing on purpose accepts the critic by
+its name (`'pace'`), as for any other. WHY 2× (ours): the usual pace is already a quick, sure hand (400 px a second);
+a hand in a hurry draws about as fast again before its lines go loose, and a drawing played faster than that reads as
+a recording run fast, not a person drawing. At its natural pace a drawing measures 1 and is never faulted (a property
+test over random drawings and seconds: the pace is the natural seconds over the seconds asked, and following the fix
+clears it).
 
 ## Strokes in a map's paint list, and two style choices
 

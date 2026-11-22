@@ -339,7 +339,8 @@ r.findings;            // []: nothing looks wrong
 piece by piece from the top left, outline, then detail, then fills, in the fewest strokes the corners allow; each stroke
 slower in the bends, thinner when fast, tapered, hooked at a sharp corner, with the capped tremor; hatching,
 cross-hatching and scribbles clipped exactly to their shapes; `boilSketch(plan, frame)` redraws it each held frame. The
-critics `pen-lifts`, `stroke-order` and `hatch-gaps` say when an order is not a hand's:
+critics `pen-lifts`, `stroke-order` and `hatch-gaps` say when an order is not a hand's, and `pace` when it is drawn
+faster than a hand draws (a `seconds` too short for it, with the seconds it needs):
 [src/human/strokes/README.md](src/human/strokes/README.md).
 
 ```js
@@ -643,7 +644,7 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `planMove`, `sampleMove`, `sampleTrack`, `checkMove`, `HUMAN_FAMILIES`, `HUMAN_DOS`, `HUMAN_MODELS`, `USUAL_MODELS`, `HUMAN_CRITICS` | an intent planned by a named model (its reason in words), sampled, and checked by critics that say the fix: [src/human/README.md](src/human/README.md) |
 | `/human` `anticipate`, `followThrough`, `hold`, `overshoot`, `basePlan`, `isWrapped` | the animation principles as a move → a move, over any model, read by `sampleMove` |
 | `/human` `launch`, `flightAt`, `fallSeconds`, `bounces`, `runChain`, `relaxChain`, `makeWorld`, `pushOut`, `collide`, `depthIn`, `verletStep`, `simulate`, `settleLeft`, `PHYSICS_STEP`, `GRAVITY` | light physics on a fixed step (Jakobsen 2001), for a tool's own model: [src/human/physics/README.md](src/human/physics/README.md) |
-| `/human` `planSketch`, `sampleSketch`, `boilSketch`, `hatchLines`, `leastStrokes`, `withOvershoot`, `ORDER_RULE`, `SKETCH`, `CORNER`, `PEN_WIDTH`, `LIFT`, `BOIL`, `HATCH` | hand-drawn strokes: a drawing's order and why, each stroke's timed points and widths, fills clipped exactly, a bounded boil; `do: 'sketch'` plans one (model `hand-sketch`, critics `pen-lifts`, `stroke-order`, `hatch-gaps`): [src/human/strokes/README.md](src/human/strokes/README.md) |
+| `/human` `planSketch`, `sampleSketch`, `boilSketch`, `hatchLines`, `leastStrokes`, `withOvershoot`, `ORDER_RULE`, `SKETCH`, `CORNER`, `PEN_WIDTH`, `LIFT`, `BOIL`, `HATCH` | hand-drawn strokes: a drawing's order and why, each stroke's timed points and widths, fills clipped exactly, a bounded boil; `do: 'sketch'` plans one (model `hand-sketch`, critics `pen-lifts`, `stroke-order`, `hatch-gaps`, `pace`): [src/human/strokes/README.md](src/human/strokes/README.md) |
 | `/human` `shapesOfPaint`, `strokeItems`, `strokeOutline`, `strokeAt`, `STROKE_CAPS`, `CAP_STEPS`, `sketchyLine`, `hatchTexture`, `grainTexture`, `GRAIN`, `MOST_GRAIN_MARKS`, `HUMAN_STYLE_CHOICES` | strokes and the isometric paint list (its `stroke` item): the ring a painter fills, its ends capped, and the stroke as drawn by a time; three style choices (a sketched line, a hatch, a paper's grain), handed to `isoStyle` or `buildIsoMap` in `choices` — `HUMAN_STYLE_CHOICES` is all of them |
 | `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS`, `PER_INTENT`, `intentKey` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings; each intent's values also under keys of its own (`duration-3`) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |

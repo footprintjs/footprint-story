@@ -8,8 +8,11 @@
  *   sample  { x, y, width, down, stroke, progress } (sample.js)
  *   basis   { shapes, strokes, lifts, leastStrokes, points, length, seconds, secondsGiven, speed, speedDefaulted, tremor, width, overshoot, hooks, fills }
  *
- * Checked by `pen-lifts` (more strokes than the order needs), `stroke-order` (detail drawn before its outline) and
- * `hatch-gaps` (a band across a hatch no line passes through).
+ * Checked by `pen-lifts` (more strokes than the order needs), `stroke-order` (detail drawn before its outline),
+ * `hatch-gaps` (a band across a hatch no line passes through) and `pace` (drawn faster than a hand draws: a `seconds`
+ * too short for the drawing, or a `speed` too high). WHY `pace`: the order critics read the order, which a squeezed plan
+ * keeps; on a simple drawing (the fewest strokes, outline first, no fills) they cannot fire, so a drawing asked for in
+ * too little time would pass them all, unsaid.
  */
 import { readNumber, stored } from '../read.js';
 import { intentKeys, optionNumber, readSeconds, round } from '../models/options.js';
@@ -44,5 +47,5 @@ export const sketchModel = Object.freeze({
       why: `${sketch.shapes} shape${sketch.shapes === 1 ? '' : 's'} drawn in ${sketch.strokes.length} stroke${sketch.strokes.length === 1 ? '' : 's'} (${lines} of lines, the least the corners allow being ${sketch.least.outline + sketch.least.detail}${fills ? `; ${fills} set${fills === 1 ? '' : 's'} of fill lines` : ''}) over ${round(sketch.seconds)} s — outline, then detail, then fills, from the top left; slower in the bends, thinner when fast, tapered at the ends${tremor ? `, with a ${round(tremor, 1)} px tremor` : ''}` };
   },
   sample: sampleSketch,
-  checks: Object.freeze(['pen-lifts', 'stroke-order', 'hatch-gaps']),
+  checks: Object.freeze(['pen-lifts', 'stroke-order', 'hatch-gaps', 'pace']),
 });
