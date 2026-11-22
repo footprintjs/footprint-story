@@ -2,7 +2,8 @@
  * Wrappers: the animation principles as a move → a move, over ANY model's move (a reach, a throw, a hanging chain, a
  * tool's own), read by sampleMove like any other.
  *
- *   anticipate(move, { share, by })        a small move opposite first: adds share × the move's seconds before it
+ *   anticipate(move, { share, by })        a small move opposite first: adds share × the part it winds up for before it
+ *                                          (the move's seconds, or its model's `opening`: a tumble's flight)
  *   followThrough(move, { share, by })     carries on past the end and swings back: adds share × its seconds after
  *   hold(move, { at, seconds })            stops at the move's time `at` for `seconds`: adds `seconds`
  *   overshoot(move, { by, share, feel })   arrives `by` px past the end, then settles back on a spring: adds settleTime(feel)
@@ -12,7 +13,7 @@
  *
  *   { wrapper: 'anticipate' | 'follow-through' | 'hold' | 'overshoot', seconds, inner, why, basis, …its numbers }
  *
- *   anticipate      { share, by }           by: px, or null for BY_SHARE of the move's straight distance
+ *   anticipate      { share, by, lead }     by: px, or null for BY_SHARE of the move's straight distance; lead: its seconds
  *   follow-through  { share, by }
  *   hold            { at, seconds: the plan's }, basis.held: the hold's seconds
  *   overshoot       { share, by, feel, tail }   tail = settleTime(feel); `share` of the inner's end the rise is spread over
@@ -101,10 +102,30 @@ function wrapped(move, name, inner, seconds, numbers, why, basis) {
   return plainCopy(out, `${move.who ?? 'the move'}: ${name}`);
 }
 
+/**
+ * The seconds an anticipation winds up for: the move's seconds, unless its model names an `opening` — a tumble's
+ * flight, not the roll after it lands, so its wind-up is sized by the throw. That opening is carried through the
+ * wrappers inside: an anticipation's lead comes before it, a hold inside it lengthens it, a follow-through or an
+ * overshoot (after the end) leaves it.
+ */
+function openingOf(plan) {
+  const base = basePlan(plan);
+  if (!(finite(base.opening) && base.opening > 0 && base.opening <= base.seconds)) return plan.seconds;
+  const carry = (p) => {
+    if (!isWrapped(p)) return p.opening;
+    const o = carry(p.inner);
+    if (p.wrapper === 'anticipate') return p.lead + o;
+    if (p.wrapper === 'hold') return p.at < o ? o + p.held : o;
+    return o;
+  };
+  return carry(plan);
+}
+
 export function anticipate(move, options = undefined) {
   const { who, seconds: d } = readMove(move, 'anticipate'), o = readOptions(options, ['share', 'by'], who, 'anticipate');
   const share = readNumber(o, 'share', `${who}: anticipate`, { lo: 0, hi: 0.5, above: true, usual: 0.15 }), by = readBy(o, who, 'anticipate');
-  return wrapped(move, 'anticipate', move.plan, d + share * d, { share, by }, `a pull back of ${byWords(by)} over ${round(share * d)} s, released into the move`, { share, by, added: share * d });
+  const opening = openingOf(move.plan), lead = share * opening, of = opening < d ? ` (a share of its ${round(opening)} s opening)` : '';
+  return wrapped(move, 'anticipate', move.plan, d + lead, { share, by, lead }, `a pull back of ${byWords(by)} over ${round(lead)} s${of}, released into the move`, { share, by, added: lead, opening });
 }
 
 export function followThrough(move, options = undefined) {
@@ -165,7 +186,7 @@ function held(s) {
 function rollStart(plan) {
   if (!isWrapped(plan)) return finite(plan.turnFrom) ? plan.turnFrom : 0;
   const r = rollStart(plan.inner);
-  if (plan.wrapper === 'anticipate') return r > 0 ? r + plan.share * plan.inner.seconds : 0;
+  if (plan.wrapper === 'anticipate') return r > 0 ? r + plan.lead : 0;
   if (plan.wrapper === 'hold') return r < plan.at ? r : r + plan.held;
   return r;
 }
@@ -247,7 +268,8 @@ export function sampleWrapped(plan, t, sampleInner) {
   const inner = plan.inner, d = inner.seconds, at = (u) => sampleWrapped(inner, u, sampleInner);
   const u = t > 0 ? Math.min(t, plan.seconds) : 0;
   if (u <= 0) return at(0);
-  if (u >= plan.seconds) return at(d);
+  // after a follow-through or an overshoot its model has been held at its end: the end sample is held too
+  if (u >= plan.seconds) return plan.wrapper === 'follow-through' || plan.wrapper === 'overshoot' ? held(at(d)) : at(d);
   const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d), T = turnOf(inner), { world, radius } = worldOf(inner, 'the move');
   switch (plan.wrapper) {
     case 'hold': {
@@ -257,7 +279,7 @@ export function sampleWrapped(plan, t, sampleInner) {
     }
     case 'anticipate': {
       // wind back opposite the first direction of travel, then release into the move over the same share of it
-      const lead = plan.share * d, dir = way(false), s = at(Math.max(0, u - lead));
+      const lead = plan.lead, dir = way(false), s = at(Math.max(0, u - lead));
       const pull = (v) => (v < lead ? smooth(v / lead) : 1 - smooth((v - lead) / lead));
       const r = rollStart(inner), from = r > 0 ? r + lead : 0;
       return dir ? moved(s, [-dir[0], -dir[1]], amount(), pull, u, { T, still: u < lead, from, at, shift: lead, world, radius }) : s;

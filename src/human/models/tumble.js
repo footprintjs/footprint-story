@@ -95,6 +95,7 @@ function plan(intent, { who, options }) {
   return {
     seconds, from: [...f.from], to: [...f.to], velocity: f.velocity, gravity: o.gravity, angle, spin, landAt: T, landAngle, landing, radius: f.radius,
     way, glide: g, world: f.world, pushes: 1,
+    opening: T,   // the part an anticipation winds up for: the throw, not the roll or slide after it lands
     // landing into a roll on the level floor, its turn per px of travel after it lands (wrap.js turns the rolling samples)
     ...(landing === 'roll' ? { turnVector: [1 / f.radius, 0], turnFrom: T } : {}),
     basis: { across: f.basis.across, apex: f.basis.apex, apexDefaulted: f.basis.apexDefaulted, launch: f.basis.angle, speed: f.basis.speed, gravity: o.gravity, flightSeconds: T, secondsGiven: f.basis.secondsGiven,

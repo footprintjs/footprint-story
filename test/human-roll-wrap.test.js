@@ -102,3 +102,15 @@ test('a wrapper respects its plan\'s world: a roll on the floor between boxes wi
   const free = planMove({ do: 'roll', from: [100, 480], to: [660, 480], radius: 20 });
   near(sampleMove(anticipate(free, { by: 100, share: 0.2 }), 0.2 * free.plan.seconds).x, 0, 1e-9);
 });
+
+test('a follow-through\'s end sample is held like the rest of its tail; a last step a hair long is not read', () => {
+  // found by the property: a radius-1 roll down 16.5°, arriving at 141 px a second, followed through by 0.29 px
+  const phi = (16.461549113929117 * Math.PI) / 180;
+  const roll = planMove({ do: 'roll', from: [0, 0], to: [30 * Math.cos(phi), 30 * Math.sin(phi)], slope: 16.461549113929117, radius: 1 });
+  const move = followThrough(roll, { by: 0.2924279980798362 });
+  assert.equal(sampleMove(move, move.plan.seconds).spin, 0);
+  assert.ok(sampleMove(roll, roll.plan.seconds).spin > 100, 'the roll itself still moves at its end');
+  assert.ok(checkMove(move).measures.spin <= SPIN_MOST);
+  assert.equal(sampleMove(overshoot(roll, { by: 5 }), 1e9).spin, 0);
+  assert.equal(sampleMove(anticipate(roll), 1e9).spin, sampleMove(roll, roll.plan.seconds).spin, 'an anticipation ends as its move does');
+});

@@ -144,7 +144,9 @@ the short way (`shortestTurn`), and `spin`'s basis says the fastest spin that ca
 sample: π × the rate); `checkMove(move, {rate})` samples more densely to read faster. A flick is a step off both its
 neighbours the same way — a flick of any length, a kept jump and a stutter all make one — measured against at least a
 turn a second (`SPIN_FLOOR`). The one peak that is not a flick, a spin sped up and then stopped dead, is let off only
-when it lies on the trend of three smooth steps beyond it on one side, so a flick's own steps never vouch for it. With
+when it lies on the trend of three smooth steps beyond it on one side, so a flick's own steps never vouch for it; the
+last step is judged against its one side. A spin that starts and stops, starts and stops (three sudden changes back and
+forth within `STUTTER_STEPS`, six) is a stutter; a stop, a start or a landing is one change, never three. With
 that floor a slow spin may drift a little in flight unflagged: 3 → 3.5 rad/s is 8% of a turn a second.
 
 A wrapped roll stays a roll: the `no-slip` plan names `turnVector` (its turn per px of travel), and every wrapper turns
@@ -155,7 +157,9 @@ holds a model still (a wind-up, after the end, a hold) its own spin stops and a 
 A wrapper respects its plan's world: each offset is cut back along itself to where the body (its middle, `radius`
 wide) first touches the floor or a box the model's plan names — cut, never turned aside, so a wind-up still pulls
 against the move it winds up for. So the default anticipation over a tumble, whose release runs through its landing,
-stops at the floor, and a roll between boxes winds up and overshoots only to their sides. A body already in
+stops at the floor, and a roll between boxes winds up and overshoots only to their sides. An anticipation is sized by
+the part it winds up for: the move's seconds, or its model's `opening` — a tumble's flight, not the roll after it lands
+(`plan.lead` says its seconds). A body already in
 something keeps its offset (the contact critic says so).
 
 ## The laws it keeps

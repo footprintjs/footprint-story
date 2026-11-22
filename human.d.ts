@@ -280,7 +280,8 @@ export function sampleTrack(move: HumanMove, settings?: (HumanSettings & { reado
 export type WrapperName = 'anticipate' | 'follow-through' | 'hold' | 'overshoot';
 /** A wrapped plan: the inner plan unchanged, the wrapper's name and numbers, its seconds the inner's plus what it adds. */
 export type WrappedPlan = HumanPlan & { readonly wrapper: WrapperName; readonly inner: HumanPlan } & (
-  | { readonly wrapper: 'anticipate' | 'follow-through'; readonly share: number; readonly by: number | null }
+  | { readonly wrapper: 'anticipate'; readonly share: number; readonly by: number | null; readonly lead: number }
+  | { readonly wrapper: 'follow-through'; readonly share: number; readonly by: number | null }
   | { readonly wrapper: 'hold'; readonly at: number; readonly held: number }
   | { readonly wrapper: 'overshoot'; readonly share: number; readonly by: number | null; readonly feel: SpringFeel; readonly tail: number });
 /** A pull back opposite the first direction of travel, released into the move: adds share × its seconds before it. */
@@ -321,6 +322,8 @@ export const ROLL_SLIP_MOST: number;
 /** The most a spin may spread in flight or a step stand off its neighbours (10%), and the slowest spin a share is read against (2π rad/s: a turn a second). */
 export const SPIN_MOST: number;
 export const SPIN_FLOOR: number;
+/** The most steps three sudden changes of turning speed, back and forth, may span to read as a stutter (6). */
+export const STUTTER_STEPS: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }
 export function checkMove(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): { readonly measures: Readonly<Record<string, number | null>>; readonly bases: Readonly<Record<string, HumanBasis | null>>; readonly findings: readonly HumanFinding[] };
 

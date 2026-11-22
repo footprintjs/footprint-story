@@ -92,6 +92,20 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
     assert.ok(drawn('reel:s22', (t, k) => rate * t + (k % 4 < 2 ? 10 * D : 0), false) > 1, `a 2-on/2-off stutter at ${rate} rad/s`);
     assert.ok(drawn('reel:s33', (t, k) => rate * t + (k % 6 < 3 ? 10 * D : 0), false) > 1, `a 3-on/3-off stutter at ${rate} rad/s`);
   }
+  // a spin that starts and stops, starts and stops: each step level with one neighbour, so no peak — three sudden
+  // changes back and forth within six steps say it; one change (a stop, or a new speed) never does
+  const stutter = (on, rate) => (t, k) => rate * (Math.floor(k / (2 * on)) * on + Math.min(k % (2 * on), on)) / 120;
+  for (const rate of [3, 20]) for (const on of [2, 3]) for (const spun of [true, false]) {
+    const m = { ...wheel, name: 'reel:stutter', checks: ['spin'], sample: (p, t) => { const k = Math.round(t * 120), o = { x: 200 * t, y: 0, angle: stutter(on, rate)(t, k) }; if (spun) o.spin = rate; return o; } };
+    const c = checkMove(planMove({ do: 'roll', who, model: 'reel:stutter' }, { models: [m] }), { models: [m] });
+    assert.equal(c.bases.spin.kind, 'stutter', `${on}-on/${on}-off at ${rate} rad/s`); assert.ok(c.measures.spin > SPIN_MOST);
+    assert.match(c.findings[0].message, /its spin stutters at [\d.]+ s \(its turning speed jumps back and forth by \d+% or more, three times within 6 steps\) — it starts and stops instead of turning/);
+  }
+  assert.ok(drawn('reel:slower', (t) => (t < 1 ? 20 * t : 20 + 5 * (t - 1)), false) < 1e-9, 'one change of speed');
+  assert.ok(drawn('reel:paused', (t, k) => 20 * (k < 120 ? t : k < 122 ? 1 : t - 2 / 120), false) < SPIN_MOST, 'a stop and a start, once');
+  // the last sample is judged too
+  assert.ok(drawn('reel:last', (t, k) => 20 * t + (k === 240 ? 30 * D : 0)) > 1, 'a 30° flick on the final sample');
+  assert.ok(drawn('reel:last-free', (t, k) => 20 * t + (k === 240 ? 30 * D : 0), false) > 1, 'a 30° flick on the final sample, no spin');
   assert.ok(drawn('reel:halt', (t) => 20 * Math.min(t, 1), false) < 1e-9, 'a sudden stop on a sample');
   assert.ok(drawn('reel:halted', (t) => 20 * Math.min(t, 1.0041), false) < 1e-9, 'a sudden stop between samples');
   // a spin sped up hard and stopped dead, or started at once from rest, changes its rate — it never flicks

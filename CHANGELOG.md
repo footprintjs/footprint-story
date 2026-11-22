@@ -24,14 +24,18 @@
   and `spin`'s basis says the fastest spin it can tell (`mostReadable`, π × the rate). A flick is a step off both
   neighbours the same way (a flick of any length, a kept jump, a stutter), read against at least a turn a second
   (`SPIN_FLOOR` = 2π rad/s, so a slow spin that drifts a little in flight, 3 → 3.5 rad/s, passes); a spin sped up and
-  stopped dead is let off only on the trend of three smooth steps beyond it. `spacing` now reads only a track's flight
+  stopped dead is let off only on the trend of three smooth steps beyond it; the last step is judged against its one
+  side; three sudden changes of turning speed back and forth within `STUTTER_STEPS` (6) are a stutter (a spin that
+  starts and stops), while a stop or a single change passes. `spacing` now reads only a track's flight
   when its samples mark `air: 0` on the floor.
 - **A wrapped roll stays a roll:** the `no-slip` plan names `turnVector` (its turn per px of travel), and `anticipate`,
   `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
   wrapped roll still turns distance / radius; a tumble that lands into a roll turns with the wrapper after it lands
   (`turnFrom`); a slide's angle stays its own. A model held still by a wrapper stops spinning and is not in flight
   (`air: 0`). **Wrappers respect their plan's world:** every offset (wind-up, follow-through, overshoot) is cut back
-  along itself to where the body first touches the floor or a box its model's plan names, never turned aside.
+  along itself to where the body first touches the floor or a box its model's plan names, never turned aside. An
+  anticipation is sized by the part it winds up for (`plan.lead`): a tumble's flight (its plan's `opening`), not the
+  roll after it lands.
 - **The 30 s refusal names the value that stops it** (`stoppingCoefficient`: above tan θ on a slope, at least (1 + k)·v /
   (g · 30 s) on the level for a roll, v / (g · 30 s) for a slide), and following it plans. A box tumble given its own
   spin keeps it and may land at a slant: `basis.slant` and the reason say so.

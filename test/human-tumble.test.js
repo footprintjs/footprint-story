@@ -155,7 +155,7 @@ test('wrappers on a tumble: held still it is not in flight, and once it rolls it
       assert.deepEqual(c.findings, [], `${shape} · ${name}: ${JSON.stringify(c.findings.map((f) => f.message))}`);
     }
     // the wind-up holds it at its start: not in flight, not spinning
-    const wound = sampleMove(anticipate(tumble, { share: 0.2 }), 0.3);
+    const windUp = anticipate(tumble, { share: 0.2 }), wound = sampleMove(windUp, windUp.plan.lead / 2);
     assert.deepEqual([wound.air, wound.spin], [0, 0]);
   }
   // a ball's follow-through after it rolled to rest turns it with the push: distance / radius
@@ -169,4 +169,20 @@ test('wrappers on a tumble: held still it is not in flight, and once it rolls it
     assert.deepEqual(c.findings, [], JSON.stringify(c.findings.map((f) => f.message)));
     for (const sample of sampleTrack(move).samples) assert.ok(sample.y <= 500 + 1e-9, 'never below where it lands');
   }
+});
+
+test('a tumble\'s anticipation is sized by its throw, not the roll after it lands: no spacing finding', () => {
+  const tumble = planMove({ do: 'tumble', who, from: [0, 480], to: [300, 500], radius: 20 });
+  for (const move of [anticipate(tumble), anticipate(overshoot(tumble, { by: 5 })), anticipate(followThrough(tumble)), anticipate(hold(tumble, { at: 0.1, seconds: 0.2 }))]) {
+    const c = checkMove(move);
+    assert.deepEqual(c.findings, [], JSON.stringify(c.findings.map((f) => f.message)));
+  }
+  const a = anticipate(tumble);
+  near(a.plan.lead, 0.15 * tumble.plan.landAt); near(a.plan.seconds, tumble.plan.seconds + a.plan.lead);
+  near(a.plan.basis.opening, tumble.plan.landAt);
+  assert.match(a.reason, /over 0\.09 s \(a share of its 0\.59 s opening\), released into the move$/);
+  near(anticipate(hold(tumble, { at: 0.1, seconds: 0.2 })).plan.lead, 0.15 * (tumble.plan.landAt + 0.2));
+  // a roll names no opening: its whole move is wound up for, as before
+  const roll = planMove({ do: 'roll', from: [100, 480], to: [660, 480], radius: 20 });
+  near(anticipate(roll).plan.lead, 0.15 * roll.plan.seconds);
 });
