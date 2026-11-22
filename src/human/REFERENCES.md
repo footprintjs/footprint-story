@@ -17,10 +17,20 @@
 | Value noise | `laws/tremor.js` | the lattice noise that K. Perlin's gradient noise refined ("An Image Synthesizer", SIGGRAPH 1985) | a seeded number at each step of a lattice, eased between (smoothstep) |
 | Seeded numbers | `src/seed/seeded.js` (shared) | G. Fowler, L. C. Noll, K.-P. Vo, the FNV-1a hash; T. Ettinger's mulberry32 (public domain) | one leaf for this door and the isometric styles |
 | Arcs | `critics/arc.js` | F. Thomas, O. Johnston, *The Illusion of Life: Disney Animation*, Abbeville Press, 1981 | that a living thing moves on arcs, and a straight slide reads as mechanical |
+| Verlet integration, constraints by relaxation, collisions by projection | `physics/step.js`, `physics/chain.js`, `physics/collide.js`, `models/verlet.js` | T. Jakobsen, "Advanced Character Physics", Game Developers Conference, 2001 | position Verlet (x' = 2x − x₋ + a·dt², no velocity kept), each link set back to its length in turn, a point inside an obstacle moved to its nearest side |
+| Projectile motion, restitution | `physics/flight.js`, `physics/bounce.js`, `models/ballistic.js`, `models/bounce.js` | D. Halliday, R. Resnick, J. Walker, *Fundamentals of Physics*, Wiley, chapters 4 and 9 | the parabola x₀ + vt + ½gt²; the 45° launch reaches furthest for a speed (R = v² sin 2θ / g); a landing gives back its restitution of the speed, at most all of it |
+| The pendulum's period, a damped spring's overshoot | `physics/chain.js`, `models/spring.js` | the same text, chapter 15 | T = 2π√(L/g), so half a swing is π√(L/g); the overshoot e^(−πζ/√(1 − ζ²)) of a spring with damping ratio ζ under 1 |
+| Anticipation, follow-through, holds, overshoot, squash and stretch, timing | `models/wrap.js`, `critics/spacing.js`, `critics/volume.js` | F. Thomas, O. Johnston, *The Illusion of Life: Disney Animation*, Abbeville Press, 1981 | a move opposite before the move; parts carrying on past the stop; a squash that keeps the volume; a fall's drawings spaced wider as it speeds up |
 
 **Ours:** every default not in a row above — Fitts's a (0.1 s), b (0.2 s a bit) and the usual target (40 px); the power law's floor
 (0.00025 per px) and ramp (a tenth at each end); the pen's speed (400 px a second); the tremor's amplitude (0.8 px),
 wavelength (24 px), its alternating swings set in px along the line (a real tremor runs at 8–12 Hz) and held to half
 the gap to another leg of the line; the letter's mu (−1.6), sigma (0.3) and gap (0.16 s); the reach's bow (6% of its length, at most 30%); a turn past a right angle read as at least 2 · cos(B/2) / its shorter side; the
 critics' limits (no extra speed peak, a 2% bow, 20% off the law) and the way `pen-speed` walks and smooths a track.
+The physics' (0.27.0): gravity 1960 px/s² (9.8 m/s² at 200 px to the metre), the step (1/240 s, frames at 60 a second),
+the usual apex's floor (24 px), restitution 0.5, the least bounce drawn (1 px) and the most (24), the squash's time (0.06
+s either side of a landing), a chain's damping (0.7 lost a second), its least link (4 px), its rest speed (4 px/s), its
+tolerance (5%), its most links (64) and seconds (10), a wrapper's usual `by` (8% of the move's distance), its least
+travel (0.01 px), the critics' limits (5% variation of speed, 10% of area, 0.5 px into something solid), and a settle's
+least overshoot said (half a percent).
 Each is a named constant beside its reason, and a test pins it.

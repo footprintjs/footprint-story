@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.27.0 — light physics and secondary motion on `footprint-story/human`; one seed rule
+
+- **Models for `throw`, `fall`, `hang` and `settle`** (docs/design/2026-11-human-motion.md · Round 1 · B), each its family's
+  usual, in the human door's one interface: `ballistic` (a throw or a fall in closed form; the usual apex a 45° throw, a
+  quarter of the distance across, at least 24 px), `bounce` (a throw or a fall that lands and bounces to rest on the floor
+  exactly; `restitution` at most 1, so it never gains energy; `keep`; `squash` with its area kept), `verlet` (a chain
+  pinned at `from`, its pin may move along a `path`; it runs until still for half a swing, π√(L/g), at most 10 s; a
+  seeded `jitter`), `spring` (a settle on the motion spring, its seconds the feel's). Each plan carries `seconds`, its
+  reason in words and a flat `basis` (a throw's apex, launch angle and speed; a bounce's count; a chain's link length and
+  whether it settled; a spring's damping ratio and overshoot). `floor`, `boxes` and `radius` name the world.
+- **A model's `family` may be a list:** `ballistic` and `bounce` serve a throw and a fall alike — one strategy, one name.
+- **Wrappers** `anticipate`, `followThrough`, `hold`, `overshoot` take any move (a reach too) and give a move: its plan
+  wrapped (`{wrapper, seconds, inner, pushes, why, basis, …}`), its `reason` saying each, `wrappers` naming them. Each keeps
+  the move's start and end exactly and adds the time it states; `sampleMove` (so `sampleTrack` and `checkMove`) reads a
+  wrapped move over its model's own sample. A wrapper counts the push it adds, so `jerk` reads a wind-up as meant.
+- **Critics** `spacing` (under 5% variation of speed: slid, not falling), `volume` (over 10% change of area: rubber),
+  `contact` (over 0.5 px into the floor or a box), each `{value, basis}` (contact's: when, and into what).
+  `sampleTrack` now keeps each sample whole (a squash's `sx`/`sy`, a chain's `points`) and the move's `plan`.
+- **The physics underneath**, on the door for a tool's own model: a fixed step (`PHYSICS_STEP` 1/240 s,
+  `STEPS_PER_FRAME`) with position Verlet (`verletStep`, `simulate`), flight (`launch`, `flightAt`, `headingAt`,
+  `fallSeconds`), bounces (`bounces`, `bounceAt`), chains with a relaxation pass per link (`runChain`, `relaxChain`,
+  `pinAt`; Jakobsen 2001), a floor and non-overlapping boxes (`readWorld`, `makeWorld`, `pushOut`, `collide`, `depthIn`:
+  no free point is left inside after any step), settling (`settleLeft`, `settleSeconds`). Bounds: physics plans at most
+  30 s, chains 64 links of at least 4 px, 32 boxes, 24 bounces, 4 wrappers.
+- **One seed rule:** FNV-1a then mulberry32 lives once, in `src/seed/seeded.js` (it imports nothing); the isometric
+  styles and the human door both import it (the human door's own copy, `src/human/seed.js`, is gone). Every output is
+  byte for byte 0.26.0's (pinned: test/seed-shared.test.js). The human door may reach that leaf and `src/motion/spring.js`.
+- **Changed:** `HUMAN_MODELS` and `USUAL_MODELS` hold every family; an intent with no model for `throw`, `fall`, `hang`
+  or `settle` now takes its usual one instead of being refused. `HUMAN_CRITICS` adds `spacing`, `volume`, `contact`.
+  A track's samples carry every field the model gives.
+
 ## 0.26.0 — how people move and draw: `footprint-story/human`
 
 - **A new door, `footprint-story/human`** (docs/design/2026-11-human-motion.md · Round 1 · A): pure, no dependencies,

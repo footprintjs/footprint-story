@@ -130,7 +130,13 @@ test('critics through checkMove: measured on the track with their basis, a findi
   assert.equal(volume.measure({ samples: [{ t: 0, x: 0, y: 0 }] }), null);
   // the bounce model's squash keeps its area
   const b = planMove({ do: 'fall', from: [0, 0], floor: 600, model: { name: 'bounce', squash: 0.4 } });
-  assert.ok(checkMove(b, { rate: 240 }).measures.volume < 1e-12);
+  const bv = checkMove(b, { rate: 240 }).measures.volume;
+  assert.ok(typeof bv === 'number' && bv < 1e-12, `${bv}`);
+  // the track keeps each sample whole: the squash's scales, a chain's points
+  assert.ok(sampleTrack(b).samples.some((p) => p.sy < 1 && p.sx > 1));
+  const hung = planMove({ do: 'hang', from: [0, 0], length: 40, seconds: 0.1, model: { name: 'verlet', links: 2 } });
+  assert.equal(sampleTrack(hung).samples[0].points.length, 3);
+  assert.deepEqual(sampleTrack(hung).plan, hung.plan);
   // a chain's points are checked too
   const box = { who, samples: [{ t: 0, x: 0, y: 0, points: [[0, 0], [50, 50]] }], plan: { world: { floor: null, boxes: [{ x: 40, y: 40, w: 20, h: 20 }] } } };
   assert.deepEqual(contact.measure(box), { value: 10, basis: { at: 0, into: 'a box' } });

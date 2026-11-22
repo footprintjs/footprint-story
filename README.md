@@ -39,7 +39,7 @@ Ten doors, nothing else. A door loads only when you import it, so a page that on
 | `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
 | `footprint-story/mapflow` | an isometric map built as a footprintjs chart, one stage per step, so a run's record says why each block stands where it does | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
-| `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; named models that plan a move from an intent, and critics that say what still looks wrong | anywhere — browser or Node; no dependencies |
+| `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; light physics (a throw, a fall, a bounce, a hanging chain, a spring settle); named models that plan a move from an intent, wrappers that reshape it, and critics that say what still looks wrong | anywhere — browser or Node; no dependencies |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 | `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
 
@@ -303,8 +303,18 @@ checkMove(planMove({ do: 'draw', path: [[100, 100], [300, 180], [420, 90]] })).f
 ```
 
 `do: 'reach'` (minimum jerk), `'draw'` (a centripetal Catmull-Rom line traced by the two-thirds power law, with a
-seeded tremor) and `'write'` (overlapping sigma-lognormal strokes); a tool adds its own model or critic under its
-prefix (`'reel:chalk'`). More in [src/human/README.md](src/human/README.md); the papers in
+seeded tremor), `'write'` (overlapping sigma-lognormal strokes), `'throw'` and `'fall'` (a ballistic flight, or a bounce
+to rest), `'hang'` (a Verlet chain that swings until it settles) and `'settle'` (the motion spring); `anticipate`,
+`followThrough`, `hold` and `overshoot` reshape any move, keeping its ends:
+
+```js
+import { planMove, sampleMove, overshoot } from 'footprint-story/human';
+
+const ball = planMove({ do: 'throw', from: [100, 600], to: [700, 600] });   // a 45° throw over 0.78 s, from the physics
+sampleMove(overshoot(ball, { by: 12 }), 0.9);   // landing 12 px past and settling back on a spring
+```
+
+A tool adds its own model or critic under its prefix (`'reel:chalk'`). Physics: [src/human/physics/README.md](src/human/physics/README.md). More in [src/human/README.md](src/human/README.md); the papers in
 [src/human/REFERENCES.md](src/human/REFERENCES.md).
 
 ### An order written once (turns)
@@ -575,6 +585,8 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `minJerk`, `minJerkSpeed`, `minJerkAccel`, `fittsIndex`, `fittsSeconds`, `FITTS`, `powerLawSpeed`, `powerLawTimes`, `powerLawFit`, `POWER_LAW`, `strokeBetween`, `sigmaLognormalAt`, `lognormalShare`, `lognormalSpeed`, `strokeOffset`, `strokeEnd`, `SIGMA_LOGNORMAL`, `tremorKnots`, `tremorAt`, `TREMOR` | the laws of a body's moves, each default named with its source |
 | `/human` `arcTable`, `pointAt`, `shareToDistance`, `distanceToShare`, `catmullRom`, `curvatures`, `resample` | the paths they run on: length tables, a centripetal Catmull-Rom line, curvature, resampling by distance |
 | `/human` `planMove`, `sampleMove`, `sampleTrack`, `checkMove`, `HUMAN_FAMILIES`, `HUMAN_DOS`, `HUMAN_MODELS`, `USUAL_MODELS`, `HUMAN_CRITICS` | an intent planned by a named model (its reason in words), sampled, and checked by critics that say the fix: [src/human/README.md](src/human/README.md) |
+| `/human` `anticipate`, `followThrough`, `hold`, `overshoot`, `basePlan`, `isWrapped` | the animation principles as a move → a move, over any model, read by `sampleMove` |
+| `/human` `launch`, `flightAt`, `fallSeconds`, `bounces`, `runChain`, `relaxChain`, `makeWorld`, `pushOut`, `collide`, `depthIn`, `verletStep`, `simulate`, `settleLeft`, `PHYSICS_STEP`, `GRAVITY` | light physics on a fixed step (Jakobsen 2001), for a tool's own model: [src/human/physics/README.md](src/human/physics/README.md) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 
 Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`). Each `src/` folder has a README saying why it exists.
