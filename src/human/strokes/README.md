@@ -193,7 +193,10 @@ an inner edge (detail), and an edge whose middle lies inside a face painted late
 cylinder's side, across its top) and left out. `human:sketchy` keeps the faces' fills, drops their ink line and adds the
 edges drawn by hand; a floor keeps its tile lines as `ink` does. `human:hatch` hatches a left face and a cylinder's side,
 cross-hatches a right face and leaves the top clear (`ROLE_FILLS`), each kept out of the faces painted over it, its
-strokes timed after the line's. The two are named under `human:` and handed in: the isometric door never loads
+strokes timed after the line's; a piece whose hatched faces hold no line at the spacing is left clear (0.37.0: a flat
+cylinder's side, all under its top — it was refused as "nothing to draw"; `plan.js · hasStrokes` asks planSketch's own
+order first). A ball's seams (role `seam`, 0.37.0) are inner lines `human:sketchy` draws by hand after its silhouette.
+The look `sketchy` (0.37.0, the isometric README) is paper faces, `human:sketchy` and `human:hatch` 28 px apart. The two are named under `human:` and handed in: the isometric door never loads
 `src/human`, and a tool turns them on once its painter draws `stroke` items.
 
 **A paper's grain** (`grainTexture`, `human:grain`, 0.35.0 — the look `paper-grain`) is a texture of `lines`, not

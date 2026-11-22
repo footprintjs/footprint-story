@@ -527,7 +527,10 @@ lighter inner lines) or `{look: 'line-art'}` (paper-white faces, ink lines only:
 tile lines faintest); a column written beside a look replaces its entry. Two more (0.35.0): `{look: 'paper-grain'}`
 (a fine, faint, seeded grain over every face, footprint-story/human's `grainTexture` handed in) and `{look: 'duotone'}`
 (two inks: every line the ink, every fill with a colour a tint of the accent, a name in the ink at 4.5 : 1 or more on
-every tint; a fill the page colours — a tool's ok / warn / bad — is left to the page). A tool adds its own choice under its own
+every tint; a fill the page colours — a tool's ok / warn / bad — is left to the page). And (0.37.0) `{look: 'sketchy'}`:
+drawn by hand on paper — edges sketched as a hand draws them, sides hatched, the shadow side cross-hatched (the human
+door's choices handed in: `{choices: HUMAN_STYLE_CHOICES}`). A piece may be a `ball` (StoryReel's round kind): every
+style and look paints it, its silhouette lit as a top, two seams on it. A tool adds its own choice under its own
 prefix (`'reel:chalk'`); the style is plain data, so a run's record says which choices (and which look) drew a map.
 
 ```js

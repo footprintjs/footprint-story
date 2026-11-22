@@ -14,7 +14,7 @@
  * `check` refuses an option value it cannot take, once, when the style is made.
  * `shape`'s apply takes `{piece, grid}` and gives `{box, centre, outline, items}` — the box round it, where its name
  * stands, the outline round it (what a cable's end and a label keep clear of) — every other apply takes the items and gives items.
- * `context` is `{piece, colours, options, random}`: the piece (`name`, `kind`, `at`, `size`), the colours the caller
+ * `context` is `{piece, colours, options, random}`: the piece (`name`, `kind` — block, cylinder, floor or ball — `at`, `size`), the colours the caller
  * gave (`base`, `ink`: `#rrggbb`, or null when the page decides), the options written for this choice, and `random()`
  * — numbers from 0 to 1 seeded by the style, the piece's name and the column, so a wobble or a grain is the same every
  * time it is drawn, in a deck and in a film. A tool's own choice is named with its own prefix (`'reel:chalk'`) and
@@ -46,7 +46,7 @@ export const MOST_OWN_CHOICES = 64;
 export const ISO_STYLE_CHOICES = Object.freeze(Object.fromEntries(ISO_STYLE_COLUMNS.map((col) => [col, Object.freeze(BUILT_IN_CHOICES.filter((c) => c.column === col).map((c) => c.name))])));
 
 const BUILT_IN = /^[a-z][a-z0-9-]{0,31}$/, OWN = /^[a-z][a-z0-9-]{0,15}:[a-z][a-z0-9-]{0,31}$/;
-const KINDS = ['block', 'cylinder', 'floor'];
+const KINDS = ['block', 'cylinder', 'floor', 'ball'];
 const chosen = new WeakMap();   // a style → its choices, by column (effects: a list)
 
 /** A tool's own choice, checked: the interface, a prefixed name, and plain lists of options and clashes. */
@@ -123,7 +123,7 @@ export function isoStyle(row = undefined, settings = undefined) {
   const whence = (column) => (fromLook.has(column) ? ` (from the look "${lookName}": write ${column} beside it to change it)` : '');
   const find = (column, name) => {
     const c = all.find((x) => x.column === column && x.name === name);
-    if (!c) refuse(`the style's ${column} has no choice ${shown(name)} — the ${column} choices are ${all.filter((x) => x.column === column).map((x) => `"${x.name}"`).join(', ') || 'none yet'}${typeof name === 'string' && OWN.test(name) ? `; "${name}" is a tool's own choice (its name has a prefix), which is code no record holds: hand the choice itself in {choices} (${name.startsWith('human:') ? 'footprint-story/human has the "human:" ones' : 'the tool that names it has it'})` : ''}${whence(column)}`);
+    if (!c) refuse(`the style's ${column} has no choice ${shown(name)} — the ${column} choices are ${all.filter((x) => x.column === column).map((x) => `"${x.name}"`).join(', ') || 'none yet'}${typeof name === 'string' && OWN.test(name) ? `; "${name}" is a tool's own choice (its name has a prefix), which is code no record holds: hand the choice itself in {choices} (${name.startsWith('human:') ? 'footprint-story/human has the "human:" ones: hand in HUMAN_STYLE_CHOICES, every one of them' : 'the tool that names it has it'})` : ''}${whence(column)}`);
     return c;
   };
   const out = {}, options = {}, picked = {};
@@ -174,6 +174,8 @@ function readPiece(p) {
   if (typeof name !== 'string' || !name || [...name].length > 64) refuse(`a piece's name is 1 to 64 letters (its paint items carry it) — not ${shown(name)}`);
   if (!KINDS.includes(kind)) refuse(`a piece's kind is ${KINDS.join(', ')} — not ${shown(kind)}`);
   const list = (v, n, what) => { if (!(Array.isArray(v) && n.includes(v.length) && v.every(fin))) refuse(`"${name}"'s ${what} — not ${shown(v)}`); return Object.freeze([...v]); };
+  // a ball is round every way (0.37.0, ball.js): one number three times, as StoryReel reads it
+  if (kind === 'ball' && Array.isArray(size) && size.length === 3 && !(size[0] === size[1] && size[1] === size[2])) refuse(`"${name}" is a ball, round every way: its size is [wide, wide, wide], one number three times (1 1 1) — not ${shown(size)}`);
   return Object.freeze({ name, kind,
     // a floor lies on the ground: a lift written on its at is dropped, as StoryDeck reads it
     at: kind === 'floor' ? list(at, [2, 3], 'at is [col, row]').slice(0, 2) : list(at, [2, 3], 'at is [col, row] or [col, row, lift]'),
@@ -194,8 +196,10 @@ function pickedOf(style, call) {
   return picked;
 }
 
-function checkGrid(grid, call) {
+function checkGrid(grid, call, piece) {
   if (!grid || typeof grid !== 'object' || !['block', 'cylinder', 'floor'].every((k) => typeof grid[k] === 'function')) refuse(`${call} draws on a map's grid (isometric(...)) — not ${shown(grid)}`);
+  // a ball is put on the frame point by point (ball.js): by the grid's own at
+  if (piece.kind === 'ball' && typeof grid.at !== 'function') refuse(`${call} draws a ball on a map's grid, which puts a point on the frame (isometric(...) · at) — not ${shown(grid)}`);
 }
 
 /**
@@ -260,7 +264,7 @@ function paintWith(picked, style, p, cs, shapeItems) {
  */
 export function paintPiece(style, piece, grid, colours = undefined) {
   const picked = pickedOf(style, 'paintPiece'), p = readPiece(piece), cs = readColours(colours);
-  checkGrid(grid, 'paintPiece');
+  checkGrid(grid, 'paintPiece', p);
   const shaped = shapeWith(picked, style, p, cs, grid);
   return Object.freeze({ box: shaped.box, centre: shaped.centre, outline: shaped.outline, items: paintWith(picked, style, p, cs, shaped.items) });
 }
@@ -272,7 +276,7 @@ export function paintPiece(style, piece, grid, colours = undefined) {
  */
 export function shapePiece(style, piece, grid, colours = undefined) {
   const picked = pickedOf(style, 'shapePiece'), p = readPiece(piece), cs = readColours(colours);
-  checkGrid(grid, 'shapePiece');
+  checkGrid(grid, 'shapePiece', p);
   return shapeWith(picked, style, p, cs, grid);
 }
 

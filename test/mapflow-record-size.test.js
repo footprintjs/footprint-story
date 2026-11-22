@@ -73,6 +73,17 @@ test('a 64-block paper-grain world (0.35.0): 13,118 marks in the map, a record a
   assert.deepStrictEqual(paints, paintSummary(map.paints));
 });
 
+test('a 64-block sketched world (0.37.0): 1,246 strokes in the map, a record as small as a plain one\'s — the summary counts them, never keeps them', async (t) => {
+  const sketched = WORLD({ look: 'sketchy' }), { map, snapshot, bytes, fileBytes } = await recorded(t, sketched);
+  assert.ok(bytes < MOST_PLAIN_BYTES && fileBytes < MOST_PLAIN_BYTES + 2_000, `the commit log is ${bytes} bytes, the file ${fileBytes}`);
+  assert.equal(snapshot.sink.failed, 0, `the sink wrote every entry: ${snapshot.sink.lastError}`);
+  assert.deepStrictEqual(map, buildIsoMap(sketched, FILM, { choices: CHOICES }));
+  const { paints } = snapshot.sharedState;
+  assert.equal(paints.byItem.stroke, 1246);
+  assert.deepStrictEqual(paints, paintSummary(map.paints));
+  assert.equal(snapshot.sharedState.style.look, 'sketchy');
+});
+
 test('a plain world\'s record does not grow: smaller than 0.33.0\'s, which kept the paint lists whole', async (t) => {
   const plain = WORLD(null), { map, bytes, fileBytes } = await recorded(t, plain);
   assert.ok(bytes < MOST_PLAIN_BYTES && fileBytes < MOST_PLAIN_BYTES + 2_000, `the commit log is ${bytes} bytes, the file ${fileBytes}`);

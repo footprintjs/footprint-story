@@ -1,7 +1,8 @@
 // footprint-story/mapflow (0.24.0): the map's steps as a footprintjs chart. Its map equals buildIsoMap's for random maps
 // (the two compositions of ISO_MAP_STEPS cannot drift), its record holds a stage per step and each decider's reason,
 // and footprint-story/record answers from it why a block stands where it stands.
-// FC_RUNS=20000 npm test runs a deep sweep. The styles include the named looks (0.34.0, and 0.35.0's paper-grain and duotone).
+// FC_RUNS=20000 npm test runs a deep sweep. The styles include the named looks (0.34.0, 0.35.0's paper-grain and duotone,
+// 0.37.0's sketchy).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -26,7 +27,7 @@ const SPEC = Object.freeze({ blocks: [{ name: 'web', size: [2, 2, 1], label: 'We
 const temp = (t) => { const dir = mkdtempSync(path.join(tmpdir(), 'story-mapflow-')); t.after(() => rmSync(dir, { recursive: true, force: true })); return dir; };
 
 test('the map flow\'s map equals buildIsoMap\'s, for random maps, styles and both policies', async () => {
-  const styled = fc.tuple(mapArb, fc.constantFrom(null, { line: 'none' }, { line: { name: 'ink', width: 4 } }, { look: 'outlined' }, { look: 'line-art' }, { look: 'line-art', line: { name: 'contour', width: 4, inner: 2 } }, { look: 'paper-grain' }, { look: 'duotone' }, { look: 'line-art', texture: 'human:grain' }, { look: 'duotone', shading: 'paper' }), fc.constantFrom(FILM, ISO_MAP_POLICIES.deck), fc.option(fc.constantFrom({ base: '#d9e4f3', ink: '#14181f' }), { nil: null }));
+  const styled = fc.tuple(mapArb, fc.constantFrom(null, { line: 'none' }, { line: { name: 'ink', width: 4 } }, { look: 'outlined' }, { look: 'line-art' }, { look: 'line-art', line: { name: 'contour', width: 4, inner: 2 } }, { look: 'paper-grain' }, { look: 'duotone' }, { look: 'line-art', texture: 'human:grain' }, { look: 'duotone', shading: 'paper' }, { look: 'sketchy' }, { look: 'sketchy', texture: { name: 'human:hatch', spacing: 40 } }), fc.constantFrom(FILM, ISO_MAP_POLICIES.deck), fc.option(fc.constantFrom({ base: '#d9e4f3', ink: '#14181f' }), { nil: null }));
   await fc.assert(fc.asyncProperty(styled, async ([spec, style, policy, colours]) => {
     const given = { ...spec, style, blocks: spec.blocks.map((b) => ({ ...b, colours })) }, before = structuredClone(given);
     // the human door's choices handed in (paper-grain names "human:grain"); a style that names none draws as without them

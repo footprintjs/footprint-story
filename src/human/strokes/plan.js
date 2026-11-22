@@ -82,6 +82,15 @@ function readSettings(settings) {
     overshoot: num('overshoot', 0, 12, CORNER.most), seconds: num('seconds', 0, MOST_SECONDS, undefined, true) };
 }
 
+/**
+ * Whether shapes give a hand anything to draw (0.37.0): what planSketch refuses as "nothing to draw", asked first, by
+ * the same order (`strokesInOrder`, which draws no random number). WHY: a texture over a face too small for one of its
+ * lines at its spacing leaves that face clear (as the grain does), where a sketch asked for by name is refused.
+ */
+export function hasStrokes(rawShapes, who = 'the sketch') {
+  return strokesInOrder(readShapes(rawShapes, who)).strokes.length > 0;
+}
+
 /** The sketch planned: the order, then each stroke drawn by the pen, then the lifts between them, timed. */
 export function planSketch(rawShapes, settings) {
   const { who, random, speed, fillSpeed, width, tremor, wavelength, overshoot, seconds: given } = readSettings(settings);

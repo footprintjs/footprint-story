@@ -4,7 +4,8 @@
  * draw for a block, a cylinder and a floor.
  *
  *   shape   box     the faces `grid.block` / `grid.cylinder` / `grid.floor` give, as items (no fill, no stroke yet),
- *                   with the box, the centre (where a name stands) and the outline round the piece
+ *                   with the box, the centre (where a name stands) and the outline round the piece; a ball (0.37.0,
+ *                   ball.js) its silhouette as a top and its two seams (role "seam", stroked by each line as SEAM says)
  *   shading tones   top 20% toward white, left 6% toward black, right and a cylinder's side 18% toward black
  *                   (StoryReel's `mix`, StoryDeck's CSS `color-mix`); a floor's ground is its own colour
  *   line    ink     the ink round every face, 2.5 px, round joins (StoryReel's ISO_LOOK.line); a floor's tile lines
@@ -38,6 +39,7 @@ import { mixColour, readColour } from './paint.js';
 import { roundOutline } from './outline.js';
 import { refuse, shown } from './thing.js';
 import { duotone, checkDuotone } from './duotone.js';
+import { ballOf } from './ball.js';
 
 const xy = (p) => [p.x, p.y];
 const solid = new Set(['top', 'left', 'right', 'side']);
@@ -45,6 +47,15 @@ const solid = new Set(['top', 'left', 'right', 'side']);
 /** The faces of a piece, in paint order, with no fill and no stroke: the box shape. */
 function boxShape({ piece, grid }) {
   const of = piece.name;
+  if (piece.kind === 'ball') {
+    // a ball (0.37.0, ball.js): its silhouette a face as a cylinder's top is (role "top": lit, outlined, filled as a top
+    // by every shading and line), then its two seams over it (role "seam": marks, drawn by the line as a floor's tile lines are)
+    const b = ballOf(grid, piece), path = (line) => [['move', ...line[0]], ...line.slice(1).map((p) => ['line', ...p])];
+    return { box: b.box, centre: b.centre, outline: b.outline, items: [
+      { item: 'polygon', role: 'top', of, points: b.outline, fill: null, stroke: null },
+      ...b.seams.map((seam) => ({ item: 'path', role: 'seam', of, segments: path(seam), fill: null, stroke: null })),
+    ] };
+  }
   if (piece.kind === 'floor') {
     const f = grid.floor({ cols: piece.size[0], rows: piece.size[1], at: piece.at.slice(0, 2) });
     // a floor's centre: the middle of its four corners (it holds no name; a tool may frame it)
@@ -83,6 +94,17 @@ function tones(items, { colours }) {
 /** The tile lines of a floor, as every line choice keeps them. */
 const gridStroke = (colours) => ({ colour: colours.ink, alpha: 0.16, width: 1.5, join: 'miter', cap: 'butt' });
 
+/**
+ * A ball's seams (0.37.0): the ink at half, four fifths of the line's width (worked as width × 4 / 5, so 2.5 px gives 2
+ * exactly), round — StoryReel 0.44.0's marks
+ * (ISO_LOOK.mark 0.5, markLine 2 beside its 2.5 px line), so a ball the usual style paints is the ball StoryReel drew.
+ * Ours (theirs): half the ink so the seams read as marks on the ball, not as edges; under the line so the silhouette
+ * stays the boldest line on it. Each line choice draws them at its own fold weight (ink: its width; contour: its
+ * inner lines), and line "none" keeps them at the usual 2.5 px's share — a seam is a mark, not an outline.
+ */
+export const SEAM = Object.freeze({ alpha: 0.5, share: 4 / 5 });
+const seamStroke = (colours, width) => ({ colour: colours.ink, alpha: SEAM.alpha, width: (width * 4) / 5, join: 'round', cap: 'round' });
+
 /** The ink line's options, checked once when the style is made. */
 function checkInk(options) {
   if (options.width !== undefined && !(typeof options.width === 'number' && options.width >= 0.5 && options.width <= 20)) refuse(`the style's line "ink" takes a width from 0.5 to 20 px — not ${shown(options.width)}`);
@@ -91,7 +113,7 @@ function checkInk(options) {
 function ink(items, { colours, options }) {
   const width = options.width ?? 2.5;
   return items.map((it) => (solid.has(it.role) ? { ...it, stroke: { colour: colours.ink, alpha: 1, width, join: 'round', cap: 'butt' } }
-    : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it));
+    : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it.role === 'seam' ? { ...it, stroke: seamStroke(colours, width) } : it));
 }
 
 /**
@@ -122,7 +144,8 @@ function contour(items, { piece, colours, options }) {
   if (bare) refuse(`the style's line "contour" on "${piece.name}": its contour is a wide stroke under the faces, which their fills trim to the outside, and the ${bare.role} face has no fill — use a shading that fills every face ("tones", "paper"), or line "ink"`);
   // under: each face again, no fill, the wide stroke (role "contour": a painter that colours by role colours none)
   const under = faces.map((it) => ({ ...it, role: 'contour', fill: null, stroke: line(2 * width - inner) }));
-  return [...under, ...items.map((it) => (solid.has(it.role) ? { ...it, stroke: line(inner) } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it))];
+  return [...under, ...items.map((it) => (solid.has(it.role) ? { ...it, stroke: line(inner) } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) }
+    : it.role === 'seam' ? { ...it, stroke: seamStroke(colours, inner) } : it))];
 }
 
 /** The paper shading's colour, checked once: a colour as this package reads one. */
@@ -137,7 +160,8 @@ function paper(items, { options }) {
 }
 
 function noLine(items, { colours }) {
-  return items.map((it) => (solid.has(it.role) ? { ...it, stroke: null } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it));
+  return items.map((it) => (solid.has(it.role) ? { ...it, stroke: null } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) }
+    : it.role === 'seam' ? { ...it, stroke: seamStroke(colours, 2.5) } : it));
 }
 
 const same = (items) => items;

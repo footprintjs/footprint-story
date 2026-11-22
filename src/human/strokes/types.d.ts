@@ -61,9 +61,9 @@ export function strokeOutline(points: readonly (readonly number[])[], options?: 
 export function strokeAt(points: readonly (readonly [number, number, number, number])[], t: number): [number, number, number, number][];
 /** An isometric style choice, as src/isometric/style.js takes a tool's own (handed in under `choices`). */
 export interface StrokeStyleChoice { readonly column: 'line' | 'texture'; readonly name: string; readonly options: readonly string[]; readonly unseeded: readonly string[]; check(options: Readonly<Record<string, unknown>>): void; readonly clashes: readonly { readonly column: 'shape' | 'shading' | 'line' | 'palette' | 'texture' | 'effects'; readonly name: string; readonly fix: string }[]; apply(items: readonly any[], context: any): any[] }
-/** The line 'human:sketchy': a piece's edges drawn by hand (silhouette, then inner edges). Hand it to isoStyle in choices. */
+/** The line 'human:sketchy': a piece's edges drawn by hand (silhouette, then inner edges; a ball's seams among them, 0.37.0). Hand it to isoStyle in choices. */
 export const sketchyLine: StrokeStyleChoice;
-/** The texture 'human:hatch': left faces and sides hatched, right faces cross-hatched, after the line's strokes. */
+/** The texture 'human:hatch': left faces and sides hatched, right faces cross-hatched, after the line's strokes; a piece with no room for one line at the spacing is left clear (0.37.0). */
 export const hatchTexture: StrokeStyleChoice;
 /**
  * The texture 'human:grain' (0.35.0, the look "paper-grain"): a paper's grain — fine, faint, seeded marks laid in each
