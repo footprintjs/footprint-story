@@ -35,7 +35,8 @@ export function checkMove(move, settings = undefined) {
     if (value !== null && !finite(value)) refuse(`the critic "${name}" measures a finite number, {value, basis}, or null when it cannot say — not ${shown(value)}`);
     measures[name] = value;
     bases[name] = basis;
-    const f = value === null ? null : readFinding(critic.finding(value, track.who, basis), name);
+    // a built-in critic that cannot say may still say why in a note (spin: a track too fast to read)
+    const f = value === null ? (typeof critic.note === 'function' ? readFinding(critic.note(basis, track.who), name) : null) : readFinding(critic.finding(value, track.who, basis), name);
     if (f) findings.push(Object.freeze({ ...f, basis }));
   }
   return Object.freeze({ measures: Object.freeze(measures), bases: Object.freeze(bases), findings: Object.freeze(findings) });

@@ -10,7 +10,8 @@
  *   flight  over the steps in the air (both samples air: 1): (fastest − slowest) / the middle spin. Nothing touches a
  *           thing in flight, so nothing can change its spin (no torque); a spin that speeds up or slows in the air reads
  *           as pushed by an invisible hand.
- *   jump    THE ONE MEASURE (burstOf). For every run of 1 to MOST_RUN consecutive steps, the turn it made is set
+ *   jump    THE ONE MEASURE (burstOf). For every run of consecutive steps lasting up to MOST_RUN_SECONDS (0.05 s at the
+ *           track's own rate, at least MOST_RUN = 6 steps), the turn it made is set
  *           against the turn each side says it should have made — each side read only OUTSIDE the run, from up to three
  *           steps beyond it: its speed held (its nearest step), its trend carried on in time (the line through its two
  *           nearest), and its curve (the parabola through its three, so a smooth hump sampled coarsely is explained). The run's EXTRA TURN is how far its summed turn lies outside the span of
@@ -42,8 +43,10 @@ export const SPIN_MOST = 0.1;
 /** The slowest spin a share is read against (rad/s): one turn a second. Ours: at 1 rad/s a change of 0.1 rad/s is
  *  under a tenth of a degree between samples, nothing an eye sees. */
 export const SPIN_FLOOR = 2 * Math.PI;
-/** The longest run of steps read as one burst: six (0.05 s at 120 a second). Ours: a burst longer than that is a change
- *  of spin, which the sides around it show. */
+/** The longest a run read as one burst may last: 0.05 s, at the track's own rate — and at least MOST_RUN (6) steps,
+ *  0.05 s at 120 a second. Ours: a burst longer than that is a change of spin, which the sides around it show. WHY in
+ *  time: a track sampled finer (models/resolve.js) must not shrink the window — a burst over 0.03 s is one at any rate. */
+export const MOST_RUN_SECONDS = 0.05;
 export const MOST_RUN = 6;
 /** How much slower each step must be than the one before to count as easing to rest: 1e-9 of it (rounding never does). */
 export const RESTING = 1e-9;
@@ -73,41 +76,51 @@ function setsOff(rates, j) {
   return true;
 }
 
-/** The worst run's extra turn, as a share (the one measure): {value, at, steps, extra}. */
+/** The run lengths read (steps): every one from 1 to MOST_RUN, then growing by a third to `most`. WHY a ladder past six:
+ *  a burst longer than six steps is met by the first length at or past it — the few steady steps a longer run takes in
+ *  add no extra turn — and the measure stays near linear in the samples however fine the track. */
+function runLengths(most) {
+  const lengths = [];
+  for (let l = 1; l <= Math.min(most, MOST_RUN); l += 1) lengths.push(l);
+  for (let l = MOST_RUN; l < most;) { l = Math.min(most, Math.ceil(l * 4 / 3)); lengths.push(l); }
+  return lengths;
+}
+
+/**
+ * The worst run's extra turn, as a share (the one measure): {value, at, steps, extra}. Runs span up to MOST_RUN_SECONDS
+ * at the track's own rate (at least MOST_RUN steps). Each side's turns over a run are summed in closed form from running
+ * sums of dt, t·dt and t²·dt, so a run costs the same however long it is.
+ */
 function burstOf(rates) {
-  const n = rates.length;
+  const n = rates.length, dts = rates.map((r) => r.dt).sort((a, b) => a - b), typical = dts[dts.length >> 1];
+  const most = Math.max(MOST_RUN, Math.round(MOST_RUN_SECONDS / typical)), lengths = runLengths(Math.min(most, n));
+  const P0 = [0], P1 = [0], P2 = [0], PW = [0];
+  for (const r of rates) { P0.push(P0.at(-1) + r.dt); P1.push(P1.at(-1) + r.t * r.dt); P2.push(P2.at(-1) + r.t * r.t * r.dt); PW.push(PW.at(-1) + r.w * r.dt); }
   let worst = { value: 0, at: null, steps: 0, extra: 0 };
   for (let i = 0; i < n; i += 1) {
-    let made = 0, span = 0;
-    for (let j = i; j < n && j - i < MOST_RUN; j += 1) {
-      made += rates[j].w * rates[j].dt; span += rates[j].dt;
-      // what each side says the run should have turned: its nearest speed held, and its trend carried on in time
+    for (const length of lengths) {
+      const j = i + length - 1;
+      if (j >= n) break;
+      const S0 = P0[j + 1] - P0[i], S1 = P1[j + 1] - P1[i], S2 = P2[j + 1] - P2[i], made = PW[j + 1] - PW[i];
+      // a side's turn over the run, for its speed as A + B·τ + C·τ² with τ the time from its nearest step
+      const over = (t0, A, B, C) => A * S0 + B * (S1 - t0 * S0) + C * (S2 - 2 * t0 * S1 + t0 * t0 * S0);
       const said = [];
-      const side = (near, far) => {
-        let held = 0, carried = 0;
-        for (let k = i; k <= j; k += 1) {
-          held += near.w * rates[k].dt;
-          carried += (far ? near.w + ((near.w - far.w) / (near.t - far.t)) * (rates[k].t - near.t) : near.w) * rates[k].dt;
-        }
-        said.push(held, carried);
+      // each side, read outside the run: its nearest speed held, its line through two, its parabola through three
+      const side = (near, far, farther) => {
+        said.push(over(near.t, near.w, 0, 0));
+        if (!far) return;
+        const t1 = far.t - near.t, d1 = (far.w - near.w) / t1;
+        said.push(over(near.t, near.w, d1, 0));
+        if (!farther) return;
+        const t2 = farther.t - near.t, d2 = (farther.w - near.w) / t2, C = (d1 - d2) / (t1 - t2);
+        said.push(over(near.t, near.w, d1 - C * t1, C));
       };
-      if (i >= 1) side(rates[i - 1], i >= 2 ? rates[i - 2] : null);
-      if (j + 1 < n) side(rates[j + 1], j + 2 < n ? rates[j + 2] : null);
-      // and its curve: the parabola through its three nearest steps, carried on in time (Lagrange's form)
-      const curve = (p, q, r) => {
-        let c = 0;
-        for (let k = i; k <= j; k += 1) {
-          const t = rates[k].t, l = (a, b, d) => ((t - b.t) * (t - d.t)) / ((a.t - b.t) * (a.t - d.t));
-          c += (p.w * l(p, q, r) + q.w * l(q, p, r) + r.w * l(r, p, q)) * rates[k].dt;
-        }
-        said.push(c);
-      };
-      if (i >= 3) curve(rates[i - 1], rates[i - 2], rates[i - 3]);
-      if (j + 3 < n) curve(rates[j + 1], rates[j + 2], rates[j + 3]);
+      if (i >= 1) side(rates[i - 1], i >= 2 ? rates[i - 2] : null, i >= 3 ? rates[i - 3] : null);
+      if (j + 1 < n) side(rates[j + 1], j + 2 < n ? rates[j + 2] : null, j + 3 < n ? rates[j + 3] : null);
       const lo = Math.min(...said), hi = Math.max(...said), extra = made > hi ? made - hi : made < lo ? made - lo : 0;
       if (extra === 0 || (j === n - 1 && easesToRest(rates, i)) || (i === 0 && setsOff(rates, j))) continue;
-      const value = Math.abs(extra) / Math.max(Math.abs(lo), Math.abs(hi), SPIN_FLOOR * span);
-      if (value > worst.value) worst = { value, at: rates[i].t, steps: j - i + 1, extra };
+      const value = Math.abs(extra) / Math.max(Math.abs(lo), Math.abs(hi), SPIN_FLOOR * S0);
+      if (value > worst.value) worst = { value, at: rates[i].t, steps: length, extra };
     }
   }
   return worst;
@@ -143,6 +156,12 @@ export const spin = Object.freeze({
     const at = byFlight ? flying.reduce((far, r) => (Math.abs(r.w - mid) > Math.abs(far.w - mid) ? r : far)).t : burst.at;
     const readable = longest > 0 ? Math.PI / longest : null;
     return { value: byFlight ? flight : burst.value, basis: { kind: byFlight ? 'flight' : 'jump', at, steps: burst.steps, extra: burst.extra, flight, jump: burst.value, spin: mid, readBy: readable === null ? 'spin' : 'short', mostReadable: readable } };
+  },
+  /** When it cannot say (the track unresolved), it says so: a note with the fix, never a silent null. */
+  note(basis, who) {
+    if (!basis || basis.kind !== 'unresolved') return null;
+    return { level: 'note', message: `${who}: its spin is too fast to read — even at ${Math.round(basis.rate)} samples a second some step turns more than 30°, so no jump is judged`,
+      fix: 'fewer turns a second (a larger radius, a slower speed or spin), or a shorter move so more samples fit in the track' };
   },
   finding(value, who, basis) {
     if (!(value > SPIN_MOST)) return null;

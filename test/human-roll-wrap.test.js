@@ -189,6 +189,9 @@ test('a checked move is sampled at a rate its own motion sets: no step turns ove
   // a spin the cap cannot resolve (its samples say how fast it turns) is said, not judged
   const blur = { ...hand, name: 'reel:blur', plan: () => ({ seconds: 20, radius: 10 }), sample: (p, t) => ({ x: 0, y: 0, angle: 3e5 * t, spin: 3e5 }) };
   const blurred = checkMove(planMove({ do: 'roll', model: 'reel:blur' }, { models: [blur] }), { models: [blur] });
-  assert.equal(blurred.measures.spin, null); assert.equal(blurred.bases.spin.kind, 'unresolved'); assert.deepEqual(blurred.findings, []);
+  assert.equal(blurred.measures.spin, null); assert.equal(blurred.bases.spin.kind, 'unresolved');
+  assert.equal(blurred.findings.length, 1); assert.equal(blurred.findings[0].level, 'note');
+  assert.match(blurred.findings[0].message, /its spin is too fast to read — even at \d+ samples a second some step turns more than 30°, so no jump is judged/);
+  assert.match(blurred.findings[0].fix, /fewer turns a second/);
   assert.equal(sampleTrack(planMove({ do: 'roll', model: 'reel:blur' }, { models: [blur] }), { models: [blur] }).resolved, false);
 });

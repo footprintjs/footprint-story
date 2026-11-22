@@ -22,7 +22,7 @@
   read the drawn track. A fast spin, over half a turn between samples, is read as it turns: `roll-slip` nearest the turn
   the drawn distance owes, `spin` nearest its samples' own `spin`; a hand-drawn track with no spin is read the short way
   and `spin`'s basis says the fastest spin it can tell (`mostReadable`, π × the rate). Its jumps are one measure: for
-  every run of 1 to `MOST_RUN` (6) steps, the extra turn beyond what each side says (read outside the run, its speed
+  every run lasting up to `MOST_RUN_SECONDS` (0.05 s at the track's own rate, at least `MOST_RUN` = 6 steps), the extra turn beyond what each side says (read outside the run, its speed
   held, its line and its curve carried on), over the run's expected turn or `SPIN_FLOOR` (2π rad/s) × its time — flicks of any
   length, bursts, humps, dips, stutters and a flick on the last sample are caught; a stop, a start or a landing is not
   (a slow spin drifting 3 → 3.5 rad/s in flight passes); at the track's end a run easing monotonically to rest (by more
@@ -31,7 +31,7 @@
 - **A checked move is sampled at a rate its own motion sets** (`sampleTrack` with no `rate`; `BASE_RATE`,
   `MOST_STEP_TURN`, `MOST_STEP_TRAVEL`, `stepNeed`): from 120 a second, finer until no step turns more than 30° or
   travels more than 16 px, at most `MOST_TRACK_SAMPLES`; the track carries `rate` and `resolved`, and `spin` says
-  `unresolved` rather than judge a track the cap left aliased. A `rate` given is used as given.
+  `unresolved` (a note with the fix) rather than judge a track the cap left aliased. A `rate` given is used as given.
 - **A wrapped roll stays a roll:** the `no-slip` plan names `turnVector` (its turn per px of travel), and `anticipate`,
   `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
   wrapped roll still turns distance / radius; a tumble that lands into a roll turns with the wrapper after it lands

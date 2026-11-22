@@ -366,6 +366,8 @@ export const rolling: unknown[] = [rolled, slid, tumbled, piece?.a, landingRule?
 import { stoppingCoefficient } from 'footprint-story/human';
 import { MOST_RUN, RESTING } from 'footprint-story/human';
 export const mostRun: number = MOST_RUN + RESTING;
+import { MOST_RUN_SECONDS } from 'footprint-story/human';
+export const runSeconds: number = MOST_RUN_SECONDS;
 import { settleCarry } from 'footprint-story/human';
 export const carried: number = settleCarry(0.1, 'snappy');
 import { BASE_RATE, MOST_STEP_TURN, MOST_STEP_TRAVEL, stepNeed } from 'footprint-story/human';

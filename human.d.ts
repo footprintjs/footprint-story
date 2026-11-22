@@ -332,7 +332,8 @@ export const ROLL_SLIP_MOST: number;
 /** The most a spin may spread in flight or a step stand off its neighbours (10%), and the slowest spin a share is read against (2π rad/s: a turn a second). */
 export const SPIN_MOST: number;
 export const SPIN_FLOOR: number;
-/** The longest run of steps the spin critic reads as one burst (6), and how much slower each step must be to count as easing to rest at a track's end (1e-9 of it). */
+/** The longest a run the spin critic reads as one burst may last (0.05 s at the track's own rate, at least MOST_RUN = 6 steps), and how much slower each step must be to count as easing to rest at a track's end (1e-9 of it). */
+export const MOST_RUN_SECONDS: number;
 export const MOST_RUN: number;
 export const RESTING: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }

@@ -149,9 +149,12 @@ A checked move is sampled at a rate its own motion sets (`../models/resolve.js`)
 step turns more than 30° (`MOST_STEP_TURN`) or travels more than 16 px (`MOST_STEP_TRAVEL`), at most
 `MOST_TRACK_SAMPLES` samples — a small ball followed through at 3500 rad/s is read at 7000 a second, not as an alias. A
 step that does not shrink as the rate rises is drawn that way and judged as drawn; when the cap binds first the track
-says `resolved: false` and `spin` says so (basis `kind: 'unresolved'`) instead of judging it.
+says `resolved: false` and `spin` says so instead of judging it: basis `kind: 'unresolved'`, and a note naming the fix
+(fewer turns a second, or a shorter move).
 
-`spin`'s jumps are ONE measure (`critics/spin.js` · `burstOf`): for every run of 1 to `MOST_RUN` (6) consecutive steps,
+`spin`'s jumps are ONE measure (`critics/spin.js` · `burstOf`): for every run of consecutive steps lasting up to
+`MOST_RUN_SECONDS` (0.05 s, at the track's own rate — at least `MOST_RUN`, 6 steps; in time, so a finer track never
+shrinks it),
 the turn it made is set against what each side says it should have made — each side read only outside the run, from
 up to three steps beyond it, as its speed held, its line and its curve carried on in time. The run's extra turn is how far its
 sum lies outside the span of those (none when it lies between them: a stop, a start or a landing changes speed between

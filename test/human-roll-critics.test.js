@@ -170,3 +170,37 @@ test('spacing reads a tumble\'s flight only: on the floor (air: 0) the floor hol
   assert.ok(fly({ mark: false }).measures.spacing < 0.5);
   assert.equal(fly({ mark: false }).findings.find((x) => x.critic === 'spacing').level, 'warn');
 });
+
+test('the burst window is time, not steps: bursts caught alike at 120 a second, 240 and the track\'s own rate', async () => {
+  const { MOST_RUN_SECONDS, MOST_RUN } = await import('../src/human/critics/spin.js');
+  assert.deepEqual([MOST_RUN_SECONDS, MOST_RUN], [0.05, 6]);
+  const D = Math.PI / 180, ramp = (u) => Math.min(1, Math.max(0, u));
+  /** A roll drawn in continuous time: across at `speed`, turning speed / radius, with `extra` added to its angle. */
+  const read = (name, speed, extra, rate) => {
+    const m = { family: 'roll', name, options: [], checks: ['spin'], plan: () => ({ seconds: 2, radius: 10 }), sample: (p, t) => ({ x: speed * t, y: 0, angle: (speed / 10) * t + extra(t), spin: speed / 10 }) };
+    return checkMove(planMove({ do: 'roll', who, model: name }, { models: [m] }), { models: [m], ...(rate ? { rate } : {}) }).measures.spin;
+  };
+  // a spin that loses `rate` rad/s for `on` steps of 1/120 s, then has it back, over and over — as a hand stutters
+  const stutter = (on, rate = 20) => (t) => { const p = (2 * on) / 120, cycle = Math.floor(t / p + 1e-9), u = Math.max(0, t - cycle * p); return -rate * (cycle * (p / 2) + Math.max(0, Math.min(u, p) - p / 2)); };
+  const slow = {
+    '180° kept over 2 steps': (t) => Math.PI * ramp((t - 1) / (2 / 120)), '180° kept over 4 steps': (t) => Math.PI * ramp((t - 1) / (4 / 120)),
+    '30° kept': (t) => 30 * D * ramp((t - 1) * 120), 'a hump +[10, 10, 10]': (t) => 10 * Math.min(Math.max(t - 1, 0), 3 / 120),
+    'a 2/2 stutter': stutter(2), 'a 3/3 stutter': stutter(3),
+  };
+  for (const [what, extra] of Object.entries(slow)) for (const rate of [120, 240, undefined]) {
+    const v = read('reel:slow', 200, extra, rate);
+    assert.ok(v > SPIN_MOST, `${what} at ${rate ?? 'its own rate'}: ${v}`);
+  }
+  // on a fast roll (8000 px a second, 800 rad/s: 6.7 rad a step at 120 a second, which no fixed rate can read) a spin
+  // that truly stops and starts stays caught at the track's own rate (about 1500 a second, the window 75 steps)
+  for (const on of [2, 3]) {
+    const v = read('reel:fast', 8000, stutter(on, 800));
+    assert.ok(v > SPIN_MOST, `an ${on}/${on} stop-and-start on a fast roll: ${v}`);
+  }
+  // …while what is small beside the wheel's own turning is measured as small: a 30° kept jump, the hump +[10, 10, 10] and
+  // a 20 rad/s stutter beside the 40 rad it turns in 0.05 s are each under 10% of it — a blur no eye reads as a flick
+  for (const extra of [slow['30° kept'], slow['a hump +[10, 10, 10]'], stutter(2), stutter(3)]) {
+    const v = read('reel:fast', 8000, extra);
+    assert.ok(v > 0 && v < SPIN_MOST, `${v}`);
+  }
+});
