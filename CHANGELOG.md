@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.32.3 — an arc with a radius of 0 refused, by name
+
+- **A paint list's `arc` with `rx` or `ry` of 0 is refused** (`src/isometric/paint.js · checkPaint`), naming the item
+  and the fix: give both radii above 0, or write a `['line', x, y]` to its end. WHY: the two tools drew it differently —
+  SVG takes such an arc as a straight line between its ends (and nothing when they meet), a canvas walks the flattened
+  ellipse, which can run past an end and back. This package's own choices never write one (a cylinder's radii come from
+  its size, above 0); a tool's own style choice that wrote one is now refused before anything is drawn.
+- **Docs:** the line a painter writes to an arc's start is none when it has no length — when the pen is already there,
+  as on a cylinder's side (`paint.js`, the isometric README, `isometric.d.ts · PaintItem`). Pinned: the usual cylinder's
+  side reaches its arc from where its edge ends, on three grids.
+
 ## 0.32.2 — a map's `who` counted in letters, as a name and a label are
 
 - **A `who` is counted in letters (code points), not UTF-16 units** (`src/isometric/mapSpec.js · whoOf`). A name and a
