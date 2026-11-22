@@ -10,7 +10,7 @@ const colours = { base: '#d9e4f3', ink: '#14181f' };
 test('the columns, the usual style, and the choices this package ships', () => {
   assert.deepEqual(ISO_STYLE_COLUMNS, ['shape', 'shading', 'line', 'palette', 'texture', 'effects']);
   assert.deepEqual(USUAL_STYLE, { shape: 'box', shading: 'tones', line: 'ink', palette: 'theme', texture: 'none', effects: [] });
-  assert.deepEqual(ISO_STYLE_CHOICES, { shape: ['box'], shading: ['tones', 'paper'], line: ['ink', 'none', 'contour'], palette: ['theme'], texture: ['none'], effects: [] });
+  assert.deepEqual(ISO_STYLE_CHOICES, { shape: ['box'], shading: ['tones', 'paper'], line: ['ink', 'none', 'contour'], palette: ['theme', 'duotone'], texture: ['none'], effects: [] });
   assert.deepEqual(PAINT_ITEMS, ['polygon', 'ellipse', 'path', 'lines', 'stroke']);
   assert.equal(MOST_EFFECTS, 8); assert.equal(MOST_OWN_CHOICES, 64); assert.equal(MOST_PAINT_ITEMS, 512);
   assert.equal(mixColour('#d9e4f3', '#ffffff', 0.2), '#e1e9f5');

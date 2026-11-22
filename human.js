@@ -91,6 +91,8 @@ export { SKETCH_LAYERS, FILL_KINDS, HATCH, MOST_SHAPES, MOST_SHAPE_POINTS, MOST_
 export { shapesOfPaint, strokeItems, ELLIPSE_POINTS, HIDDEN } from './src/human/strokes/paint.js';
 export { strokeOutline, strokeAt, STROKE_CAPS, CAP_STEPS } from './src/human/strokes/outline.js';
 export { sketchyLine, hatchTexture, ROLE_FILLS, MOST_PIECE_ITEMS } from './src/human/strokes/styleChoices.js';
+export { grainTexture, GRAIN, MOST_GRAIN_MARKS } from './src/human/strokes/grain.js';
+export { HUMAN_STYLE_CHOICES } from './src/human/strokes/choices.js';
 export { SKETCH_KEYS } from './src/human/strokes/model.js';
 export { PEN_LIFTS_MOST } from './src/human/strokes/penLifts.js';
 export { STROKE_ORDER_MOST } from './src/human/strokes/strokeOrder.js';

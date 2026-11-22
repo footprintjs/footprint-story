@@ -15,12 +15,12 @@ import { controlDepRecorder } from 'footprintjs/trace';
 import { whyFromRecord, controlEdges } from '../record.js';
 import { mapFlow, runMapFlow } from '../mapflow.js';
 import { buildIsoMap, ISO_MAP_POLICIES, ISO_MAP_STEPS } from '../isometric.js';
-import { sketchyLine, hatchTexture } from '../human.js';
+import { sketchyLine, hatchTexture, grainTexture } from '../human.js';
 import { SUMMARISED, paintSummary, paintDigest } from '../src/mapflow/summary.js';
 import { fnv1a } from '../src/seed/seeded.js';
 
 const FILM = ISO_MAP_POLICIES.film;
-const CHOICES = Object.freeze([sketchyLine, hatchTexture]);
+const CHOICES = Object.freeze([sketchyLine, hatchTexture, grainTexture]);
 /** The most bytes a 64-block world's commit log (and its record file) may take, hatched or plain. */
 const MOST_RECORD_BYTES = 300_000;
 /** A plain world's record never grows past 0.33.0's (144,017 bytes, the paint lists whole). */
@@ -60,6 +60,17 @@ test('a 64-block hatched world: its record stays under 300 KB, every entry writt
   assert.match(why[1], /^style \(style#\d+\) \[wrote: paints, floorPaints\]$/);
   const style = snapshot.commitLog.find((c) => c.runtimeStageId.startsWith('style#'));
   assert.ok(style.trace.find((r) => r.path === 'paints').readKeys.includes('style'));
+});
+
+test('a 64-block paper-grain world (0.35.0): 13,118 marks in the map, a record as small as a plain one\'s — the summary counts them, never keeps them', async (t) => {
+  const grained = WORLD({ look: 'paper-grain' }), { map, snapshot, bytes, fileBytes } = await recorded(t, grained);
+  assert.ok(bytes < MOST_PLAIN_BYTES && fileBytes < MOST_PLAIN_BYTES + 2_000, `the commit log is ${bytes} bytes, the file ${fileBytes}`);
+  assert.equal(snapshot.sink.failed, 0, `the sink wrote every entry: ${snapshot.sink.lastError}`);
+  assert.deepStrictEqual(map, buildIsoMap(grained, FILM, { choices: CHOICES }));
+  const { paints } = snapshot.sharedState;
+  assert.equal(paints.byItem.lines, 179);
+  assert.equal(map.paints.flat().filter((it) => it.role === 'grain').reduce((n, it) => n + it.segments.length, 0), 13118);
+  assert.deepStrictEqual(paints, paintSummary(map.paints));
 });
 
 test('a plain world\'s record does not grow: smaller than 0.33.0\'s, which kept the paint lists whole', async (t) => {

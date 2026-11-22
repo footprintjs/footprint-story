@@ -329,8 +329,8 @@ export type IsoStyleColumn = 'shape' | 'shading' | 'line' | 'palette' | 'texture
 export const ISO_STYLE_COLUMNS: readonly ['shape', 'shading', 'line', 'palette', 'texture', 'effects'];
 /** A column's entry: a choice's name, or `{name, …its options}`. */
 export type IsoStyleEntry = string | ({ readonly name: string } & Readonly<Record<string, number | string | boolean>>);
-/** The named looks (0.34.0): a look is a style row under a name. */
-export type IsoLookName = 'outlined' | 'line-art';
+/** The named looks (0.34.0; paper-grain and duotone 0.35.0): a look is a style row under a name. */
+export type IsoLookName = 'outlined' | 'line-art' | 'paper-grain' | 'duotone';
 /** A row of choices; a column left out is the usual one (or the named look's, when `look` names one: a column written beside it replaces the look's entry, whole). */
 export interface IsoStyleRow { readonly look?: IsoLookName | null; readonly shape?: IsoStyleEntry; readonly shading?: IsoStyleEntry; readonly line?: IsoStyleEntry; readonly palette?: IsoStyleEntry; readonly texture?: IsoStyleEntry; readonly effects?: readonly IsoStyleEntry[] }
 /** A style as isoStyle makes it — plain data, the record of it: a name per column, and the options written. */
@@ -343,9 +343,20 @@ export interface IsoStyle {
 /**
  * The named looks, each a style row (0.34.0): `outlined` (the sticker look: tones, a bold even contour, lighter inner
  * lines) and `line-art` (paper faces, a 3 px contour, 1.25 px folds; the floor's tile lines the faintest). Named in a
- * row as `{look: 'outlined'}`; the same style as its row written out.
+ * row as `{look: 'outlined'}`; the same style as its row written out. 0.35.0: `paper-grain` (`{texture: 'human:grain'}`:
+ * a fine, faint, seeded grain over every face — hand footprint-story/human's `grainTexture`, or its HUMAN_STYLE_CHOICES,
+ * in `choices`) and `duotone` (`{palette: 'duotone'}`: every line the ink, every fill with a colour a tint of the accent on the paper;
+ * a fill whose colour the page decides — where a tool's ok / warn / bad tones live — is left to the page).
  */
-export const ISO_LOOKS: { readonly outlined: IsoStyleRow; readonly 'line-art': IsoStyleRow };
+export const ISO_LOOKS: { readonly outlined: IsoStyleRow; readonly 'line-art': IsoStyleRow; readonly 'paper-grain': IsoStyleRow; readonly duotone: IsoStyleRow };
+/**
+ * The palette "duotone"'s numbers (ours, 0.35.0): its inks (`ink` every line, `accent` the tints, `paper` what they are
+ * mixed from), the deepest tint (`most`, 0.6 of the way to the accent),
+ * and the least contrast a name in the ink keeps on every tint (`text`, 4.5 : 1 — a duotone whose inks
+ * cannot is refused). A tool drawing names on a duotone map draws them in its ink: `style.options.palette?.ink ?? DUOTONE.ink`;
+ * on a dark page it gives the duotone the page's colours (`palette: {name: 'duotone', paper, ink, accent}`).
+ */
+export const DUOTONE: { readonly ink: string; readonly accent: string; readonly paper: string; readonly most: number; readonly text: number };
 /** The contour line's numbers (ours): the contour as it shows (`width`, 5 px; 1 to 20) and the inner lines (`inner`, 1.5 px; 0.25 to the width). Drawn under the faces at 2 · width − inner. */
 export const CONTOUR: { readonly width: number; readonly inner: number; readonly least: number; readonly most: number; readonly leastInner: number };
 /** Today's look: box, tones, ink, theme, none, no effects. */
