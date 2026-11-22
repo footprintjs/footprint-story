@@ -344,7 +344,7 @@ writes what StoryDeck 0.32.0's `shapeOf` wrote byte for byte, for any piece on a
 (`test/isometric-style.property.test.js`, against copies of that code in `test/control/`), with the deck's centre and
 outline too. Points are any finite numbers: a far piece on a big grid is far off the frame, never refused.
 
-**A tool's own choice** has the same interface — `{column, name, apply(input, context), options, check, clashes}` — and
+**A tool's own choice** has the same interface — `{column, name, apply(input, context), options, unseeded, check, clashes}` — and
 a name with the tool's prefix (`'reel:chalk'`; this package's names have none). `apply` takes the items (a `shape`
 takes `{piece, grid}` and gives `{box, centre, outline, items}`); `context` holds the piece, the colours, the options written for it,
 and `random()`: numbers seeded by the style, the piece's name and the column, so a wobble or a grain is the same every
@@ -356,7 +356,10 @@ item, an arc at most half a turn with both radii above 0 (a radius of 0 SVG and 
 painter writes to an arc's start is none when the pen is already there) — read entry by entry (never a list's own `map`, a hole or a getter) and copied, so a
 later edit of the choice's own objects reaches nothing. A Proxy's traps do run, once, as it is copied. Options are kept
 in the order of their names, so `{a, b}` and `{b, a}` are the same style, seeded the same; a clash must name a choice
-there is. What it throws comes out as it is: the tool's own code.
+there is. What it throws comes out as it is: the tool's own code. `unseeded` names the options it reads that say when,
+not what (a pen's `speed`): they are left out of the seed, so a slower draw keeps its wobble — the seed rule the human
+door keeps (`UNSEEDED_KEYS`: never `who`, never the timing). A style that writes none of them is seeded as before.
+A style naming a tool's choice not handed in is refused, and the words say it is a tool's own and to hand it in `choices`.
 
 ```js
 const chalk = { column: 'texture', name: 'reel:chalk', options: ['marks'],
@@ -372,7 +375,8 @@ width per point: a painter that does not know it refuses it by name, rather than
 points are checked as what they are. This package's choices never give one; `footprint-story/human` has two that do —
 `sketchyLine` (`human:sketchy`) and `hatchTexture` (`human:hatch`), handed in under `choices` — for when a tool's painter
 draws `stroke` items ([../human/strokes/README.md](../human/strokes/README.md)). A painter that cannot vary a line's
-width fills the ring round it (`strokeOutline`, the human door).
+width fills the ring round it, its ends capped (`strokeOutline`, the human door), and draws it as it is drawn with
+`strokeAt` — one rule for both tools ([../human/strokes/README.md](../human/strokes/README.md)).
 
 A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
 apart, never on the style), so a record read back can be shown but must be made into a style again to draw.
@@ -412,13 +416,36 @@ map.order       // ['web', 'db'] — the furthest first
 | `floorLabels` | blocks, at, obstacles, floors, floorTiles, shapes, routes, view, policy | `floorLabels` (each label's place, fits, covered) | — |
 | `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | `paints`, `floorPaints` (the style's other columns) | — |
 
-Each step is `{name, about, reads, writes, run}`: `run(state)` reads only the keys it names and gives back a new state
+Each step is `{name, about, reads, writes, run}`: `run(state, tools)` reads only the keys it names and gives back a new state
 with the keys it writes. It never edits what it was handed and never puts a function in the state — a block's room is
 asked of the grid where it is needed, the grid is kept as its numbers — so every state is plain data a record can keep,
 and the built map is the last state, frozen. `buildIsoMap` hands each step only its `reads`, so a step that reads a key
 it does not name finds nothing. A step that chooses (`place`, `grid`) also has `decides` (the choice and its reason, as
 data) and `branches` (one per choice); `footprint-story/mapflow` runs the same functions as a footprintjs chart, a
 decider for each, so a run's record says what each step read, wrote and decided ([src/mapflow/README.md](../mapflow/README.md)).
+
+**A tool's own style choices** — footprint-story/human's `sketchyLine` (`human:sketchy`) and `hatchTexture`
+(`human:hatch`), a tool's `reel:chalk` — are handed beside the spec and the policy: `buildIsoMap(spec, policy,
+{choices})`, `runMapFlow(spec, policy, {choices, …})`, and each step's `run(state, {choices})` (only `shape` and `style`
+read them). The spec's style names them (`style: {line: 'human:sketchy', texture: 'human:hatch'}`).
+
+```js
+import { sketchyLine, hatchTexture } from 'footprint-story/human';
+const map = buildIsoMap({ ...spec, style: { line: 'human:sketchy', texture: 'human:hatch' } }, ISO_MAP_POLICIES.film, { choices: [sketchyLine, hatchTexture] });
+map.style.row.line;   // 'human:sketchy': the record names the choice that drew it
+```
+
+| Choice | Why |
+|---|---|
+| a third argument, not a key of the spec | the spec is data a tool writes and a record keeps whole; a choice is code, which no record holds — so the record keeps its name (`style.row`) and the code is handed again on every build, as `restyle(record, {choices})` takes it |
+| not a key of the policy | the policy is a tool's numbers (`film`, `deck`); a hand-drawn map is a look either tool may draw under either policy |
+| read once, by own stored fields, the list copied | a getter is refused, never run; a later edit of the caller's list reaches nothing; `mapFlow({choices})` binds them into the chart, so a run's state never holds code |
+| a style naming a choice not handed in is refused | in the map's `who` (`slide 3's map's style: … "human:sketchy" is a tool's own choice …: hand the choice itself in {choices}`), before anything is placed |
+| a hatch too close for its piece is refused in the piece's `who` | `blocks[0] ("big"): … give a wider spacing: texture: {name: 'human:hatch', spacing: 10}` — the spacing that fits |
+
+Only the paint lists change: the places, the grid, the names and the labels of a hand-drawn map are the usual map's (a
+test). The seeds are exact: the same map, the same strokes; `who` and the pen's speed never reach the wobble; the pen's
+points of a pinned map are held to 1e-6 (`test/hand-drawn-map.test.js`, with the map flow's drift property).
 
 **The spec** is the map as data, already read by the tool from its own format: `blocks` (`name`, `kind`, `at` or none,
 `size`, `label`, `small`, `rule`, `group`, `ports`, `colours`, `who`), `floors` (`name`, `at` and `size` or neither,
@@ -475,8 +502,7 @@ The deck's policy is pinned against a verbatim copy of StoryDeck 0.32.0's map co
 and its siblings): for random deck maps written as the deck's HTML and as the spec, the grid, every block's and
 footprint's place, outline and paint level, every floor's tiles and label place, every route and every name's fit are
 the same numbers (`test/deck-map-differential.property.test.js`); and 0.25.0 builds every film map as 0.24.0 did
-(`test/isometric-map-0.24.0.property.test.js`). **Not here:** a tool's own style choices (code, which no record holds:
-the spec's style is a row of this package's choices), cables on the frame (their line, label, head, lead and packets —
+(`test/isometric-map-0.24.0.property.test.js`). **Not here:** cables on the frame (their line, label, head, lead and packets —
 a later step: the tools differ most there), and what a deck reads from its HTML and writes into it — its pieces and
 names, a footprint's box on the slide, the keep-clear stretches worked out from a box (`floorUnder`), the icon's
 drawing, callouts, the px and levels it writes.

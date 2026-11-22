@@ -21,7 +21,8 @@ Design: `docs/design/2026-11-human-motion.md` · "Hand-drawn strokes".
 | `model.js` | the `hand-sketch` model, family `sketch`, for `do: 'sketch'` |
 | `critique.js`, `penLifts.js`, `strokeOrder.js`, `hatchGaps.js` | the critics `pen-lifts`, `stroke-order`, `hatch-gaps` |
 | `geometry.js` | inside a ring, the distance to its edge, where a segment crosses it — one answer each |
-| `paint.js` | strokes and the isometric paint list: faces → shapes (`shapesOfPaint`), strokes → `stroke` items (`strokeItems`), the ring round a stroke (`strokeOutline`) |
+| `paint.js` | strokes and the isometric paint list: faces → shapes (`shapesOfPaint`), strokes → `stroke` items (`strokeItems`) |
+| `outline.js` | a stroke as a painter fills it: the ring round it with its caps (`strokeOutline`, `STROKE_CAPS`, `CAP_STEPS`), the stroke as drawn by a time (`strokeAt`) |
 | `styleChoices.js` | two isometric style choices on strokes, handed in, never built in: `sketchyLine` (`human:sketchy`), `hatchTexture` (`human:hatch`) |
 
 The shared tremor cap is `../paths/wobble.js` (`wobbleRooms`, `wobbleAcross`), the same code the `power-law` pen uses.
@@ -156,7 +157,7 @@ The paint list has a kind of item for a hand-drawn line: `{item: 'stroke', role,
 fill: null, stroke}` — each point's width (0 to the stroke's `width`) and time (seconds from the piece's start, rising),
 checked by `checkPaint`. WHY a kind of its own and not `lines` or `path` with a width per point: a painter that does
 not know it refuses it by name, rather than drawing it at one width; and its points are checked as what they are. A
-painter that cannot vary a line's width fills `strokeOutline(points)`.
+painter that cannot vary a line's width fills `strokeOutline(points, {cap})` (below).
 
 `shapesOfPaint` reads a piece's faces as shapes: an edge one face has is the silhouette (outline), one two faces share
 an inner edge (detail), and an edge whose middle lies inside a face painted later is hidden (the straight close of a
@@ -165,6 +166,59 @@ edges drawn by hand; a floor keeps its tile lines as `ink` does. `human:hatch` h
 cross-hatches a right face and leaves the top clear (`ROLE_FILLS`), each kept out of the faces painted over it, its
 strokes timed after the line's. The two are named under `human:` and handed in: the isometric door never loads
 `src/human`, and a tool turns them on once its painter draws `stroke` items.
+
+## A stroke as a painter fills it: the ring, its caps, and the stroke drawn so far
+
+```js
+import { strokeAt, strokeOutline } from 'footprint-story/human';
+
+// a piece's stroke item, drawn at `now`, its piece started drawing at `start`:
+const ring = strokeOutline(strokeAt(item.points, now - start), { cap: item.stroke.cap });
+// one ring [[x, y], …]: fill it (an SVG path's d, a canvas fill) — no cap of the painter's own, no circles
+
+strokeAt([[0, 0, 1, 1], [10, 0, 3, 2]], 1.5);   // [[0, 0, 1, 1], [5, 0, 2, 1.5]]: the pen half way, half as wide again
+strokeOutline([[0, 0, 2, 0], [10, 0, 4, 1]], { cap: 'butt' });     // [[0, -1], [10, -2], [10, 2], [0, 1]]
+strokeOutline([[0, 0, 2, 0], [10, 0, 4, 1]], { cap: 'square' });   // … [10, -2], [12, -2], [12, 2], [10, 2] … [-1, 1], [-1, -1]
+```
+
+`strokeAt(points, t)` gives the points at or before `t` (seconds on the points' own clock: from the piece's start), then
+— when `t` falls between two — the pen's place at `t` on the line between them, its width and time taken as far along
+as `t` is. Nothing before the first point; every point at or after the last (`Infinity`: the whole stroke, and
+`strokeOutline(strokeAt(p, Infinity))` is `strokeOutline(p)` exactly — a property test). `strokeOutline(points, {cap})`
+gives one ring: up the left side, round the far end by its cap, down the right side, round the near end. The caps are
+the paint list's (`STROKE_CAPS`):
+
+| cap | what the ring does at each end | numbers (ours) |
+|---|---|---|
+| `round` (left out: `strokeItems` writes it, a pen's end is round) | a half circle of the end's width round the end point, out past it the way the stroke runs | `CAP_STEPS` 12 segments a half circle: within 0.09 px of the circle at a 20 px stroke (10 (1 − cos(π / 24))), 0.011 px at 2.5 px |
+| `butt` | flat across the end point | — |
+| `square` | half the end's width out past it, square | — |
+
+A stroke of one point is a dot: a circle, a square, or nothing (butt) — as SVG and a canvas draw a line of no length.
+An end of no width takes no cap; an end whose last chord has no length (the pen held still) takes its heading from the
+first point that is not in its place.
+
+**WHY the caps are in the ring.** A painter that fills a ring draws no cap of its own: StoryDeck's SVG path drew flat
+ends, and StoryReel worked out its own end circles — the same picture computed twice, and differently. A cap is
+geometry, so it is here, once. **WHY one ring and not a ring and two discs:** one fill, one path, no seam where a disc
+meets the ring. **WHY a point between, not a cut at the last point before `t`:** the stroke then grows smoothly, frame
+by frame, at the pen's own speed; a cut at the last point jumps a whole step at a time (2 px, more on a long stroke).
+The cut end is capped as the finished stroke's end is, so a stroke being drawn looks like a pen, not a sawn-off line.
+
+## Strokes on a whole map
+
+```js
+import { buildIsoMap, ISO_MAP_POLICIES } from 'footprint-story/isometric';
+import { sketchyLine, hatchTexture } from 'footprint-story/human';
+
+const map = buildIsoMap({ ...spec, style: { line: 'human:sketchy', texture: 'human:hatch' } }, ISO_MAP_POLICIES.deck, { choices: [sketchyLine, hatchTexture] });
+map.paints[0];   // the block's faces, its edges and its hatch as `stroke` items — the same for a film (ISO_MAP_POLICIES.film)
+```
+
+The choices are code, so they are handed beside the spec and the policy, never in them (the isometric README: *A whole
+map*). The seed is the style's (its choices and options) and the piece's name, never `who`; `human:sketchy` names its
+`speed` as `unseeded` — timing, as the human door's `UNSEEDED_KEYS` leave `seconds` and `speed` out — so a faster pen
+draws the same wobble sooner. The pen's points of a pinned map are held to 1e-6 (`test/hand-drawn-map.test.js`).
 
 ## Limits
 
@@ -186,5 +240,5 @@ and a stroke of more corners than that allows (1365) is refused. A piece's paint
 - F. Lacquaniti, C. Terzuolo, P. Viviani, 1983 (the two-thirds power law), and the seeded tremor: as for the `power-law`
   pen, `../REFERENCES.md`.
 - Ours: every number in the tables above — the hook, the thinning and taper, the widths by layer, the lift, the fill
-  speed and tremor, the hatch's usual angle and spacing, the boil's hold, the critics' limits — each a named constant
+  speed and tremor, the hatch's usual angle and spacing, the boil's hold, the critics' limits, a round cap's segments — each a named constant
   beside its reason, and a test pins it.

@@ -113,8 +113,8 @@ test('the chart runs on its own with the input {mapSpec, mapPolicy}; a refusal r
 });
 
 test('runMapFlow\'s options are checked', async () => {
-  await assert.rejects(runMapFlow(SPEC, FILM, 'fast'), /runMapFlow's options are \{sink, recorders\}, or none — not string/);
-  await assert.rejects(runMapFlow(SPEC, FILM, { speed: 1 }), /runMapFlow's options are sink, recorders — not "speed"/);
+  await assert.rejects(runMapFlow(SPEC, FILM, 'fast'), /runMapFlow's options are \{choices, sink, recorders\}, or none — not string/);
+  await assert.rejects(runMapFlow(SPEC, FILM, { speed: 1 }), /runMapFlow's options are choices, sink, recorders — not "speed"/);
   await assert.rejects(runMapFlow(SPEC, FILM, { recorders: {} }), /runMapFlow's recorders are a list of combined recorders/);
   assert.equal((await runMapFlow(SPEC, FILM, null)).map.placed, 'build');
 });

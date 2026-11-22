@@ -538,7 +538,9 @@ a grid or an area, a style) and a tool's numbers (`ISO_MAP_POLICIES.film` or `.d
 shape, names, order, floorLabels, style (`ISO_MAP_STEPS`), each a pure step that reads and writes plain data. The two
 that choose say why as data (`placed: 'build'`, `placedWhy: 'no block has an at: …'`). Moved from StoryReel 0.38.0 and
 pinned against a copy of it; neither tool uses it yet. `footprint-story/mapflow` runs the same steps as a footprintjs
-chart, so a run's record answers why a block stands where it does (`runMapFlow`, then `whyFromRecord`):
+chart, so a run's record answers why a block stands where it does (`runMapFlow`, then `whyFromRecord`). A hand-drawn map
+names `human:sketchy` / `human:hatch` in its style and hands the choices beside the spec and the policy:
+`buildIsoMap(spec, policy, { choices: [sketchyLine, hatchTexture] })`, the same for `runMapFlow`'s options:
 [src/mapflow/README.md](src/mapflow/README.md), and the design, [docs/design/2026-11-map-flow.md](docs/design/2026-11-map-flow.md).
 
 ```js
@@ -636,7 +638,7 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `anticipate`, `followThrough`, `hold`, `overshoot`, `basePlan`, `isWrapped` | the animation principles as a move → a move, over any model, read by `sampleMove` |
 | `/human` `launch`, `flightAt`, `fallSeconds`, `bounces`, `runChain`, `relaxChain`, `makeWorld`, `pushOut`, `collide`, `depthIn`, `verletStep`, `simulate`, `settleLeft`, `PHYSICS_STEP`, `GRAVITY` | light physics on a fixed step (Jakobsen 2001), for a tool's own model: [src/human/physics/README.md](src/human/physics/README.md) |
 | `/human` `planSketch`, `sampleSketch`, `boilSketch`, `hatchLines`, `leastStrokes`, `withOvershoot`, `ORDER_RULE`, `SKETCH`, `CORNER`, `PEN_WIDTH`, `LIFT`, `BOIL`, `HATCH` | hand-drawn strokes: a drawing's order and why, each stroke's timed points and widths, fills clipped exactly, a bounded boil; `do: 'sketch'` plans one (model `hand-sketch`, critics `pen-lifts`, `stroke-order`, `hatch-gaps`): [src/human/strokes/README.md](src/human/strokes/README.md) |
-| `/human` `shapesOfPaint`, `strokeItems`, `strokeOutline`, `sketchyLine`, `hatchTexture` | strokes and the isometric paint list (its `stroke` item); two style choices on strokes, handed to `isoStyle` in `choices` |
+| `/human` `shapesOfPaint`, `strokeItems`, `strokeOutline`, `strokeAt`, `STROKE_CAPS`, `CAP_STEPS`, `sketchyLine`, `hatchTexture` | strokes and the isometric paint list (its `stroke` item): the ring a painter fills, its ends capped, and the stroke as drawn by a time; two style choices on strokes, handed to `isoStyle` or `buildIsoMap` in `choices` |
 | `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS`, `PER_INTENT`, `intentKey` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings; each intent's values also under keys of its own (`duration-3`) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 | `/humanflow` `humanFlow`, `runHumanFlow` | the intent decider's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/humanflow/README.md](src/humanflow/README.md) |
