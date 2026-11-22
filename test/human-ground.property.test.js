@@ -15,7 +15,7 @@ const close = (a, b, tol, scale = 1) => Math.abs(a - b) <= tol * Math.max(1, sca
 const coord = fc.double({ min: -1500, max: 1500, noNaN: true });
 const shape = fc.constantFrom(...Object.keys(ROLL_SHAPES));
 /** The refusals a generated intent may meet, each in words: anything else thrown is a fault, never skipped. */
-const EXPECTED = /would still be moving after 30 s|after it lands it would still be (rolling|sliding)|neither slows down nor starts by itself|nothing moves it|starts inside its boxes|starts against a box|under one frame/;
+const EXPECTED = /would still be moving after 30 s|longer than the 30 s a physics plan may run|after it lands it would still be (rolling|sliding)|neither slows down nor starts by itself|nothing moves it|starts inside its boxes|starts against a box|under one frame/;
 const refused = (f) => { try { return f(); } catch (e) { if (EXPECTED.test(e.message)) return null; throw e; } };
 
 test('a roll on a level floor stops after v²(1 + k) / (2 C g), in v(1 + k) / (C g), its turn distance / radius', () => {

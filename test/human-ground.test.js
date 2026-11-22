@@ -258,3 +258,24 @@ test('a roll or a slide that would still move after 30 s is told the value that 
   // from rest down a slope nothing but a stop helps: no value is named
   assert.throws(() => planMove({ do: 'roll', from: [0, 0], slope: 10, radius: 10 }), /would still be moving after 30 s — give to \(where it comes to rest\) or put a box in its way$/);
 });
+
+test('the lost counterexample, pinned: a roll to `to` on a slope that nearly balances its resistance takes past 30 s — said so, never "short of to"', () => {
+  // found by FC_RUNS=5000 (seed 1729058189): 685.2 px up… down 2.8°, where tan θ (0.0489) all but cancels rolling resistance (0.05)
+  const slope = 2.800164542381026, phi = (slope * Math.PI) / 180, D = 685.226857980697, to = [D * Math.cos(phi), D * Math.sin(phi)];
+  const intent = { do: 'roll', who, from: [0, 0], to, slope, radius: 1 };
+  let said = '';
+  try { planMove(intent); } catch (e) { said = e.message; }
+  assert.match(said, /^human: blocks\[3\] \("ball"\): it would take 30\.\d\d s to come to rest at to, longer than the 30 s a physics plan may run — a nearer to, or a resistance that stops it in time \(model: \{name: 'no-slip', resistance: (0\.\d\d)\}\)$/);
+  assert.doesNotMatch(said, /short of to/);
+  const resistance = Number(said.match(/resistance: ([\d.]+)/)[1]), followed = planMove({ ...intent, model: { name: 'no-slip', resistance } });
+  assert.equal(followed.plan.basis.endedBy, 'end'); assert.ok(followed.plan.seconds < 30);
+  assert.deepEqual([sampleMove(followed, followed.plan.seconds).x, sampleMove(followed, followed.plan.seconds).y], to);
+  // a nearer to plans as it is
+  assert.ok(planMove({ ...intent, to: [600 * Math.cos(phi), 600 * Math.sin(phi)] }).plan.seconds < 30);
+  // a speed given that is too slow to arrive in time, on a slope that runs it down: the speed that arrives in time
+  const creep = Math.atan(0.2001), creeping = { do: 'slide', from: [0, 0], to: [600 * Math.cos(creep), 600 * Math.sin(creep)], slope: (creep * 180) / Math.PI, model: { name: 'coulomb', kinetic: 0.2, static: 0.3 } };
+  let slow = '';
+  try { planMove({ ...creeping, speed: 0.001 }); } catch (e) { slow = e.message; }
+  assert.match(slow, /still be moving after 30 s, [\d.]+ px of the 600 px to to — a nearer to, or a faster start \(speed: (\d+)\)/);
+  assert.ok(planMove({ ...creeping, speed: Number(slow.match(/speed: (\d+)/)[1]) }).plan.seconds <= 30, 'the speed it names arrives in time');
+});

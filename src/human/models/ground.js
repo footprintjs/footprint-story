@@ -4,9 +4,10 @@
  *
  *   readGround(intent, who, { gravity, radius })  → the line: {plane, from, u, turnSign, slope, heading, to, end, speed,
  *                                                  along, normal, world, ahead, behind}
- *   planGround(line, push, who, hint)              → {glide, speed, defaulted}: refused, naming the entry and the fix,
- *                                                  when nothing moves it, it stops short of `to`, or it never stops
- *                                                  (`hint(speed)` says what would stop it)
+ *   planGround(line, push, who, stopping)          → {glide, speed, defaulted}: refused, naming the entry and the fix,
+ *                                                  when nothing moves it, it stops short of `to`, or it is still
+ *                                                  moving after 30 s (`stopping(speed)`: the resistance or friction
+ *                                                  that stops a thing starting at that speed in time, in words, or '')
  *   stoppingCoefficient({along, normal, speed, seconds, share}) → the least resistance or friction that stops it in time
  *   groundAt(plan, t)                              → {x, y, q, v}
  *
@@ -104,8 +105,17 @@ export function stoppingCoefficient({ along, normal, speed, seconds, share }) {
   return (Math.floor(need * 100) + 1) / 100;
 }
 
+/**
+ * The start speed (px a second, whole, a hair above) that reaches `end` px along within MOST_PHYSICS_SECONDS under the
+ * forward acceleration `forward`: covering it in time, d = v·T + ½·a·T², and, when it slows, not stopping first, v² ≥ 2|a|d.
+ */
+function arrivingSpeed(end, forward) {
+  const T = MOST_PHYSICS_SECONDS, inTime = end / T - 0.5 * forward * T;
+  return Math.floor(Math.max(0, inTime, forward < 0 ? restSpeed(end, -forward) : 0)) + 1;
+}
+
 /** The glide along the line under `push` ({along, resist, hold}), its start speed picked when `to` asks for it. */
-export function planGround(line, push, who, hint) {
+export function planGround(line, push, who, stopping) {
   const forward = push.along - push.resist, { end, ahead } = line;
   if (end !== null && ahead.box !== null && ahead.distance < end) refuse(`${who}: its boxes[${ahead.box}] stands between from and to — it would stop there, ${round(ahead.distance, 1)} px along: move to before it, or the box`);
   let speed = line.speed, defaulted = false;
@@ -117,11 +127,18 @@ export function planGround(line, push, who, hint) {
   }
   const g = glide({ speed: speed ?? 0, ...push, ahead: ahead.distance, behind: line.behind.distance, end, most: MOST_PHYSICS_SECONDS });
   if (g.seconds === 0) refuse(g.endedBy === 'box' ? `${who} starts against a box and moves into it — move from, or send it the other way` : `${who}: nothing moves it — give speed, to (where it comes to rest), or a slope`);
+  const or = (words) => (words ? `, or ${words}` : '');
   if (end !== null && g.endedBy !== 'end') {
-    const furthest = forward < 0 ? ((speed ?? 0) ** 2) / (-2 * forward) : null;
-    refuse(`${who}: from ${round(speed ?? 0, 1)} px a second it stops ${furthest === null ? 'before' : `${round(furthest, 1)} px along,`} short of to (${round(end, 1)} px away) — drop speed (the law picks it)${forward < 0 ? `, or speed: ${Math.ceil(restSpeed(end, -forward))}` : ''}`);
+    const v = speed ?? 0, furthest = forward < 0 ? (v * v) / (-2 * forward) : Infinity;
+    // still on its way at 30 s (a slope that nearly balances its resistance creeps): too slow, never short
+    if (g.endedBy === 'time' && furthest >= end * (1 - 1e-9)) {
+      // a speed the law picked comes to rest at to after 2d / v: say how long, beside the fix
+      if (defaulted && forward < 0) refuse(`${who}: it would take ${((2 * end) / v).toFixed(2)} s to come to rest at to, longer than the ${MOST_PHYSICS_SECONDS} s a physics plan may run — a nearer to${or(stopping((2 * end) / MOST_PHYSICS_SECONDS))}`);
+      refuse(`${who}: it would still be moving after ${MOST_PHYSICS_SECONDS} s, ${round(g.q, 1)} px of the ${round(end, 1)} px to to — a nearer to, or a faster start (speed: ${arrivingSpeed(end, forward)})`);
+    }
+    refuse(`${who}: from ${round(v, 1)} px a second it stops ${round(furthest, 1)} px along, short of to (${round(end, 1)} px away) — drop speed (the law picks it), or speed: ${Math.ceil(restSpeed(end, -forward))}`);
   }
-  if (g.endedBy === 'time') refuse(`${who}: it would still be moving after ${MOST_PHYSICS_SECONDS} s — ${hint(speed ?? 0)}`);
+  if (g.endedBy === 'time') refuse(`${who}: it would still be moving after ${MOST_PHYSICS_SECONDS} s — give to (where it comes to rest) or put a box in its way${or(stopping(speed ?? 0))}`);
   return { glide: g, speed: speed ?? 0, defaulted };
 }
 

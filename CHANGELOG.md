@@ -39,6 +39,9 @@
   it arrives at rest, carrying on further than `by` when its speed alone takes it there) and ends still; an overshoot's
   settle carries that speed too (`settleCarry`, the spring's impulse response): no jump in speed or spin at the
   hand-over, on any roll.
+- **A roll or a slide to `to` that would take longer than 30 s says so** ("it would take 30.03 s to come to rest at to,
+  longer than the 30 s a physics plan may run — a nearer to, or a resistance that stops it in time …"; a speed given too
+  slow: the speed that arrives in time), never "short of to": a slope that nearly balances its resistance creeps.
 - **The 30 s refusal names the value that stops it** (`stoppingCoefficient`: above tan θ on a slope, at least (1 + k)·v /
   (g · 30 s) on the level for a roll, v / (g · 30 s) for a slide), and following it plans. A box tumble given its own
   spin keeps it and may land at a slant: `basis.slant` and the reason say so.

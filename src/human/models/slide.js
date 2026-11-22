@@ -39,7 +39,7 @@ function plan(intent, { who, options }) {
   // static friction left out follows the kinetic (at least it); one named under the value is raised with it
   const hint = (v) => {
     const need = v > 0 ? stoppingCoefficient({ along: line.along, normal: line.normal, speed: v, seconds: MOST_PHYSICS_SECONDS, share: 1 }) : Infinity;
-    return `give to (where it comes to rest) or put a box in its way${need <= MOST_FRICTION ? `, or a friction that stops it in time (model: {name: 'coulomb', kinetic: ${need}${options.static !== undefined && still < need ? `, static: ${need}` : ''}})` : ''}`;
+    return need <= MOST_FRICTION ? `a friction that stops it in time (model: {name: 'coulomb', kinetic: ${need}${options.static !== undefined && still < need ? `, static: ${need}` : ''}})` : '';
   };
   const { glide, speed, defaulted } = planGround(line, slidingPush({ along: line.along, normal: line.normal, kinetic, still }), who, hint);
   const back = glide.travelled - Math.abs(glide.q) > 1e-6;

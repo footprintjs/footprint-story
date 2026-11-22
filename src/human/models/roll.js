@@ -43,7 +43,7 @@ function plan(intent, { who, options }) {
   const push = rollingPush({ along: line.along, normal: line.normal, resistance, inertia });
   const hint = (v) => {
     const need = v > 0 ? stoppingCoefficient({ along: line.along, normal: line.normal, speed: v, seconds: MOST_PHYSICS_SECONDS, share: 1 + inertia }) : Infinity;
-    return `give to (where it comes to rest) or put a box in its way${need <= 1 ? `, or a resistance that stops it in time (model: {name: 'no-slip', resistance: ${need}})` : ''}`;
+    return need <= 1 ? `a resistance that stops it in time (model: {name: 'no-slip', resistance: ${need}})` : '';
   };
   const { glide, speed, defaulted } = planGround(line, push, who, hint);
   const turn = line.turnSign * rollTurn(glide.q, radius), rolledBack = glide.travelled - Math.abs(glide.q) > 1e-6;

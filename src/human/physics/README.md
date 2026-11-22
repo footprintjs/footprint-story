@@ -98,7 +98,9 @@ die.reason;                   // "… spinning at 23.4 rad/s (the usual: the spi
   above (`plane: 'floor'`, the isometric door's own floor in px — the tool projects), it is level and goes toward `to`
   or along `heading`. What never stops within 30 s, stops short of `to`, or is not moved at all is refused in words;
 the 30 s refusal names the resistance or friction that does stop it (above tan θ on a slope, at least (1 + k)·v / (g ·
-30 s) on the level for a roll, v / (g · 30 s) for a slide; `stoppingCoefficient`), and following it plans.
+30 s) on the level for a roll, v / (g · 30 s) for a slide; `stoppingCoefficient`), and following it plans. A move to
+`to` that would take longer says so (how long, and a nearer `to`, the coefficient or the start speed that arrives in
+time), never "short of to".
 - **A tumble** (`free-spin`) flies the ballistic arc to `to` (the floor `radius` below it), its spin kept: nothing
   touches it, so no torque. **The hand-over rule** is data, `LANDING_RULES` (first match, decide()'s shape): the
   `then` the intent names, else a round shape rolls on and a box slides on. At the landing its fall stops and its
