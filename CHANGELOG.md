@@ -15,6 +15,9 @@
   gives no `who`.
 - **How a model is chosen is data:** `CHOOSE_RULES`, a first-match table in the shape of footprintjs `decide()` rules —
   the model the intent names, else its family's usual. `planMove` reads the same table, so its choices are unchanged.
+- **`planMove`'s words for a model it cannot use now start with the intent's `who`** ("hand": there is no model
+  "nope" …; "the move": the model "spring" is for a settle …), and say a tool's own model "is handed in as models"
+  (was "goes in planMove's models"), since `planIntents` gives the same words.
 - **New door `footprint-story/humanflow`** (`humanFlow`, `runHumanFlow`; `footprintjs` an optional peer, as for
   `/mapflow`): the same steps as a footprintjs chart, `choose` a decider that writes each choice and the list's reason
   (`chose`: `'ours'`, or `'own'` when a tool's own model — code no record holds — plans a move), run with
@@ -22,7 +25,8 @@
   `whyFromRecord` answers from the record file why one move took its duration (`duration-<i>`: through the plan and
   the decision, Fitts's distance, target and bits in the answer) and why its model was chosen (`model-<i>`).
 - **`whyFromRecord` shows the value asked for up to 1000 characters** (`WHY_LIMITS.asked`; one line, as before); every
-  other name and value it shows stays at 200 (`WHY_LIMITS.value`). The asked value is the answer: one entry asked by its
+  other name and value it shows stays at 200 (`WHY_LIMITS.value`). The cut counts code points, so an emoji at the cut
+  is never split in two. The asked value is the answer: one entry asked by its
   own key comes back whole (a hanging chain's duration and its basis are about 300 characters).
 
 ## 0.27.0 — light physics and secondary motion on `footprint-story/human`; one seed rule

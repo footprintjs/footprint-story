@@ -111,7 +111,7 @@ test('one intent of fifty, asked by its own key: its duration and full basis, th
   assert.ok(answer.some((l) => l.startsWith('    choose (choose#1) ← via choices ← [control: ')), answer.join('\n'));
   assert.ok(!answer.some((l) => /not whole/.test(l)), 'fifty intents\' keys stay within what the reader keeps of a step');
   // why its model: its own key, the rule's words whole
-  assert.match(await whyFromRecord({ file, control: edges, key: `model-${i}` }), new RegExp(`^model-${i} = \\{"model":"min-jerk","family":"reach","by":"usual","rule":"the intent names none: its family's usual"\\}\nchoose \\(choose#1\\)`));
+  assert.match(await whyFromRecord({ file, control: edges, key: `model-${i}` }), new RegExp(`^model-${i} = \\{"model":"min-jerk","family":"reach","by":"usual","rule":"the intent names none: its family's usual","own":false\\}\nchoose \\(choose#1\\)`));
   assert.match(await whyFromRecord({ file, control: edges, key: `findings-${i}`, all: true }), new RegExp(`^findings-${i} = \\[\\]\nfindings \\(findings#6\\)`));
 });
 
@@ -153,6 +153,8 @@ test('a tool\'s own model: the decider goes to "own", and the record\'s control 
   const edges = controlEdges(run.snapshot.commitLog, control);
   assert.deepEqual(edges['own#2'], { deciderId: 'choose#1', label: "a tool's own model plans 1 of 1 moves, from code this record does not hold — chalk line: draw → reel:chalk (named)" });
   assert.match(await whyFromRecord({ file, control: edges, key: 'plans' }), /plan: own \(own#2\) \[wrote: plans\]/);
+  // asked about the one intent, the answer says its model is a tool's own, whose code the record does not hold
+  assert.match(await whyFromRecord({ file, control: edges, key: 'model-0' }), /^model-0 = \{"model":"reel:chalk","family":"pen","by":"named","rule":"the intent names its model","own":true\}\n/);
   // the findings name who and the fix
   assert.deepEqual(run.result.findings.map((f) => [f.who, f.critic, f.fix]), [['chalk line', 'arc', "bow it: model: {name: 'min-jerk', bend: 0.06}"]]);
 });

@@ -1,4 +1,4 @@
-/** The reader's bounds: lines of an answer, characters of a value or a name, bytes of a record, steps, and rows and keys read a step keeps. */
+/** The reader's bounds: lines of an answer; characters of a name or any value shown as context (`value`, 200); characters of the value asked for, the answer itself, counted by code point (`asked`, 1000); bytes of a record; steps; and rows and keys read a step keeps. */
 export const WHY_LIMITS: Readonly<{ lines: number; value: number; asked: number; bytes: number; steps: number; rows: number; reads: number }>;
 /** Which decision let which step run, as plain data: {step: {deciderId, label?}}. */
 export type ControlEdges = Readonly<Record<string, { readonly deciderId: string; readonly label?: string }>>;

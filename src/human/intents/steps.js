@@ -26,7 +26,7 @@
  *   tracks [{seconds, count, pushes, distance, peakSpeed, bounds, points}]  (summary.js, bounded)        sample
  *   checks [{measures, bases, findings}]  (checkMove's)                                                  check
  *   findings [{intent, who, model, critic, level, message, fix}]  (every intent's, in order)             findings
- * and per intent i (keys.js): model-<i> {model, family, by, rule} (choose), duration-<i> {seconds, …the basis}
+ * and per intent i (keys.js): model-<i> {model, family, by, rule, own} (choose), duration-<i> {seconds, …the basis}
  * (wrap), findings-<i> [{critic, level, fix}] (findings).
  */
 import { refuse, shown, stored, isRecord } from '../read.js';
@@ -55,12 +55,12 @@ function choose({ intents }, tools) {
   const known = modelsWith(tools.models, tools.critics);
   const choices = intents.map((intent) => {
     const family = familyOf(intent.do, intent.who), { named } = readModelEntry(intent.model, intent.who);
-    const { model, by, rule } = chooseModel(known, family, named, intent.do);
+    const { model, by, rule } = chooseModel(known, family, named, intent.do, intent.who);
     return Object.freeze({ who: intent.who, do: intent.do, family, model: model.name, by, rule, own: OWN_NAME.test(model.name) });
   });
   const own = choices.filter((c) => c.own), said = (c) => `${c.who}: ${c.do} → ${c.model} (${c.by})`;
   // each intent's model under its own key, without its who (the key says which intent; a long who would crowd the rule out)
-  const each = perIntent('model', choices.map((c) => Object.freeze({ model: c.model, family: c.family, by: c.by, rule: c.rule })));
+  const each = perIntent('model', choices.map((c) => Object.freeze({ model: c.model, family: c.family, by: c.by, rule: c.rule, own: c.own })));
   if (!choices.length) return { choices: Object.freeze([]), chose: 'ours', choseWhy: 'no intents: nothing to plan' };
   if (!own.length) return { choices: Object.freeze(choices), chose: 'ours', choseWhy: `this package's models plan every move — ${choices.map(said).join('; ')}`, ...each };
   return { choices: Object.freeze(choices), chose: 'own', choseWhy: `a tool's own model plans ${own.length} of ${choices.length} moves, from code this record does not hold — ${own.map(said).join('; ')}`, ...each };

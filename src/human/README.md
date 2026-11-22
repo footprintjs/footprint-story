@@ -186,7 +186,7 @@ r.findings;      // [{ intent: 2, who: 'intents[2]', model: 'min-jerk', critic: 
   critic and the fix.
 
 Each value decided for one intent is also written under a key of its own (`intents/keys.js`): `model-<i>` (its
-model, family, `by` and rule), `duration-<i>` (its seconds and its model's basis, flat; a wrapped move's wrappers and the
+model, family, `by`, rule and `own`: a tool's own model, whose code no record holds), `duration-<i>` (its seconds and its model's basis, flat; a wrapped move's wrappers and the
 model's own seconds as `planned`), `findings-<i>` (each critic, level and fix). WHY: a record's answer is asked of one
 key and cuts its value at 1000 characters (`WHY_LIMITS.asked`), so one entry of a long list is asked for by its own key and shown whole
 (`intentKey('duration', 3)` → `'duration-3'`; `PER_INTENT` names the step that writes each). 64 intents at most keeps

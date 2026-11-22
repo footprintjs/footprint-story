@@ -17,7 +17,7 @@
 import { flowChart, FlowChartExecutor, decide } from 'footprintjs';
 import { HUMAN_STEPS, pick, readSettings } from '../human/intents/steps.js';
 import { keysOut, perIntentKeys } from '../human/intents/keys.js';
-import { copyIntents, readIntents } from '../human/intents/read.js';
+import { readGiven } from '../human/intents/read.js';
 
 /** The chart's logger: a refusal is rethrown to the caller, so footprintjs does not print it a second time. */
 const QUIET = Object.freeze({ info() {}, log() {}, debug() {}, error() {}, warn: (...args) => console.warn(...args) });
@@ -82,10 +82,10 @@ export async function runHumanFlow(intents, options = undefined) {
   // read here first, by own stored fields, as planIntents reads them: footprintjs copies a run's input before any stage
   // sees it, and that copy would run a getter — so the run is handed the plain copy (and a refusal has planIntents' words)
   const settings = { models: own('models'), critics: own('critics') };
-  readIntents(intents, frame);
+  const given = readGiven(intents, frame);
   const executor = new FlowChartExecutor(humanFlow(settings), { writeProvenance: 'reads-prefix', ...(sink ? { sink } : {}) });
   for (const r of recorders) executor.attachCombinedRecorder(r);
-  await executor.run({ input: { humanIntents: copyIntents(intents), humanFrame: frame ?? null } });
+  await executor.run({ input: { humanIntents: given.copies, humanFrame: given.state.frame } });
   const snapshot = executor.getSnapshot();
   return { result: deepFreeze(structuredClone(pick(snapshot.sharedState, [...RESULT_KEYS, ...perIntentKeys(snapshot.sharedState)]))), snapshot };
 }

@@ -311,7 +311,7 @@ export function intentKey<W extends keyof typeof PER_INTENT>(what: W, i: number)
 export type HumanIntentDuration = Readonly<{ seconds: number; wrappers?: string; planned?: number | null }> & Readonly<Record<string, number | string | boolean | null>>;
 /** The per-intent keys of planIntents' result. */
 export type HumanPerIntent = {
-  readonly [key: `model-${number}`]: { readonly model: string; readonly family: HumanFamily; readonly by: 'named' | 'usual'; readonly rule: string };
+  readonly [key: `model-${number}`]: { readonly model: string; readonly family: HumanFamily; readonly by: 'named' | 'usual'; readonly rule: string; readonly own: boolean };
   readonly [key: `duration-${number}`]: HumanIntentDuration;
   readonly [key: `findings-${number}`]: readonly { readonly critic: string; readonly level: 'warn' | 'note'; readonly fix: string }[];
 };

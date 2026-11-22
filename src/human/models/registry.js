@@ -74,16 +74,17 @@ export function familyOf(doWord, who) {
 
 /**
  * The model an intent names, or its family's usual one, by the first rule of CHOOSE_RULES (rules.js) that holds:
- * {model, how (planMove's words), by ('named' | 'usual'), rule (the rule's label)}. Refused, naming the ones there are,
- * when there is none or the named one serves another family.
+ * {model, how (planMove's words), by ('named' | 'usual'), rule (the rule's label)}. Refused, naming the intent (`who`)
+ * and the ones there are, when there is none or the named one serves another family — in words that hold whether
+ * planMove or planIntents asked (a tool's own is handed in as `models` to either).
  */
-export function chooseModel(models, family, named, doWord) {
+export function chooseModel(models, family, named, doWord, who) {
   const chosen = firstRule(CHOOSE_RULES, { do: doWord, family, named: named !== undefined, usual: USUAL_MODELS[family] ?? null });
-  if (!chosen) refuse(`no model for do: '${doWord}' yet — name one of a tool's own with model: 'prefix:name' and hand it in planMove's models`);
+  if (!chosen) refuse(`${who}: no model for do: '${doWord}' yet — name one of a tool's own with model: 'prefix:name' and hand it in as models`);
   if (chosen.then === 'named') {
     const m = models.byName.get(named);
-    if (!m) refuse(`there is no model ${shown(named)} — the models are ${[...models.byName.keys()].map((k) => `"${k}"`).join(', ')} (a tool's own goes in planMove's models)`);
-    if (!familiesOf(m).includes(family)) refuse(`the model "${named}" is for a ${familiesOf(m).join(' or a ')}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => familiesOf(x).includes(family)).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
+    if (!m) refuse(`${who}: there is no model ${shown(named)} — the models are ${[...models.byName.keys()].map((k) => `"${k}"`).join(', ')} (a tool's own is handed in as models)`);
+    if (!familiesOf(m).includes(family)) refuse(`${who}: the model "${named}" is for a ${familiesOf(m).join(' or a ')}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => familiesOf(x).includes(family)).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
     return { model: m, how: 'named by the intent', by: 'named', rule: chosen.label };
   }
   return { model: models.byName.get(USUAL_MODELS[family]), how: `the usual for do: '${doWord}'`, by: 'usual', rule: chosen.label };

@@ -71,7 +71,7 @@ export function planMove(intent, settings = undefined) {
   const frame = set('frame') === undefined ? null : readPoint(set('frame'), "planMove's frame (its width and height)");
   const models = modelsWith(set('models'), set('critics'));
   const { named, options } = readModelEntry(copy.model, who);
-  const { model, how, by } = chooseModel(models, family, named, doWord);
+  const { model, how, by } = chooseModel(models, family, named, doWord, who);
   for (const k of Object.keys(options)) if (!model.options.includes(k)) refuse(`${who}'s model "${model.name}" takes ${model.options.length ? model.options.join(', ') : 'no options'} — not ${shown(k)}`);
   if (model.check) model.check(options);
   const shape = Object.fromEntries(Object.keys(copy).filter((k) => !UNSEEDED_KEYS.includes(k) && k !== 'model' && k !== 'name').map((k) => [k, copy[k]]));

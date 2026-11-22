@@ -42,8 +42,9 @@ const OUTSIDE = '(a stage also uses what it is given from outside the run\'s own
 const { lines: LINES, value: VALUE, asked: ASKED, bytes: BYTES, steps: STEPS, rows: ROWS, reads: READS } = WHY_LIMITS;
 
 const name = (text) => { const said = oneLine(String(text ?? '')); return said.length > VALUE ? `${said.slice(0, VALUE - 1)}…` : said; };
-/** The asked value as the answer's first line shows it: one line, cut at ASKED characters. */
-const shown = (value) => { const said = oneLine(JSON.stringify(value) ?? String(value)); return said.length > ASKED ? `${said.slice(0, ASKED - 1)}…` : said; };
+/** The asked value as the answer's first line shows it: one line, cut at ASKED characters — counted by code point, so
+ *  a character outside the basic plane (an emoji) is never split in two at the cut. */
+const shown = (value) => { const said = [...oneLine(JSON.stringify(value) ?? String(value))]; return said.length > ASKED ? `${said.slice(0, ASKED - 1).join('')}…` : said.join(''); };
 
 /** A commit as the walk may show it (see the head). `cut.lists` counts the steps shortened. */
 function plainCommit(bundle, cut) {

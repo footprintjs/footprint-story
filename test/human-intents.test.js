@@ -35,7 +35,7 @@ test('planIntents: per intent the choice and why, the plan and its basis, the mo
   const r = planIntents([HAND, BALL, STRAIGHT]);
   assert.deepEqual(Object.keys(r), [...HUMAN_INPUT, 'choices', 'chose', 'choseWhy', 'plans', 'model-0', 'model-1', 'model-2', 'moves', 'durations', 'duration-0', 'duration-1', 'duration-2', 'tracks', 'checks', 'findings', 'findings-0', 'findings-1', 'findings-2']);
   // one intent's values under keys of its own: its model and rule, its duration and basis flat, its findings
-  assert.deepEqual(r['model-1'], { model: 'ballistic', family: 'throw', by: 'usual', rule: "the intent names none: its family's usual" });
+  assert.deepEqual(r['model-1'], { model: 'ballistic', family: 'throw', by: 'usual', rule: "the intent names none: its family's usual", own: false });
   const { seconds: planned, ...basis } = r.plans[0].plan.basis;
   assert.deepEqual(r['duration-0'], { seconds: r.durations[0].seconds, ...basis });
   assert.equal(planned, r['duration-0'].seconds);
@@ -122,6 +122,10 @@ test('refusals name the entry and the fix, before anything is planned', () => {
   refused([{ ...HAND, model: 'ballistic' }], undefined, /the model "ballistic" is for a throw or a fall, and this intent is do: 'reach'/);
   refused([{ ...HAND, model: 7 }], undefined, /intents\[0\] \("hand"\)'s model is a model's name, or \{name, …its options\}/);
   refused([{ ...HAND, model: 'reel:none' }], undefined, /there is no model "reel:none"/);
+  // the choice's refusals name the intent, in words that hold whichever door asked
+  refused([{ ...HAND, model: 'spring' }], undefined, /^Error: human: intents\[0\] \("hand"\): the model "spring" is for a settle, and this intent is do: 'reach'/);
+  refused([HAND, { ...HAND, name: 'other', model: 'nope' }], undefined, (e) => /^human: intents\[1\] \("other"\): there is no model "nope" — the models are .*\(a tool's own is handed in as models\)$/.test(e.message) && !/planMove/.test(e.message));
+  assert.throws(() => planMove({ ...HAND, model: 'nope' }), /^Error: human: "hand": there is no model "nope"/);
   refused([{ ...HAND, wrap: 'anticipate' }], undefined, /intents\[0\] \("hand"\)'s wrap is a list of at most 4 wrappers/);
   refused([{ ...HAND, wrap: [{ wrapper: 'squash' }] }], undefined, /intents\[0\] \("hand"\)'s wrap\[0\] is \{wrapper, …its options\}, the wrapper 'anticipate', 'follow-through', 'hold', 'overshoot' — not "squash"/);
   refused([{ ...HAND, wrap: Array.from({ length: 5 }, () => ({ wrapper: 'follow-through' })) }], undefined, /intents\[0\] \("hand"\)'s wrap is a list of at most 4 wrappers \[\{wrapper: 'anticipate', share: 0\.2\}\] — not \[/);

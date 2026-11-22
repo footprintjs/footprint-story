@@ -36,7 +36,7 @@ console.log(await whyFromRecord({ file: 'runs/moves.record.jsonl', control: cont
 The hand's 0.85 s is Fitts's law over 500 px to a 40 px target (3.75 bits; the target is the usual one, none was
 given); the plan was made by the model the decider chose, by the rule its control edge names. `key: 'model-1'` answers
 why the ball's model was chosen: `model-1 = {"model":"ballistic","family":"throw","by":"usual","rule":"the intent names
-none: its family's usual"}`, written by `choose`, which read the intents.
+none: its family's usual","own":false}` (`own: true` would say its model is a tool's own, whose code no record holds), written by `choose`, which read the intents.
 
 **One entry, asked by its own key.** An author or a model asks about one move, in a few lines. A record's answer shows a
 value cut at 1000 characters (`WHY_LIMITS.asked`), so a list of fifty moves would answer nothing. Each value a step
