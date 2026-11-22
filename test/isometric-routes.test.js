@@ -276,18 +276,67 @@ test('rounded: a rounding never takes more than half a run; a point on a straigh
   assert.equal(rounded([[0, 0], [3, 4]], 9).length, 5);
 });
 
+/** How far a point is from the segment a–b. */
+const offSegment = (p, a, b) => {
+  const dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+};
+/** How far a point is from the triangle a, b, c (0 inside it): a rounded corner, its chords and its curve all lie there. */
+const offTriangle = (p, a, b, c) => {
+  const side = (u, v) => (v[0] - u[0]) * (p[1] - u[1]) - (v[1] - u[1]) * (p[0] - u[0]);
+  const s = [side(a, b), side(b, c), side(c, a)];
+  return s.every((v) => v >= 0) || s.every((v) => v <= 0) ? 0 : Math.min(offSegment(p, a, b), offSegment(p, b, c), offSegment(p, c, a));
+};
+/** A rounded way read the long way round, from its pieces alone: which pieces a point lies on (within 1e-6, the last digits). */
+const piecesOf = (way) => way.pieces.map((piece, k) => ({ ...piece, from: k ? way.pieces[k - 1].to : way.start }));
+const onWhich = (p, pieces) => pieces.flatMap((piece, k) => ((piece.corner ? offTriangle(p, piece.from, piece.corner, piece.to) : offSegment(p, piece.from, piece.to)) <= 1e-6 ? [k] : []));
+/**
+ * What the place along a way must hold, sampled at 200 shares: it starts at the way's start and ends at its last point;
+ * every place is on a piece; no step is longer than its share of the length; and a step that runs along one straight
+ * piece (each end on that piece and on no other) is exactly its share — the walk neither jumps nor dawdles.
+ *
+ * WHY not "the steps add up to nearly the whole length": a step that crosses a corner cuts it, and at a hairpin (two runs
+ * nearly back on each other) it cuts almost a whole step. A way of hairpins sampled 200 times falls short by more than
+ * any fixed share — the drawn way is right, the sum was the wrong law (seed 857978823, pinned below).
+ */
+function walksSteadily(way, points) {
+  const pieces = piecesOf(way), share = way.length / 200, places = Array.from({ length: 201 }, (_, k) => way.at(k / 200));
+  assert.deepEqual(places[0], way.start);
+  assert.deepEqual(places[200], points.at(-1));
+  const on = places.map((p) => onWhich(p, pieces));
+  on.forEach((which, k) => assert.ok(which.length > 0, `share ${k}/200, ${places[k]}, is on the way`));
+  let straight = 0;
+  for (let k = 1; k <= 200; k += 1) {
+    const step = Math.hypot(places[k][0] - places[k - 1][0], places[k][1] - places[k - 1][1]);
+    assert.ok(step <= share + 1e-6, `never a jump longer than its share of the way: step ${k}, ${step} > ${share}`);
+    const [one] = on[k];
+    if (on[k].length === 1 && on[k - 1].length === 1 && on[k - 1][0] === one && !pieces[one].corner) {
+      assert.ok(Math.abs(step - share) <= 1e-6, `along a straight piece a step is its share: step ${k}, ${step} of ${share}`);
+      straight += 1;
+    }
+  }
+  return straight;
+}
+
 test('rounded: the place along a way moves on steadily and stays on it', () => {
   fc.assert(fc.property(fc.array(fc.tuple(fc.integer({ min: -200, max: 200 }), fc.integer({ min: -200, max: 200 })), { minLength: 2, maxLength: 8 }), fc.integer({ min: 0, max: 60 }), (points, radius) => {
     if (points.every((p) => p[0] === points[0][0] && p[1] === points[0][1])) return;
+    walksSteadily(rounded(points, radius), points);
+  }), { numRuns: Number(process.env.FC_RUNS) || 200 });
+});
+
+test('rounded: a way of hairpins — the steps fall short only where they cut a corner (seed 857978823)', () => {
+  const points = [[0, 15], [-108, 109], [0, 0], [-66, 120], [-5, 82], [-186, 139], [140, -167], [23, -59]];
+  for (const radius of [0, 1, 20]) {
     const way = rounded(points, radius);
-    let before = way.at(0), gone = 0;
-    for (let k = 1; k <= 200; k += 1) {
-      const here = way.at(k / 200), step = Math.hypot(here[0] - before[0], here[1] - before[1]);
-      assert.ok(step <= way.length / 200 + 1e-6, 'never a jump longer than its share of the way');
-      gone += step; before = here;
-    }
-    assert.ok(gone <= way.length + 1e-6 && gone >= way.length * 0.98, `${gone} of ${way.length}`);
-  }), { numRuns: 200 });
+    assert.ok(walksSteadily(way, points) > 150, `most steps run along one straight piece (radius ${radius})`);
+  }
+  // the old law, that 200 steps add up to at least 98% of the length, is not one: with radius 1 they add up to 97.99%,
+  // every short step crossing a corner (the turns here are 151° to 179.5°)
+  const way = rounded(points, 1);
+  let gone = 0;
+  for (let k = 1; k <= 200; k += 1) { const a = way.at((k - 1) / 200), b = way.at(k / 200); gone += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  assert.ok(gone < way.length * 0.98 && gone > way.length * 0.97, `${gone} of ${way.length}`);
 });
 
 test('rounded: refuses what it cannot read, naming the fix', () => {
