@@ -15,8 +15,13 @@ import { plainCopy } from '../plain.js';
 import { whoOf } from '../models/move.js';
 import { WRAPPER_NAMES, MOST_WRAPPERS } from '../models/wrap.js';
 
-/** The most intents one list may hold: each is planned, sampled and checked. */
-export const MOST_INTENTS = 256;
+/**
+ * The most intents one list may hold. WHY 64: each is planned, sampled and checked, and each gets keys of its own
+ * (keys.js) — a step that writes one per intent writes that many rows, each with the keys it had read, and the record
+ * reader keeps at most 200 keys read a step (footprint-story/record · WHY_LIMITS.reads): the wrap and findings steps
+ * read two keys a row, so 64 intents (130 keys read) leave a margin and a record of the most stays whole.
+ */
+export const MOST_INTENTS = 64;
 
 /** The intents as plain frozen copies, each read by its own stored fields; a list longer than MOST_INTENTS refused. */
 export function copyIntents(intents) {

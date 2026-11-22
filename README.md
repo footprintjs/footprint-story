@@ -320,7 +320,7 @@ rules as data, `CHOOSE_RULES`: the one the intent names, else its family's usual
 [{wrapper: 'anticipate', …}]`) → sample (a bounded summary) → check → findings, each a pure step of `HUMAN_STEPS`. It
 gives, per intent, the choice and its rule, the plan and its basis, the move, its track summary, the critics' measures,
 and one list of findings naming `who` and the fix. `footprint-story/humanflow` runs the same steps as a footprintjs
-chart, so a run's record answers why a hand takes 0.85 s (`runHumanFlow`, then `whyFromRecord`):
+chart, so a run's record answers why a hand takes 0.85 s — one entry asked by its own key, `duration-0` (`runHumanFlow`, then `whyFromRecord`):
 [src/humanflow/README.md](src/humanflow/README.md).
 
 ```js
@@ -605,7 +605,7 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `planMove`, `sampleMove`, `sampleTrack`, `checkMove`, `HUMAN_FAMILIES`, `HUMAN_DOS`, `HUMAN_MODELS`, `USUAL_MODELS`, `HUMAN_CRITICS` | an intent planned by a named model (its reason in words), sampled, and checked by critics that say the fix: [src/human/README.md](src/human/README.md) |
 | `/human` `anticipate`, `followThrough`, `hold`, `overshoot`, `basePlan`, `isWrapped` | the animation principles as a move → a move, over any model, read by `sampleMove` |
 | `/human` `launch`, `flightAt`, `fallSeconds`, `bounces`, `runChain`, `relaxChain`, `makeWorld`, `pushOut`, `collide`, `depthIn`, `verletStep`, `simulate`, `settleLeft`, `PHYSICS_STEP`, `GRAVITY` | light physics on a fixed step (Jakobsen 2001), for a tool's own model: [src/human/physics/README.md](src/human/physics/README.md) |
-| `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings |
+| `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS`, `PER_INTENT`, `intentKey` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings; each intent's values also under keys of its own (`duration-3`) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 | `/humanflow` `humanFlow`, `runHumanFlow` | the intent decider's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/humanflow/README.md](src/humanflow/README.md) |
 

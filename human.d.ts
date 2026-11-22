@@ -288,7 +288,7 @@ export interface HumanChoice { readonly who: string; readonly do: HumanDo; reado
 /** A move's sampled track, summed up: at most SUMMARY_POINTS points [t, x, y]. */
 export interface HumanTrackSummary { readonly seconds: number; readonly count: number; readonly pushes: number; readonly distance: number; readonly peakSpeed: number; readonly bounds: readonly [number, number, number, number]; readonly points: readonly (readonly [number, number, number])[] }
 /** What planIntents gives: the last state of HUMAN_STEPS, each list in the intents' order. */
-export interface HumanIntentsResult {
+export interface HumanIntentsResult extends HumanPerIntent {
   readonly intents: readonly (HumanIntent & { readonly who: string })[];
   readonly wraps: readonly (readonly HumanWrapEntry[])[];
   readonly frame: HumanPoint | null;
@@ -303,13 +303,27 @@ export interface HumanIntentsResult {
   readonly checks: readonly ReturnType<typeof checkMove>[];
   readonly findings: readonly { readonly intent: number; readonly who: string; readonly model: string; readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string }[];
 }
+/** What is decided per intent, written under a key of its own beside the list keys, and the step that decides it. */
+export const PER_INTENT: Readonly<{ model: 'choose'; duration: 'wrap'; findings: 'findings' }>;
+/** The key one intent's value is written under: intentKey('duration', 3) → 'duration-3' (ask whyFromRecord for it). */
+export function intentKey<W extends keyof typeof PER_INTENT>(what: W, i: number): `${W}-${number}`;
+/** One intent's duration under its own key: the seconds and its model's basis, flat; a wrapped move's wrappers and the model's own seconds. */
+export type HumanIntentDuration = Readonly<{ seconds: number; wrappers?: string; planned?: number | null }> & Readonly<Record<string, number | string | boolean | null>>;
+/** The per-intent keys of planIntents' result. */
+export type HumanPerIntent = {
+  readonly [key: `model-${number}`]: { readonly model: string; readonly family: HumanFamily; readonly by: 'named' | 'usual'; readonly rule: string };
+  readonly [key: `duration-${number}`]: HumanIntentDuration;
+  readonly [key: `findings-${number}`]: readonly { readonly critic: string; readonly level: 'warn' | 'note'; readonly fix: string }[];
+};
 /** A step of the intent decider: the keys it reads and writes, and its pure run; a step that chooses has `decides` and `branches`. */
 export interface HumanStep {
   readonly name: string; readonly about: string; readonly reads: readonly string[]; readonly writes: readonly string[];
   run(state: any, tools?: { readonly models?: readonly HumanModel[]; readonly critics?: readonly HumanCritic[] }): any;
   readonly input?: true;
-  readonly decides?: { readonly key: string; readonly why: string; readonly name: string; readonly reads: readonly string[]; readonly writes: readonly string[]; run(state: any, tools: any): any };
-  readonly branches?: Readonly<Record<string, { readonly name: string; readonly reads: readonly string[]; readonly writes: readonly string[]; run(state: any, tools: any): any }>>;
+  /** The per-intent prefixes it writes (PER_INTENT): one key per intent each. */
+  readonly each: readonly string[];
+  readonly decides?: { readonly key: string; readonly why: string; readonly name: string; readonly reads: readonly string[]; readonly writes: readonly string[]; readonly each: readonly string[]; run(state: any, tools: any): any };
+  readonly branches?: Readonly<Record<string, { readonly name: string; readonly reads: readonly string[]; readonly writes: readonly string[]; readonly each: readonly string[]; run(state: any, tools: any): any }>>;
 }
 /** read → choose? (ours | own: plan) → wrap → sample → check → findings. */
 export const HUMAN_STEPS: readonly HumanStep[];

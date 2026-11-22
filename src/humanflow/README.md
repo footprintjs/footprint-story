@@ -21,21 +21,31 @@ const sink = fileSink('runs/moves.record.jsonl'), control = controlDepRecorder()
 const { result, snapshot } = await runHumanFlow(intents, { sink, recorders: [control] });
 await sink.close();
 
-console.log(await whyFromRecord({ file: 'runs/moves.record.jsonl', control: controlEdges(snapshot.commitLog, control), key: 'durations' }));
-// durations = [{"seconds":0.8509775004326937,"model":"min-jerk","basis":{"distance":500,"target":40,"targetDefaulted":true,"bits":3.7548875021634687,"a":0.1,"b":0.2,"seconds":0.8509775004326937,"secondsGiven":fals…
-// wrap (wrap#3) [wrote: moves, durations]
+console.log(await whyFromRecord({ file: 'runs/moves.record.jsonl', control: controlEdges(snapshot.commitLog, control), key: 'duration-0' }));
+// duration-0 = {"seconds":0.8509775004326937,"distance":500,"target":40,"targetDefaulted":true,"bits":3.7548875021634687,"a":0.1,"b":0.2,"secondsGiven":false,"bend":0.06}
+// wrap (wrap#3) [wrote: moves, durations, duration-0, duration-1]
 //   plan: ours (ours#2) ← via plans [wrote: plans]
 //     read (read#0) ← via intents [wrote: intents, wraps, frame]
 //       ⚠ also consumed args — slice may be incomplete here
-//     choose (choose#1) ← via choices ← [control: this package's models plan every move — intents[0] ("hand"): reach → min-jerk (usual); intents[1] ("ball"): throw → ballistic (usual)] [wrote: choices, chose, choseWhy]
+//     choose (choose#1) ← via choices ← [control: this package's models plan every move — intents[0] ("hand"): reach → min-jerk (usual); intents[1] ("ball"): throw → ballistic (usual)] [wrote: choices, chose, choseWhy, model-0, model-1]
 //       ↳ read#0 (see above)
 //   ↳ read#0 (see above)
 // (a stage also uses what it is given from outside the run's own state: the record holds what stages read and wrote, and no more)
 ```
 
 The hand's 0.85 s is Fitts's law over 500 px to a 40 px target (3.75 bits; the target is the usual one, none was
-given); the plan was made by the model the decider chose, by the rule its control edge names. `key: 'choices'` answers
-why a model was chosen: each choice carries the rule that held (`"rule":"the intent names none: its family's usual"`).
+given); the plan was made by the model the decider chose, by the rule its control edge names. `key: 'model-1'` answers
+why the ball's model was chosen: `model-1 = {"model":"ballistic","family":"throw","by":"usual","rule":"the intent names
+none: its family's usual"}`, written by `choose`, which read the intents.
+
+**One entry, asked by its own key.** An author or a model asks about one move, in a few lines. A record's answer shows a
+value cut at 200 characters (`WHY_LIMITS.value`), so a list of fifty moves would answer nothing. Each value a step
+decides for one intent is also written under a key of its own — `model-<i>` (choose), `duration-<i>` (wrap: the seconds
+and the model's basis, flat), `findings-<i>` (findings: each critic, its level and the fix) — beside the list keys
+(`intentKey('duration', 3)` → `'duration-3'`). A test asks for one intent of fifty, each with a long `who`, and gets its
+duration and whole basis through the plan and the choice. Lists are at most `MOST_INTENTS` (64) long, so a step's rows
+and the keys they read stay within what the reader keeps of a step (`WHY_LIMITS.reads`, 200), and a record of the
+longest list stays whole.
 
 **Why.** The author writes intents; the tool decides the rest — the model, the duration from a law, the curve — and says
 why. The owner's rule is to build every feature as a footprintjs flowchart, because the run's record is its debug log.
@@ -56,7 +66,8 @@ label is the reason, so `controlEdges` saves the words. The list's choice is `ou
 move, `own` when a tool's own model plans one: that plan comes from code no record holds, and the control edge says so
 ("a tool's own model plans 1 of 2 moves, from code this record does not hold — …"). The plan is the branch either way.
 The wrap step writes `durations`: each move's seconds beside the basis its model chose by, so the answer to "why so
-long" carries the numbers. Two runs of the same intents write the same entries, apart from the run's id and the clock.
+long" carries the numbers. The check step samples each move again rather than reading the bounded `tracks`: the critics
+read every sample (a speed peak, a bend, a pass through a box), which a 16-point summary would miss. Two runs of the same intents write the same entries, apart from the run's id and the clock.
 
 **What it gives.** `humanFlow({models, critics})` is the chart, to run as you like (input `{humanIntents, humanFrame}`).
 A tool's own models and critics are code, so they are never the run's state: the chart is built with them, and the

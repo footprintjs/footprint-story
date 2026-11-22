@@ -16,19 +16,20 @@
 // run, so they are named apart from the state's): a refusal rejects the run with planIntents' words.
 import { flowChart, FlowChartExecutor, decide } from 'footprintjs';
 import { HUMAN_STEPS, pick, readSettings } from '../human/intents/steps.js';
+import { keysOut, perIntentKeys } from '../human/intents/keys.js';
 import { copyIntents, readIntents } from '../human/intents/read.js';
 
 /** The chart's logger: a refusal is rethrown to the caller, so footprintjs does not print it a second time. */
 const QUIET = Object.freeze({ info() {}, log() {}, debug() {}, error() {}, warn: (...args) => console.warn(...args) });
-/** Every key the result holds: what each step writes. */
+/** Every list key the result holds: what each step writes (the per-intent keys are found in the state: keys.js). */
 const RESULT_KEYS = Object.freeze([...new Set(HUMAN_STEPS.flatMap((s) => s.writes))]);
 const RUN_KEYS = Object.freeze(['models', 'critics', 'frame', 'sink', 'recorders']);
 
 /** The keys a part reads, each through the scope (`$getValue`: a tracked read, so the record keeps it). */
 const take = (s, keys) => Object.fromEntries(keys.map((k) => [k, s.$getValue(k)]));
-/** The keys a part writes, from the state it gave back. */
-const put = (s, state, keys) => { for (const k of keys) s.$setValue(k, state[k]); };
-const stageOf = (part, tools) => (s) => { put(s, part.run(take(s, part.reads), tools), part.writes); };
+/** The keys a part writes — its list keys and its per-intent keys (keys.js) — from the state it gave back. */
+const put = (s, state, part) => { for (const k of keysOut(part, state)) s.$setValue(k, state[k]); };
+const stageOf = (part, tools) => (s) => { put(s, part.run(take(s, part.reads), tools), part); };
 
 /** A value frozen all the way down (plain data, no cycles). */
 function deepFreeze(v) {
@@ -46,14 +47,14 @@ export function humanFlow(settings = undefined) {
   const [read, ...steps] = HUMAN_STEPS;
   let chart = flowChart(read.name, (s) => {
     const { humanIntents, humanFrame } = s.$getArgs() ?? {};
-    put(s, read.run({ intents: humanIntents, frame: humanFrame }), read.writes);
+    put(s, read.run({ intents: humanIntents, frame: humanFrame }), read);
   }, read.name, read.about);
   for (const step of steps) {
     if (!step.decides) { chart = chart.addFunction(step.name, stageOf(step, tools), step.name, step.about); continue; }
     const { decides } = step;
     let list = chart.addDeciderFunction(step.name, (s) => {
       const chosen = decides.run(take(s, decides.reads), tools);
-      put(s, chosen, decides.writes);   // the choice and its reason: a stage's reads are kept with what it writes
+      put(s, chosen, decides);   // the choice and its reason: a stage's reads are kept with what it writes
       // handed to footprintjs as a decision whose label is the reason, so the run's control edge carries the words; the
       // rule reads back the choice just written
       const choice = chosen[decides.key], label = chosen[decides.why];
@@ -86,5 +87,5 @@ export async function runHumanFlow(intents, options = undefined) {
   for (const r of recorders) executor.attachCombinedRecorder(r);
   await executor.run({ input: { humanIntents: copyIntents(intents), humanFrame: frame ?? null } });
   const snapshot = executor.getSnapshot();
-  return { result: deepFreeze(structuredClone(pick(snapshot.sharedState, RESULT_KEYS))), snapshot };
+  return { result: deepFreeze(structuredClone(pick(snapshot.sharedState, [...RESULT_KEYS, ...perIntentKeys(snapshot.sharedState)]))), snapshot };
 }

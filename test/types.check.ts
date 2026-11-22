@@ -296,13 +296,14 @@ hold(thrown, { seconds: 1 });
 import { wrappedPushes, checkSettles, SETTLED_WITHIN, SPACING_MOST } from 'footprint-story/human';
 export const lastRound: number[] = [wrappedPushes(kept.plan, (p, t) => ({ x: t, y: 0 })), checkSettles('snappy', 'me'), SETTLED_WITHIN, SPACING_MOST];
 // the intent decider: steps in one list, planIntents, and the humanflow door
-import { planIntents, HUMAN_STEPS, HUMAN_INPUT, CHOOSE_RULES, MOST_INTENTS, SUMMARY_POINTS } from 'footprint-story/human';
+import { planIntents, HUMAN_STEPS, HUMAN_INPUT, CHOOSE_RULES, MOST_INTENTS, SUMMARY_POINTS, PER_INTENT, intentKey } from 'footprint-story/human';
 import type { HumanIntentsResult, HumanIntentEntry, HumanStep, ChooseRule, HumanChoice } from 'footprint-story/human';
 import { humanFlow, runHumanFlow } from 'footprint-story/humanflow';
 const entries: HumanIntentEntry[] = [{ do: 'reach', name: 'hand', from: [0, 0], to: [300, 200], wrap: [{ wrapper: 'anticipate', share: 0.2 }] }, { do: 'throw', from: [0, 500], to: [600, 500] }];
 const decided: HumanIntentsResult = planIntents(entries, { frame: [1920, 1080] });
 const firstChoice: HumanChoice = decided.choices[0], chooser: HumanStep = HUMAN_STEPS[1], chooseRule: ChooseRule = CHOOSE_RULES[0];
 export const intentDecider: unknown[] = [decided.chose === 'own', decided.durations[0].basis?.bits, decided.tracks[0].points[0][1], decided.findings[0]?.fix, firstChoice.rule, chooser.decides?.key, chooseRule.then, HUMAN_INPUT, MOST_INTENTS, SUMMARY_POINTS, humanFlow({ models: [] })];
+export const perIntent: unknown[] = [decided['duration-0'].seconds, decided['model-1'].rule, decided['findings-0'][0]?.fix, decided[intentKey('duration', 1)].wrappers, PER_INTENT.duration];
 runHumanFlow(entries, { recorders: [], frame: null }).then(({ result, snapshot }) => [result.choseWhy, snapshot.commitLog.length]);
 // @ts-expect-error a wrapper that is not one
 planIntents([{ do: 'reach', from: [0, 0], to: [1, 1], wrap: [{ wrapper: 'squash' }] }]);

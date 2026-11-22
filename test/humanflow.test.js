@@ -11,9 +11,9 @@ import fc from 'fast-check';
 import { FlowChartExecutor } from 'footprintjs';
 import { fileSink, readRecordFile } from 'footprintjs/sinks';
 import { controlDepRecorder } from 'footprintjs/trace';
-import { whyFromRecord, controlEdges } from '../record.js';
+import { whyFromRecord, controlEdges, WHY_LIMITS } from '../record.js';
 import { humanFlow, runHumanFlow } from '../humanflow.js';
-import { planIntents, HUMAN_STEPS } from '../human.js';
+import { planIntents, HUMAN_STEPS, MOST_INTENTS } from '../human.js';
 
 const RUNS = Math.ceil((Number(process.env.FC_RUNS) || 300) / 5);
 const HAND = Object.freeze({ do: 'reach', name: 'hand', from: [200, 600], to: [500, 200] });
@@ -63,11 +63,12 @@ test('the chart\'s result equals planIntents\' for random intent lists — or bo
 test('the record keeps what each stage read when it wrote, and the decider\'s choice with its reason', async () => {
   const { result, snapshot } = await runHumanFlow([HAND, { do: 'throw', who: 'ball', from: [0, 500], to: [600, 500] }]);
   const rows = Object.fromEntries(snapshot.commitLog.map((c) => [c.runtimeStageId, Object.fromEntries(c.trace.map((r) => [r.path, r.readKeys]))]));
-  assert.deepEqual(rows['choose#1'], { choices: ['intents'], chose: ['intents'], choseWhy: ['intents'] });
+  assert.deepEqual(rows['choose#1'], { choices: ['intents'], chose: ['intents'], choseWhy: ['intents'], 'model-0': ['intents'], 'model-1': ['intents'] });
   assert.deepEqual(rows['ours#2'], { plans: ['intents', 'choices', 'frame'] });
   for (const step of HUMAN_STEPS.slice(1).filter((s) => !s.decides)) {
     const [id] = Object.keys(rows).filter((k) => k.startsWith(`${step.name}#`));
     for (const key of step.writes) assert.deepEqual(rows[id][key], [...step.reads], `${step.name} wrote ${key}`);
+    for (const what of step.each) for (const i of [0, 1]) assert.deepEqual(rows[id][`${what}-${i}`], [...step.reads], `${step.name} wrote ${what}-${i}`);
   }
   assert.equal(snapshot.sharedState.choseWhy, result.choseWhy);
 });
@@ -81,14 +82,49 @@ test('why an intent\'s duration is what it is, and why its model was chosen — 
   const duration = (await whyFromRecord({ file, control: edges, key: 'durations', all: true })).split('\n');
   // the value carries Fitts's numbers; the walk goes through the plan and the decision to the intents
   assert.match(duration[0], /^durations = \[\{"seconds":0\.85\d*,"model":"min-jerk","basis":\{"distance":500,"target":40,"targetDefaulted":true,"bits":3\.754\d*,/);
-  assert.deepEqual(duration.slice(1, 4), ['wrap (wrap#3) [wrote: moves, durations]', '  plan: ours (ours#2) ← via plans [wrote: plans]', '    read (read#0) ← via intents [wrote: intents, wraps, frame]']);
-  assert.ok(duration.includes(`    choose (choose#1) ← via choices ← [control: ${run.result.choseWhy}] [wrote: choices, chose, choseWhy]`), duration.join('\n'));
+  assert.deepEqual(duration.slice(1, 4), ['wrap (wrap#3) [wrote: moves, durations, duration-0]', '  plan: ours (ours#2) ← via plans [wrote: plans]', '    read (read#0) ← via intents [wrote: intents, wraps, frame]']);
+  assert.ok(duration.includes(`    choose (choose#1) ← via choices ← [control: ${run.result.choseWhy}] [wrote: choices, chose, choseWhy, model-0]`), duration.join('\n'));
   const chosen = (await whyFromRecord({ file, control: edges, key: 'choices' })).split('\n');
-  assert.deepEqual(chosen.slice(0, 3), [`choices = ${JSON.stringify(run.result.choices)}`, 'choose (choose#1) [wrote: choices, chose, choseWhy]', '  read (read#0) ← via intents [wrote: intents, wraps, frame]']);
+  assert.deepEqual(chosen.slice(0, 3), [`choices = ${JSON.stringify(run.result.choices)}`, 'choose (choose#1) [wrote: choices, chose, choseWhy, model-0]', '  read (read#0) ← via intents [wrote: intents, wraps, frame]']);
   assert.match(chosen[0], /"model":"min-jerk","by":"usual","rule":"the intent names none: its family's usual"/);
   // the findings walk back through the checks and the moves to the plan
   const found = await whyFromRecord({ file, control: edges, key: 'findings', all: true });
-  for (const line of ['findings (findings#6) [wrote: findings]', 'check (check#5) ← via checks', 'wrap (wrap#3) ← via moves']) assert.ok(found.includes(line), found);
+  for (const line of ['findings (findings#6) [wrote: findings, findings-0]', 'check (check#5) ← via checks', 'wrap (wrap#3) ← via moves']) assert.ok(found.includes(line), found);
+});
+
+test('one intent of fifty, asked by its own key: its duration and full basis, through the plan and the choice — never a cut list', async (t) => {
+  const file = path.join(temp(t), 'fifty.record.jsonl'), sink = fileSink(file), control = controlDepRecorder();
+  const long = (i) => `scene 3, beat ${i}: the presenter's left hand reaches across the table for the blue mug beside the laptop, slowly ${'and with care '.repeat(6)}`.trim();
+  const intents = Array.from({ length: 50 }, (_, i) => ({ do: 'reach', who: long(i), from: [100 + i, 600], to: [500 + 3 * i, 200], target: 20 + i }));
+  let run;
+  try { run = await runHumanFlow(intents, { sink, recorders: [control] }); } finally { await sink.close(); }
+  const edges = controlEdges(run.snapshot.commitLog, control), i = 37, basis = run.result.plans[i].plan.basis;
+  const answer = (await whyFromRecord({ file, control: edges, key: `duration-${i}` })).split('\n');
+  // the value whole, not cut: the seconds and every number of the basis, Fitts's distance, target and bits among them
+  assert.equal(answer[0], `duration-${i} = ${JSON.stringify(run.result[`duration-${i}`])}`);
+  assert.ok(!answer[0].endsWith('…'));
+  const { seconds, ...rest } = basis;
+  assert.deepEqual(JSON.parse(answer[0].slice(`duration-${i} = `.length)), { seconds, ...rest });
+  assert.deepEqual([rest.distance, rest.target, rest.bits], [Math.hypot(400 + 2 * i, 400), 20 + i, Math.log2(Math.hypot(400 + 2 * i, 400) / (20 + i) + 1)]);
+  assert.match(answer[1], /^wrap \(wrap#3\) \[wrote: moves, durations, duration-0, /);
+  assert.equal(answer[2], '  plan: ours (ours#2) ← via plans [wrote: plans]');
+  assert.ok(answer.some((l) => l.startsWith('    choose (choose#1) ← via choices ← [control: ')), answer.join('\n'));
+  assert.ok(!answer.some((l) => /not whole/.test(l)), 'fifty intents\' keys stay within what the reader keeps of a step');
+  // why its model: its own key, the rule's words whole
+  assert.match(await whyFromRecord({ file, control: edges, key: `model-${i}` }), new RegExp(`^model-${i} = \\{"model":"min-jerk","family":"reach","by":"usual","rule":"the intent names none: its family's usual"\\}\nchoose \\(choose#1\\)`));
+  assert.match(await whyFromRecord({ file, control: edges, key: `findings-${i}`, all: true }), new RegExp(`^findings-${i} = \\[\\]\nfindings \\(findings#6\\)`));
+});
+
+test('the most intents a list holds keep a whole record: every step\'s keys read stay within the reader\'s bound', async (t) => {
+  const file = path.join(temp(t), 'most.record.jsonl'), sink = fileSink(file);
+  const intents = Array.from({ length: MOST_INTENTS }, (_, i) => ({ do: 'reach', who: `intents ${i}`, from: [0, 0], to: [100 + i, 0] }));
+  let run;
+  try { run = await runHumanFlow(intents, { sink }); } finally { await sink.close(); }
+  for (const c of run.snapshot.commitLog) {
+    assert.ok(c.trace.length <= WHY_LIMITS.rows, `${c.runtimeStageId}: ${c.trace.length} rows`);
+    assert.ok(c.trace.reduce((n, r) => n + (r.readKeys?.length ?? 0), 0) <= WHY_LIMITS.reads, `${c.runtimeStageId}: keys read`);
+  }
+  assert.doesNotMatch(await whyFromRecord({ file, key: `duration-${MOST_INTENTS - 1}` }), /not whole/);
 });
 
 test('a tool\'s own model: the decider goes to "own", and the record\'s control edge says its code is outside the record', async (t) => {

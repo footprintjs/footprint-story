@@ -3,9 +3,10 @@
 // critics' measures and findings naming who and the fix.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planIntents, HUMAN_STEPS, HUMAN_INPUT, CHOOSE_RULES, MOST_INTENTS, SUMMARY_POINTS, planMove, checkMove, anticipate, overshoot, sampleTrack, USUAL_MODELS, HUMAN_DOS } from '../human.js';
+import { planIntents, HUMAN_STEPS, HUMAN_INPUT, CHOOSE_RULES, MOST_INTENTS, SUMMARY_POINTS, PER_INTENT, intentKey, planMove, checkMove, anticipate, overshoot, sampleTrack, USUAL_MODELS, HUMAN_DOS } from '../human.js';
 import { firstRule } from '../src/human/models/rules.js';
 import { trackSummary } from '../src/human/intents/summary.js';
+import { keysOut, perIntentKeys } from '../src/human/intents/keys.js';
 
 const HAND = Object.freeze({ do: 'reach', name: 'hand', from: [200, 600], to: [500, 200] });
 const BALL = Object.freeze({ do: 'throw', who: 'blocks[2] ("ball")', from: [100, 600], to: [700, 600] });
@@ -32,7 +33,13 @@ test('the rule table is data, first match wins: the named model, else the family
 
 test('planIntents: per intent the choice and why, the plan and its basis, the move, a track summary, the critics — frozen plain data', () => {
   const r = planIntents([HAND, BALL, STRAIGHT]);
-  assert.deepEqual(Object.keys(r), [...HUMAN_INPUT, 'choices', 'chose', 'choseWhy', 'plans', 'moves', 'durations', 'tracks', 'checks', 'findings']);
+  assert.deepEqual(Object.keys(r), [...HUMAN_INPUT, 'choices', 'chose', 'choseWhy', 'plans', 'model-0', 'model-1', 'model-2', 'moves', 'durations', 'duration-0', 'duration-1', 'duration-2', 'tracks', 'checks', 'findings', 'findings-0', 'findings-1', 'findings-2']);
+  // one intent's values under keys of its own: its model and rule, its duration and basis flat, its findings
+  assert.deepEqual(r['model-1'], { model: 'ballistic', family: 'throw', by: 'usual', rule: "the intent names none: its family's usual" });
+  const { seconds: planned, ...basis } = r.plans[0].plan.basis;
+  assert.deepEqual(r['duration-0'], { seconds: r.durations[0].seconds, ...basis });
+  assert.equal(planned, r['duration-0'].seconds);
+  assert.deepEqual([r['findings-0'], r['findings-2']], [[], [{ critic: 'arc', level: 'warn', fix: "bow it: model: {name: 'min-jerk', bend: 0.06}" }]]);
   assert.deepEqual(r.intents.map((i) => i.who), ['intents[0] ("hand")', 'blocks[2] ("ball")', 'intents[2]']);
   assert.deepEqual(r.choices[1], { who: 'blocks[2] ("ball")', do: 'throw', family: 'throw', model: 'ballistic', by: 'usual', rule: "the intent names none: its family's usual", own: false });
   assert.equal(r.chose, 'ours');
@@ -59,6 +66,7 @@ test('a wrap asked in the intent wraps its move, innermost first; the duration s
   assert.deepEqual(r.wraps[0], [{ wrapper: 'anticipate', share: 0.2 }, { wrapper: 'overshoot', by: 12 }]);
   assert.equal(r.intents[0].wrap, undefined, 'the wrap is taken apart: a model refuses a key it does not read');
   assert.deepEqual(r.durations[0], { seconds: own.plan.seconds, model: 'ballistic', basis: r.plans[0].plan.basis, wrappers: ['anticipate', 'overshoot'], who: 'blocks[2] ("ball")' });
+  assert.deepEqual([r['duration-0'].seconds, r['duration-0'].wrappers, r['duration-0'].planned, r['duration-0'].apex], [own.plan.seconds, 'anticipate, overshoot', r.plans[0].plan.seconds, 150]);
   assert.deepEqual(r.moves[1].wrappers, ['hold', 'follow-through']);
   assert.ok(r.durations[1].seconds > r.plans[1].plan.seconds + 0.2 - 1e-12);
 });
@@ -106,7 +114,7 @@ test('the frame is handed to every model; the same intents give the same result,
 test('refusals name the entry and the fix, before anything is planned', () => {
   const refused = (intents, settings, words) => assert.throws(() => planIntents(intents, settings), words);
   refused('reach', undefined, /^Error: human: planIntents takes a list of intents \[\{do, …\}\]/);
-  refused(Array.from({ length: MOST_INTENTS + 1 }, () => HAND), undefined, /planIntents takes at most 256 intents — not 257: plan them in parts/);
+  refused(Array.from({ length: MOST_INTENTS + 1 }, () => HAND), undefined, /planIntents takes at most 64 intents — not 65: plan them in parts/);
   refused([HAND, 5], undefined, /intents\[1\] is an intent \{do, …\} — not 5/);
   refused([, HAND], undefined, /intents\[0\] is an intent \{do, …\} — not undefined/);   // eslint-disable-line no-sparse-arrays
   refused([{ ...HAND, do: 'wave' }], undefined, /intents\[0\] \("hand"\)'s do is 'reach', 'draw'/);
@@ -145,6 +153,20 @@ test('each step reads only the keys it names: handed only those, it gives what t
   assert.deepEqual(HUMAN_STEPS[1].reads, ['intents', 'frame']);
   assert.deepEqual(Object.keys(HUMAN_STEPS[1].branches), ['ours', 'own']);
   assert.equal(HUMAN_STEPS[1].branches.ours, HUMAN_STEPS[1].branches.own, 'one plan, whichever the list chose: the branch names what the record can vouch for');
+});
+
+test('per-intent keys: named <what>-<i>, a key the record reader takes by its own name; each step names the prefixes it writes', () => {
+  assert.deepEqual(PER_INTENT, { model: 'choose', duration: 'wrap', findings: 'findings' });
+  assert.equal(intentKey('duration', 12), 'duration-12');
+  for (const bad of [['plan', 0], ['duration', -1], ['duration', 1.5], ['duration', '3']]) assert.throws(() => intentKey(...bad), /intentKey takes model, duration, findings and an intent's place/);
+  assert.deepEqual(HUMAN_STEPS.map((s) => [s.name, s.each]), [['read', []], ['choose', ['model']], ['wrap', ['duration']], ['sample', []], ['check', []], ['findings', ['findings']]]);
+  for (const [what, by] of Object.entries(PER_INTENT)) assert.ok(HUMAN_STEPS.find((s) => s.name === by).each.includes(what));
+  const r = planIntents([HAND]);
+  assert.deepEqual(Object.keys(r).filter((k) => /-/.test(k)), ['model-0', 'duration-0', 'findings-0']);
+  // only a step's own prefixes, and only a place written as a plain whole number, are taken from what it gives back
+  const out = { moves: 1, durations: 2, 'duration-0': 3, 'duration-12': 4, 'duration-01': 5, 'duration-x': 6, 'duration-1-2': 7, 'model-0': 8, 'xduration-1': 9 };
+  assert.deepEqual(keysOut(HUMAN_STEPS[2], out), ['moves', 'durations', 'duration-0', 'duration-12']);
+  assert.deepEqual(perIntentKeys(out), ['model-0', 'duration-0', 'duration-12']);
 });
 
 test('the plan checks that its model is the one chosen: a choice the plan does not hold is refused, never kept', () => {

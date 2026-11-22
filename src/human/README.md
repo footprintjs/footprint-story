@@ -21,7 +21,7 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
 | `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring — see [physics/README.md](physics/README.md) |
 | `models/` | the model interface and registry (`registry.js`), how a model is chosen as data (`rules.js` · `CHOOSE_RULES`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
-| `intents/` | the intent decider: an author's list of intents in, every move decided by steps in one list (`HUMAN_STEPS`, `planIntents` in `steps.js`; the reader `read.js`; the bounded track summary `summary.js`) — see below |
+| `intents/` | the intent decider: an author's list of intents in, every move decided by steps in one list (`HUMAN_STEPS`, `planIntents` in `steps.js`; the reader `read.js`; the bounded track summary `summary.js`; the per-intent keys `keys.js`) — see below |
 | `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, and `checkMove` (`check.js`) |
 | `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
@@ -167,7 +167,7 @@ r.durations[0];  // { seconds: 0.85…, model: 'min-jerk', basis: { distance: 50
 r.findings;      // [{ intent: 2, who: 'intents[2]', model: 'min-jerk', critic: 'arc', level: 'warn', message: 'intents[2]: its move runs straight …', fix: "bow it: model: {name: 'min-jerk', bend: 0.06}" }]
 ```
 
-- **read** — at most `MOST_INTENTS` (256) intents, each copied by its own stored fields (a getter is never run), named
+- **read** — at most `MOST_INTENTS` (64) intents, each copied by its own stored fields (a getter is never run), named
   (its `who`, else `intents[i]` with its piece's name), its `wrap` taken apart (`wraps[i]`, at most 4 wrappers).
 - **choose** — by rules as data: the family by `do` (`HUMAN_DOS`), then the first rule of `CHOOSE_RULES` that holds,
   in the shape of footprintjs `decide()` rules: `{when: {named: {eq: true}}, then: 'named'}` (the model the intent
@@ -184,6 +184,14 @@ r.findings;      // [{ intent: 2, who: 'intents[2]', model: 'min-jerk', critic: 
 - **check** — `checks`: `checkMove` per move.
 - **findings** — every intent's findings in one list, each naming its intent (by place and by `who`), its model, the
   critic and the fix.
+
+Each value decided for one intent is also written under a key of its own (`intents/keys.js`): `model-<i>` (its
+model, family, `by` and rule), `duration-<i>` (its seconds and its model's basis, flat; a wrapped move's wrappers and the
+model's own seconds as `planned`), `findings-<i>` (each critic, level and fix). WHY: a record's answer is asked of one
+key and cuts a value at 200 characters, so one entry of a long list is asked for by its own key and shown whole
+(`intentKey('duration', 3)` → `'duration-3'`; `PER_INTENT` names the step that writes each). 64 intents at most keeps
+every step's rows within what the record reader keeps of a step. The check step samples each move again rather than
+reading `tracks`: the critics read every sample, which the bounded summary would drop.
 
 Each step reads only the keys it names and gives back the keys it names (a test hands each only those). A tool's own
 `models` and `critics` go in the settings as for `planMove` (`planIntents(intents, {models, critics, frame})`): code is

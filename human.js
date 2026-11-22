@@ -62,3 +62,4 @@ export { HUMAN_STEPS, HUMAN_INPUT, planIntents } from './src/human/intents/steps
 export { MOST_INTENTS } from './src/human/intents/read.js';
 export { SUMMARY_POINTS } from './src/human/intents/summary.js';
 export { CHOOSE_RULES } from './src/human/models/rules.js';
+export { PER_INTENT, intentKey } from './src/human/intents/keys.js';
