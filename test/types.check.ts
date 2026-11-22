@@ -225,6 +225,15 @@ export const styled: unknown[] = [first.role, painted.box.w, look.row.line, ISO_
 // @ts-expect-error — a column that is not one
 isoStyle({ outline: 'ink' });
 
+// 0.34.0: named looks — a style row under a name
+import { ISO_LOOKS, CONTOUR } from 'footprint-story/isometric';
+import type { IsoLookName } from 'footprint-story/isometric';
+const lineArt: IsoStyle = isoStyle({ look: 'line-art', texture: 'none' });
+const lookName: IsoLookName | undefined = lineArt.look;
+export const looks: unknown[] = [lookName, ISO_LOOKS.outlined.line, ISO_LOOKS['line-art'].shading, CONTOUR.width, isoStyle({ look: null }).row.line, isoStyle(ISO_LOOKS.outlined).row.line];
+// @ts-expect-error — a look that is not one
+isoStyle({ look: 'flat' });
+
 // The map's steps (0.24.0) and the map flow door
 import { buildIsoMap, ISO_MAP_STEPS, ISO_MAP_POLICIES, ISO_MAP_LIMITS } from 'footprint-story/isometric';
 import type { IsoMap, IsoMapSpec, IsoMapPolicy, IsoMapStep } from 'footprint-story/isometric';

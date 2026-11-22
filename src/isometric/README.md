@@ -26,7 +26,8 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `lead.js` | a cable's lead into a port, drawn again over its block: its way rounded from that end, its pieces through the floor corner and their length (`cableLead`) — the share of the line a tool hands a packet over at |
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
 | `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
-| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`) |
+| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`), and `paper` (shading) and `contour` (line) for the named looks |
+| `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`) |
 | `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
 | `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
@@ -322,8 +323,8 @@ they run — each reads only what the one before it gave (the design: `docs/desi
 | Column | Takes | Gives | This package's choices |
 |---|---|---|---|
 | `shape` | the piece and the grid | the faces, as items with a role (`top`, `left`, `right`, `side`, `ground`, `grid`) | `box` |
-| `shading` | the items, the base colour | a fill per face | `tones`: top 20% toward white, left 6% and right (a cylinder's side) 18% toward black |
-| `line` | the items, the ink | strokes | `ink` (2.5 px, round joins; option `width`, 0.5 to 20), `none` (a floor keeps its tile lines) |
+| `shading` | the items, the base colour | a fill per face | `tones`: top 20% toward white, left 6% and right (a cylinder's side) 18% toward black; `paper`: every face and the ground the paper's colour (option `colour`, `#ffffff`) |
+| `line` | the items, the ink | strokes | `ink` (2.5 px, round joins; option `width`, 0.5 to 20), `none` (a floor keeps its tile lines), `contour` (a bold even contour round the piece and lighter inner lines; options `width`, 1 to 20, 5, and `inner`, 0.25 to the width, 1.5) |
 | `palette` | the items | the same, recoloured | `theme` |
 | `texture` | the items | marks over them | `none` |
 | `effects` | the items | items added to the whole, a list of choices | — |
@@ -380,6 +381,51 @@ width fills the ring round it, its ends capped (`strokeOutline`, the human door)
 
 A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
 apart, never on the style), so a record read back can be shown but must be made into a style again to draw.
+
+### Named looks: outlined and line art
+
+A **look** is a style row under a name (`looks.js` · `ISO_LOOKS`, data only — no code of its own). A tool names one as
+it names a choice, by its name in the row: `isoStyle({look: 'outlined'})`, a map spec's `style: {look: 'line-art'}`. A
+column written beside the look replaces the look's entry for that column, whole (`{look: 'line-art', texture:
+'human:hatch'}` hatches a line drawing). The style is the row it comes to — named or written out, the same row, options,
+seeds and paint list — and the record keeps the name beside it (`style.look`, absent when no look is named).
+
+| Look | Row | Still |
+|---|---|---|
+| `outlined` | `{line: 'contour'}`: today's tones, a 5 px contour, 1.5 px inner lines | ![Two blocks, a cylinder and a slab on a floor of tiles, each with a bold dark outline round it and thin lines where its faces meet](look-outlined.svg) |
+| `line-art` | `{shading: 'paper', line: {name: 'contour', width: 3, inner: 1.25}}`: white faces, ink lines only | ![The same map drawn in ink on white: a 3 px outline round each piece, thinner fold lines, faint tile lines](look-line-art.svg) |
+
+**The contour** (`line: 'contour'`) is drawn with items every painter already draws: under the faces, each face again
+(role `contour`, no fill) with a wide stroke; over them, the faces with a thin one. The faces' fills trim the wide
+strokes to the outside, so what shows outside the piece is an even band round its whole silhouette with round corners —
+however the faces meet, and with no silhouette worked out. `width` is the contour as it shows: the wide stroke is drawn
+at 2 · width − inner, and shows width − inner / 2 outside the faces, the thin line inner / 2 inside them. The band
+reaches past the piece's `box` (as today's ink does by half its width), so it covers a little of what is behind it —
+the sticker look. A floor keeps its usual list: it is the ground the pieces stand on. A painter that writes nothing for
+a null fill (StoryDeck: SVG's initial fill is black) fills a contour item, under faces that cover it whole: the same
+picture. The faces must be filled — a contour is refused over a face with no fill.
+
+**Line art** is a weight hierarchy: the silhouette 3 px, the fold edges 1.25 px, the detail — the floor's tile lines,
+1.5 px at 16% of the ink — faintest. The tile lines keep their width because StoryDeck's CSS holds it (`.iso-lines`), so
+a style that thinned them would differ between the tools. The paper's fills carry their colour even when the base is
+the page's (it is the paper, whatever the base), so a painter that colours a face by its role draws them as said; give
+the page's paper with `shading: {name: 'paper', colour: '#faf6ee'}`. There is no `shading: 'none'`: StoryDeck colours a
+face with no fill by its role's CSS, so a null fill would draw tones in a deck and nothing in a film.
+
+| Number | Value | Whose, and why |
+|---|---|---|
+| contour `width` | 5 px | ours: twice today's 2.5 px ink, so the edge reads first |
+| contour `inner` | 1.5 px | ours: under today's 2.5, so the folds show without competing with the edge (a little over 3 : 1) |
+| line art `width` / `inner` | 3 / 1.25 px | ours: a line drawing has no tones, so its edge is the line alone, a little over today's ink; folds under half of it, so the faces read as one solid |
+| tile lines | 1.5 px at 16% | today's, kept (StoryDeck's CSS holds the width) |
+
+Refused, before anything is drawn, naming the entry and the fix: a look that is not one; `shading: 'paper'` with
+`line: 'none'` (white on white shows nothing — use `contour` or `ink`), and when the paper came from the look the words
+say so (`(from the look "line-art": write shading beside it to change it)`); a contour `width` or `inner` out of range,
+an inner bolder than the contour; a paper colour that is no colour. A tool's own shading that leaves a face unfilled
+under the contour is refused on the piece (the wide stroke under it would show whole). The stills are written by
+`test/isoLookStills.js` from a real map's paint lists and pinned (`WRITE_EXAMPLE=1 node --test
+test/isometric-looks.test.js` draws them again).
 
 ## A whole map, built as named steps
 

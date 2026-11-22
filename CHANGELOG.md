@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.34.0 — named looks: outlined and line art
+
+- **Two named looks** (`src/isometric/looks.js` · `ISO_LOOKS`): a look is a style row under a name, data only. A tool
+  names one in the row it already hands `isoStyle` or a map spec: `{look: 'outlined'}` (a bold, even contour round each
+  piece and lighter inner lines over today's tones — the sticker look) or `{look: 'line-art'}` (white paper faces, ink
+  lines only: silhouette 3 px, folds 1.25 px, the floor's tile lines faintest). A column written beside a look replaces
+  its entry, whole (`{look: 'line-art', texture: 'human:hatch'}`). Named or written out, the same row, seeds and paint
+  list; the record keeps the name beside the row (`style.look`, and a built map's `map.style.look`), absent when none is
+  named, so every other record is as before. `restyle` carries it.
+- **Two new choices** (`src/isometric/styleChoices.js`): line `contour` (options `width`, the contour as it shows, 1 to
+  20 px, 5; `inner`, 0.25 px to the width, 1.5 — `CONTOUR`, ours) and shading `paper` (option `colour`, `#ffffff`). The
+  contour is each face again under the faces with no fill and a wide stroke (role `contour`), trimmed to an even outside
+  band by the faces' fills — no silhouette worked out, no new item kind. A paper fill carries its colour even with no
+  base given. Both tools' painters draw these lists as they are: no painter change.
+- **Refused, with the fix:** a look that is not one; `shading: 'paper'` with `line: 'none'` (saying when the paper came
+  from the look); a contour width or inner out of range, or an inner bolder than the contour; a paper colour that is no
+  colour; a tool's own shading that leaves a face unfilled under the contour (on the piece).
+- **For the tools:** StoryDeck's `data-style` reader and StoryReel's `readStyle` check a row's keys against
+  `ISO_STYLE_COLUMNS`, so each needs a small reader change to accept `look`; until then each can write a look's row out
+  (`line: contour`; `shading: paper; line: contour width 3 inner 1.25`), which draws the same.
+- README stills (`src/isometric/look-outlined.svg`, `look-line-art.svg`) written from a real map's paint lists by
+  `test/isoLookStills.js` and pinned. Tests: `test/isometric-looks.test.js` (each look's list, geometry to 1e-6, seeds,
+  refusals, the record, faces unmoved for any piece on any grid); the map flow's drift property now runs the looks.
+  Types: `IsoLookName`, `IsoStyleRow.look`, `IsoStyle.look`, `ISO_LOOKS`, `CONTOUR`.
+
 ## 0.33.1 — a map flow's record keeps the paint lists as counts and a digest
 
 - **`runMapFlow`'s record no longer keeps every paint item's points** (`src/mapflow/summary.js`, `src/mapflow/flow.js`).
