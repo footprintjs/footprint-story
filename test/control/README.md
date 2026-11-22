@@ -48,6 +48,11 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storydeck-0.32.0-keepClear.js` | storydeck `deck/keepClear.js` at `fc9e4ca`, the whole file | its imports point at `../deckDoor.js` and the pieceRules and focusHtml controls; a comment line |
 | `storydeck-0.32.0-footprint.js` | storydeck `deck/footprint.js` at `fc9e4ca`, the whole file | its imports point at `../deckDoor.js` and the pieceRules and portsWritten controls; a comment line |
 | `storydeck-0.32.0-cable.js` | storydeck `deck/cable.js` at `fc9e4ca`, lines 17 and 23–58 (its import, `CLEAR`/`CORNER`, `layRoutes`, `reachOf`) | its import points at `../deckDoor.js`; a comment line. The test lays the wires as `deck/transforms.js` · `transformed` does (lines 515–517: `lay` and `lines`), written out in the test |
+| `storydeck-0.37.0-motionPlace.js` | storydeck `deck/motionPlace.js` at `502681d` (0.37.0), the whole file | none (byte-identical) |
+| `storydeck-0.37.0-motionPlan.js` | storydeck `deck/motionPlan.js` at `502681d`, lines 33–36 (`sideFoot`) and 136–138 (`SAMPLE_RATE`, `SAMPLES_MOST`, `checkTimes`) | `export` added to `sideFoot`; a comment line naming the source |
+| `storyreel-0.44.0-motion-place.mjs` | footprint-storyreel `src/kits/isometric/motion-place.mjs` at `307d0f7` (0.44.0), the whole file | none (byte-identical) |
+| `storyreel-0.44.0-motion-cover.mjs` | footprint-storyreel `src/kits/isometric/motion-cover.mjs` at `307d0f7`, lines 28–51 (`NAME_WIDTH`, `nameBox`, `overlaps`, `area`) | `export` added to `nameBox` and `overlaps`; a comment line naming the source |
+| `storyreel-0.44.0-motion-side.mjs` | footprint-storyreel at `307d0f7`: `src/kits/isometric/motion-side.mjs` lines 34 (`worldPx`) and 121–124 (`sideFoot`), `src/kits/isometric/motion.mjs` lines 216–218 (`SAMPLE_RATE`, `SAMPLES_MOST`, `samplesOf`) | `export` added to `samplesOf`; a comment line naming the sources |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these

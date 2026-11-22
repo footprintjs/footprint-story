@@ -30,6 +30,11 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
 | `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
+| `standing.js` | where a moving block stands: its foot, its top, its corner (`footOf`, `topOf`, `cornerOf`), the top it lands on (`landingUnder`), whether its middle is over that top (`overTop`), whether one rests on another (`ridesOn`) |
+| `footing.js` | a moving foot in tiles from footprint-story/human's samples: planned on the frame (`footTiles`), or side on (`sideFoot`, in `worldPx`) |
+| `sweep.js` | whether a move passes through a block, swept between samples (`sweptThrough`, `THROUGH_MOST`), the moments a move is checked at (`checkMoments`), the deepest pass over a move (`deepestPass`) and its finding (`passFinding`) |
+| `onFrame.js` | a moving block on the frame: a point off it (`offFrame`), what of a drawing is off (`drawnOff`), a point where a pose puts it (`posed`) |
+| `cover.js` | which names a block at rest hides: a name's box, font-free (`nameBox`, `NAME_WIDTH`), an outline over a box (`overlapsBox`), the paint order at a moment (`orderAt`), the hiding block (`hiddenNames`) and its finding (`coverFinding`) |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
 
 ```js
@@ -475,3 +480,75 @@ a later step: the tools differ most there), and what a deck reads from its HTML 
 names, a footprint's box on the slide, the keep-clear stretches worked out from a box (`floorUnder`), the icon's
 drawing, callouts, the px and levels it writes.
 
+
+## Moving pieces: where a block stands, what it passes through, what it hides
+
+**Why:** StoryReel (0.43–0.44, `src/kits/isometric/motion-place.mjs`, `motion-cover.mjs`, `motion-side.mjs`) and
+StoryDeck (0.37, `deck/motionPlace.js`, `motionPlan.js`) both move blocks on a map by intent — footprint-story/human
+decides each move — and both placed the moving block with the same number rules, written twice. They live here once.
+A tool keeps its drawing and its messages: it hands plain data in (blocks in tiles, samples from `footprint-story/human`)
+and takes plain data out; a finding comes back as `{critic, level, message, fix}` in words free of any tool's syntax, its
+critic `'contact'` or `'covers'` for the tool to prefix (`reel:contact`, `deck:covers` — the names their writers already
+accept).
+
+```js
+import { isometric, footOf, landingUnder, ridesOn, sweptThrough, checkMoments, deepestPass, passFinding } from 'footprint-story/isometric';
+
+const server = { name: 'server', size: [2, 2, 1.4] }, box = { name: 'box', size: [1, 1, 1] };
+landingUnder([0.5, 0.5, 3], box.size, [{ block: server, at: [0, 0, 0] }]);   // { lift: 1.4, block: server, at: [0, 0, 0] }
+ridesOn({ block: box, at: [0.5, 0.5, 1.4] }, { block: server, at: [0, 0, 0] });   // true: moving the server would leave it on nothing
+sweptThrough([1, 1, 1], [0, 1, 0], [10, 1, 0], [{ block: { name: 'wall', size: [0.1, 3, 1] }, from: [5, 0, 0], to: [5, 0, 0] }]);
+// { block: wall, depth: 0.1, share: ≈0.45 } — a wall a tenth of a tile thin, found between two samples a whole move apart
+```
+
+Each rule, and why it is the rule:
+
+- **A block moves by its foot** (`footOf`, `topOf`, `cornerOf`): the middle of its footprint, at its lift. A fall drops
+  the foot, a throw lands it, a hang ties its rope to the top. One point per block, so a move is one curve.
+- **It lands on the highest top under it that is not above its foot** (`landingUnder`), else the floor: a box dropped
+  over a server lands on the server, never through it. An overlap counts only past `SAME_PLACE` (1e-6 tile, ours): a
+  block edge to edge beside another is not on it.
+- **It stays on a top while its middle is over it** (`overTop`), edges included: a body whose middle is past the edge
+  would tip off, however much of its footprint still overlaps.
+- **A rider rests on a block when it overlaps that block's top and stands at its height** (`ridesOn`, within
+  `SAME_PLACE`). Why a tool asks: moving a block from under a rider leaves the rider on nothing — a wrong picture — and
+  only the writer knows whether the rider goes too, so the tool refuses the move and names both.
+- **A foot is worked back from where it is drawn** (`footTiles`): a point on the frame is a whole line of places, so the
+  one taken is on the move's way (its col − row between the two ends; by the share of its time when both ends stand on
+  one such line), and its lift brings it to the point's height. The place then projects exactly where the block is
+  drawn, so the paint order and the pass-through check find it where it is seen. A lift under the floor (a wind-up's
+  dip) is the floor.
+- **A side-on sample lies back on the floor along its way** (`sideFoot`): roll, slide and tumble are planned in the
+  upright plane through the way, where the floor is level and gravity is down — on the frame a floor seen from a corner
+  runs at a slant. Lengths there are `worldPx` (a tile's width over √2: a level line across the frame is drawn at its
+  true length). The tie point's `offset` (a rolling ball's radius) is taken off, a lift within `LEVEL_SNAP` (1e-9 tile,
+  ours) of a level the body keeps is that level exactly, and under the floor is the floor.
+- **A move is swept, not sampled** (`sweptThrough`): a 30-tile reach covers a tile and more between two samples, and a
+  block a tenth of a tile thin stands wholly between them. Over a straight stretch the overlap along each axis is the
+  least of (an end − a start), each moving straight, so the overlap is concave in the share and golden-section search
+  finds its highest point — nothing between two samples is skipped (a property test checks it against an exact oracle
+  and a 4000-step one). A pass counts past `THROUGH_MOST`, a twentieth of a tile (ours): a block resting on a top
+  touches it, and a foot worked back from the frame is exact only to a few billionths.
+- **A move is checked at its ends and `CHECKS_PER_SECOND` (30, ours) a second between** (`checkMoments`), 2 to
+  `MOST_CHECKS` (900, ours) steps; each pair of neighbours is one stretch swept, its block and every other where it
+  stands at both ends (`deepestPass`; a turning block is handed as shorter stretches, each at the box its corners fill).
+- **A point off the frame is said in whole pixels, at least 1** (`offFrame`, `drawnOff`: the outline first, then a
+  hang's rope): a point a tenth of a pixel off is off, and "0 px" would say it is not. The frame is the caller's.
+- **A name's box is counted from its letters, never a font** (`nameBox`): `NAME_WIDTH` (1.2 of the size a letter, ours)
+  is wider than any letter a sans font draws — a bold "W" is 0.95–1.03 em, a full-width form 1.0 — so a name that could
+  peek out from under a block on any host is counted covered, and every host decides the same. Lines are 1.15 of their
+  size tall and the small line 2 px under them (the names step's numbers).
+- **A block at rest hides a name when its outline meets the name's box** (`overlapsBox`, the separating-axis test of a
+  convex outline and a box) **and it is painted after the named block** (`hiddenNames`). One passing over a name in
+  flight is a moment of natural occlusion, drawn as it is, so only resting blocks are handed in.
+- **The paint order at a moment is `grid.backToFront` of every piece** (`orderAt`), each where the moment puts it — the
+  one sort, never a second. Every piece, not the two in question: two blocks that do not meet on the frame get no rule
+  between them and are ordered only through the pieces between, and both tools paint by the order of every piece. Asked
+  of the two alone, a block wholly behind the named one could come out in front of it, and its name — drawn over that
+  block — would be counted hidden (the test pins such a case).
+
+Where the two tools' copies differed: StoryReel's cover check ordered the two blocks alone (StoryDeck ordered every
+piece, which is the rule above); StoryDeck's `sideFoot` had no `offset` (it plans only a slide, whose offset is 0) and
+StoryReel's needed one given; StoryReel's frame was fixed at 1600 × 900 and StoryDeck's `offSlide` took it. Everything
+else gave the same numbers and words: `test/isometric-motion.property.test.js` runs both copies (test/control/) beside
+the door.

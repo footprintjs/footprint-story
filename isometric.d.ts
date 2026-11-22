@@ -456,3 +456,78 @@ export interface IsoMapStep extends IsoMapPart { readonly name: 'place' | 'route
 export const ISO_MAP_STEPS: readonly IsoMapStep[];
 /** The map built: the spec and the policy checked (a refusal names the piece's `who` and the fix), then each step in order. Frozen plain data. */
 export function buildIsoMap(spec: IsoMapSpec, policy: IsoMapPolicy): IsoMap;
+
+// ---- moving pieces (0.32.0): where a moving block stands, whether it passes through another, what it hides --------
+
+/** A place in tiles: [col, row] or [col, row, lift]. */
+export type IsoTiles = readonly number[];
+/** A block standing somewhere: the block as the caller holds it (handed back by identity) and its corner in tiles. */
+export interface IsoStanding<B extends { readonly size: readonly number[] } = { readonly size: readonly number[] }> { readonly block: B; readonly at: IsoTiles }
+/** What a block lands on: the highest top under it (`block` and `at` null for the floor), at `lift`. */
+export interface IsoLanding<B = unknown> { readonly lift: number; readonly block: B | null; readonly at: [number, number, number] | null }
+/** How close two numbers may be and still count as one place, in tiles (1e-6). */
+export const SAME_PLACE: number;
+/** A block's foot in tiles: the middle of its footprint, at its lift. */
+export function footOf(at: IsoTiles, size: readonly number[]): [number, number, number];
+/** A block's top in tiles: the middle of its footprint, at its lift and height. */
+export function topOf(at: IsoTiles, size: readonly number[]): [number, number, number];
+/** A block's corner from its foot. */
+export function cornerOf(foot: IsoTiles, size: readonly number[]): [number, number, number];
+/** The highest top of `others` under a block that is not above its foot, else the floor. */
+export function landingUnder<B extends { readonly size: readonly number[] }>(at: IsoTiles, size: readonly number[], others: readonly IsoStanding<B>[]): IsoLanding<B>;
+/** Whether a foot is over what holds it (landingUnder's): inside that top, edges included, or anywhere on the floor. */
+export function overTop(foot: IsoTiles, under: { readonly block: { readonly size: readonly number[] } | null; readonly at: IsoTiles | null }): boolean;
+/** Whether `rider` rests on the top of `base`. */
+export function ridesOn(rider: IsoStanding, base: IsoStanding): boolean;
+
+/** How near a lift must be to a level the body keeps to be that level, in tiles (1e-9). */
+export const LEVEL_SNAP: number;
+/** A foot's place in tiles from where it is drawn, during a move between two feet (`share` of its time, 0 to 1, when both stand on one line of places). */
+export function footTiles(grid: IsoGrid): (point: readonly [number, number], move: { readonly from: IsoTiles; readonly to: IsoTiles }, share: number) => [number, number, number];
+/** The world's own px in one tile: a tile's width over √2. */
+export function worldPx(grid: IsoGrid): number;
+/** How a side-on move lies back on the floor. */
+export interface IsoSideWay { readonly origin: readonly number[]; readonly heading: readonly number[]; readonly unit: number; readonly offset?: number; readonly levels: readonly number[] }
+/** Where a side-on sample ({x, y}, world px) puts the body's foot, in tiles. */
+export function sideFoot(side: IsoSideWay, sample: { readonly x: number; readonly y: number }): [number, number, number];
+
+/** How deep a moving block may go into another before it passes through it, in tiles (0.05). */
+export const THROUGH_MOST: number;
+/** How often a move is checked, a second (30). */
+export const CHECKS_PER_SECOND: number;
+/** The most steps a move is checked in (900). */
+export const MOST_CHECKS: number;
+/** Another block moving straight over a stretch: its corners at the stretch's two ends. */
+export interface IsoMover<B extends { readonly size: readonly number[] } = { readonly size: readonly number[] }> { readonly block: B; readonly from: IsoTiles; readonly to: IsoTiles }
+/** The deepest a block goes into the others on one straight stretch, past THROUGH_MOST, or null. */
+export function sweptThrough<B extends { readonly size: readonly number[] }>(size: readonly number[], from: IsoTiles, to: IsoTiles, others: readonly IsoMover<B>[]): { block: B; depth: number; share: number } | null;
+/** The moments a move is checked at: its ends and CHECKS_PER_SECOND a second between (2 to MOST_CHECKS steps). */
+export function checkMoments(seconds: number, start?: number): number[];
+/** One stretch of a move: from t0 to t1, the block's size and corners at both, the others where they stand then. */
+export interface IsoStretch<B extends { readonly size: readonly number[] } = { readonly size: readonly number[] }> { readonly t0: number; readonly t1: number; readonly size: readonly number[]; readonly from: IsoTiles; readonly to: IsoTiles; readonly others: readonly IsoMover<B>[] }
+/** The deepest pass over a move's stretches and when, or null. */
+export function deepestPass<B extends { readonly size: readonly number[] }>(stretches: readonly IsoStretch<B>[]): { block: B; depth: number; t: number } | null;
+/** A finding, in words free of any tool's syntax: a tool prefixes the critic with its own name. */
+export interface IsoMotionFinding { critic: 'contact' | 'covers'; level: 'warn'; message: string; fix: string }
+/** A pass as a finding (`hit.t` from the move's start). */
+export function passFinding(hit: { readonly block: unknown; readonly depth: number; readonly t: number }, move: { readonly do?: string; readonly tie?: string }): IsoMotionFinding;
+
+/** Null when a point is on the frame, else how far off it lies, in words. */
+export function offFrame(point: readonly [number, number], frame: readonly [number, number]): string | null;
+/** What of a drawn block is off the frame: its outline first, then a hang's rope. */
+export function drawnOff(outline: readonly (readonly [number, number])[], rope: readonly (readonly [number, number])[] | null | undefined, frame: readonly [number, number]): { part: 'block' | 'rope'; off: string } | null;
+/** A point of a block as built, where its pose puts it: scaled about the pivot, then moved. */
+export function posed(point: readonly [number, number], pose: { readonly dx: number; readonly dy: number; readonly pivot: readonly [number, number]; readonly sx?: number; readonly sy?: number }): [number, number];
+
+/** How wide a letter of a name is taken, as a share of its size (1.2): font-free. */
+export const NAME_WIDTH: number;
+/** A block's words on its top as a box on the frame, or null when its name has no lines. */
+export function nameBox(name: { readonly lines: readonly string[]; readonly size: number }, small: { readonly text: string; readonly size: number } | null, centre: readonly [number, number]): [number, number, number, number] | null;
+/** Whether a convex outline and a box overlap. */
+export function overlapsBox(points: readonly (readonly [number, number])[], box: readonly [number, number, number, number]): boolean;
+/** The paint order of things where a moment puts them, by index, the furthest first (grid.backToFront). */
+export function orderAt(grid: IsoGrid, things: readonly IsoThing[]): number[];
+/** Which resting block (its index in things) hides each name, or null. */
+export function hiddenNames(grid: IsoGrid, things: readonly IsoThing[], names: readonly { readonly piece: number; readonly box: readonly [number, number, number, number] }[], covers: readonly { readonly piece: number; readonly outline: readonly (readonly [number, number])[] }[]): (number | null)[];
+/** A move that comes to rest over a name, as a finding. */
+export function coverFinding(name: string, label: string): IsoMotionFinding;
