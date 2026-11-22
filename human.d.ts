@@ -69,8 +69,10 @@ export function distanceToShare(table: ArcTable, distance: number): number;
 export const MOST_CURVE_POINTS: number;
 /** A centripetal Catmull-Rom line through the points (each among the result exactly), about `spacing` px apart. */
 export function catmullRom(points: readonly HumanPoint[], settings?: { readonly spacing?: number; readonly alpha?: number }): readonly HumanPoint[];
-/** The curvature (per px) at each point. */
+/** The curvature (per px) at each point; a turn past a right angle reads as at least 2 · cos(B/2) / its shorter side. */
 export function curvatures(points: readonly HumanPoint[]): readonly number[];
+/** The curvature after averaging each point with the k either side, held at a circle as wide as that half-width; a fold reads across it. */
+export function curvaturesOver(points: readonly HumanPoint[], k: number): readonly number[];
 export const MOST_RESAMPLED: number;
 /** The points again, every `spacing` px along, or `count` points evenly along. */
 export function resample(points: readonly HumanPoint[], settings: { readonly spacing: number } | { readonly count: number }): readonly HumanPoint[];
@@ -84,6 +86,14 @@ export const HUMAN_DOS: Readonly<Record<HumanDo, HumanFamily>>;
 export const HUMAN_MODELS: Readonly<Record<HumanFamily, readonly string[]>>;
 export const USUAL_MODELS: Readonly<Partial<Record<HumanFamily, string>>>;
 export const MIN_JERK_BEND: number;
+/** The most a reach may bow, either way (0.3 of its length). */
+export const MOST_BEND: number;
+/** How far either side, in px, the pen model and the pen-speed critic read a bend over. */
+export const BEND_WIDTH: number;
+/** The most numbers or points one list in a sample may hold. */
+export const MOST_SAMPLE_LIST: number;
+/** The intent's keys left out of the seed: where it was written, and how long it takes. */
+export const UNSEEDED_KEYS: readonly string[];
 export const PEN_SPEED: number;
 export const MOST_STROKES: number;
 export const MOST_TRACK_SAMPLES: number;
@@ -99,10 +109,14 @@ export interface HumanIntent {
 }
 /** What a model is handed beside the intent. */
 export interface HumanContext { readonly who: string; readonly name: string | null; readonly options: HumanOptions; random(): number; readonly frame: HumanPoint | null }
-/** A plan: plain data with how long the move takes; `why` in words, `pushes` how many pushes it is made of. */
-export interface HumanPlan { readonly seconds: number; readonly why?: string; readonly pushes?: number; readonly [key: string]: unknown }
-/** A sample: where the move is, and any other numbers the model gives. */
-export interface HumanSample { readonly x: number; readonly y: number; readonly [key: string]: number }
+/** A flat record of the numbers (and words, true/false) a plan or a critic chose by: data for a record, beside the words. */
+export type HumanBasis = Readonly<Record<string, number | string | boolean | null>>;
+/** A plan: plain data with how long the move takes; `why` in words, `basis` its numbers, `pushes` how many pushes it is made of. */
+export interface HumanPlan { readonly seconds: number; readonly why?: string; readonly basis?: HumanBasis; readonly pushes?: number; readonly [key: string]: unknown }
+/** What a sample may hold besides x and y: a number, or a list of at most MOST_SAMPLE_LIST numbers or points (a hanging chain). */
+export type HumanSampleValue = number | readonly number[] | readonly HumanPoint[];
+/** A sample: where the move is, and any other numbers or lists the model gives. */
+export interface HumanSample { readonly x: number; readonly y: number; readonly [key: string]: HumanSampleValue }
 /** A model: a named strategy for one family of move. A tool's own is named under its prefix ('reel:chalk-pen'). */
 export interface HumanModel {
   readonly family: HumanFamily;
@@ -110,7 +124,7 @@ export interface HumanModel {
   readonly options?: readonly string[];
   check?(options: HumanOptions): void;
   plan(intent: any, context: HumanContext): HumanPlan;
-  sample(plan: any, t: number): { readonly x: number; readonly y: number; readonly [key: string]: number };
+  sample(plan: any, t: number): { readonly x: number; readonly y: number; readonly [key: string]: HumanSampleValue };
   readonly checks?: readonly string[];
 }
 /** A sampled track, as the critics read it. */
@@ -119,12 +133,12 @@ export interface HumanTrack { readonly who: string; readonly family: HumanFamily
 export interface HumanCritic {
   readonly name: string;
   readonly limit: number;
-  measure(track: HumanTrack): number | null;
-  finding(value: number, who: string): { readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string } | null;
+  measure(track: HumanTrack): number | { readonly value: number; readonly basis?: HumanBasis | null } | null;
+  finding(value: number, who: string, basis: HumanBasis | null): { readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string } | null;
 }
 export interface HumanSettings { readonly models?: readonly HumanModel[] | null; readonly critics?: readonly HumanCritic[] | null }
 /** A move, as planMove gives it: frozen plain data a record keeps. */
-export interface HumanMove { readonly model: string; readonly family: HumanFamily; readonly do: HumanDo; readonly who: string; readonly options: HumanOptions; readonly reason: string; readonly plan: HumanPlan; readonly checks: readonly string[] }
+export interface HumanMove { readonly model: string; readonly family: HumanFamily; readonly do: HumanDo; readonly who: string; readonly options: HumanOptions; readonly choice: { readonly by: 'named' | 'usual' }; readonly reason: string; readonly plan: HumanPlan; readonly checks: readonly string[] }
 export function planMove(intent: HumanIntent, settings?: (HumanSettings & { readonly frame?: HumanPoint }) | null): HumanMove;
 export function sampleMove(move: HumanMove, t: number, settings?: HumanSettings | null): HumanSample;
 export function sampleTrack(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): HumanTrack;
@@ -136,5 +150,5 @@ export const FINDING_LEVELS: readonly ('warn' | 'note')[];
 export const JERK_PEAK_SHARE: number;
 export const ARC_LEAST: number;
 export const PEN_SPEED_MOST: number;
-export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string }
-export function checkMove(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): { readonly measures: Readonly<Record<string, number | null>>; readonly findings: readonly HumanFinding[] };
+export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }
+export function checkMove(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): { readonly measures: Readonly<Record<string, number | null>>; readonly bases: Readonly<Record<string, HumanBasis | null>>; readonly findings: readonly HumanFinding[] };

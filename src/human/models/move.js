@@ -3,12 +3,16 @@
  * the model (the one the intent names, else its family's usual), plans it once, and says why in plain words (the
  * reason lands on a record). Each frame then samples the plan: the same t, the same answer, in a deck and in a film.
  *
- *   planMove(intent, {models, critics, frame})  → {model, family, do, who, options, reason, plan, checks}: frozen plain data
+ *   planMove(intent, {models, critics, frame})  → {model, family, do, who, options, choice, reason, plan, checks}: frozen plain data
  *   sampleMove(move, t, {models})               → {x, y, …}: frozen; t in seconds from the move's start
  *   sampleTrack(move, {rate, models})           → {who, family, model, seconds, pushes, samples: [{t, x, y}]}: what the critics read
  *
- * A model's random() is seeded from the model's name and the whole intent (its piece's `name` among it), by the rule
- * the isometric styles keep (src/human/seed.js): the same entry draws the same tremor, another piece another one.
+ * A model's random() is seeded from the model's name, its options, the piece's `name` and the intent's shape — every key
+ * but `who` (the words for where it was written: moving an entry in its list must not change its wobble) and the
+ * timing keys `seconds` and `speed` (a slower draw keeps its wobble's shape) — by the rule the isometric styles keep
+ * (src/human/seed.js). The same entry draws the same tremor wherever it is listed; another piece another one.
+ * WHY data beside the words: `choice` says how the model was picked and each plan's `basis` its numbers, so a
+ * decider (round 2) records data, and the `reason` is only their sentence.
  * What a tool's own model throws comes out as it is; what it gives back is checked (src/human/plain.js) before use.
  */
 import { refuse, shown, stored, isRecord, finite, readPoint, MOST_SECONDS } from '../read.js';
@@ -17,6 +21,10 @@ import { seeded } from '../seed.js';
 import { HUMAN_DOS, modelsWith, chooseModel } from './registry.js';
 
 export const MOST_TRACK_SAMPLES = 100000;
+/** The most numbers or points one list in a sample may hold (a hanging chain's links, say). */
+export const MOST_SAMPLE_LIST = 1024;
+/** The intent's keys left out of the seed: where it was written, and how long it takes. */
+export const UNSEEDED_KEYS = Object.freeze(['who', 'seconds', 'speed']);
 
 /** The intent's text with its keys in order at every depth: the same intent, the same seed, however its keys were written. */
 const canonical = (v) => (Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : isRecord(v) ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}` : JSON.stringify(v));
@@ -50,16 +58,18 @@ export function planMove(intent, settings = undefined) {
   const frame = set('frame') === undefined ? null : readPoint(set('frame'), "planMove's frame (its width and height)");
   const models = modelsWith(set('models'), set('critics')), family = HUMAN_DOS[doWord];
   const { named, options } = readModelEntry(copy.model, who);
-  const { model, how } = chooseModel(models, family, named, doWord);
+  const { model, how, by } = chooseModel(models, family, named, doWord);
   for (const k of Object.keys(options)) if (!model.options.includes(k)) refuse(`${who}'s model "${model.name}" takes ${model.options.length ? model.options.join(', ') : 'no options'} — not ${shown(k)}`);
   if (model.check) model.check(options);
-  const random = seeded(canonical(['human', model.name, options, copy]));
+  const shape = Object.fromEntries(Object.keys(copy).filter((k) => !UNSEEDED_KEYS.includes(k) && k !== 'model' && k !== 'name').map((k) => [k, copy[k]]));
+  const random = seeded(canonical(['human', model.name, options, rawName ?? null, shape]));
   const context = Object.freeze({ who, name: rawName ?? null, options, random, frame });
   const plan = plainCopy(model.plan(copy, context), `${who}: the model "${model.name}"'s plan`);
   if (!isRecord(plan) || !(finite(plan.seconds) && plan.seconds >= 0 && plan.seconds <= MOST_SECONDS)) refuse(`${who}: the model "${model.name}"'s plan is {seconds, …}: how long the move takes, from 0 to ${MOST_SECONDS} s — not ${shown(isRecord(plan) ? plan.seconds : plan)}`);
   if (plan.pushes !== undefined && !(Number.isInteger(plan.pushes) && plan.pushes >= 0 && plan.pushes <= 100000)) refuse(`${who}: the model "${model.name}"'s plan's pushes is how many pushes the move is made of, a whole number from 0 — not ${shown(plan.pushes)}`);
+  if (plan.basis !== undefined && !(isRecord(plan.basis) && Object.values(plan.basis).every((v) => v === null || typeof v !== 'object'))) refuse(`${who}: the model "${model.name}"'s plan's basis is a flat record of the numbers it chose by ({distance: 500, bits: 3.75, …}) — not ${shown(plan.basis)}`);
   const why = typeof plan.why === 'string' && plan.why.trim() ? ` — ${plan.why}` : '';
-  return Object.freeze({ model: model.name, family, do: doWord, who, options, reason: `do: '${doWord}' → ${model.name}, ${how}${why}`, plan, checks: model.checks });
+  return Object.freeze({ model: model.name, family, do: doWord, who, options, choice: Object.freeze({ by }), reason: `do: '${doWord}' → ${model.name}, ${how}${why}`, plan, checks: model.checks });
 }
 
 /** The move's model, found by its name (a tool's own handed in again: a record keeps no code). */
@@ -71,6 +81,18 @@ function modelOf(move, settings, call) {
   return model;
 }
 
+/** A list in a sample: at most MOST_SAMPLE_LIST finite numbers, or as many points [x, y]; each by its own stored value. Frozen. */
+function sampleList(v, what) {
+  if (v.length > MOST_SAMPLE_LIST) refuse(`${what} is at most ${MOST_SAMPLE_LIST} long — not ${v.length}`);
+  const items = Array.from({ length: v.length }, (_, i) => (Object.hasOwn(v, i) ? stored(v, i, `${what}[${i}]`) : undefined));
+  if (items.every(finite)) return Object.freeze(items);
+  return Object.freeze(items.map((p, i) => {
+    const xy = Array.isArray(p) && p.length === 2 ? [0, 1].map((j) => (Object.hasOwn(p, j) ? stored(p, j, `${what}[${i}][${j}]`) : undefined)) : null;
+    if (!(xy && finite(xy[0]) && finite(xy[1]))) refuse(`${what} is a list of numbers, or of points [x, y] — its [${i}] is ${shown(p)}`);
+    return Object.freeze(xy);
+  }));
+}
+
 /** Where the move is at t (seconds from its start): the model's sample, checked — x and y, and any other numbers it gives. */
 export function sampleMove(move, t, settings = undefined) {
   const model = modelOf(move, settings, 'sampleMove');
@@ -80,10 +102,10 @@ export function sampleMove(move, t, settings = undefined) {
   const out = {};
   for (const k of Object.keys(s)) {
     const v = stored(s, k, `${who}'s ${k}`);
-    if (!finite(v)) refuse(`${who}'s ${k} is a finite number — not ${shown(v)}`);
-    out[k] = v;
+    out[k] = Array.isArray(v) ? sampleList(v, `${who}'s ${k}`) : v;
+    if (!Array.isArray(v) && !finite(v)) refuse(`${who}'s ${k} is a finite number, or a list of at most ${MOST_SAMPLE_LIST} numbers or points [x, y] — not ${shown(v)}`);
   }
-  if (!('x' in out && 'y' in out)) refuse(`${who} gives x and y — not ${shown(Object.keys(out))}`);
+  if (!(finite(out.x) && finite(out.y))) refuse(`${who} gives x and y — not ${shown(Object.keys(out))}`);
   return Object.freeze(out);
 }
 

@@ -7,6 +7,7 @@
  *           seconds? — the strokes are slowed or sped up together to take that long
  *   options mu (−1.6), sigma (0.3), gap (s; 0.16), bend (radians each stroke turns; 0)
  *   sample  { x, y, progress }: progress the share of the time gone
+ *   basis   { strokes, from: 'points' | 'strokes', seconds, secondsGiven, mu, sigma, gap, bend } (the last four null for strokes)
  *
  * The pen lands on the last point exactly at the plan's `seconds` (each stroke's share is taken over its share then).
  */
@@ -48,13 +49,14 @@ export const sigmaLognormalModel = Object.freeze({
     const rawPoints = stored(intent, 'points', `${who}'s points`), rawStrokes = stored(intent, 'strokes', `${who}'s strokes`);
     if ((rawPoints === undefined) === (rawStrokes === undefined)) refuse(`${who} writes its letter as points (where the pen passes) or as strokes (the law's numbers) — one of the two, not ${rawPoints === undefined ? 'neither' : 'both'}`);
     const given = readSeconds(intent, who);
-    let origin, strokes;
+    let origin, strokes, chose = { mu: null, sigma: null, gap: null, bend: null };
     if (rawPoints !== undefined) {
       if (stored(intent, 'at', '') !== undefined) refuse(`${who}'s at is where strokes start; written as points, the letter starts at its first point — leave at out`);
       const points = readPoints(rawPoints, `${who}'s points`, { least: 2, most: MOST_STROKES + 1 });
       const mu = optionNumber(options, 'mu', 'sigma-lognormal', -10, 5, SIGMA_LOGNORMAL.mu), sigma = optionNumber(options, 'sigma', 'sigma-lognormal', 0.01, 3, SIGMA_LOGNORMAL.sigma);
       const gap = optionNumber(options, 'gap', 'sigma-lognormal', 0, 10, SIGMA_LOGNORMAL.gap), bend = optionNumber(options, 'bend', 'sigma-lognormal', -3, 3, 0);
       origin = [...points[0]];
+      chose = { mu, sigma, gap, bend };
       strokes = points.slice(1).map((q, i) => strokeBetween(points[i], q, { bend, start: i * gap, mu, sigma }));
     } else {
       const at = stored(intent, 'at', `${who}'s at`);
@@ -69,6 +71,7 @@ export const sigmaLognormalModel = Object.freeze({
       seconds = given;
     }
     return { seconds, origin, strokes, pushes: strokes.length,
+      basis: { strokes: strokes.length, from: rawPoints !== undefined ? 'points' : 'strokes', seconds, secondsGiven: given !== undefined, ...chose },
       why: `${strokes.length} stroke${strokes.length === 1 ? '' : 's'}, each a lognormal push overlapping the next (sigma-lognormal), over ${round(seconds)} s${given === undefined ? '' : ' (the seconds the intent gave)'}` };
   },
   sample(plan, t) {

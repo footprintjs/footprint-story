@@ -97,6 +97,20 @@ test('a move is pure: the same entry the same frozen plain move, its ends on its
   }), runs(0.3));
 });
 
+test('where an entry is listed (who) and how long it takes never change its wobble', () => {
+  fc.assert(fc.property(distinctPath(6).filter((p) => lengthOf(p) > 100), fc.string({ minLength: 1, maxLength: 20 }), fc.string({ minLength: 1, maxLength: 20 }), fc.double({ min: 0.1, max: 30, noNaN: true }), (path, w1, w2, seconds) => {
+    if (!w1.trim() || !w2.trim()) return;
+    const a = planMove({ do: 'draw', name: 'p', who: w1, path }), b = planMove({ do: 'draw', name: 'p', who: w2, path, seconds });
+    assert.deepEqual([a.plan.xs, a.plan.ys], [b.plan.xs, b.plan.ys]);
+  }), runs(0.2));
+});
+
+test('a reach bowed anywhere within its limit passes its own jerk critic', () => {
+  fc.assert(fc.property(pt, pt, fc.double({ min: -0.3, max: 0.3, noNaN: true }), (from, to, bend) => {
+    assert.equal(checkMove(planMove({ do: 'reach', from, to, model: { name: 'min-jerk', bend } })).measures.jerk, 0);
+  }), runs(0.3));
+});
+
 test('another piece, another tremor; the same piece, the same', () => {
   fc.assert(fc.property(distinctPath(6).filter((p) => lengthOf(p) > 100), fc.string({ minLength: 1, maxLength: 8 }), fc.string({ minLength: 1, maxLength: 8 }), (path, n1, n2) => {
     const a = planMove({ do: 'draw', name: n1, path }), b = planMove({ do: 'draw', name: n2, path });

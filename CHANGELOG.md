@@ -6,24 +6,33 @@
   loads only `src/human/`. An author writes the intent; a named model plans the move from a law and says why; critics
   say in words what still looks wrong, with the fix in the intent's own keys. Same input, same output.
 - **Laws:** minimum jerk (`minJerk`, `minJerkSpeed`, `minJerkAccel`; Flash & Hogan 1985); Fitts's law in the Shannon form
-  (`fittsIndex`, `fittsSeconds`, `FITTS`: b = 0.2 s a bit, set against the 3.7–4.9 bits a second Soukoreff & MacKenzie
-  2004 report for a mouse; a = 0.1 s and the 40 px usual target ours); the two-thirds power law (`powerLawSpeed`,
-  `powerLawTimes`, `powerLawFit`; Lacquaniti, Terzuolo & Viviani 1983; a curvature floor and end ramps ours);
+  (`fittsIndex`, `fittsSeconds`, `FITTS`: b = 0.2 s a bit, ours, chosen near the 3.7–4.9 bits a second Soukoreff &
+  MacKenzie 2004 report for a mouse — they warn 1/b is not throughput; a = 0.1 s and the 40 px usual target ours); the
+  two-thirds power law (`powerLawSpeed`, `powerLawTimes`, `powerLawFit`; Lacquaniti, Terzuolo & Viviani 1983; a
+  curvature floor of 0.0002 per px, so a pen round a 300 × 100 or 300 × 30 px ellipse goes as the true curvature to
+  within 0.02 of the −1/3, and end ramps, ours);
   sigma-lognormal strokes and their exact integration along arcs (`sigmaLognormalAt`, `strokeBetween`, …; Plamondon
   1995, Plamondon & Djioua 2006); a seeded value-noise tremor (`tremorKnots`, `tremorAt`), seeded by the isometric
   styles' rule (FNV-1a, mulberry32).
 - **Paths:** `arcTable` with `pointAt`, `shareToDistance`, `distanceToShare`; a centripetal Catmull-Rom line through
   points (`catmullRom`; Barry & Goldman's pyramid form, no loop within a stretch — Yuksel, Schaefer & Keyser 2011);
-  `curvatures` (three-point, exact on a circle); `resample` by distance or count.
+  `curvatures` (three-point, exact on a circle; a turn past a right angle reads as at least 2 · cos(B/2) / its shorter
+  side, so a hairpin is the sharpest bend, never straight) and `curvaturesOver` (over a width, held at the greatest bend
+  that width can show, a fold read across it); `resample` by distance or count.
 - **Models, one interface** (`{family, name, options, check?, plan, sample, checks}`): `min-jerk` (`do: 'reach'`, its
   seconds from Fitts unless given, bowed 6% of its length), `power-law` (`do: 'draw'`, a pen slower in the bends, from
   rest to rest, with a tremor), `sigma-lognormal` (`do: 'write'`, one overlapping stroke a point, or the strokes as
-  numbers). `planMove(intent, {models, critics, frame})` gives frozen plain data with a `reason` in words;
-  `sampleMove(move, t)` and `sampleTrack(move, {rate})` sample it. A tool's own model is named under its prefix
+  numbers). `planMove(intent, {models, critics, frame})` gives frozen plain data with a `reason` in words and the data
+  beside it: `choice: {by: 'named' | 'usual'}` and each plan's `basis` (its numbers: for a reach the distance, target,
+  bits, seconds…). `sampleMove(move, t)` and `sampleTrack(move, {rate})` sample it; a sample may carry lists of numbers
+  or points (at most `MOST_SAMPLE_LIST`). The seed is the model, its options, the piece's name and the intent's shape —
+  never `who`, `seconds` or `speed` (`UNSEEDED_KEYS`). The pen reads the law on the line as drawn; a reach bows at most
+  0.3 of its length (`MOST_BEND`). A tool's own model is named under its prefix
   (`'reel:chalk'`), checked against the interface once, its plan and samples checked as plain data.
-- **Critics:** `jerk` (speed peaks beyond the pushes planned), `pen-speed` (log error off the power law), `arc` (a
-  straight slide); `checkMove(move)` gives `{measures, findings}`, each finding `{critic, level, message, fix}`. A
-  tool's own critic under its prefix.
+- **Critics:** `jerk` (speed peaks beyond the pushes planned), `pen-speed` (log error off the power law, its basis the
+  free fit's exponent), `arc` (a straight slide); a critic's measure may give `{value, basis}`; `checkMove(move)` gives
+  `{measures, bases, findings}`, each finding `{critic, level, message, fix, basis}`. A tool's own critic under its
+  prefix. A list of models or critics changed after it was read is read again.
 - `settle`, `fall`, `throw` and `hang` are families with no model yet (Round 1 · B fills them).
 
 ## 0.25.0 — the map's steps take what a deck hands them

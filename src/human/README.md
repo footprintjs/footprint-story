@@ -16,7 +16,7 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `laws/tremor.js` | a seeded tremor across a line, nothing at its ends (`tremorKnots`, `tremorAt`) |
 | `paths/arcLength.js` | a line's length table, and share ↔ distance (`arcTable`, `pointAt`, `shareToDistance`, `distanceToShare`) |
 | `paths/catmullRom.js` | a centripetal Catmull-Rom line through points: no cusp, no loop (`catmullRom`) |
-| `paths/curvature.js` | the curvature at each point (`curvatures`) |
+| `paths/curvature.js` | the curvature at each point (`curvatures`; a hairpin is the sharpest bend, never straight), and over a width (`curvaturesOver`, what the pen and its critic read) |
 | `paths/resample.js` | points again, evenly by distance (`resample`) |
 | `models/` | the model interface and registry (`registry.js`), this package's three models, and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
 | `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, and `checkMove` (`check.js`) |
@@ -30,7 +30,7 @@ import { minJerk, fittsSeconds, powerLawSpeed, strokeBetween, sigmaLognormalAt, 
 
 minJerk(0.5);                         // 0.5: half way at half time, fastest there (1.875 × the mean speed)
 fittsSeconds(500, 40);                // 0.85 s: 0.1 + 0.2 × log2(500 / 40 + 1) bits
-powerLawSpeed(0.01) / powerLawSpeed(0.08);  // ≈ 1.9: a bend 8× as tight is taken about half as fast
+powerLawSpeed(0.01) / powerLawSpeed(0.08);  // ≈ 1.98: a bend 8× as tight is taken about half as fast
 const s = strokeBetween([0, 0], [60, 0], { bend: 0.6 });
 sigmaLognormalAt([s], strokeEnd(s), [0, 0], strokeEnd(s));   // { x: 60, y: 0, vx, vy }: lands on its point, to the last bit
 ```
@@ -55,8 +55,8 @@ A model is a named strategy, one interface for all (`models/registry.js`):
 
 | do | family | model (the usual) | the intent's keys | options (under `model: {name, …}`) |
 |---|---|---|---|---|
-| `reach` | `reach` | `min-jerk`: minimum jerk, seconds from Fitts unless given | `from`, `to`, `target` (px, 40), `seconds` | `bend` (0.06), `a`, `b` |
-| `draw` | `pen` | `power-law`: a Catmull-Rom line traced slower in the bends, with a tremor | `path`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `ramp`, `floor` |
+| `reach` | `reach` | `min-jerk`: minimum jerk, seconds from Fitts unless given | `from`, `to`, `target` (px, 40), `seconds` | `bend` (0.06, at most 0.3), `a`, `b` |
+| `draw` | `pen` | `power-law`: a Catmull-Rom line traced slower in the bends (the law read on the line as drawn), with a tremor | `path`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `ramp`, `floor` |
 | `write` | `letter` | `sigma-lognormal`: one lognormal stroke a point, overlapping | `points`, or `strokes` and `at`; `seconds` | `mu`, `sigma`, `gap`, `bend` |
 
 Every intent may also hold `name` (its piece: part of the seed), `who` (its words for where it was written, named in
@@ -70,7 +70,11 @@ move.reason;   // "do: 'reach' → min-jerk, the usual for do: 'reach' — over 
 sampleMove(move, 0.4);   // { x, y, progress }: frozen; the same t, the same answer
 ```
 
-`move` is frozen plain data, so a record keeps it whole and a structured copy samples the same. A tool's own model
+`move` is frozen plain data, so a record keeps it whole and a structured copy samples the same. Beside the words it
+carries the data: `move.choice` (`{by: 'named' | 'usual'}`) and `move.plan.basis`, a flat record of the numbers the
+plan chose by — for a reach `{distance, target, targetDefaulted, bits, a, b, seconds, secondsGiven, bend}` — so a
+decider records data, and `reason` is their sentence. A sample is `{x, y, …}`: more numbers, or lists of at most
+`MOST_SAMPLE_LIST` numbers or points (a hanging chain's links), still plain and frozen. A tool's own model
 is named under its prefix and handed in, to `planMove` and again to `sampleMove` (a record keeps no code):
 
 ```js
@@ -80,24 +84,27 @@ const move = planMove({ do: 'draw', path, model: { name: 'reel:chalk', grit: 2 }
 sampleMove(move, t, { models: [chalk] });
 ```
 
-The model's `random()` is seeded from its name, its options and the whole intent (FNV-1a, then mulberry32, as the
-isometric styles do), so the same entry wobbles the same way and another piece another way. A model's plan and
+The model's `random()` is seeded from its name, its options, the piece's `name` and the intent's shape (FNV-1a, then
+mulberry32, as the isometric styles do) — never from `who` (moving an entry in its list keeps its wobble) nor the
+timing keys `seconds` and `speed` (a slower draw keeps its wobble's shape): `UNSEEDED_KEYS`. The same entry wobbles
+the same way, another piece another way. A model's plan and
 samples are checked as plain data (`plain.js`); what its own code throws comes out as it is.
 
 ## Critics: what still looks wrong, in words
 
-A critic is `{name, measure(track) → number | null, limit, finding(value, who) → {level, message, fix} | null}`.
-`checkMove(move)` samples the move (120 a second) and runs the critics its model names:
+A critic is `{name, measure(track) → number | {value, basis} | null, limit, finding(value, who, basis) → {level,
+message, fix} | null}`. `checkMove(move)` samples the move (120 a second), runs the critics its model names, and gives
+`{measures, bases, findings}`:
 
 | critic | measures | finds fault when |
 |---|---|---|
 | `jerk` | speed peaks beyond the pushes the plan was made of | any extra: it stops and starts |
 | `arc` | the most the move bows from its straight line, over its length | under 2%: a straight slide |
-| `pen-speed` | how far the speed is off the two-thirds power law (log RMS, ends left out) | over 0.2: a plotter |
+| `pen-speed` | how far the speed is off the two-thirds power law (log RMS against the drawn line's curvature plus the 0.0002 floor, ends left out); its basis has the free fit's exponent | over 0.2: a plotter |
 
 ```js
 checkMove(planMove({ do: 'reach', who: 'b1', from: [0, 0], to: [300, 0], model: { name: 'min-jerk', bend: 0 } })).findings;
-// [{ critic: 'arc', level: 'warn', message: 'b1: its move runs straight (it bows 0.0% of its length) — …', fix: "bow it: model: {name: 'min-jerk', bend: 0.06}" }]
+// [{ critic: 'arc', level: 'warn', message: 'b1: its move runs straight (it bows 0.0% of its length) — …', fix: "bow it: model: {name: 'min-jerk', bend: 0.06}", basis: null }]
 ```
 
 A tool's own critic is handed in `critics` under its prefix, as a model is.
@@ -108,3 +115,4 @@ A tool's own critic is handed in `critics` under its prefix, as a model is.
   `USUAL_MODELS` if it is its family's usual). Its family must be in `HUMAN_FAMILIES` (`models/registry.js`).
 - A new critic: in `critics/`, added to `critics/builtIn.js` (`BUILT_IN_CRITICS`); a model names it in `checks`.
 - Each new file goes behind the door (`human.js`) with its types (`human.d.ts`); `test/doors.test.js` refuses one that is not.
+- A list of models or critics is read once and kept beside a copy of what it held; a list changed since is read again.

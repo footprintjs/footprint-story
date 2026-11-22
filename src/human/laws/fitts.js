@@ -6,8 +6,8 @@
  * tuned by hand.
  *
  * The defaults (FITTS):
- *   b = 0.2 s a bit — a throughput of 5 bits a second, a little quicker than the 3.7 to 4.9 bits a second that
- *       Soukoreff & MacKenzie (2004) report for pointing with a mouse: a drawn hand does not have to find its target.
+ *   b = 0.2 s a bit — ours, chosen near the 3.7 to 4.9 bits a second that Soukoreff & MacKenzie (2004) report for
+ *       pointing with a mouse. A choice, not a measurement: they warn that 1/b is not a device's throughput.
  *   a = 0.1 s — ours. A study's a is fitted, not timed, and can come out below 0; a move of no length must still
  *       take a beat, or it reads as a jump.
  *   target = 40 px — ours: the width of a button, used when an intent names no target.

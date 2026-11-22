@@ -52,7 +52,7 @@ test('the same entry, the same move; its keys in another order, the same; anothe
   assert.deepEqual(a, b);
   const c = planMove({ do: 'draw', name: 'wire', path });
   assert.notDeepEqual(a.plan.xs, c.plan.xs, 'another piece wobbles another way');
-  assert.deepEqual(a.plan.times, c.plan.times, 'but keeps its timing');
+  assert.equal(a.plan.seconds, c.plan.seconds, 'but keeps its time');
   const flat = planMove({ do: 'draw', name: 'cable', path, model: { name: 'power-law', tremor: 0 } });
   assert.notDeepEqual(flat.plan.xs, a.plan.xs);
   assert.deepEqual(sampleMove(structuredClone(a), 0.7), sampleMove(a, 0.7), 'a move from a record samples the same');
@@ -141,7 +141,7 @@ test("a tool's own model that breaks the interface is refused, naming it and wha
   named({ plan: () => [1] }, /plan is \{seconds, …\}/);
   named({ plan: () => ({ seconds: 1, get g() { return 1; } }) }, /gives a getter at its top\.g \(code, never run\)/);
   const sampled = (s, re) => { const models = [{ ...good, sample: s }]; const m = planMove({ do: 'reach', who: 'scene 3', model: 'reel:ok' }, { models }); assert.throws(() => sampleMove(m, 0, { models }), re); };
-  sampled(() => ({ x: NaN, y: 0 }), /scene 3: the model "reel:ok"'s sample's x is a finite number — not NaN/);
+  sampled(() => ({ x: NaN, y: 0 }), /scene 3: the model "reel:ok"'s sample's x is a finite number, or a list of at most 1024 numbers or points \[x, y\] — not NaN/);
   sampled(() => ({ x: 1 }), /scene 3: the model "reel:ok"'s sample gives x and y/);
   sampled(() => 5, /scene 3: the model "reel:ok"'s sample is \{x, y, …\} — not 5/);
 });
@@ -157,7 +157,7 @@ test('refusals name the entry and say the fix in its own keys', () => {
   r({ ...reach, seconds: 0 }, /blocks\[2\] \("hand"\)'s seconds is how long the move takes, above 0 and at most 3600 — not 0; leave it out and the law decides/);
   r({ ...reach, model: 'power-law' }, /the model "power-law" is for a pen, and this intent is do: 'reach' \(a reach\) — name a reach model: "min-jerk"/);
   r({ ...reach, model: { name: 'min-jerk', wobble: 1 } }, /blocks\[2\] \("hand"\)'s model "min-jerk" takes bend, a, b — not "wobble"/);
-  r({ ...reach, model: { name: 'min-jerk', bend: 2 } }, /model "min-jerk"'s bend is a number from -0\.5 to 0\.5 — not 2/);
+  r({ ...reach, model: { name: 'min-jerk', bend: 2 } }, /model "min-jerk"'s bend is a number from -0\.3 to 0\.3 — not 2/);
   r({ ...reach, model: { bend: 1 } }, /blocks\[2\] \("hand"\)'s model is a model's name, or \{name, …its options\}/);
   r({ ...reach, model: { name: 'min-jerk', bend: [1] } }, /model option bend is a number, a word or true\/false/);
   r({ ...reach, name: '' }, /an intent's name is its piece's name, 1 to 64 letters/);
@@ -190,4 +190,78 @@ test('sampleMove and sampleTrack refuse what is not a move, a time or a rate', (
   assert.equal(track.samples.length, Math.ceil(m.plan.seconds * 120) + 1);
   assert.equal(track.samples[track.samples.length - 1].t, m.plan.seconds);
   assert.equal(track.pushes, 1); assert.ok(deepFrozen(track));
+});
+
+test("the seed: the piece's name and the intent's shape — never who (where the entry is listed), nor the timing keys", () => {
+  const path = [[100, 100], [300, 180], [420, 90], [600, 260]];
+  const base = planMove({ do: 'draw', name: 'cable', who: 'wires[0]', path });
+  const moved = planMove({ do: 'draw', name: 'cable', who: 'wires[7]', path });
+  assert.deepEqual([moved.plan.xs, moved.plan.ys], [base.plan.xs, base.plan.ys], 'moved in its list: the same wobble');
+  for (const timing of [{ seconds: 4 }, { speed: 90 }]) {
+    const slower = planMove({ do: 'draw', name: 'cable', who: 'wires[0]', path, ...timing });
+    assert.deepEqual([slower.plan.xs, slower.plan.ys], [base.plan.xs, base.plan.ys], `${Object.keys(timing)[0]}: the same wobble's shape`);
+    assert.notEqual(slower.plan.seconds, base.plan.seconds);
+  }
+  assert.notDeepEqual(planMove({ do: 'draw', who: 'wires[0]', path }).plan.xs, base.plan.xs, 'no piece name: another seed');
+  assert.notDeepEqual(planMove({ do: 'draw', name: 'cable', path: [...path, [700, 300]] }).plan.xs.slice(0, 50), base.plan.xs.slice(0, 50), 'another shape, another wobble');
+  assert.notDeepEqual(planMove({ do: 'draw', name: 'cable', path, model: { name: 'power-law', wavelength: 30 } }).plan.xs, base.plan.xs, 'its options count');
+});
+
+test('beside the words, the data: how the model was chosen, and the numbers each plan chose by', () => {
+  const usual = planMove(reach), named = planMove({ ...reach, target: 80, model: 'min-jerk' });
+  assert.deepEqual(usual.choice, { by: 'usual' }); assert.deepEqual(named.choice, { by: 'named' });
+  assert.deepEqual(usual.plan.basis, { distance: 500, target: 40, targetDefaulted: true, bits: Math.log2(500 / 40 + 1), a: 0.1, b: 0.2, seconds: usual.plan.seconds, secondsGiven: false, bend: 0.06 });
+  assert.equal(named.plan.basis.targetDefaulted, false); assert.equal(named.plan.basis.target, 80);
+  assert.equal(planMove({ ...reach, seconds: 2 }).plan.basis.secondsGiven, true);
+  const pen = planMove({ do: 'draw', path: [[0, 0], [300, 0]], speed: 150 }).plan.basis;
+  assert.deepEqual(Object.keys(pen), ['length', 'speed', 'speedDefaulted', 'seconds', 'secondsGiven', 'tremor', 'wavelength', 'ramp', 'floor', 'points']);
+  assert.equal(pen.speed, 150); assert.equal(pen.speedDefaulted, false); assert.equal(pen.floor, 0.0002);
+  assert.deepEqual(planMove({ do: 'write', points: [[0, 0], [9, 9], [18, 0]] }).plan.basis, { strokes: 2, from: 'points', seconds: planMove({ do: 'write', points: [[0, 0], [9, 9], [18, 0]] }).plan.seconds, secondsGiven: false, mu: -1.6, sigma: 0.3, gap: 0.16, bend: 0 });
+  const fromStrokes = planMove({ do: 'write', strokes: [{ distance: 5, start: 0, mu: -1, sigma: 0.2, angleFrom: 0, angleTo: 0 }], seconds: 1 }).plan.basis;
+  assert.deepEqual([fromStrokes.from, fromStrokes.mu, fromStrokes.secondsGiven], ['strokes', null, true]);
+  const own = (basis) => planMove({ do: 'reach', who: 'b2', model: 'reel:b' }, { models: [{ family: 'reach', name: 'reel:b', plan: () => ({ seconds: 1, basis }), sample: () => ({ x: 0, y: 0 }) }] });
+  assert.deepEqual(own({ bits: 2 }).plan.basis, { bits: 2 });
+  assert.throws(() => own({ deep: { bits: 2 } }), /b2: the model "reel:b"'s plan's basis is a flat record of the numbers it chose by/);
+  assert.throws(() => own([1]), /plan's basis is a flat record/);
+});
+
+test('a sample may carry lists of numbers or points (a hanging chain), plain and bounded', () => {
+  const chainModel = (chain) => ({ family: 'hang', name: 'reel:chain', plan: () => ({ seconds: 1 }), sample: () => ({ x: 0, y: 0, chain, weights: [1, 2] }) });
+  const go = (chain) => { const models = [chainModel(chain)]; return sampleMove(planMove({ do: 'hang', who: 'rope', model: 'reel:chain' }, { models }), 0.5, { models }); };
+  const s = go([[0, 0], [0, 10], [2, 20]]);
+  assert.deepEqual(s, { x: 0, y: 0, chain: [[0, 0], [0, 10], [2, 20]], weights: [1, 2] });
+  assert.ok(Object.isFrozen(s.chain) && Object.isFrozen(s.chain[1]) && Object.isFrozen(s.weights));
+  assert.deepEqual(go([]).chain, []);
+  assert.throws(() => go(Array.from({ length: 1025 }, () => [0, 0])), /rope: the model "reel:chain"'s sample's chain is at most 1024 long — not 1025/);
+  assert.throws(() => go([[0, 0], [1, NaN]]), /sample's chain is a list of numbers, or of points \[x, y\] — its \[1\] is \[0,NaN\]|its \[1\] is \[1,NaN\]/);
+  assert.throws(() => go([[0, 0, 0]]), /its \[0\] is \[0,0,0\]/);
+  assert.throws(() => go([[[1, 2], 3]]), /a list of numbers, or of points/);
+  assert.throws(() => go([() => 1]), /its \[0\] is a function/);
+  assert.throws(() => go(Object.defineProperty([0, 0], 1, { get: () => 1 })), /sample's chain\[1\] is read as a stored value, and this one is a getter/);
+  assert.throws(() => go({ a: 1 }), /sample's chain is a finite number, or a list of at most 1024 numbers or points/);
+  const bad = [{ family: 'hang', name: 'reel:x', plan: () => ({ seconds: 1 }), sample: () => ({ x: [1], y: 0 }) }];
+  assert.throws(() => sampleMove(planMove({ do: 'hang', model: 'reel:x' }, { models: bad }), 0, { models: bad }), /sample gives x and y/);
+});
+
+test('a reach bows at most 0.3 of its length either way, and at the most still passes its own jerk critic', async () => {
+  const { checkMove } = await import('../human.js');
+  for (const bend of [-0.3, 0.3]) assert.deepEqual(checkMove(planMove({ ...reach, model: { name: 'min-jerk', bend } })).measures.jerk, 0);
+  assert.throws(() => planMove({ ...reach, model: { name: 'min-jerk', bend: 0.31 } }), /model "min-jerk"'s bend is a number from -0\.3 to 0\.3 — not 0\.31/);
+});
+
+test('a list of models changed after it was read is read again: a model added later is found, a model taken out is gone', () => {
+  const models = [];
+  assert.throws(() => planMove({ do: 'reach', model: 'reel:late' }, { models }), /there is no model "reel:late"/);
+  models.push({ family: 'reach', name: 'reel:late', plan: () => ({ seconds: 1 }), sample: () => ({ x: 1, y: 2 }) });
+  const m = planMove({ do: 'reach', model: 'reel:late' }, { models });
+  assert.deepEqual(sampleMove(m, 0, { models }), { x: 1, y: 2 });
+  models.pop();
+  assert.throws(() => sampleMove(m, 0, { models }), /the move was planned by "reel:late", which is not here/);
+});
+
+test('a pen slows into a hairpin: the reversal is its sharpest bend, not a straight run', () => {
+  const m = planMove({ do: 'draw', path: [[100, 100], [400, 100], [100, 100]] });
+  const tr = sampleTrack(m, { rate: 1000 }).samples, speeds = tr.slice(1).map((s, i) => ({ x: s.x, v: Math.hypot(s.x - tr[i].x, s.y - tr[i].y) / (s.t - tr[i].t) }));
+  const tip = speeds.reduce((b, p) => (p.x > b.x ? p : b)), mid = speeds.filter((p) => Math.abs(p.x - 250) < 3).map((p) => p.v);
+  assert.ok(tip.v < Math.min(...mid) / 2, `the tip at ${tip.v} px a second, the legs at ${Math.min(...mid)} or more`);
 });

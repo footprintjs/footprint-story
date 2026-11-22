@@ -27,7 +27,7 @@ test("this package's models pass their own critics", () => {
     assert.deepEqual(c.findings, []); assert.ok(c.measures['pen-speed'] < PEN_SPEED_MOST / 2, `${c.measures['pen-speed']}`);
   }
   const letter = checkMove(planMove({ do: 'write', points: [[0, 0], [30, 60], [60, 0], [90, 60]] }));
-  assert.deepEqual(letter, { measures: { jerk: 0 }, findings: [] });
+  assert.deepEqual(letter, { measures: { jerk: 0 }, bases: { jerk: null }, findings: [] });
   assert.ok(Object.isFrozen(letter) && Object.isFrozen(letter.measures) && Object.isFrozen(letter.findings));
 });
 
@@ -35,7 +35,7 @@ test('jerk: a reach that stops and starts has a speed peak too many — said wit
   const c = checkMove(planMove({ do: 'reach', who: 'blocks[2] ("hand")', from: [0, 0], to: [400, 100], model: 'test:twitchy' }, { models }), { models });
   assert.equal(c.measures.jerk, 1);
   assert.deepEqual(c.findings[0], { critic: 'jerk', level: 'warn', message: 'blocks[2] ("hand"): its move has 1 speed peak more than the pushes it was planned as — it stops and starts, and reads as twitchy',
-    fix: "use do: 'reach' for one smooth push (model: 'min-jerk'), or do: 'write' for strokes that overlap" });
+    fix: "use do: 'reach' for one smooth push (model: 'min-jerk'), or do: 'write' for strokes that overlap", basis: null });
   assert.equal(c.findings[1].critic, 'arc', 'and it runs straight');
   assert.match(c.findings[1].message, /^blocks\[2\] \("hand"\): its move runs straight \(it bows 0\.0% of its length\)/);
   assert.equal(c.findings[1].fix, "bow it: model: {name: 'min-jerk', bend: 0.06}");
@@ -56,11 +56,14 @@ test('pen-speed: a pen that keeps one speed round the bends is found; a line too
   for (const path of [curl, ellipse]) {
     const c = checkMove(planMove({ do: 'draw', who: 'wires[0]', path, model: 'test:steady' }, { models }), { models });
     assert.ok(c.measures['pen-speed'] > PEN_SPEED_MOST, `${c.measures['pen-speed']}`);
-    assert.equal(c.findings[0].message, `wires[0]: its pen keeps its speed round the bends (${(c.measures['pen-speed'] * 100).toFixed(0)}% off the two-thirds power law) — it reads as a plotter, not a hand`);
+    const basis = c.bases['pen-speed'];
+    assert.equal(basis.error, c.measures['pen-speed']); assert.ok(Math.abs(basis.exponent) < 0.1, `a steady pen's free exponent is near 0: ${basis.exponent}`);
+    assert.equal(c.findings[0].message, `wires[0]: its pen keeps its speed round the bends (${(c.measures['pen-speed'] * 100).toFixed(0)}% off the two-thirds power law; its speed goes as curvature^${(-basis.exponent).toFixed(2)}, the law's ^-0.33) — it reads as a plotter, not a hand`);
+    assert.deepEqual(c.findings[0].basis, basis);
     assert.equal(c.findings[0].fix, "use do: 'draw' with model: 'power-law', which slows where the line bends");
   }
   assert.deepEqual(checkMove(planMove({ do: 'draw', path: [[0, 0], [20, 0]] })).measures, { 'pen-speed': null });
-  assert.equal(penSpeed.finding(0.1, 'x'), null);
+  assert.equal(penSpeed.finding(0.1, 'x', { error: 0.1, exponent: 0.33, count: 9 }), null);
 });
 
 test('speed peaks: a rise and fall counted once however it wobbles on top; a peak still rising at the end counts', () => {
@@ -80,7 +83,7 @@ test("a tool's own critic, under its prefix: measured and said; one that breaks 
   const own = { family: 'reach', name: 'reel:far', checks: ['reel:wide'], plan: () => ({ seconds: 1 }), sample: (p, t) => ({ x: t * 300, y: 0 }) };
   const settings = { models: [own], critics: [wide] };
   const c = checkMove(planMove({ do: 'reach', who: 'b1', model: 'reel:far' }, settings), settings);
-  assert.deepEqual(c, { measures: { 'reel:wide': 300 }, findings: [{ critic: 'reel:wide', level: 'note', message: 'b1: it travels 300 px across', fix: 'move to nearer' }] });
+  assert.deepEqual(c, { measures: { 'reel:wide': 300 }, bases: { 'reel:wide': null }, findings: [{ critic: 'reel:wide', level: 'note', message: 'b1: it travels 300 px across', fix: 'move to nearer', basis: null }] });
   assert.deepEqual(FINDING_LEVELS, ['warn', 'note']);
   const run = (critic, re) => {
     const s = { models: [own], critics: [critic] };
@@ -89,11 +92,30 @@ test("a tool's own critic, under its prefix: measured and said; one that breaks 
   run({ ...wide, finding: () => ({ level: 'loud', message: 'x', fix: 'y' }) }, /the critic "reel:wide"'s finding's level is warn or note — not "loud"/);
   run({ ...wide, finding: () => ({ level: 'warn', message: '', fix: 'y' }) }, /the critic "reel:wide"'s finding's message is words, 1 to 400 letters/);
   run({ ...wide, finding: () => 'bad' }, /the critic "reel:wide"'s finding is null or \{level, message, fix\} — not "bad"/);
-  run({ ...wide, measure: () => NaN }, /the critic "reel:wide" measures a finite number, or null when it cannot say — not NaN/);
+  run({ ...wide, measure: () => NaN }, /the critic "reel:wide" measures a finite number, \{value, basis\}, or null when it cannot say — not NaN/);
+  run({ ...wide, measure: () => ({ value: 300, basis: { nested: { a: 1 } } }) }, /the critic "reel:wide"'s basis is a flat record of the numbers it read/);
+  run({ ...wide, measure: () => ({ value: 300, basis: { f: () => 1 } }) }, /the critic "reel:wide"'s basis gives a function at its top\.f/);
   run({ ...wide, name: 'wide' }, /critics\[0\]'s name is the tool's prefix and a name, lower case \("reel:wobble"\)/);
   run({ ...wide, measure: 1 }, /critics\[0\] \(reel:wide\) gives measure\(track\) and finding\(value, who\) — not 1/);
   run({ ...wide, limit: Infinity }, /critics\[0\] \(reel:wide\)'s limit is a finite number/);
   run(7, /critics\[0\] is a critic \{name, measure, limit, finding\} — not 7/);
   assert.throws(() => planMove({ do: 'reach', model: 'reel:far' }, { models: [own], critics: [wide, wide] }), /critics\[1\]: "reel:wide" is given twice/);
   assert.throws(() => planMove({ do: 'reach', model: 'reel:far' }, { models: [own], critics: {} }), /critics are a list of at most 64/);
+});
+
+test('pen-speed sees a hairpin taken at full speed', () => {
+  const hairpin = [[100, 100], [400, 100], [100, 100], [400, 100]];
+  const law = checkMove(planMove({ do: 'draw', path: hairpin })), plotter = checkMove(planMove({ do: 'draw', path: hairpin, model: 'test:steady' }, { models }), { models });
+  assert.deepEqual(law.findings, []);
+  assert.ok(plotter.measures['pen-speed'] > PEN_SPEED_MOST, `${plotter.measures['pen-speed']}`);
+  assert.equal(plotter.findings[0].critic, 'pen-speed');
+});
+
+test('a list of critics changed after it was read is read again', () => {
+  const own = { family: 'reach', name: 'reel:c', checks: ['reel:late'], plan: () => ({ seconds: 1 }), sample: (p, t) => ({ x: t, y: 0 }) };
+  const critics = [];
+  assert.throws(() => planMove({ do: 'reach', model: 'reel:c' }, { models: [own], critics }), /names the check "reel:late", which is no critic/);
+  critics.push({ name: 'reel:late', limit: 0, measure: () => 1, finding: () => null });
+  const models = [own], m = planMove({ do: 'reach', model: 'reel:c' }, { models, critics });
+  assert.deepEqual(checkMove(m, { models, critics }).measures, { 'reel:late': 1 });
 });

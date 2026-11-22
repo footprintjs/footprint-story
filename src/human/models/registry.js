@@ -11,7 +11,7 @@
 import { refuse, shown, stored, isRecord } from '../read.js';
 import { BUILT_IN_NAME, OWN_NAME, MOST_OWN } from '../names.js';
 import { BUILT_IN_MODELS, USUAL_MODELS } from './builtIn.js';
-import { criticsWith } from '../critics/registry.js';
+import { criticsWith, holdsStill } from '../critics/registry.js';
 
 /** The families of move there are (this round fills reach, pen and letter), and the word an intent's `do` says for each. */
 export const HUMAN_FAMILIES = Object.freeze(['reach', 'pen', 'letter', 'settle', 'fall', 'throw', 'hang']);
@@ -45,8 +45,8 @@ export function modelsWith(list = undefined, criticList = undefined) {
   if (list === undefined || list === null) list = NONE;
   if (!Array.isArray(list) || list.length > MOST_OWN) refuse(`models are a list of at most ${MOST_OWN} — not ${Array.isArray(list) ? list.length : shown(list)}`);
   const critics = criticsWith(criticList);
-  const byCritics = cache.get(list) ?? new WeakMap();
-  if (byCritics.has(critics)) return byCritics.get(critics);
+  const kept = cache.get(list);
+  if (kept && kept.critics === critics && holdsStill(list, kept.items)) return kept.out;
   const all = BUILT_IN_MODELS.map((m) => readModel(m, `the model "${m.name}"`, false));
   list.forEach((m, i) => {
     const read = readModel(Object.hasOwn(list, i) ? stored(list, i, `models[${i}]`) : undefined, `models[${i}]`);
@@ -56,8 +56,8 @@ export function modelsWith(list = undefined, criticList = undefined) {
   // a check names a critic there is: a misspelt one would never measure anything
   for (const m of all) for (const c of m.checks) if (!critics.byName.has(c)) refuse(`the model "${m.name}" names the check ${shown(c)}, which is no critic — the critics are ${[...critics.byName.keys()].map((k) => `"${k}"`).join(', ')}`);
   const out = Object.freeze({ all: Object.freeze(all), byName: new Map(all.map((m) => [m.name, m])), critics });
-  byCritics.set(critics, out);
-  cache.set(list, byCritics);
+  // read again when the list changes, or comes with other critics
+  cache.set(list, { items: [...list], critics, out });
   return out;
 }
 
@@ -67,9 +67,9 @@ export function chooseModel(models, family, named, doWord) {
     const m = models.byName.get(named);
     if (!m) refuse(`there is no model ${shown(named)} — the models are ${[...models.byName.keys()].map((k) => `"${k}"`).join(', ')} (a tool's own goes in planMove's models)`);
     if (m.family !== family) refuse(`the model "${named}" is for a ${m.family}, and this intent is do: '${doWord}' (a ${family}) — name a ${family} model: ${models.all.filter((x) => x.family === family).map((x) => `"${x.name}"`).join(', ') || 'none yet'}`);
-    return { model: m, how: 'named by the intent' };
+    return { model: m, how: 'named by the intent', by: 'named' };
   }
   const usual = USUAL_MODELS[family];
   if (!usual) refuse(`no model for do: '${doWord}' yet — name one of a tool's own with model: 'prefix:name' and hand it in planMove's models`);
-  return { model: models.byName.get(usual), how: `the usual for do: '${doWord}'` };
+  return { model: models.byName.get(usual), how: `the usual for do: '${doWord}'`, by: 'usual' };
 }

@@ -1,11 +1,13 @@
 /**
  * `power-law` (family `pen`): a pen tracing a line through the intent's points — a centripetal Catmull-Rom curve
  * (paths/catmullRom.js), walked every 2 px — slower where it bends by the two-thirds power law (laws/powerLaw.js),
- * from rest and back to rest, with a seeded tremor across it (laws/tremor.js).
+ * from rest and back to rest, with a seeded tremor across it (laws/tremor.js). The law reads the line as drawn, tremor
+ * and all, over BEND_WIDTH px either side (paths/curvature.js · curvaturesOver) — as the `pen-speed` critic reads it.
  *
  *   intent  { do: 'draw', path: [[x, y], …] (2 to 1024 points it passes through), seconds?, speed?: px a second (400) }
  *   options tremor (px across, 0 to 8; 0.8), wavelength (px; 24), ramp (0 to 0.5; 0.1), floor (per px; 0.002)
  *   sample  { x, y, progress }: progress the share of the line drawn
+ *   basis   { length, speed, speedDefaulted, seconds, secondsGiven, tremor, wavelength, ramp, floor, points }
  *
  * The duration: the intent's seconds, else the line's length at `speed` (400 px a second — ours: a pen drawing a
  * diagram's line on a 1920-wide frame, quick enough to keep up with a voice).
@@ -46,9 +48,7 @@ export const powerLawModel = Object.freeze({
     const curve = catmullRom(path, { spacing: Math.max(STEP, rough / MOST_POINTS) });
     const points = resample(curve, { count: Math.max(2, Math.min(MOST_POINTS, Math.ceil(arcTable(curve).length / STEP) + 1)) });
     // the length of the line as walked (a hair under the curve's: chords for arcs), so the tremor ends at its last point
-    const along = arcTable(points).along, length = along[along.length - 1], bends = curvaturesOver(points, Math.max(1, Math.round(BEND_WIDTH / (length / (points.length - 1) || STEP))));
-    const seconds = given ?? length / speed;
-    const times = powerLawTimes(along, bends, seconds, { floor, ramp });
+    const along = arcTable(points).along, length = along[along.length - 1], seconds = given ?? length / speed;
     const knots = tremorKnots(random, length, { wavelength });
     const xs = [], ys = [];
     points.forEach((p, i) => {
@@ -57,8 +57,14 @@ export const powerLawModel = Object.freeze({
       const off = len > 0 ? tremorAt(knots, along[i], length, { amplitude, wavelength }) / len : 0;
       xs.push(p[0] + dy * off); ys.push(p[1] - dx * off);
     });
+    // the law on the line as drawn, tremor and all: the pen's speed follows the bends it makes, as the critic reads them
+    const drawn = xs.map((x, i) => [x, ys[i]]), drawnAlong = arcTable(drawn).along;
+    const bends = curvaturesOver(drawn, Math.max(1, Math.round(BEND_WIDTH / (length / (points.length - 1) || STEP))));
+    const times = powerLawTimes(drawnAlong, bends, seconds, { floor, ramp });
+    const speedDefaulted = stored(intent, 'speed', '') === undefined;
     return { seconds, xs, ys, times, pushes: 1,
-      why: `a line ${Math.round(length)} px long over ${round(seconds)} s (${given === undefined ? `at ${round(speed, 1)} px a second${stored(intent, 'speed', '') === undefined ? ', the usual' : ''}` : 'the seconds the intent gave'}), slower where it bends (the two-thirds power law)${amplitude ? `, with a ${round(amplitude, 1)} px tremor` : ''}` };
+      basis: { length, speed, speedDefaulted, seconds, secondsGiven: given !== undefined, tremor: amplitude, wavelength, ramp, floor, points: points.length },
+      why: `a line ${Math.round(length)} px long over ${round(seconds)} s (${given === undefined ? `at ${round(speed, 1)} px a second${speedDefaulted ? ', the usual' : ''}` : 'the seconds the intent gave'}), slower where it bends (the two-thirds power law)${amplitude ? `, with a ${round(amplitude, 1)} px tremor` : ''}` };
   },
   sample(plan, t) {
     const { xs, ys, times } = plan, last = times.length - 1;

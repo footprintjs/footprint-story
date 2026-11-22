@@ -19,14 +19,14 @@ export { TREMOR, MOST_TREMOR_KNOTS, tremorKnots, tremorAt } from './src/human/la
 // paths — what the laws run along
 export { arcTable, pointAt, shareToDistance, distanceToShare, MOST_TABLE_POINTS } from './src/human/paths/arcLength.js';
 export { catmullRom, MOST_CURVE_POINTS } from './src/human/paths/catmullRom.js';
-export { curvatures } from './src/human/paths/curvature.js';
+export { curvatures, curvaturesOver } from './src/human/paths/curvature.js';
 export { resample, MOST_RESAMPLED } from './src/human/paths/resample.js';
 
 // models — an intent planned by a named model, and sampled
 export { HUMAN_FAMILIES, HUMAN_DOS, HUMAN_MODELS, USUAL_MODELS } from './src/human/models/registry.js';
-export { planMove, sampleMove, sampleTrack, MOST_TRACK_SAMPLES } from './src/human/models/move.js';
-export { MIN_JERK_BEND } from './src/human/models/minJerk.js';
-export { PEN_SPEED } from './src/human/models/powerLawPen.js';
+export { planMove, sampleMove, sampleTrack, MOST_TRACK_SAMPLES, MOST_SAMPLE_LIST, UNSEEDED_KEYS } from './src/human/models/move.js';
+export { MIN_JERK_BEND, MOST_BEND } from './src/human/models/minJerk.js';
+export { PEN_SPEED, BEND_WIDTH } from './src/human/models/powerLawPen.js';
 export { MOST_STROKES } from './src/human/models/sigmaLetter.js';
 
 // critics — what still looks wrong, measured and said

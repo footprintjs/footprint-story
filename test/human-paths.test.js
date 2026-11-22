@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { arcTable, pointAt, shareToDistance, distanceToShare, catmullRom, curvatures, resample, MOST_RESAMPLED } from '../human.js';
+import { curvaturesOver } from '../src/human/paths/curvature.js';
 
 const close = (a, b, eps, what) => assert.ok(Math.abs(a - b) <= eps, `${what}: ${a} is not within ${eps} of ${b}`);
 
@@ -60,6 +61,12 @@ test('curvature: 1 over the radius on a circle, 0 on a straight line, the ends t
   assert.deepEqual(curvatures([[0, 0], [1, 1], [2, 2]]), [0, 0, 0]);
   assert.deepEqual(curvatures([[0, 0], [5, 5]]), [0, 0]);
   assert.deepEqual(curvatures([[0, 0], [0, 0], [1, 0]]), [0, 0, 0], 'a point on its neighbour bends nothing');
+  // a turn past a right angle: at least the tightest circle its shorter side allows — a hairpin is the sharpest bend, never straight
+  assert.deepEqual(curvatures([[0, 0], [10, 0], [0, 0]]), [0.2, 0.2, 0.2], 'a full reversal: 2 / the side');
+  assert.deepEqual(curvatures([[0, 0], [10, 0], [5, 0]]), [0.4, 0.4, 0.4], 'back along the line: 2 / the shorter side');
+  close(curvatures([[0, 0], [10, 0], [10, 10]])[1], Math.SQRT2 / 10, 1e-12, 'a right angle, as the circle gives it');
+  close(curvatures([[0, 0], [10, 0], [10.000001, 10]])[1], Math.SQRT2 / 10, 1e-6, 'and just past one: no jump');
+  assert.ok(curvatures([[0, 0], [10, 0], [0, 1]])[1] > curvatures([[0, 0], [10, 0], [2, 8]])[1], 'the nearer a reversal, the sharper');
   const bent = curvatures([[0, 0], [1, 0], [1, 1], [1, 2]]);
   assert.equal(bent[0], bent[1]); assert.equal(bent[3], bent[2]);
 });
@@ -73,4 +80,15 @@ test('resample: every spacing px along (the last stretch shorter), or count poin
   assert.throws(() => resample(pts, { count: 1 }), new RegExp(`count is a whole number from 2 to ${MOST_RESAMPLED}`));
   assert.throws(() => resample(pts, {}), /every spacing px \(above 0\) or count points/);
   assert.throws(() => resample(pts, { spacing: 1e-6 }), /give a larger spacing/);
+});
+
+test('curvature over a width: no bend read tighter than a circle as wide as the half-width, and a fold spread over that width', () => {
+  const line = Array.from({ length: 101 }, (_, i) => [i * 2, 0]), fold = [...line, ...line.slice(0, -1).reverse()];
+  const k = curvaturesOver(fold, 6), cap = 2 / (6 * 2);
+  assert.ok(Math.max(...k) <= cap / 13 + 1e-12, 'the fold, held at the greatest bend, spread over the 13 points either side of it');
+  for (let i = 94; i <= 106; i += 1) assert.ok(k[i] > 0, `the fold reads at ${i}`);
+  assert.equal(k[20], 0, 'the straight legs are straight'); assert.equal(k[180], 0);
+  const r = 100, circle = Array.from({ length: 300 }, (_, i) => [r * Math.cos(i / 50), r * Math.sin(i / 50)]);
+  close(curvaturesOver(circle, 3)[150], 1 / r, 2e-4, 'a wide circle keeps its curvature');
+  assert.deepEqual(curvaturesOver([[4, 4]], 2), [0]);
 });

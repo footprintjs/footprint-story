@@ -116,3 +116,31 @@ test('the tremor: the same seed the same knots, another seed others; at most its
   assert.throws(() => tremorKnots(seeded('a'), 10, { wavelength: 0 }), /wavelength is from 1 to 10000 px/);
   assert.throws(() => tremorKnots(seeded('a'), 1e6, { wavelength: 1 }), /at most 4098: give a longer wavelength/);
 });
+
+/** The exponent a pen traced round an a × b ellipse gives against the ellipse's TRUE curvature (the middle 80% of it). */
+export async function tracedExponent(a, b, floor) {
+  const { planMove, sampleTrack } = await import('../human.js');
+  const cx = 600, cy = 400, n = 120;
+  const path = Array.from({ length: n }, (_, i) => [cx + a * Math.cos((i / (n - 1)) * 2 * Math.PI * 0.95), cy + b * Math.sin((i / (n - 1)) * 2 * Math.PI * 0.95)]);
+  const model = floor === undefined ? { name: 'power-law', tremor: 0, ramp: 0 } : { name: 'power-law', tremor: 0, ramp: 0, floor };
+  const tr = sampleTrack(planMove({ do: 'draw', path, model }), { rate: 1000 }).samples, out = [];
+  let along = 0, next = 0;
+  for (let i = 1; i < tr.length; i += 1) {
+    const ds = Math.hypot(tr[i].x - tr[i - 1].x, tr[i].y - tr[i - 1].y);
+    while (ds > 0 && along + ds >= next) { const f = (next - along) / ds; out.push([tr[i - 1].x + (tr[i].x - tr[i - 1].x) * f, tr[i - 1].y + (tr[i].y - tr[i - 1].y) * f, tr[i - 1].t + (tr[i].t - tr[i - 1].t) * f]); next += 4; }
+    along += ds;
+  }
+  const speeds = [], kappa = [];
+  for (let i = Math.floor(out.length * 0.1); i < Math.floor(out.length * 0.9); i += 1) {
+    const th = Math.atan2((out[i][1] - cy) / b, (out[i][0] - cx) / a);
+    kappa.push((a * b) / (a * a * Math.sin(th) ** 2 + b * b * Math.cos(th) ** 2) ** 1.5);
+    speeds.push(8 / (out[i + 1][2] - out[i - 1][2]));
+  }
+  return powerLawFit(speeds, kappa).exponent;
+}
+
+test('the law holds at a diagram\'s scale: a pen round a 300 × 100 and a 300 × 30 px ellipse goes as the true curvature^−1/3, to within 0.02', async () => {
+  assert.equal(POWER_LAW.floor, 0.0002);
+  for (const [a, b] of [[300, 100], [300, 30]]) close(await tracedExponent(a, b), 1 / 3, 0.02, `${a} × ${b}`);
+  assert.ok(await tracedExponent(300, 100, 0.002) < 0.25, 'the old floor, 0.002, flattened it');
+});
