@@ -21,6 +21,8 @@
 | Whether a point is inside an outline, by counting the sides a ray from it crosses | `cable.js` (`inside`) | M. Shimrat, "Algorithm 112: Position of Point Relative to Polygon", Communications of the ACM 5 (8), 1962; in the short form W. R. Franklin's PNPOLY made common |
 | Where a ray leaves a convex outline: the nearest side it crosses, by the two cross products of a ray–segment intersection | `outline.js` (`exitOutline`) | as set out in R. Goldman, "Intersection of Two Lines in Three-Space", *Graphics Gems*, Academic Press, 1990 |
 | A curve's length as the sum of the straight runs between points along it (a chord-length approximation) | `straight.js` (`curveWay`) | as set out in G. Farin (above) |
+| A colour's relative luminance and the contrast ratio of two, and 4.5 : 1 as the least for small text | `colour.js` (`luminance`, `contrastRatio`, `readableInk`), `duotone.js` | W3C, *Web Content Accessibility Guidelines (WCAG) 2.1*, 2018: the definitions of relative luminance and contrast ratio, success criterion 1.4.3 |
+| CIELAB and the colour difference ΔE*ab (CIE76), from sRGB under D65 | `colour.js` (`deltaE76`) | CIE, *Colorimetry*, CIE 15 (the 1976 L\*a\*b\* space); IEC 61966-2-1:1999 (sRGB: its transfer curve and its matrix to XYZ) |
 
 **Ours:** the test for "this can never cover that" (all of it at smaller cols, or at smaller rows, or below), with its
 reason in `README.md`; ordering only pairs that meet on the frame; cutting a ring at its first given, and only a ring

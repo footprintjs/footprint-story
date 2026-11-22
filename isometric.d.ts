@@ -323,6 +323,20 @@ export const MOST_PAINT_ITEMS: number;
 export const MOST_PAINT_POINTS: number;
 /** `hex` mixed `share` of the way toward `toward`, each channel rounded: CSS `color-mix` in srgb. Each colour in is `#rgb` or `#rrggbb`, any case (anything else is refused); the colour out is lower-case `#rrggbb`. */
 export function mixColour(hex: string, toward: string, share: number): string;
+/** A colour's relative luminance (WCAG 2): 0 black, 1 white. `#rgb` or `#rrggbb`, any case. */
+export function luminance(hex: string): number;
+/** The contrast ratio of two colours (WCAG 2): 1 (the same) to 21 (black on white), unrounded (`#777` on white is 4.478…, under 4.5). */
+export function contrastRatio(a: string, b: string): number;
+/** What readableInk gives: the ink (lower-case `#rrggbb`), its ratio on the face, and whether it reaches `least`. */
+export interface ReadableInk { readonly ink: string; readonly ratio: number; readonly reads: boolean }
+/**
+ * The ink a word is written in on `face`: the first of `inks` (in order of preference) that stands at least `least` : 1
+ * on it (default 4.5, WCAG's small text), else the one that reads best (the earlier on a tie), with `reads: false` —
+ * never a failing ink as if it passed. StoryReel's nameInk(face, look) is `readableInk(face, [look.ink, look.bg]).ink`.
+ */
+export function readableInk(face: string, inks: readonly string[], options?: { least?: number } | null): ReadableInk;
+/** The colour difference ΔE*ab (CIE76): the distance of two colours in CIELAB (sRGB, D65). 0 the same, 100 black to white. */
+export function deltaE76(a: string, b: string): number;
 
 /** The columns of a style, in the order they run. */
 export type IsoStyleColumn = 'shape' | 'shading' | 'line' | 'palette' | 'texture' | 'effects';

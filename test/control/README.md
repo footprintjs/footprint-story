@@ -53,6 +53,7 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.44.0-motion-place.mjs` | footprint-storyreel `src/kits/isometric/motion-place.mjs` at `307d0f7` (0.44.0), the whole file | none (byte-identical) |
 | `storyreel-0.44.0-motion-cover.mjs` | footprint-storyreel `src/kits/isometric/motion-cover.mjs` at `307d0f7`, lines 28–51 (`NAME_WIDTH`, `nameBox`, `overlaps`, `area`) | `export` added to `nameBox` and `overlaps`; a comment line naming the source |
 | `storyreel-0.44.0-motion-side.mjs` | footprint-storyreel at `307d0f7`: `src/kits/isometric/motion-side.mjs` lines 34 (`worldPx`) and 121–124 (`sideFoot`), `src/kits/isometric/motion.mjs` lines 216–218 (`SAMPLE_RATE`, `SAMPLES_MOST`, `samplesOf`) | `export` added to `samplesOf`; a comment line naming the sources |
+| `storyreel-0.49.0-nameInk.mjs` | footprint-storyreel at `b02fb11` (0.49.0): `src/contrast.mjs` lines 20, 23–26 and 29 (`CONTRAST`, `luminance`, `contrastRatio`), `src/kits/isometric/looks.mjs` lines 41, 43 and 78–82 (`lum`, `ratioOf`, `nameInk`) | its import of `mixColour` points at `../../isometric.js`; the comment lines between them left out; a comment line naming the sources |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these
