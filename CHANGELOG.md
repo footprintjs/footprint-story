@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.33.1 — a map flow's record keeps the paint lists as counts and a digest
+
+- **`runMapFlow`'s record no longer keeps every paint item's points** (`src/mapflow/summary.js`, `src/mapflow/flow.js`).
+  The `style` stage wrote the whole paint lists into the run's state, so the record kept every polygon and every
+  hand-drawn stroke with all its points: a 64-block world with `human:hatch` made 12,418,111 bytes of commit log, and
+  footprintjs's file sink refused the `style` entry (over its 8 MB `maxEntryBytes`), so the record file held no style
+  stage at all. The lists are derived from what the record already keeps (the spec, the policy, the choices' names in
+  `style.row`), so the stage now writes a summary under the same keys: `{pieces, items, byItem, points, perPiece,
+  digest}`, the digest FNV-1a (`src/seed/seeded.js` · `fnv1a`, the seed's own hash, now exported from that leaf) over the
+  lists' JSON with keys sorted. That world's record: 90,778 bytes, every entry written; a plain one 90,679 (was 144,017).
+  Pinned under 300 KB by `test/mapflow-record-size.test.js`.
+- **The map is unchanged.** `runMapFlow`'s `map` still holds the full lists, equal to `buildIsoMap`'s: the stages keep
+  them in a place of `runMapFlow`'s own, outside the run's state. Both drift properties now also check that the record's
+  summary is the summary of the built lists.
+- **Changed for a reader of the snapshot:** `snapshot.sharedState.paints` / `.floorPaints` (and the record's values at
+  those keys) are the summaries, not the lists; `mapFlow()` run by hand keeps the summary only. The record's keys are
+  the same, so `log --why paints` (StoryReel, StoryDeck) answers as before, now with the summary; neither tool needs a
+  code change.
+
 ## 0.33.0 — hand-drawn maps
 
 - **A map can be drawn by hand.** `buildIsoMap(spec, policy, {choices})` and `runMapFlow(spec, policy, {choices, sink,

@@ -414,7 +414,7 @@ map.order       // ['web', 'db'] — the furthest first
 | `names` | blocks, at, view, policy | `names`, `smalls` (each fitted to its top) | — |
 | `order` | blocks, at, obstacles, view | `order` (block and obstacle names, the furthest first) | — |
 | `floorLabels` | blocks, at, obstacles, floors, floorTiles, shapes, routes, view, policy | `floorLabels` (each label's place, fits, covered) | — |
-| `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | `paints`, `floorPaints` (the style's other columns) | — |
+| `style` | blocks, at, floors, floorTiles, shapes, floorShapes, style | `paints`, `floorPaints` (the style's other columns; a map flow's record keeps their counts and digest, src/mapflow/README.md) | — |
 
 Each step is `{name, about, reads, writes, run}`: `run(state, tools)` reads only the keys it names and gives back a new state
 with the keys it writes. It never edits what it was handed and never puts a function in the state — a block's room is

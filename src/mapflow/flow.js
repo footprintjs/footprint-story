@@ -16,9 +16,15 @@
 // A tool's own style choices (`choices`: footprint-story/human's sketchyLine and hatchTexture, a tool's `reel:chalk`) are
 // code, so never the run's input or state: the chart is built with them (`mapFlow({choices})`), its stages hand them to
 // each step as buildIsoMap does, and the record keeps the names the map's style chose (`style.row`) — the humanflow way.
+//
+// The paint lists (`paints`, `floorPaints`) are written as a summary — counts and a digest (summary.js) — because they
+// are derived from what the record already keeps, and kept whole they were most of it (12 MB of a hatched map's
+// points). runMapFlow hands the stages a place of its own for the full lists, outside the run's state, and gives them
+// back in the map; a chart run by hand keeps the summary only.
 import { flowChart, FlowChartExecutor, decide } from 'footprintjs';
 import { ISO_MAP_STEPS, ISO_MAP_INPUT, pick, deepFreeze } from '../isometric/mapSteps.js';
 import { readIsoMap, readIsoMapSettings } from '../isometric/mapSpec.js';
+import { SUMMARISED, paintSummary } from './summary.js';
 
 /** The chart's logger: a refusal is rethrown to the caller, so footprintjs does not print it a second time. */
 const QUIET = Object.freeze({ info() {}, log() {}, debug() {}, error() {}, warn: (...args) => console.warn(...args) });
@@ -28,32 +34,45 @@ const RUN_KEYS = ['choices', 'sink', 'recorders'];
 
 /** The keys a part reads, each through the scope (`$getValue`: a tracked read, so the record keeps it). */
 const take = (s, keys) => Object.fromEntries(keys.map((k) => [k, s.$getValue(k)]));
-/** The keys a part writes, from the state it gave back. */
-const put = (s, state, keys) => { for (const k of keys) s.$setValue(k, state[k]); };
-const stageOf = (part, tools) => (s) => { put(s, part.run(take(s, part.reads), tools), part.writes); };
+/**
+ * The keys a part writes, from the state it gave back: a paint list as its summary (summary.js), the list itself kept
+ * in `made` (runMapFlow's own, outside the run's state; null for a chart run by hand).
+ */
+const put = (s, state, keys, made = null) => {
+  for (const k of keys) {
+    if (!SUMMARISED.includes(k)) { s.$setValue(k, state[k]); continue; }
+    if (made) made[k] = state[k];
+    s.$setValue(k, paintSummary(state[k]));
+  }
+};
+const stageOf = (part, tools, made) => (s) => { put(s, part.run(take(s, part.reads), tools), part.writes, made); };
 
 /**
  * The chart: a stage that reads the input, then one stage per step (a decider and its branches for a step that chooses).
  * `settings.choices`: the tool's own style choices, as buildIsoMap takes them (read now, by own stored fields).
  */
 export function mapFlow(settings = undefined) {
-  const tools = readIsoMapSettings(settings, 'mapFlow');
+  return chartOf(readIsoMapSettings(settings, 'mapFlow'), null);
+}
+
+/** The chart with the tools read, its stages keeping the full paint lists in `made` (or nowhere: null). */
+function chartOf(tools, made) {
   let chart = flowChart('read', (s) => {
     const { mapSpec, mapPolicy } = s.$getArgs() ?? {};
     put(s, readIsoMap(mapSpec, mapPolicy, tools), ISO_MAP_INPUT);
   }, 'read', 'The map and the policy, checked');
   for (const step of ISO_MAP_STEPS) {
-    if (!step.decides) { chart = chart.addFunction(step.name, stageOf(step, tools), step.name, step.about); continue; }
+    if (!step.decides) { chart = chart.addFunction(step.name, stageOf(step, tools, made), step.name, step.about); continue; }
     const { decides } = step;
     let list = chart.addDeciderFunction(step.name, (s) => {
       const chosen = decides.run(take(s, decides.reads), tools);
-      put(s, chosen, decides.writes);   // the choice and its reason: a stage's reads are kept with what it writes
+      put(s, chosen, decides.writes, made);   // the choice and its reason: a stage's reads are kept with what it writes
       // the choice handed to footprintjs as a decision whose label is the reason, so the run's control edge carries the
       // words (whyFromRecord shows them: "[control: no block has an at: …]"); the rule reads back the choice just written
       const choice = chosen[decides.key], label = chosen[decides.why];
       return decide(s, [{ when: { [decides.key]: { eq: choice } }, then: choice, label }], { branch: choice, label });
     }, step.name, step.about);
-    for (const [choice, branch] of Object.entries(step.branches)) list = list.addFunctionBranch(choice, `${step.name}: ${choice}`, stageOf(branch, tools));
+    for (const [choice, branch] of Object.entries(step.branches)) list = list.addFunctionBranch(choice, `${step.name}: ${choice}`, stageOf(branch, tools, made));
     chart = list.end();
   }
   return chart.setLogger(QUIET).build();
@@ -81,7 +100,8 @@ function ownCopy(v, depth = 0) {
  * buildIsoMap's settings take them; `options.sink` a record sink (footprintjs/sinks ·
  * fileSink — the caller closes it), `options.recorders` combined recorders to attach (footprintjs/trace ·
  * controlDepRecorder). Run with `writeProvenance: 'reads-prefix'`, so the record keeps the keys each stage had read when
- * it wrote. Gives {map, snapshot}: the map (frozen plain data, equal to buildIsoMap's) and the run's snapshot.
+ * it wrote. Gives {map, snapshot}: the map (frozen plain data, equal to buildIsoMap's) and the run's snapshot. The
+ * snapshot's `paints` and `floorPaints` are their summaries (summary.js · paintSummary); the map holds the lists.
  */
 export async function runMapFlow(spec, policy, options = undefined) {
   if (options !== undefined && options !== null && (typeof options !== 'object' || Array.isArray(options))) throw new TypeError(`runMapFlow's options are {${RUN_KEYS.join(', ')}}, or none — not ${typeof options}`);
@@ -92,9 +112,10 @@ export async function runMapFlow(spec, policy, options = undefined) {
   // read here first, by own stored fields, as buildIsoMap reads it: footprintjs copies a run's input before any stage
   // sees it, and that copy would run a getter — so the run is handed the plain copy (and a refusal has buildIsoMap's words)
   readIsoMap(spec, policy, tools);
-  const executor = new FlowChartExecutor(mapFlow(tools), { writeProvenance: 'reads-prefix', ...(sink ? { sink } : {}) });
+  const made = {};   // the full paint lists, as the style stage made them: the caller's map, never the run's state
+  const executor = new FlowChartExecutor(chartOf(tools, made), { writeProvenance: 'reads-prefix', ...(sink ? { sink } : {}) });
   for (const r of recorders) executor.attachCombinedRecorder(r);
   await executor.run({ input: { mapSpec: ownCopy(spec), mapPolicy: ownCopy(policy) } });
   const snapshot = executor.getSnapshot();
-  return { map: deepFreeze(structuredClone(pick(snapshot.sharedState, MAP_KEYS))), snapshot };
+  return { map: deepFreeze(structuredClone({ ...pick(snapshot.sharedState, MAP_KEYS), ...made })), snapshot };
 }

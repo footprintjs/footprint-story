@@ -9,7 +9,16 @@
  * Sources: G. Fowler, L. C. Noll and K.-P. Vo, the FNV-1a hash; T. Ettinger, mulberry32 (public domain).
  */
 export function seeded(text) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  let h = fnv1a(text);
   return () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+/**
+ * FNV-1a (32 bits) of a text's UTF-16 code units, from `h` (the offset basis when none): fed in pieces, a long text is
+ * hashed without being built (fnv1a(b, fnv1a(a)) === fnv1a(a + b)). The seed's first half, and a map record's digest
+ * (src/mapflow/summary.js): one copy of the rule.
+ */
+export function fnv1a(text, h = 0x811c9dc5) {
+  for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h;
 }
