@@ -11,8 +11,12 @@
 // 2. It charged its looks another way, far more for the same search: every point of every other cable at every place
 //    tried, where StoryDeck charges the near ones and a look an entry. A busy map (over a hundred labelled cables) ran
 //    out of looks there, and every later label fell to its cable's middle; here they are placed by the rule.
+// 3. StoryReel's labelAt also asked a hiding outline whose box only TOUCHES the plate's edge (StoryDeck asks only one
+//    whose box reaches into the plate), and its inside test counts a point on an outline's left or top edge as inside:
+//    a plate that exactly fills the gap between two blocks (at tile 68, "https" is one tile wide) was hidden there, and
+//    moved off its cable's middle to a place really under the block. Found by fast-check seed 580667364 (0.32.1).
 // Elsewhere StoryReel's answer is the same: its before/after run over its example and 1,500 generated worlds and 24
-// films at a film's tile sizes changed no frame. The last two tests show where they part.
+// films at a film's tile sizes changed no frame. The last three tests show where they part.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
@@ -220,12 +224,29 @@ const reelMap = fc.record({
   return { grid, blocks: made, wires: lines };
 });
 
+// The film's labels by StoryDeck 0.29.0's rule (the control, cable0), on the cables StoryReel 0.34.0 laid, composed as the
+// film now composes them (kits/isometric/cables.mjs · layCables): every block's outline hides, each placed plate hides the
+// labels after it, every cable's walk is a run, one budget of looks for the map, the tip the cable's last point.
+// WHY StoryDeck's rule and not 0.34.0's own labels: the door is StoryDeck's rule in both tools (the header), and the
+// film now asks the door — 0.34.0's labelAt parts from it in the three named ways (the last three tests pin each), so
+// holding the labels to 0.34.0 failed whenever a generated map met one (seed 580667364: a plate touching two blocks).
+function deckLabels(map) {
+  const hides = map.blocks.map((b) => cable0.held(b.shape.outline)), runs = map.wires.map((w) => ({ ...cable0.held(cable0.cableWalk(w.cable.way)), of: w.cable.way })), looks = { left: cable0.LABEL_LOOKS };
+  for (const w of map.wires) {
+    if (!w.label) continue;
+    w.labelHalf = cables1.labelHalf(w.label);
+    w.labelAt = cable0.labelPlace(w.cable.way, w.labelHalf, hides, runs, looks, w.cable.points.at(-1));
+    const [lx, ly] = w.labelAt, [hx, hy] = w.labelHalf;
+    hides.push(cable0.held([[lx - hx, ly - hy], [lx + hx, ly - hy], [lx + hx, ly + hy], [lx - hx, ly + hy]]));
+  }
+}
+
 test('lanesOf, straightRun, bentWire, curveWay, labelPlace: StoryReel\'s straight wires and their labels, at a film\'s tile sizes', () => {
   let compared = 0;
   fc.assert(fc.property(reelMap, (map) => {
     const copy = () => ({ ...map, wires: map.wires.map((w) => ({ ...w })) });
     let was;
-    try { const m = copy(); cables1.layCables(m); was = m.wires.map((w) => ({ points: w.cable.points, length: w.cable.length, mid: w.cable.way.at(0.37), labelAt: w.labelAt ?? null, labelHalf: w.labelHalf ?? null })); } catch (e) { was = { error: /too close|share a middle/.test(e.message) }; }
+    try { const m = copy(); cables1.layCables(m); deckLabels(m); was = m.wires.map((w) => ({ points: w.cable.points, length: w.cable.length, mid: w.cable.way.at(0.37), labelAt: w.labelAt ?? null, labelHalf: w.labelHalf ?? null })); } catch (e) { was = { error: /too close|share a middle/.test(e.message) }; }
     let got;
     try { got = reelCables(copy()); } catch (e) { got = { error: /close|middle/.test(e.message) }; }
     assert.deepEqual(flat(Array.isArray(got) ? got.map(({ middle, ...rest }) => rest) : got), flat(was));
@@ -282,4 +303,23 @@ test('the second difference, named: a busy map no longer runs out of looks — S
   assert.equal(atMiddle(was.wires.filter((_, k) => late(k)).map((w) => [w.labelAt, w.cable.way.at(0.5)])), 40, '0.34.0: every label from wire 120 on fell to its cable\'s middle (its looks were spent)');
   assert.ok(atMiddle(got.filter((_, k) => late(k)).map((w) => [w.labelAt, w.middle])) < 10, 'here they are placed by the rule');
   assert.deepEqual(flat(got.slice(0, 30).map((w) => w.labelAt)), flat(was.wires.slice(0, 30).map((w) => w.labelAt)), 'the first labels, before 0.34.0 ran short, stand where they stood');
+});
+
+test('the third difference, named: a plate that only touches a block\'s edge is not hidden here (StoryDeck\'s rule), hidden by StoryReel 0.34.0\'s copy (fast-check seed 580667364)', () => {
+  // tile 68: "https" is a plate 68 px wide, and the cable's middle stands exactly between two blocks, the plate's left
+  // edge on one's right side (x 800) and its right edge on the other's left side (x 868)
+  const grid = isometric({ tile: 68, origin: [800, 120] });
+  const blockOf = (name, at, size) => { const k = grid.block({ at, size }); return { name, shape: { box: k.box, outline: k.outline.map(({ x, y }) => [x, y]) } }; };
+  const b0 = blockOf('b0', [6, 2], [1, 2, 1.6]), b2 = blockOf('b2', [2, 4], [2, 1, 0.4]);
+  const mapOf = () => ({ grid, blocks: [b0, b2], wires: [{ who: 'wires[0]', label: 'https', head: false, route: null, arrow: { from: { block: b0 }, to: { block: b2 }, bend: 0 } }] });
+  assert.deepEqual([b0.shape.box.x, b2.shape.box.x + b2.shape.box.w], [868, 800]);
+  const [got] = reelCables(mapOf());
+  assert.deepEqual(flat(got.labelAt), flat(got.middle), 'here the label stands at its cable\'s middle');
+  assert.deepEqual(flat(got.labelAt), [834, 243.679337186343]);
+  assert.deepEqual([got.labelAt[0] - got.labelHalf[0], got.labelAt[0] + got.labelHalf[0]], [800, 868], 'its plate fills the gap, under neither block');
+  const deck = mapOf(); cables1.layCables(deck); deckLabels(deck);
+  assert.deepEqual(flat(deck.wires[0].labelAt), flat(got.labelAt), 'StoryDeck\'s answer');
+  const was = mapOf(); cables1.layCables(was);
+  assert.deepEqual(flat(was.wires[0].labelAt), [839.6016837970961, 243.9763979255641], 'StoryReel 0.34.0 counted the plate\'s right edge, on b0\'s left side, as hidden and moved on');
+  assert.ok(was.wires[0].labelAt[0] + was.wires[0].labelHalf[0] > 868, 'to a place where its plate really is under b0');
 });

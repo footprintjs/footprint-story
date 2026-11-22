@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.32.1 — a cable test that held the film's labels to the old rule
+
+- **A test fix only: no code changed, nothing either tool draws changed.** The property test "StoryReel's straight
+  wires and their labels, at a film's tile sizes" (`test/cable-differential.property.test.js`) failed with fast-check
+  seed 580667364. It compared footprint-story's labels with StoryReel 0.34.0's own label rule, but footprint-story
+  places labels by StoryDeck's rule, and StoryReel now asks footprint-story (`labelPlace`). The two rules part in a
+  third way, now named: StoryReel 0.34.0 also asked a block whose box only touches the label's plate, and counted a
+  point on a block's left or top edge as hidden. At tile 68 a plate that exactly fills the gap between two blocks was
+  "hidden" there and moved partly under one; by StoryDeck's rule (and footprint-story's, and the film's today) it stays
+  at its cable's middle.
+- **What changed:** the property now holds the labels to StoryDeck 0.29.0's rule (its control copy) run on the cables
+  StoryReel 0.34.0 laid; the cables are still held to StoryReel 0.34.0. The counterexample is a plain unit test beside
+  the two differences already named.
+
 ## 0.32.0 — moving pieces on a map, one copy
 
 - **The number rules a moving block is placed by, on `footprint-story/isometric`** — moved from StoryReel 0.44.0
