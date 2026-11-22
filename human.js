@@ -2,7 +2,7 @@
 // power law, sigma-lognormal strokes, a seeded tremor), the paths they run on (length tables, centripetal Catmull-Rom,
 // curvature, resampling), light physics (ballistic flight, bounces, hanging chains, a floor and boxes, a fixed step),
 // named models that turn an intent into a plan, wrappers that reshape a move (anticipate, follow-through, hold,
-// overshoot), and critics that say in words what still looks wrong. Pure: runs anywhere (browser or Node), imports nothing, and loads only when imported. Nothing here draws
+// overshoot), critics that say in words what still looks wrong, and hand-drawn strokes (a drawing's order, pen, fills, boil). Pure: runs anywhere (browser or Node), imports nothing, and loads only when imported. Nothing here draws
 // — StoryReel paints a canvas, StoryDeck writes SVG or CSS from the samples.
 //
 //   const move = planMove({ do: 'reach', name: 'hand', from: [200, 600], to: [900, 420], target: 60 })
@@ -63,3 +63,21 @@ export { MOST_INTENTS } from './src/human/intents/read.js';
 export { SUMMARY_POINTS } from './src/human/intents/summary.js';
 export { CHOOSE_RULES } from './src/human/models/rules.js';
 export { PER_INTENT, intentKey } from './src/human/intents/keys.js';
+
+// hand-drawn strokes — a drawing planned as a hand draws it: the order and why, each stroke's pace, width, hooks and
+// tremor, hatching and scribbles, a frame-to-frame boil, the `hand-sketch` model (do: 'sketch') and its critics, and two
+// isometric style choices on strokes (src/human/strokes/README.md)
+export { planSketch, SKETCH, WIDTH_SHARE, LIFT, MOST_SKETCH_POINTS } from './src/human/strokes/plan.js';
+export { sampleSketch } from './src/human/strokes/sample.js';
+export { boilSketch, BOIL, MOST_BOIL_FRAME } from './src/human/strokes/boil.js';
+export { hatchLines, MIN_PIECE, MOST_HATCH_LINES, CROSS_TURN } from './src/human/strokes/fills.js';
+export { ORDER_RULE, MOST_BRIDGE_EDGES } from './src/human/strokes/order.js';
+export { leastStrokes, MERGE } from './src/human/strokes/graph.js';
+export { withOvershoot, CORNER, PEN_WIDTH, STROKE_STEP } from './src/human/strokes/pen.js';
+export { SKETCH_LAYERS, FILL_KINDS, HATCH, MOST_SHAPES, MOST_SHAPE_POINTS, MOST_SKETCH_INPUT } from './src/human/strokes/shapes.js';
+export { shapesOfPaint, strokeItems, strokeOutline, ELLIPSE_POINTS, HIDDEN } from './src/human/strokes/paint.js';
+export { sketchyLine, hatchTexture, ROLE_FILLS } from './src/human/strokes/styleChoices.js';
+export { SKETCH_KEYS } from './src/human/strokes/model.js';
+export { PEN_LIFTS_MOST } from './src/human/strokes/penLifts.js';
+export { STROKE_ORDER_MOST } from './src/human/strokes/strokeOrder.js';
+export { HATCH_GAP_MOST } from './src/human/strokes/hatchGaps.js';

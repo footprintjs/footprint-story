@@ -314,9 +314,11 @@ export type PaintItem =
   | (PaintBase & { readonly item: 'polygon'; readonly points: readonly (readonly [number, number])[] })
   | (PaintBase & { readonly item: 'ellipse'; readonly cx: number; readonly cy: number; readonly rx: number; readonly ry: number })
   | (PaintBase & { readonly item: 'path'; readonly segments: readonly PaintSegment[] })
-  | (PaintBase & { readonly item: 'lines'; readonly segments: readonly (readonly [number, number, number, number])[] });
+  | (PaintBase & { readonly item: 'lines'; readonly segments: readonly (readonly [number, number, number, number])[] })
+  /** A line drawn by hand (footprint-story/human · strokes): each point [x, y, width there, t in seconds from the piece's start]. Its fill is null. */
+  | (PaintBase & { readonly item: 'stroke'; readonly points: readonly (readonly [number, number, number, number])[] });
 /** The kinds of item a painter draws; the most items one piece's list holds; the most points or segments in one item. */
-export const PAINT_ITEMS: readonly ['polygon', 'ellipse', 'path', 'lines'];
+export const PAINT_ITEMS: readonly ['polygon', 'ellipse', 'path', 'lines', 'stroke'];
 export const MOST_PAINT_ITEMS: number;
 export const MOST_PAINT_POINTS: number;
 /** `hex` mixed `share` of the way toward `toward`, each channel rounded (`#rrggbb` in and out): CSS `color-mix` in srgb. */

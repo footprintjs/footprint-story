@@ -9,6 +9,7 @@ import { ballisticModel } from './ballistic.js';
 import { bounceModel } from './bounce.js';
 import { verletModel } from './verlet.js';
 import { springModel } from './spring.js';
+import { sketchModel } from '../strokes/model.js';
 
-export const BUILT_IN_MODELS = Object.freeze([minJerkModel, powerLawModel, sigmaLognormalModel, ballisticModel, bounceModel, verletModel, springModel]);
-export const USUAL_MODELS = Object.freeze({ reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal', throw: 'ballistic', fall: 'ballistic', hang: 'verlet', settle: 'spring' });
+export const BUILT_IN_MODELS = Object.freeze([minJerkModel, powerLawModel, sigmaLognormalModel, ballisticModel, bounceModel, verletModel, springModel, sketchModel]);
+export const USUAL_MODELS = Object.freeze({ reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal', throw: 'ballistic', fall: 'ballistic', hang: 'verlet', settle: 'spring', sketch: 'hand-sketch' });
