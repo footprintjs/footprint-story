@@ -343,8 +343,8 @@ export type IsoStyleColumn = 'shape' | 'shading' | 'line' | 'palette' | 'texture
 export const ISO_STYLE_COLUMNS: readonly ['shape', 'shading', 'line', 'palette', 'texture', 'effects'];
 /** A column's entry: a choice's name, or `{name, …its options}`. */
 export type IsoStyleEntry = string | ({ readonly name: string } & Readonly<Record<string, number | string | boolean>>);
-/** The named looks (0.34.0; paper-grain and duotone 0.35.0): a look is a style row under a name. */
-export type IsoLookName = 'outlined' | 'line-art' | 'paper-grain' | 'duotone';
+/** The named looks (0.34.0; paper-grain and duotone 0.35.0; sketchy 0.37.0): a look is a style row under a name. */
+export type IsoLookName = 'outlined' | 'line-art' | 'paper-grain' | 'duotone' | 'sketchy';
 /** A row of choices; a column left out is the usual one (or the named look's, when `look` names one: a column written beside it replaces the look's entry, whole). */
 export interface IsoStyleRow { readonly look?: IsoLookName | null; readonly shape?: IsoStyleEntry; readonly shading?: IsoStyleEntry; readonly line?: IsoStyleEntry; readonly palette?: IsoStyleEntry; readonly texture?: IsoStyleEntry; readonly effects?: readonly IsoStyleEntry[] }
 /** A style as isoStyle makes it — plain data, the record of it: a name per column, and the options written. */
@@ -360,9 +360,11 @@ export interface IsoStyle {
  * row as `{look: 'outlined'}`; the same style as its row written out. 0.35.0: `paper-grain` (`{texture: 'human:grain'}`:
  * a fine, faint, seeded grain over every face — hand footprint-story/human's `grainTexture`, or its HUMAN_STYLE_CHOICES,
  * in `choices`) and `duotone` (`{palette: 'duotone'}`: every line the ink, every fill with a colour a tint of the accent on the paper;
- * a fill whose colour the page decides — where a tool's ok / warn / bad tones live — is left to the page).
+ * a fill whose colour the page decides — where a tool's ok / warn / bad tones live — is left to the page). 0.37.0: `sketchy`
+ * (`{shading: 'paper', line: 'human:sketchy', texture: {name: 'human:hatch', spacing: 28}}`: drawn by hand on paper —
+ * hand footprint-story/human's HUMAN_STYLE_CHOICES in `choices`; named without them, refused with that fix).
  */
-export const ISO_LOOKS: { readonly outlined: IsoStyleRow; readonly 'line-art': IsoStyleRow; readonly 'paper-grain': IsoStyleRow; readonly duotone: IsoStyleRow };
+export const ISO_LOOKS: { readonly outlined: IsoStyleRow; readonly 'line-art': IsoStyleRow; readonly 'paper-grain': IsoStyleRow; readonly duotone: IsoStyleRow; readonly sketchy: IsoStyleRow };
 /**
  * The palette "duotone"'s numbers (ours, 0.35.0): its inks (`ink` every line, `accent` the tints, `paper` what they are
  * mixed from), the deepest tint (`most`, 0.6 of the way to the accent),
@@ -373,6 +375,8 @@ export const ISO_LOOKS: { readonly outlined: IsoStyleRow; readonly 'line-art': I
 export const DUOTONE: { readonly ink: string; readonly accent: string; readonly paper: string; readonly most: number; readonly text: number };
 /** The contour line's numbers (ours): the contour as it shows (`width`, 5 px; 1 to 20) and the inner lines (`inner`, 1.5 px; 0.25 to the width). Drawn under the faces at 2 · width − inner. */
 export const CONTOUR: { readonly width: number; readonly inner: number; readonly least: number; readonly most: number; readonly leastInner: number };
+/** A ball's seams (ours, 0.37.0; StoryReel 0.44.0's marks): the ink at `alpha` (0.5), `share` (4 / 5) of the line's width — 2 px by today's 2.5 px ink. */
+export const SEAM: { readonly alpha: number; readonly share: number };
 /** Today's look: box, tones, ink, theme, none, no effects. */
 export const USUAL_STYLE: { readonly shape: 'box'; readonly shading: 'tones'; readonly line: 'ink'; readonly palette: 'theme'; readonly texture: 'none'; readonly effects: readonly [] };
 /** The names of the choices this package ships, by column. */
@@ -380,8 +384,13 @@ export const ISO_STYLE_CHOICES: Readonly<Record<IsoStyleColumn, readonly string[
 export const MOST_EFFECTS: number;
 export const MOST_OWN_CHOICES: number;
 
-/** A piece as a style reads it. */
-export interface IsoStylePiece { readonly name: string; readonly kind?: 'block' | 'cylinder' | 'floor'; readonly at: readonly number[]; readonly size: readonly number[] }
+/**
+ * A piece as a style reads it. A `ball` (0.37.0, StoryReel's round kind) has `size: [d, d, d]` — one number three times —
+ * and stands in the box a block of that size and place fills: its middle at `[col + d/2, row + d/2, lift + d/2]`, its
+ * radius d/2. Its paint list is its silhouette (role `top`, 72 points: a circle on the usual grid) and two seams (role
+ * `seam`, paths); its `centre` is its middle (where its name stands). A ball needs the grid's `at`.
+ */
+export interface IsoStylePiece { readonly name: string; readonly kind?: 'block' | 'cylinder' | 'floor' | 'ball'; readonly at: readonly number[]; readonly size: readonly number[] }
 /** What a choice's apply is handed: the piece, the colours (null: the page decides), its options, and numbers from 0 to 1 seeded by the style, the piece and the column. */
 export interface IsoStyleContext { readonly piece: Required<IsoStylePiece>; readonly colours: { readonly base: string | null; readonly ink: string | null }; readonly options: Readonly<Record<string, number | string | boolean>>; random(): number }
 /**

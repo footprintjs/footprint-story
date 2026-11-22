@@ -4,7 +4,8 @@
 // (isometric-looks.test.js) pins each file to what this writes; WRITE_EXAMPLE=1 draws them again.
 import { buildIsoMap, ISO_MAP_POLICIES } from '../isometric.js';
 // the looks that name a "human:" choice (paper-grain) build with the human door's list; the others never read it
-import { HUMAN_STYLE_CHOICES } from '../human.js';
+import { HUMAN_STYLE_CHOICES, strokeOutline } from '../human.js';
+import { isometric, isoStyle, paintPiece, ISO_LOOKS } from '../isometric.js';
 
 const n = (v) => String(Math.round(v * 10) / 10);
 const INK = '#1f2430';
@@ -29,7 +30,9 @@ function itemSvg(it) {
   if (it.item === 'ellipse') return `<ellipse${paint} cx="${n(it.cx)}" cy="${n(it.cy)}" rx="${n(it.rx)}" ry="${n(it.ry)}"/>`;
   if (it.item === 'lines') return `<path${paint} d="${it.segments.map(([x1, y1, x2, y2]) => `M${n(x1)},${n(y1)}L${n(x2)},${n(y2)}`).join('')}"/>`;
   if (it.item === 'path') return `<path${paint} d="${pathData(it.segments)}"/>`;
-  throw new Error(`the still's painter draws a polygon, an ellipse, lines or a path — not a ${it.item}`);
+  // a hand-drawn stroke (the look "sketchy"): the ring round it, its caps in it (human · strokeOutline), filled in its ink
+  if (it.item === 'stroke') return `<path fill="${s.colour}"${s.alpha === 1 ? '' : ` fill-opacity="${s.alpha}"`} d="M${strokeOutline(it.points, { cap: s.cap }).map(([x, y]) => `${n(x)},${n(y)}`).join('L')}Z"/>`;
+  throw new Error(`the still's painter draws a polygon, an ellipse, lines, a path or a stroke — not a ${it.item}`);
 }
 
 /** The still's map: a floor, two blocks, a cylinder and a slab, placed by hand on a written grid, with colours. */
@@ -64,4 +67,21 @@ export const LOOK_STILLS = Object.freeze([
   Object.freeze({ look: 'line-art', file: 'look-line-art.svg', paper: '#ffffff' }),
   Object.freeze({ look: 'paper-grain', file: 'look-paper-grain.svg', paper: '#faf6ee' }),
   Object.freeze({ look: 'duotone', file: 'look-duotone.svg', paper: '#ffffff' }),
+  Object.freeze({ look: 'sketchy', file: 'look-sketchy.svg', paper: '#ffffff' }),
 ]);
+
+/** The styles a ball is drawn in for the README's still of it (0.37.0): today's look, then every named look. */
+export const BALL_STYLES = Object.freeze([null, ...Object.keys(ISO_LOOKS)]);
+
+/** A ball in each style, side by side on one floor line, each painted by paintPiece (ball.js): src/isometric/ball-looks.svg. */
+export function ballStill() {
+  const grid = isometric({ tile: 72, origin: [300, 40] }), ink = '#1f2430';
+  const painted = BALL_STYLES.map((look, i) => paintPiece(isoStyle(look ? { look } : null, { choices: HUMAN_STYLE_CHOICES }), { name: `ball-${look ?? 'usual'}`, kind: 'ball', at: [i * 1.3, -i * 1.3], size: [1.1, 1.1, 1.1] }, grid, { base: '#f3e3c7', ink }));
+  // the page round the balls' boxes, 12 px to spare (the outlined look's band reaches 5 px past a box)
+  const x = Math.floor(Math.min(...painted.map((p) => p.box.x)) - 12), y = Math.floor(Math.min(...painted.map((p) => p.box.y)) - 12);
+  const w = Math.ceil(Math.max(...painted.map((p) => p.box.x + p.box.w)) + 12 - x), h = Math.ceil(Math.max(...painted.map((p) => p.box.y + p.box.h)) + 12 - y);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${w}" height="${h}">\n`
+    + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#faf6ee"/>\n`
+    + painted.map(({ items }) => `<g>${items.map(itemSvg).join('')}</g>\n`).join('')
+    + '</svg>\n';
+}

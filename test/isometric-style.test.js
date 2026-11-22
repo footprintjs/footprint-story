@@ -122,7 +122,7 @@ test('paintPiece refuses what it cannot read, naming the fix', () => {
   const style = isoStyle();
   assert.throws(() => paintPiece({ row: USUAL_STYLE, options: {} }, block, grid), /paintPiece takes a style isoStyle made/);
   assert.throws(() => paintPiece(style, { ...block, name: '' }, grid), /a piece's name is 1 to 64 letters/);
-  assert.throws(() => paintPiece(style, { ...block, kind: 'cone' }, grid), /a piece's kind is block, cylinder, floor — not "cone"/);
+  assert.throws(() => paintPiece(style, { ...block, kind: 'cone' }, grid), /a piece's kind is block, cylinder, floor, ball — not "cone"/);
   assert.throws(() => paintPiece(style, { ...block, size: [2, 2] }, grid), /"server"'s size is \[wide, deep, high\]/);
   // a floor lies on the ground: a lift on its at is dropped, as StoryDeck reads it
   assert.deepEqual(paintPiece(style, { ...floor, at: [0, 0, 1] }, grid), paintPiece(style, floor, grid));

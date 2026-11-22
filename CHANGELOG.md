@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — a name's ink
+## 0.38.0 — a name's ink
 
 - **The ink a name reads in on a face, once for both tools** (`src/isometric/colour.js`, on the isometric door):
   `readableInk(face, inks, {least})` gives `{ink, ratio, reads}` — the first ink (in the caller's order) that stands
@@ -19,6 +19,48 @@
   glance" — on every face, for four sets of tones (ours, StoryReel's paper and storybook themes, the tools' default
   tokens), on a light page and a dark one. The nearest is 12.2 (warn, paper theme, the lit top; its faces 12.6 / 16.5 /
   12.2, as StoryReel's review measured). The tint clears the floor and did not move.
+
+## 0.37.0 — the look `sketchy`, and a ball every style paints
+
+- **A named look, `sketchy`** (`src/isometric/looks.js` · `ISO_LOOKS`): the hand-drawn look as one name —
+  `{shading: 'paper', line: 'human:sketchy', texture: {name: 'human:hatch', spacing: 28}}`. White faces, every edge
+  drawn as a hand draws it (silhouette, then inner edges, tapered, the seeded tremor), the left sides hatched and the
+  right sides cross-hatched, the lit top clear. A row like 0.34.0's and 0.35.0's: named or written out, the same row,
+  options, seeds and paint list; the record keeps `style.look: 'sketchy'`; a look the row overrides whole is refused;
+  every list passes `checkPaint`. Both choices are footprint-story/human's, so a tool hands them in —
+  `{choices: HUMAN_STYLE_CHOICES}` — and named without them the refusal now says so: `… (footprint-story/human has the
+  "human:" ones: hand in HUMAN_STYLE_CHOICES, every one of them) (from the look "sketchy": write line beside it to
+  change it)` (the same words for any `human:` choice not handed in). The seeds are exact; the pen's `speed` stays
+  out of the seed, as 0.33.0 made it. A still in the isometric README (`look-sketchy.svg`).
+- **Its numbers are ours, held to the tools' budgets.** The hatch 28 px apart (the texture's usual is 8): a 64-block
+  world fitted to 1920 × 1080 draws **1,246 strokes** (166 edges, 1,080 hatch lines), about **1.84 MB** as StoryDeck
+  writes them — under the 2,000 strokes both tools note a map at (StoryReel's `STROKE_BUDGET.note`, StoryDeck's
+  `STROKES_NOTE`) and StoryDeck's 2 MB. At 8 the same world draws 3,660 strokes; at 16, 1,942 strokes but about
+  2.66 MB. Pinned under both policies. Paper faces because a pencil sketch has no colour: the hatch alone gives the light.
+- **The map flow draws it as `buildIsoMap` does** (random maps, both policies), and its record stays the summary: a
+  64-block sketched world's commit log is 90,813 bytes, 134 more than the same world plain (pinned under the plain bound).
+- **A ball** (`kind: 'ball'`, `src/isometric/ball.js`): `paintPiece` paints StoryReel 0.44.0's round kind in every
+  style and look. Its contract is StoryReel's: `size: [d, d, d]` (one number three times, refused otherwise) at
+  `[col, row, lift?]`, its middle at `[col + d/2, row + d/2, lift + d/2]` in tiles, radius `d/2`; its outline the great
+  circle square to the view (72 points: a circle on the usual grid), its `centre` its middle, two seams as built. The
+  silhouette is a face as a cylinder's top is (role `top`: lit, paper, outlined, grained, tinted, sketched, never
+  hatched); the seams (role `seam`) are drawn by each line as its folds — `SEAM`: the ink at 0.5, four fifths of the
+  line's width (2 px by 2.5), StoryReel's `mark` and `markLine`; `human:sketchy` draws them by hand. A test runs
+  StoryReel's own 0.44.0 code (`test/control/storyreel-0.44.0-turn.mjs`) beside it for any ball on any grid: the same
+  outline, middle, box, seams and fill. **The one difference:** StoryReel drew the edge after the seams; the list draws
+  it with the disc — each seam ends on the outline, so where the orders differ a seam lies on the edge's ink (ink at
+  half over ink), and only the antialiased fringe at a seam's end can move. StoryReel adopts it by painting a ball with
+  `paintPiece(restyle(map.style, {choices}), {name, kind: 'ball', at, size}, grid, colours)` (a turned ball swaps each
+  seam's points for its own turned marks), and can then drop its refusal of a ball in a styled world. `buildIsoMap`
+  takes no ball yet: a tool still builds the map with the ball as the cylinder round it. A still: `ball-looks.svg`.
+- **A refusal lifted: a hatch with no room is left clear.** `human:hatch` refused a piece none of whose hatched faces
+  holds one line at its spacing ("has nothing to draw" — any flat cylinder, its side all under its top, at any
+  spacing). Now the piece is left unhatched, as the grain leaves a face too small for a mark (`plan.js · hasStrokes`
+  asks planSketch's own order first, drawing no random number). A piece that has a line is planned exactly as before.
+- **Nothing else draws differently.** Every existing style and look is 0.36.0's byte for byte: 3,000 random maps (both
+  policies, with and without colours, thirteen styles including the hand-drawn ones) and 15,000 random pieces on random
+  grids compared against 0.36.0 as JSON: equal in every case but the 217 where 0.36.0 refused a hatch with nothing to
+  draw (drawn now, as above). The existing stills are unchanged.
 
 ## 0.36.0 — a sketch drawn faster than a hand draws says so
 

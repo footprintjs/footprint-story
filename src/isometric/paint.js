@@ -8,7 +8,7 @@
  *   { item: 'lines', role: 'grid', of: 'ground', segments: [[x1, y1, x2, y2], …], fill: null, stroke }
  *   { item: 'stroke', role: 'ink', of: 'server', points: [[x, y, width, t], …], fill: null, stroke }
  *
- * `role` says what the item is (`top`, `left`, `right`, `side`, `ground`, `grid`, or a style's own, such as `hatch`): a
+ * `role` says what the item is (`top`, `left`, `right`, `side`, `ground`, `grid`, a ball's `seam`, or a style's own, such as `hatch`): a
  * painter that colours by role (StoryDeck's CSS classes) reads it. `of` names the piece. A `fill` is null or
  * `{ mix: [toward, share], colour }` — the recipe a shading gave (the base colour mixed `share` of the way toward
  * `toward`, as CSS `color-mix` in srgb) and, when the caller gave a base colour, the colour it comes to (`colour`, a

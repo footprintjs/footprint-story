@@ -63,7 +63,7 @@ test('the hand-drawn map differs from the usual only where the style does: place
 });
 
 test('a style naming a tool\'s choice not handed in is refused, naming the entry and the fix', async () => {
-  const words = /isometric: slide 3's map's style: the style's line has no choice "human:sketchy" — the line choices are "ink", "none", "contour"; "human:sketchy" is a tool's own choice \(its name has a prefix\), which is code no record holds: hand the choice itself in \{choices\} \(footprint-story\/human has the "human:" ones\)$/;
+  const words = /isometric: slide 3's map's style: the style's line has no choice "human:sketchy" — the line choices are "ink", "none", "contour"; "human:sketchy" is a tool's own choice \(its name has a prefix\), which is code no record holds: hand the choice itself in \{choices\} \(footprint-story\/human has the "human:" ones: hand in HUMAN_STYLE_CHOICES, every one of them\)$/;
   const spec = { ...SPEC, who: "slide 3's map" };
   assert.throws(() => buildIsoMap(spec, FILM), words);
   assert.throws(() => buildIsoMap(spec, FILM, { choices: [hatchTexture] }), words, 'the texture handed, the line not');
