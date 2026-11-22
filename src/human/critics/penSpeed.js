@@ -1,8 +1,9 @@
 /**
  * The `pen-speed` critic: how far a pen's speed is from the two-thirds power law (speed ∝ curvature^−1/3). The track is
  * walked again every few px (so samples bunched in time do not weigh more), its bend read over the width the pen model
- * reads it over (paths/curvature.js · curvaturesOver), and the law fitted
- * against the curvature of the line as drawn plus the law's small floor (POWER_LAW.floor, 0.0002 per px: where a
+ * reads it over — at least one tremor wavelength either side (BEND_WIDTH, 24 px), so a tremor's wobble averages out and
+ * is not read as bends (paths/curvature.js · curvaturesOver) — and the law fitted
+ * against the curvature of the line as drawn plus the law's small floor (POWER_LAW.floor, 0.00025 per px: where a
  * straight run sets the top speed, so a pen that takes a hairpin as fast as a straight is seen), with its exponent
  * held at 1/3; the answer is what is left, as the root mean square of the log speeds (0.1 ≈ 10% off), and its basis
  * carries the exponent a free fit finds beside it.
@@ -13,8 +14,12 @@ import { POWER_LAW, powerLawFit } from '../laws/powerLaw.js';
 import { curvaturesOver } from '../paths/curvature.js';
 import { BEND_WIDTH } from '../models/powerLawPen.js';
 
-/** The most a pen's log speed may be off the law, on average, before it reads as a machine: 0.2 (about 22%). Ours. */
-export const PEN_SPEED_MOST = 0.2;
+/**
+ * The most a pen's log speed may be off the law, on average, before it reads as a machine: 0.25 (about 28%). Ours.
+ * WHY not tighter: the critic reads the line as drawn, through its tremor, and a law-made pen then measures up to about
+ * 0.2 at a hairpin; a pen that keeps one speed measures 0.3 or more on almost every curved line (test/human-critics).
+ */
+export const PEN_SPEED_MOST = 0.25;
 /** The share of the line at each end left out (the ramps), and the step the track is walked at, in px. */
 const ENDS = 0.15, STEP = 2;
 

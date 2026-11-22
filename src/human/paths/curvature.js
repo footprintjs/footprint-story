@@ -5,8 +5,9 @@
  * smoothing. An end has one neighbour, so it takes the curvature next to it.
  *
  * A turn past a right angle is read as at least the bend of the tightest circle its shorter side allows,
- * 2 · cos(half the angle at the point) / the shorter side — which is what the circle gives when the two sides are equal,
- * and 2 / the shorter side for a full reversal. WHY: the circle through a point and two neighbours that lie back on one
+ * 2 · cos(half the angle at the point) / the shorter side — what the circle gives when the two sides are equal, and
+ * 2 / the shorter side for a full reversal — eased in across the angle by −cos(the turn) (0 at a right angle, 1 at a
+ * reversal), so the curvature never jumps as a turn passes a right angle. WHY: the circle through a point and two neighbours that lie back on one
  * line (a hairpin, [[0, 0], [10, 0], [0, 0]]) has no radius, and reading it as straight would send a pen round the
  * sharpest turn there is at full speed.
  */
@@ -24,7 +25,8 @@ export function curvatures(points) {
     const menger = ca > 0 ? (2 * cross) / (ab * bc * ca) : 0;
     const dot = (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]);
     // past a right angle: cos(half the angle at b) = √((1 + cos B) / 2), where cos B = −dot / (ab · bc)
-    out[i] = dot < 0 ? Math.max(menger, (2 * Math.sqrt(Math.max(0, (1 - dot / (ab * bc)) / 2))) / Math.min(ab, bc)) : menger;
+    const ease = Math.max(0, -dot / (ab * bc));   // −cos(the turn): 0 at a right angle, 1 at a reversal
+    out[i] = ease > 0 ? Math.max(menger, (ease * 2 * Math.sqrt(Math.max(0, (1 - dot / (ab * bc)) / 2))) / Math.min(ab, bc)) : menger;
   }
   if (n > 2) { out[0] = out[1]; out[n - 1] = out[n - 2]; }
   return Object.freeze(out);
@@ -36,8 +38,8 @@ export function curvatures(points) {
  * as wide as the half-width averaged over (k times the points' mean spacing), so each point's curvature is held there
  * (a hairpin is that greatest bend, never a spike where the averaged points bunch at its tip), and then averaged over
  * the same k either side, so a fold spreads over the width it stands for. The pen model and the `pen-speed` critic
- * both read curvature this way, over the same width in px and the same 2 px step, so the law they share is the law
- * they measure.
+ * both read curvature this way, over the same width in px (one tremor wavelength) and the same 2 px step, so the law
+ * they share is the law they measure.
  */
 export function curvaturesOver(points, k) {
   points = readPoints(points, "curvaturesOver's points", { least: 1, most: 16384 });

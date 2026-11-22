@@ -4,16 +4,16 @@
  * that keeps one speed round a tight curl reads as a plotter; one that slows into it reads as a hand.
  *
  * Two of our own, both named in POWER_LAW:
- *   floor = 0.0002 per px — added to the curvature, so a straight stretch (no curvature, where the law asks for endless
- *           speed) runs at a top speed: a bend wider than 5000 px counts as nearly straight. Low enough that the law
- *           holds at a diagram's scale: a pen round a 300 × 100 or a 300 × 30 px ellipse goes as the true curvature to
- *           within 0.02 of the −1/3 (test/human-laws.test.js); 0.002 flattened it to about −0.22.
+ *   floor = 0.00025 per px — added to the curvature, so a straight stretch (no curvature, where the law asks for endless
+ *           speed) runs at a top speed: a bend wider than 4000 px counts as nearly straight. Low enough that the law
+ *           holds at a diagram's scale: a pen round a 300 × 100 or a 300 × 30 px ellipse, its tremor on, goes as the
+ *           true curvature to within 0.02 of the −1/3 (test/human-laws.test.js); 0.002 flattened it to about −0.22.
  *   ramp = 0.1 — the pen gathers speed from rest over the first tenth of the length and slows to rest over the last
  *           (speed ∝ the square root of the distance from the end: an even push), because a hand starts and stops still.
  */
 import { refuse, shown, finite } from '../read.js';
 
-export const POWER_LAW = Object.freeze({ exponent: 1 / 3, floor: 0.0002, ramp: 0.1 });
+export const POWER_LAW = Object.freeze({ exponent: 1 / 3, floor: 0.00025, ramp: 0.1 });
 
 /** The speed the law gives at a curvature (per px), for a gain of 1 unless given: gain · (curvature + floor)^(−exponent). */
 export function powerLawSpeed(curvature, { gain = 1, exponent = POWER_LAW.exponent, floor = POWER_LAW.floor } = {}) {

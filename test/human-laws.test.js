@@ -106,7 +106,7 @@ test('the tremor: the same seed the same knots, another seed others; at most its
   const k1 = tremorKnots(seeded('a'), 300), k2 = tremorKnots(seeded('a'), 300), k3 = tremorKnots(seeded('b'), 300);
   assert.deepEqual(k1, k2); assert.notDeepEqual(k1, k3);
   assert.equal(k1.length, Math.ceil(300 / TREMOR.wavelength) + 2);
-  assert.ok(k1.every((v) => v >= -1 && v < 1));
+  assert.ok(k1.every((v, i) => (i % 2 ? v <= -0.3 && v > -1 : v >= 0.3 && v < 1)), 'a swing to one side, then the other, never nothing');
   assert.equal(tremorAt(k1, 0, 300), 0); assert.equal(tremorAt(k1, 300, 300), 0);
   assert.equal(tremorAt(k1, 100, 300, { amplitude: 0 }), 0);
   let last = tremorAt(k1, 0, 300), most = 0;
@@ -118,12 +118,12 @@ test('the tremor: the same seed the same knots, another seed others; at most its
 });
 
 /** The exponent a pen traced round an a × b ellipse gives against the ellipse's TRUE curvature (the middle 80% of it). */
-export async function tracedExponent(a, b, floor) {
+export async function tracedExponent(a, b, floor, tremor = false) {
   const { planMove, sampleTrack } = await import('../human.js');
   const cx = 600, cy = 400, n = 120;
   const path = Array.from({ length: n }, (_, i) => [cx + a * Math.cos((i / (n - 1)) * 2 * Math.PI * 0.95), cy + b * Math.sin((i / (n - 1)) * 2 * Math.PI * 0.95)]);
-  const model = floor === undefined ? { name: 'power-law', tremor: 0, ramp: 0 } : { name: 'power-law', tremor: 0, ramp: 0, floor };
-  const tr = sampleTrack(planMove({ do: 'draw', path, model }), { rate: 1000 }).samples, out = [];
+  const model = { name: 'power-law', ramp: 0, ...(tremor ? {} : { tremor: 0 }), ...(floor === undefined ? {} : { floor }) };
+  const tr = sampleTrack(planMove({ do: 'draw', name: 'ellipse', path, model }), { rate: 1000 }).samples, out = [];
   let along = 0, next = 0;
   for (let i = 1; i < tr.length; i += 1) {
     const ds = Math.hypot(tr[i].x - tr[i - 1].x, tr[i].y - tr[i - 1].y);
@@ -139,8 +139,8 @@ export async function tracedExponent(a, b, floor) {
   return powerLawFit(speeds, kappa).exponent;
 }
 
-test('the law holds at a diagram\'s scale: a pen round a 300 × 100 and a 300 × 30 px ellipse goes as the true curvature^−1/3, to within 0.02', async () => {
-  assert.equal(POWER_LAW.floor, 0.0002);
-  for (const [a, b] of [[300, 100], [300, 30]]) close(await tracedExponent(a, b), 1 / 3, 0.02, `${a} × ${b}`);
+test('the law holds at a diagram\'s scale: a pen round a 300 × 100 and a 300 × 30 px ellipse goes as the TRUE curvature^−1/3, to within 0.02, its tremor off and on', async () => {
+  assert.equal(POWER_LAW.floor, 0.00025);
+  for (const tremor of [false, true]) for (const [a, b] of [[300, 100], [300, 30]]) close(await tracedExponent(a, b, undefined, tremor), 1 / 3, 0.02, `${a} × ${b}, tremor ${tremor ? 'on' : 'off'}`);
   assert.ok(await tracedExponent(300, 100, 0.002) < 0.25, 'the old floor, 0.002, flattened it');
 });

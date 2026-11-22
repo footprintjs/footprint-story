@@ -1,8 +1,9 @@
 /**
  * `power-law` (family `pen`): a pen tracing a line through the intent's points — a centripetal Catmull-Rom curve
  * (paths/catmullRom.js), walked every 2 px — slower where it bends by the two-thirds power law (laws/powerLaw.js),
- * from rest and back to rest, with a seeded tremor across it (laws/tremor.js). The law reads the line as drawn, tremor
- * and all, over BEND_WIDTH px either side (paths/curvature.js · curvaturesOver) — as the `pen-speed` critic reads it.
+ * from rest and back to rest, with a seeded tremor across it (laws/tremor.js). The law reads the smooth line, before
+ * the tremor, over BEND_WIDTH px either side (paths/curvature.js · curvaturesOver): the bend the hand means, so the
+ * tremor moves the pen across the line and never changes its pace.
  *
  *   intent  { do: 'draw', path: [[x, y], …] (2 to 1024 points it passes through), seconds?, speed?: px a second (400) }
  *   options tremor (px across, 0 to 8; 0.8), wavelength (px; 24), ramp (0 to 0.5; 0.1), floor (per px; 0.002)
@@ -24,8 +25,11 @@ import { intentKeys, optionNumber, readSeconds, round } from './options.js';
 export const PEN_SPEED = 400;
 /** The step the line is walked at, in px, and the most points a plan holds (a longer line is walked at a longer step). */
 const STEP = 2, MOST_POINTS = 8192;
-/** How far either side the bend is read over, in px: the width the `pen-speed` critic reads it over too. */
-export const BEND_WIDTH = 12;
+/** How far either side the bend is read over, in px: one tremor wavelength (24), the width the `pen-speed` critic reads
+ *  it over too, so a tremor's wobble averages out of what the critic measures. */
+export const BEND_WIDTH = TREMOR.wavelength;
+/** How soon the tremor quietens into a bend: gone where a bend within two widths is tighter than a radius of 4 · BEND_WIDTH. Ours. */
+const QUIET = 4;
 
 export const powerLawModel = Object.freeze({
   family: 'pen',
@@ -49,18 +53,22 @@ export const powerLawModel = Object.freeze({
     const points = resample(curve, { count: Math.max(2, Math.min(MOST_POINTS, Math.ceil(arcTable(curve).length / STEP) + 1)) });
     // the length of the line as walked (a hair under the curve's: chords for arcs), so the tremor ends at its last point
     const along = arcTable(points).along, length = along[along.length - 1], seconds = given ?? length / speed;
+    // the law on the smooth line, before the tremor: a hand slows for the bend it means, not for its own wobble
+    const k = Math.max(1, Math.round(BEND_WIDTH / (length / (points.length - 1) || STEP))), bends = curvaturesOver(points, k);
+    // the tightest bend within two widths either side: where the wobble quietens, so no reader's window sees it fade
+    const near = bends.map((_, i) => { let most = 0; for (let j = Math.max(0, i - 2 * k); j <= Math.min(bends.length - 1, i + 2 * k); j += 1) most = Math.max(most, bends[j]); return most; });
+    const times = powerLawTimes(along, bends, seconds, { floor, ramp });
     const knots = tremorKnots(random, length, { wavelength });
     const xs = [], ys = [];
     points.forEach((p, i) => {
-      // across the line: the left normal of the chord through the neighbours (y down)
+      // across the line: the left normal of the chord through the neighbours (y down); the wobble quietens near a bend
+      // (gone where one within two widths is tighter than a radius of QUIET · BEND_WIDTH = 96 px), so a hairpin's legs
+      // never knot at its tip and no reader's window sees the wobble fade into the bend
       const a = points[Math.max(0, i - 1)], b = points[Math.min(points.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
-      const off = len > 0 ? tremorAt(knots, along[i], length, { amplitude, wavelength }) / len : 0;
+      const quiet = Math.max(0, 1 - near[i] * QUIET * BEND_WIDTH);
+      const off = len > 0 ? (quiet * tremorAt(knots, along[i], length, { amplitude, wavelength })) / len : 0;
       xs.push(p[0] + dy * off); ys.push(p[1] - dx * off);
     });
-    // the law on the line as drawn, tremor and all: the pen's speed follows the bends it makes, as the critic reads them
-    const drawn = xs.map((x, i) => [x, ys[i]]), drawnAlong = arcTable(drawn).along;
-    const bends = curvaturesOver(drawn, Math.max(1, Math.round(BEND_WIDTH / (length / (points.length - 1) || STEP))));
-    const times = powerLawTimes(drawnAlong, bends, seconds, { floor, ramp });
     const speedDefaulted = stored(intent, 'speed', '') === undefined;
     return { seconds, xs, ys, times, pushes: 1,
       basis: { length, speed, speedDefaulted, seconds, secondsGiven: given !== undefined, tremor: amplitude, wavelength, ramp, floor, points: points.length },

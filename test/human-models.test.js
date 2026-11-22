@@ -215,7 +215,7 @@ test('beside the words, the data: how the model was chosen, and the numbers each
   assert.equal(planMove({ ...reach, seconds: 2 }).plan.basis.secondsGiven, true);
   const pen = planMove({ do: 'draw', path: [[0, 0], [300, 0]], speed: 150 }).plan.basis;
   assert.deepEqual(Object.keys(pen), ['length', 'speed', 'speedDefaulted', 'seconds', 'secondsGiven', 'tremor', 'wavelength', 'ramp', 'floor', 'points']);
-  assert.equal(pen.speed, 150); assert.equal(pen.speedDefaulted, false); assert.equal(pen.floor, 0.0002);
+  assert.equal(pen.speed, 150); assert.equal(pen.speedDefaulted, false); assert.equal(pen.floor, 0.00025);
   assert.deepEqual(planMove({ do: 'write', points: [[0, 0], [9, 9], [18, 0]] }).plan.basis, { strokes: 2, from: 'points', seconds: planMove({ do: 'write', points: [[0, 0], [9, 9], [18, 0]] }).plan.seconds, secondsGiven: false, mu: -1.6, sigma: 0.3, gap: 0.16, bend: 0 });
   const fromStrokes = planMove({ do: 'write', strokes: [{ distance: 5, start: 0, mu: -1, sigma: 0.2, angleFrom: 0, angleTo: 0 }], seconds: 1 }).plan.basis;
   assert.deepEqual([fromStrokes.from, fromStrokes.mu, fromStrokes.secondsGiven], ['strokes', null, true]);
@@ -264,4 +264,12 @@ test('a pen slows into a hairpin: the reversal is its sharpest bend, not a strai
   const tr = sampleTrack(m, { rate: 1000 }).samples, speeds = tr.slice(1).map((s, i) => ({ x: s.x, v: Math.hypot(s.x - tr[i].x, s.y - tr[i].y) / (s.t - tr[i].t) }));
   const tip = speeds.reduce((b, p) => (p.x > b.x ? p : b)), mid = speeds.filter((p) => Math.abs(p.x - 250) < 3).map((p) => p.v);
   assert.ok(tip.v < Math.min(...mid) / 2, `the tip at ${tip.v} px a second, the legs at ${Math.min(...mid)} or more`);
+});
+
+test('a straight line keeps a steady speed away from its ends, tremor and all: the wobble moves the pen across, never changes its pace', () => {
+  const m = planMove({ do: 'draw', name: 'rule', path: [[100, 500], [1300, 500]] });
+  const tr = sampleTrack(m, { rate: 1000 }).samples, speeds = [];
+  for (let i = 10; i < tr.length; i += 10) if (tr[i].x > 300 && tr[i].x < 1100) speeds.push(Math.hypot(tr[i].x - tr[i - 10].x, tr[i].y - tr[i - 10].y) / (tr[i].t - tr[i - 10].t));
+  assert.ok(Math.max(...speeds) / Math.min(...speeds) < 1.02, `between ${Math.min(...speeds)} and ${Math.max(...speeds)} px a second`);
+  assert.ok(tr.some((s) => Math.abs(s.y - 500) > 0.3), 'and it does tremble');
 });

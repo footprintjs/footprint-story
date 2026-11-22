@@ -13,7 +13,7 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `laws/fitts.js` | Fitts's law: a move's seconds from its distance and its target's width (`fittsIndex`, `fittsSeconds`, `FITTS`) |
 | `laws/powerLaw.js` | the two-thirds power law: slower where a line bends (`powerLawSpeed`, `powerLawTimes`, `powerLawFit`) |
 | `laws/sigmaLognormal.js` | sigma-lognormal strokes: overlapping lognormal pushes, added up into a pen's path (`sigmaLognormalAt`, `strokeBetween`, …) |
-| `laws/tremor.js` | a seeded tremor across a line, nothing at its ends (`tremorKnots`, `tremorAt`) |
+| `laws/tremor.js` | a seeded tremor that swings to and fro across a line, nothing at its ends (`tremorKnots`, `tremorAt`) |
 | `paths/arcLength.js` | a line's length table, and share ↔ distance (`arcTable`, `pointAt`, `shareToDistance`, `distanceToShare`) |
 | `paths/catmullRom.js` | a centripetal Catmull-Rom line through points: no cusp, no loop (`catmullRom`) |
 | `paths/curvature.js` | the curvature at each point (`curvatures`; a hairpin is the sharpest bend, never straight), and over a width (`curvaturesOver`, what the pen and its critic read) |
@@ -56,7 +56,7 @@ A model is a named strategy, one interface for all (`models/registry.js`):
 | do | family | model (the usual) | the intent's keys | options (under `model: {name, …}`) |
 |---|---|---|---|---|
 | `reach` | `reach` | `min-jerk`: minimum jerk, seconds from Fitts unless given | `from`, `to`, `target` (px, 40), `seconds` | `bend` (0.06, at most 0.3), `a`, `b` |
-| `draw` | `pen` | `power-law`: a Catmull-Rom line traced slower in the bends (the law read on the line as drawn), with a tremor | `path`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `ramp`, `floor` |
+| `draw` | `pen` | `power-law`: a Catmull-Rom line traced slower in the bends (the law read on the smooth line, before the tremor), with a tremor that swings to and fro and quietens into tight bends | `path`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `ramp`, `floor` |
 | `write` | `letter` | `sigma-lognormal`: one lognormal stroke a point, overlapping | `points`, or `strokes` and `at`; `seconds` | `mu`, `sigma`, `gap`, `bend` |
 
 Every intent may also hold `name` (its piece: part of the seed), `who` (its words for where it was written, named in
@@ -100,7 +100,7 @@ message, fix} | null}`. `checkMove(move)` samples the move (120 a second), runs 
 |---|---|---|
 | `jerk` | speed peaks beyond the pushes the plan was made of | any extra: it stops and starts |
 | `arc` | the most the move bows from its straight line, over its length | under 2%: a straight slide |
-| `pen-speed` | how far the speed is off the two-thirds power law (log RMS against the drawn line's curvature plus the 0.0002 floor, ends left out); its basis has the free fit's exponent | over 0.2: a plotter |
+| `pen-speed` | how far the speed is off the two-thirds power law (log RMS against the curvature of the line as drawn, read over one tremor wavelength either side, plus the 0.00025 floor; ends left out); its basis has the free fit's exponent | over 0.25: a plotter |
 
 ```js
 checkMove(planMove({ do: 'reach', who: 'b1', from: [0, 0], to: [300, 0], model: { name: 'min-jerk', bend: 0 } })).findings;

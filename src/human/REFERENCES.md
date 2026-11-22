@@ -19,7 +19,7 @@
 | Arcs | `critics/arc.js` | F. Thomas, O. Johnston, *The Illusion of Life: Disney Animation*, Abbeville Press, 1981 | that a living thing moves on arcs, and a straight slide reads as mechanical |
 
 **Ours:** every default not in a row above — Fitts's a (0.1 s), b (0.2 s a bit) and the usual target (40 px); the power law's floor
-(0.0002 per px) and ramp (a tenth at each end); the pen's speed (400 px a second); the tremor's amplitude (0.8 px) and
-wavelength (24 px); the letter's mu (−1.6), sigma (0.3) and gap (0.16 s); the reach's bow (6% of its length, at most 30%); a turn past a right angle read as at least 2 · cos(B/2) / its shorter side; the
+(0.00025 per px) and ramp (a tenth at each end); the pen's speed (400 px a second); the tremor's amplitude (0.8 px),
+wavelength (24 px), alternating swings and quieting into bends; the letter's mu (−1.6), sigma (0.3) and gap (0.16 s); the reach's bow (6% of its length, at most 30%); a turn past a right angle read as at least 2 · cos(B/2) / its shorter side; the
 critics' limits (no extra speed peak, a 2% bow, 20% off the law) and the way `pen-speed` walks and smooths a track.
 Each is a named constant beside its reason, and a test pins it.

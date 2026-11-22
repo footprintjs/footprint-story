@@ -66,6 +66,14 @@ test('curvature: 1 over the radius on a circle, 0 on a straight line, the ends t
   assert.deepEqual(curvatures([[0, 0], [10, 0], [5, 0]]), [0.4, 0.4, 0.4], 'back along the line: 2 / the shorter side');
   close(curvatures([[0, 0], [10, 0], [10, 10]])[1], Math.SQRT2 / 10, 1e-12, 'a right angle, as the circle gives it');
   close(curvatures([[0, 0], [10, 0], [10.000001, 10]])[1], Math.SQRT2 / 10, 1e-6, 'and just past one: no jump');
+  // unequal sides (1 and 10): the sharp-turn floor eases in from nothing at a right angle, so the two sides of it meet
+  for (const e of [1e-3, 1e-6]) close(curvatures([[0, 0], [1, 0], [1 - e, 10]])[1], curvatures([[0, 0], [1, 0], [1 + e, 10]])[1], 1e-3 * e * 10 + 1e-9, `either side of a right angle, ${e} apart`);
+  let last = 0;
+  for (let deg = 80; deg <= 180; deg += 0.5) {
+    const turn = (deg * Math.PI) / 180, k = curvatures([[0, 0], [1, 0], [1 + 10 * Math.cos(turn), 10 * Math.sin(turn)]])[1];
+    if (deg > 80) assert.ok(Math.abs(k - last) < 0.05, `continuous at a turn of ${deg}°: ${last} → ${k}`);
+    last = k;
+  }
   assert.ok(curvatures([[0, 0], [10, 0], [0, 1]])[1] > curvatures([[0, 0], [10, 0], [2, 8]])[1], 'the nearer a reversal, the sharper');
   const bent = curvatures([[0, 0], [1, 0], [1, 1], [1, 2]]);
   assert.equal(bent[0], bent[1]); assert.equal(bent[3], bent[2]);
