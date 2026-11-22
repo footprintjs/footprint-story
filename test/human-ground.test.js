@@ -1,4 +1,4 @@
-// Rolling and sliding on the human door (0.30.0): the roll (`no-slip`) and slide (`coulomb`) models and the parts under
+// Rolling and sliding on the human door (0.31.0): the roll (`no-slip`) and slide (`coulomb`) models and the parts under
 // them (the glide law, the slab test, rolling and friction) — closed forms (distance v² / 2a, the turn distance / radius),
 // slopes that speed or slow, a stop at a box, the floor seen from above, the reason and basis as data, and refusals that
 // name the entry and the fix. Geometry is compared to a tolerance: sin, cos and sqrt differ in the last digits across engines.

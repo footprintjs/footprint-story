@@ -6,6 +6,7 @@
  *   { item: 'ellipse', role: 'top', of: 'db', cx, cy, rx, ry, fill, stroke }
  *   { item: 'path', role: 'side', of: 'db', segments: [['move', x, y], ['line', x, y], ['arc', cx, cy, rx, ry, from, to, anticlockwise], ['close']], fill, stroke }
  *   { item: 'lines', role: 'grid', of: 'ground', segments: [[x1, y1, x2, y2], …], fill: null, stroke }
+ *   { item: 'stroke', role: 'ink', of: 'server', points: [[x, y, width, t], …], fill: null, stroke }
  *
  * `role` says what the item is (`top`, `left`, `right`, `side`, `ground`, `grid`, or a style's own, such as `hatch`): a
  * painter that colours by role (StoryDeck's CSS classes) reads it. `of` names the piece. A `fill` is null or
@@ -19,13 +20,20 @@
  * then `A rx ry 0 0 (anticlockwise ? 0 : 1) endX endY`. WHY at most π: the large-arc flag is then always 0, and a
  * longer arc is two items' worth of trouble for every painter; a choice that needs more splits it.
  *
+ * A `stroke` is a line drawn by hand (footprint-story/human · strokes): each point where the pen is, the width it lays
+ * down there (0 to the stroke's `width`) and when, in seconds from the piece's start (rising along the item), so a painter
+ * may draw it as it is drawn. A painter that cannot vary a line's width fills the ring round it (human ·
+ * strokeOutline). WHY a kind of its own, not `lines` or `path` with a width per point: a painter that does not know it
+ * then refuses it by name, never draws it at one width and calls it done; and its points are checked as what they are.
+ * Its fill is null; its stroke names the colour, alpha and cap.
+ *
  * WHY data: a deck and a film paint the same list, so they draw the same picture; a test compares lists, not
  * screenshots; and this package stays free of drawing code.
  */
 import { fin, finite, refuse, shown } from './thing.js';
 
 /** The kinds of item a painter must draw, the most items one piece's list may hold, and the most points or segments in one item. */
-export const PAINT_ITEMS = Object.freeze(['polygon', 'ellipse', 'path', 'lines']);
+export const PAINT_ITEMS = Object.freeze(['polygon', 'ellipse', 'path', 'lines', 'stroke']);
 export const MOST_PAINT_ITEMS = 512;
 export const MOST_PAINT_POINTS = 4096;
 const HEX = /^#[0-9a-f]{6}$/;
@@ -91,7 +99,7 @@ export function checkPaint(list, who, piece) {
     if (!PAINT_ITEMS.includes(item.item)) refuse(`${what} is a ${PAINT_ITEMS.join(', a ')} — not ${shown(item.item)}`);
     if (typeof item.role !== 'string' || !NAME.test(item.role)) refuse(`${what}'s role is a short lower-case name ("top", "hatch") — not ${shown(item.role)}`);
     if (item.of !== piece) refuse(`${what}'s of names its piece, ${shown(piece)} — not ${shown(item.of)}`);
-    const allowed = { polygon: ['points'], ellipse: ['cx', 'cy', 'rx', 'ry'], path: ['segments'], lines: ['segments'] }[item.item];
+    const allowed = { polygon: ['points'], ellipse: ['cx', 'cy', 'rx', 'ry'], path: ['segments'], lines: ['segments'], stroke: ['points'] }[item.item];
     const extra = Object.keys(item).filter((k) => !['item', 'role', 'of', 'fill', 'stroke', ...allowed].includes(k));
     if (extra.length) refuse(`${what} (a ${item.item}) holds item, role, of, ${allowed.join(', ')}, fill and stroke — not ${shown(extra)}`);
     if (!('fill' in item) || !('stroke' in item)) refuse(`${what} says its fill and its stroke (null for none)`);
@@ -100,6 +108,16 @@ export function checkPaint(list, who, piece) {
     if (item.item === 'polygon') { count(item.points, `${what}'s points`); if (item.points.length < 3) refuse(`${what} is a polygon of at least 3 points — not ${item.points.length}`); item.points.forEach((p) => point(p, `${what}'s point`)); }
     if (item.item === 'ellipse' && !(['cx', 'cy', 'rx', 'ry'].every((k) => finite(item[k])) && item.rx >= 0 && item.ry >= 0)) refuse(`${what} is an ellipse {cx, cy, rx, ry}, finite numbers, rx and ry from 0 — not ${shown([item.cx, item.cy, item.rx, item.ry])}`);
     if (item.item === 'lines') { count(item.segments, `${what}'s segments`); for (const s of item.segments) if (!(Array.isArray(s) && s.length === 4 && s.every(finite))) refuse(`${what}'s segment is [x1, y1, x2, y2], finite numbers — not ${shown(s)}`); }
+    if (item.item === 'stroke') {
+      count(item.points, `${what}'s points`);
+      if (item.points.length < 2) refuse(`${what} is a stroke of at least 2 points — not ${item.points.length}`);
+      if (item.fill !== null || item.stroke === null) refuse(`${what} is a stroke: its fill is null and its stroke names its colour, alpha and cap`);
+      let last = 0;
+      for (const p of item.points) {
+        if (!(Array.isArray(p) && p.length === 4 && p.every(finite) && p[2] >= 0 && p[2] <= item.stroke.width + 1e-9 && p[3] >= last)) refuse(`${what}'s point is [x, y, width, t]: finite numbers, the width from 0 to the stroke's ${item.stroke.width} px, t in seconds from ${last} on (rising along it) — not ${shown(p)}`);
+        last = p[3];
+      }
+    }
     if (item.item === 'path') {
       count(item.segments, `${what}'s segments`);
       if (item.segments[0]?.[0] !== 'move') refuse(`${what} starts with a ['move', x, y]`);

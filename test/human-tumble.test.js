@@ -1,4 +1,4 @@
-// Tumbling on the human door (0.30.0): the `free-spin` model — a ballistic flight whose spin is kept (no torque in
+// Tumbling on the human door (0.31.0): the `free-spin` model — a ballistic flight whose spin is kept (no torque in
 // flight), and the hand-over at the landing as data (LANDING_RULES): a round thing rolls on, keeping its turning about the
 // contact point, a box slides on and lands on a face. Geometry to a tolerance.
 import test from 'node:test';

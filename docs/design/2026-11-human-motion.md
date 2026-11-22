@@ -1,6 +1,6 @@
 # Human movement and hand drawing — the laws, the strategies, the checks
 
-Status: design, 2026-11-21. Round 1 · A (laws, paths, the `reach`/`pen`/`letter` models, critics `jerk`, `pen-speed`, `arc`, the `footprint-story/human` door) built in footprint-story 0.26.0 (`src/human/README.md`); Round 1 · B builds in parallel (see "Build order").
+Status: design, 2026-11-21. Round 1 · A (laws, paths, the `reach`/`pen`/`letter` models, critics `jerk`, `pen-speed`, `arc`, the `footprint-story/human` door) built in footprint-story 0.26.0 (`src/human/README.md`); Round 1 · B builds in parallel (see "Build order"). Round 2 · C (hand-drawn strokes: the order, the pen, fills, boil, the `hand-sketch` model, critics `pen-lifts`, `stroke-order`, `hatch-gaps`, the paint list's `stroke` item and the style choices `human:sketchy`, `human:hatch`) built: `src/human/strokes/README.md`.
 
 ## Why
 

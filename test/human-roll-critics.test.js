@@ -1,4 +1,4 @@
-// The roll-slip and spin critics (0.30.0), each measured on a drawn track — hand-made bad tracks from a tool's own
+// The roll-slip and spin critics (0.31.0), each measured on a drawn track — hand-made bad tracks from a tool's own
 // model are caught, with the entry named and the fix in the intent's keys; good ones pass, wrapped angles included.
 // And spacing reads only a tumble's flight (samples marked air: 0 are on the floor).
 import test from 'node:test';
@@ -72,6 +72,13 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
   // a step the same way for good (an angle set once by hand) flicks too
   const stepped = { ...wheel, name: 'reel:stepped', sample: (p, t) => ({ x: 200 * t, y: 0, angle: 20 * t + (t >= 1 ? 1 : 0) }) };
   assert.equal(checkMove(planMove({ do: 'roll', model: 'reel:stepped' }, { models: [stepped] }), { models: [stepped] }).bases.spin.kind, 'jump');
+  // a real jump is still caught: a sudden 90° flip mid-roll, for good or for one sample — the samples' own spin says no such turn
+  const flipped = (name, flip) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 200 * t, y: 0, angle: 20 * t + flip(t), spin: 20 }) }; return checkMove(planMove({ do: 'roll', who, model: name }, { models: [m] }), { models: [m] }); };
+  for (const [name, flip] of [['reel:flip', (t) => (t >= 1 ? Math.PI / 2 : 0)], ['reel:blip', (t) => (Math.abs(t - 1) < 1e-9 ? Math.PI / 2 : 0)]]) {
+    const c = flipped(name, flip);
+    assert.equal(c.bases.spin.kind, 'jump'); assert.ok(c.measures.spin > 1, `${name}: ${c.measures.spin}`);
+    assert.match(c.findings.find((f) => f.critic === 'spin').message, /its drawn angle jumps at (0\.99|1\.00) s/);
+  }
   // a spin sped up hard and stopped dead, or started at once from rest, changes its rate — it never flicks
   const spun = (name, angle) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 100 * t, y: 0, angle: angle(t) }) }; return checkMove(planMove({ do: 'roll', model: name }, { models: [m] }), { models: [m] }); };
   assert.ok(spun('reel:stopped', (t) => 200 * Math.min(t, 0.05) ** 2).measures.spin <= SPIN_MOST, 'sped up, then stopped dead');

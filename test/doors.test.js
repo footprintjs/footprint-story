@@ -43,7 +43,7 @@ const SPRING = 'src/motion/spring.js';
 const MIN_JERK = 'src/timing/minJerk.js';
 /** The geometry leaf (angles, quaternions, slerp, squad, spherical places, look-at): its files import only each other.
  *  Exactly the doors that use it may reach it: the geometry door, which hands it out, the shot door (camera moves), and
- *  the human door with the humanflow door that runs its steps (0.30.0: the roll-slip and spin critics read a drawn turn
+ *  the human door with the humanflow door that runs its steps (0.31.0: the roll-slip and spin critics read a drawn turn
  *  the short way round, geom/angles.js · wrapAngle and shortestTurn — reused, never copied). */
 const GEOM = 'src/geom/';
 const GEOM_DOORS = ['geometry.js', 'shot.js', 'human.js', 'humanflow.js'];
@@ -77,12 +77,15 @@ test('every source file is behind exactly one door, only the voice door reaches 
   for (const f of voice.filter((v) => v.startsWith('src/') && !v.startsWith('src/voice/'))) assert.ok(pure.includes(f), `${f}: a pure file the voice door uses is pure, behind the pure door too`);
 });
 
+/** A door's types: its .d.ts, with every file it re-exports whole (`export * from './….js'`, the .d.ts beside it) read in. */
+const typesOf = (file) => { const text = readFileSync(file, 'utf8'); return [text, ...[...text.matchAll(/^export \* from '(\.[^']+)\.js';/gm)].map((m) => typesOf(path.resolve(path.dirname(file), `${m[1]}.d.ts`)))].join('\n'); };
+
 test('every public symbol has one door, and its types declare it', async () => {
   const doors = { 'index.js': Object.keys(await import('../index.js')), 'voice.js': Object.keys(await import('../voice.js')), 'motion.js': Object.keys(await import('../motion.js')), 'storyboard.js': Object.keys(await import('../storyboard.js')), 'shot.js': Object.keys(await import('../shot.js')), 'isometric.js': Object.keys(await import('../isometric.js')), 'layout.js': Object.keys(await import('../layout.js')), 'record.js': Object.keys(await import('../record.js')), 'mapflow.js': Object.keys(await import('../mapflow.js')), 'human.js': Object.keys(await import('../human.js')), 'geometry.js': Object.keys(await import('../geometry.js')), 'humanflow.js': Object.keys(await import('../humanflow.js')) };
   const all = Object.values(doors).flat();
   assert.deepEqual(all.filter((name, i) => all.indexOf(name) !== i), [], 'a symbol with two doors');
   for (const [door, names] of Object.entries(doors)) {
-    const types = readFileSync(path.join(root, door.replace(/\.js$/, '.d.ts')), 'utf8');
+    const types = typesOf(path.join(root, door.replace(/\.js$/, '.d.ts')));
     for (const name of names) assert.match(types, new RegExp(`export (?:declare )?(?:function|const) ${name}\\b`), `${door.replace(/\.js$/, '.d.ts')} does not declare ${name}`);
     // and the other way round: the types promise no function or value the door does not hand out
     for (const [, declared] of types.matchAll(/^export (?:declare )?(?:function|const) (\w+)/gm)) assert.ok(names.includes(declared), `${door.replace(/\.js$/, '.d.ts')} declares ${declared}, which ${door} does not export`);

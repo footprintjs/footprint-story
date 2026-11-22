@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — rolling, tumbling and sliding
+## 0.31.0 — rolling, tumbling and sliding
 
 - **Three families on `footprint-story/human`: `do: 'roll'`, `'slide'` and `'tumble'`,** each with its usual model.
   `no-slip` rolls a round thing without slipping: its `angle` is distance / radius, unwrapped; rolling resistance
@@ -33,6 +33,54 @@
   `SLIDE_KEYS`, `TUMBLE_KEYS`, `TUMBLE_SHAPES`, `GROUND_PLANES`, `MIN_ROLL_RADIUS`, `MOST_GROUND_SPEED`, `OFF_LINE`,
   `MOST_FRICTION`, `ROLL_SLIP_MOST`, `SPIN_MOST`, `SPIN_FLOOR`). The human and humanflow doors now reach the geometry
   leaf (`src/geom/angles.js`) for the critics' turns, reused, never copied.
+
+## 0.30.0 — hand-drawn strokes
+
+- **`do: 'sketch'` and the model `hand-sketch`** (new family `sketch`; `footprint-story/human`;
+  docs/design/2026-11-human-motion.md · "Hand-drawn strokes"): shapes in (`{points, closed?, layer?: 'outline' |
+  'detail', group?, edge?, fill?, holes?}`), every stroke a hand would draw out, as frozen plain data — the order and the
+  rule that put each stroke there (`plan.order`), each stroke's corners, timed points, widths, smooth line and tremor room
+  (`plan.strokes`), the pen's lifts (`plan.lifts`), and the fewest strokes each layer allows (`plan.least`).
+  `planSketch(shapes, {random | seed, …})` is the same plan without a move; `sampleSketch(plan, t)` says where the pen
+  is, down or in the air (`planMove` / `sampleMove` read them for `do: 'sketch'`).
+- **The order rule (`ORDER_RULE`):** piece by piece (`group`) from the top left; in each its outline, then its detail,
+  then its fills; in a layer of lines a line two shapes share is drawn once, each stroke starts at the corner nearest
+  the pen (a corner meeting an odd number of lines first) and follows the straightest line left that does not cut the
+  rest in two (Fleury). A property test finds random line drawings drawn with every line once in exactly the fewest
+  strokes Euler's count allows (`leastStrokes`).
+- **The pen (`CORNER`, `PEN_WIDTH`, `SKETCH`, `WIDTH_SHARE`, `LIFT`; ours):** a 3 px hook (15% of the shorter line) past
+  a turn of 60° or more; paced by the two-thirds power law at 400 px a second (fills 800); widths thinning to 65% at top
+  speed and tapered over 8 px from 30%, detail at 70% and fills at 40% of 2.5 px; the seeded tremor capped at half the gap
+  to another leg and, for a fill, at the distance to its shape's edge; lifts of 0.06 s plus 1500 px a second.
+- **Fills by hand:** `hatchLines` cuts lines at a stated angle (−45°) and spacing (8 px) exactly to a shape and out of
+  its holes, centred, the margin above 0 and at most half a spacing; `hatch` (one flick a line), `cross-hatch` (+90°,
+  `CROSS_TURN`), `scribble` (joined back and forth where the link stays inside). A drawn fill, tremor and all, stays
+  inside its shape.
+- **`boilSketch(plan, frame, {every, amplitude})`:** a fresh seeded tremor every 3 frames (`BOIL`), within each
+  stroke's room and amplitude of its line; the same frame, the same drawing.
+- **Critics `pen-lifts`, `stroke-order`, `hatch-gaps`** (`PEN_LIFTS_MOST` 0, `STROKE_ORDER_MOST` 0, `HATCH_GAP_MOST`
+  1.5): more strokes than the order needs, detail or fill begun before its piece's outline is finished, a band across a
+  hatch wider than 1.5 spacings with no line — each naming `who` and the fix in the intent's keys.
+- **The paint list has a `stroke` item** (`footprint-story/isometric`, `PAINT_ITEMS`): `{item: 'stroke', role, of,
+  points: [[x, y, width, t], …], fill: null, stroke}`, checked by `checkPaint` (each width within the stroke's, times
+  rising). This package's own style choices never give one, so every map draws as before. A painter that knows the four
+  kinds must add it before it offers the choices below.
+- **Two style choices on strokes, handed in, never built in:** `sketchyLine` (`human:sketchy`: a piece's silhouette then
+  its inner edges drawn by hand, the faces' ink line dropped) and `hatchTexture` (`human:hatch`: left faces and sides
+  hatched, right faces cross-hatched, kept out of the faces painted over them, timed after the line), with
+  `shapesOfPaint`, `strokeItems` and `strokeOutline` (the ring a painter fills). The isometric door still never loads
+  `src/human`.
+- **Second-read fixes, before release:** a scribble's link is cut at every crossing and corner on it, so a link along
+  a comb's tips never crosses its gaps, and a hatch line along an edge is cut at its corners and kept where the shape is
+  beside it; a span a whole number of spacings keeps its half-spacing margins; `hatch-gaps` measures only where the
+  shape is, so a hole across a hatch is no gap; each stroke keeps the room an 8 px tremor would have (`ROOM_MOST`), so
+  `boilSketch`'s `amplitude` is never capped at the plan's tremor and a tremor-free sketch boils; a long stroke's step
+  grows to keep it under `MOST_STROKE_POINTS` (4096), so `human:sketchy` draws big pieces, and `human:hatch` refuses a
+  face too close-hatched for `MOST_PIECE_ITEMS` (512), naming the spacing that fits; corners merge transitively
+  (each path's own points closer than 0.5 px folded first); a turn of exactly 60° gets its hook. The strokes' types are
+  declared in `src/human/strokes/types.d.ts`, re-exported whole by `human.d.ts`.
+- **The `power-law` pen's tremor cap now lives in `src/human/paths/wobble.js`**, shared with the strokes; its plans are
+  unchanged byte for byte.
 
 ## 0.29.0 — angles, rotations and camera moves
 

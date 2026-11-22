@@ -1,4 +1,4 @@
-// A wrapped roll stays a roll (0.30.0): a wrapper reshapes where it goes and its turn follows (turnVector), so
+// A wrapped roll stays a roll (0.31.0): a wrapper reshapes where it goes and its turn follows (turnVector), so
 // roll-slip and spin pass every wrapper over a roll — side on, on a slope, on a floor seen from above — while a slide's
 // and a tumble's angle stay their own. And a fast spin is read as it turns: a planned move by its samples' own spin, a
 // hand-drawn track the short way, its basis saying the fastest spin it can tell.

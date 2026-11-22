@@ -1,4 +1,4 @@
-// Rolling, sliding and tumbling as properties over generated intents (0.30.0): the closed forms (a roll's distance
+// Rolling, sliding and tumbling as properties over generated intents (0.31.0): the closed forms (a roll's distance
 // v²(1 + k) / (2 C g) and its turn distance / radius, a slide's v² / (2 μ g), a kept spin in flight, the hand-over
 // speed), `to` reached exactly on any slope, never inside a box, the same plan for the same intent, and the critics:
 // every model's own track passes roll-slip and spin, and a turn scaled off distance / radius is always caught.

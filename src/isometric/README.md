@@ -27,7 +27,7 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
 | `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
 | `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`) |
-| `paint.js` | the paint list: its items, checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
+| `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
 | `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
 | `REFERENCES.md` | where the ideas come from, and why not the simpler sort |
@@ -325,7 +325,7 @@ they run — each reads only what the one before it gave (the design: `docs/desi
 
 `isoStyle(row, {choices})` checks a row (a column left out is the usual one, USUAL_STYLE: today's look) and gives back
 `{row, options}` — plain, frozen data, the record of it. `paintPiece(style, piece, grid, colours)` gives a piece's
-`{box, centre, outline, items}` — the box round it, where its name stands, the outline round it — and the **paint list**, plain items in paint order (`polygon`, `ellipse`, `path`, `lines`), each with its
+`{box, centre, outline, items}` — the box round it, where its name stands, the outline round it — and the **paint list**, plain items in paint order (`polygon`, `ellipse`, `path`, `lines`, and a hand-drawn `stroke`, below), each with its
 `role`, the piece it is `of`, a `fill` (`{mix, colour}`: the recipe, and the colour it comes to when a base is given)
 and a `stroke` (`{colour, alpha, width, join, cap}`). Give no colours and each fill keeps its recipe with no colour, for
 a page whose CSS colours each role (StoryDeck's `iso-left`, `iso-right`, `iso-top`, …).
@@ -358,6 +358,15 @@ const chalk = { column: 'texture', name: 'reel:chalk', options: ['marks'],
   apply: (items, { random, piece }) => [...items, …marks placed with random() …] };
 isoStyle({ texture: 'reel:chalk' }, { choices: [chalk] });   // { row: { …, texture: 'reel:chalk' }, options: {} }
 ```
+
+**A line drawn by hand** is an item of its own: `{item: 'stroke', role, of, points: [[x, y, width, t], …], fill: null,
+stroke}` — each point's width (0 to the stroke's `width`) and when it is drawn (seconds from the piece's start, rising
+along the item), so a painter may draw a piece being drawn. WHY a kind of its own rather than `lines` or `path` with a
+width per point: a painter that does not know it refuses it by name, rather than drawing it at one width; and its
+points are checked as what they are. This package's choices never give one; `footprint-story/human` has two that do —
+`sketchyLine` (`human:sketchy`) and `hatchTexture` (`human:hatch`), handed in under `choices` — for when a tool's painter
+draws `stroke` items ([../human/strokes/README.md](../human/strokes/README.md)). A painter that cannot vary a line's
+width fills the ring round it (`strokeOutline`, the human door).
 
 A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
 apart, never on the style), so a record read back can be shown but must be made into a style again to draw.

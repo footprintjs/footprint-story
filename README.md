@@ -39,7 +39,7 @@ Twelve doors, nothing else. A door loads only when you import it, so a page that
 | `footprint-story/layout` | a flat frame as numbers: the zoom that frames a box, words broken across a width as they are drawn | anywhere — browser or Node; no dependencies |
 | `footprint-story/record` | why a value of a run is so, read from the run's record file alone | **Node only**; needs `footprintjs` and `foottrace`, which a tool that runs a chart already has |
 | `footprint-story/mapflow` | an isometric map built as a footprintjs chart, one stage per step, so a run's record says why each block stands where it does | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
-| `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; light physics (a throw, a fall, a bounce, a hanging chain, a spring settle); named models that plan a move from an intent, wrappers that reshape it, and critics that say what still looks wrong | anywhere — browser or Node; no dependencies |
+| `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; light physics (a throw, a fall, a bounce, a hanging chain, a spring settle); named models that plan a move from an intent, wrappers that reshape it, critics that say what still looks wrong, and hand-drawn strokes (a drawing's order, each stroke's pace and width, hatching, a boil) | anywhere — browser or Node; no dependencies |
 | `footprint-story/geometry` | angles between points and the twist about a line, angles that wrap round, quaternions, slerp and squad (Shoemake), spherical places and great circles, a camera's look and its lean | anywhere — browser or Node; no dependencies |
 | `footprint-story/humanflow` | the intent decider built as a footprintjs chart, one stage per step, so a run's record says why each move got its model and its duration | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
@@ -335,6 +335,20 @@ r.durations[0].basis;  // { distance: 500, target: 40, targetDefaulted: true, bi
 r.findings;            // []: nothing looks wrong
 ```
 
+**A drawing, drawn by hand.** `planMove({do: 'sketch', shapes})` plans every stroke of a drawing as a hand draws it:
+piece by piece from the top left, outline, then detail, then fills, in the fewest strokes the corners allow; each stroke
+slower in the bends, thinner when fast, tapered, hooked at a sharp corner, with the capped tremor; hatching,
+cross-hatching and scribbles clipped exactly to their shapes; `boilSketch(plan, frame)` redraws it each held frame. The
+critics `pen-lifts`, `stroke-order` and `hatch-gaps` say when an order is not a hand's:
+[src/human/strokes/README.md](src/human/strokes/README.md).
+
+```js
+import { planMove } from 'footprint-story/human';
+
+const box = planMove({ do: 'sketch', name: 'box', shapes: [{ points: [[100, 100], [300, 100], [300, 300], [100, 300]], closed: true, fill: { kind: 'hatch' } }] });
+box.plan.order[0];   // { stroke: 0, layer: 'outline', group: '', rule: 'first', at: [100, 100] }: the top-left corner first
+```
+
 A tool adds its own model or critic under its prefix (`'reel:chalk'`). Physics: [src/human/physics/README.md](src/human/physics/README.md). More in [src/human/README.md](src/human/README.md); the papers in
 [src/human/REFERENCES.md](src/human/REFERENCES.md).
 
@@ -620,6 +634,8 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `planMove`, `sampleMove`, `sampleTrack`, `checkMove`, `HUMAN_FAMILIES`, `HUMAN_DOS`, `HUMAN_MODELS`, `USUAL_MODELS`, `HUMAN_CRITICS` | an intent planned by a named model (its reason in words), sampled, and checked by critics that say the fix: [src/human/README.md](src/human/README.md) |
 | `/human` `anticipate`, `followThrough`, `hold`, `overshoot`, `basePlan`, `isWrapped` | the animation principles as a move → a move, over any model, read by `sampleMove` |
 | `/human` `launch`, `flightAt`, `fallSeconds`, `bounces`, `runChain`, `relaxChain`, `makeWorld`, `pushOut`, `collide`, `depthIn`, `verletStep`, `simulate`, `settleLeft`, `PHYSICS_STEP`, `GRAVITY` | light physics on a fixed step (Jakobsen 2001), for a tool's own model: [src/human/physics/README.md](src/human/physics/README.md) |
+| `/human` `planSketch`, `sampleSketch`, `boilSketch`, `hatchLines`, `leastStrokes`, `withOvershoot`, `ORDER_RULE`, `SKETCH`, `CORNER`, `PEN_WIDTH`, `LIFT`, `BOIL`, `HATCH` | hand-drawn strokes: a drawing's order and why, each stroke's timed points and widths, fills clipped exactly, a bounded boil; `do: 'sketch'` plans one (model `hand-sketch`, critics `pen-lifts`, `stroke-order`, `hatch-gaps`): [src/human/strokes/README.md](src/human/strokes/README.md) |
+| `/human` `shapesOfPaint`, `strokeItems`, `strokeOutline`, `sketchyLine`, `hatchTexture` | strokes and the isometric paint list (its `stroke` item); two style choices on strokes, handed to `isoStyle` in `choices` |
 | `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS`, `PER_INTENT`, `intentKey` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings; each intent's values also under keys of its own (`duration-3`) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 | `/humanflow` `humanFlow`, `runHumanFlow` | the intent decider's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/humanflow/README.md](src/humanflow/README.md) |

@@ -20,7 +20,8 @@ import { resample } from '../paths/resample.js';
 import { curvaturesOver } from '../paths/curvature.js';
 import { legGaps } from '../paths/gap.js';
 import { POWER_LAW, powerLawTimes } from '../laws/powerLaw.js';
-import { TREMOR, tremorKnots, tremorAt } from '../laws/tremor.js';
+import { TREMOR, tremorKnots } from '../laws/tremor.js';
+import { wobbleRooms, wobbleAcross } from '../paths/wobble.js';
 import { intentKeys, optionNumber, readSeconds, round } from './options.js';
 
 export const PEN_SPEED = 400;
@@ -29,16 +30,6 @@ const STEP = 2, MOST_POINTS = 8192;
 /** How far either side the bend is read over, in px: one tremor wavelength (24), the width the `pen-speed` critic reads
  *  it over too, so a tremor's wobble averages out of what the critic measures. */
 export const BEND_WIDTH = TREMOR.wavelength;
-
-/**
- * The room for a wobble at each point: the narrowest half-gap within 2k points either side (never more than the
- * amplitude: more room changes nothing), averaged over k either side. Every point the average reads looked as far as
- * this one, so the room is never more than half this point's own gap — and it eases in and out, never jumps.
- */
-function roomsOf(gaps, k, amplitude) {
-  const n = gaps.length, least = gaps.map((_, i) => { let m = amplitude; for (let j = Math.max(0, i - 2 * k); j <= Math.min(n - 1, i + 2 * k); j += 1) m = Math.min(m, gaps[j] / 2); return m; });
-  return least.map((_, i) => { let sum = 0, c = 0; for (let j = Math.max(0, i - k); j <= Math.min(n - 1, i + k); j += 1) { sum += least[j]; c += 1; } return sum / c; });
-}
 
 export const powerLawModel = Object.freeze({
   family: 'pen',
@@ -68,16 +59,8 @@ export const powerLawModel = Object.freeze({
     const knots = tremorKnots(random, length, { wavelength });
     // a wobble never larger than the space it wobbles in: at most half the narrowest gap to another leg of the line
     // within a bend width, eased along the line (a room that jumped point to point would itself be a jitter)
-    const rooms = amplitude > 0 ? roomsOf(legGaps(points, 2 * amplitude), k, amplitude) : null;
-    const xs = [], ys = [];
-    points.forEach((p, i) => {
-      // across the line: the left normal of the chord through the neighbours (y down), at most half the gap beside it
-      const a = points[Math.max(0, i - 1)], b = points[Math.min(points.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
-      const wobble = tremorAt(knots, along[i], length, { amplitude, wavelength }), room = rooms ? rooms[i] : Infinity;
-      // scaled, never clipped: a clipped swing has corners, and a corner is a bend
-      const off = len > 0 ? (wobble * Math.min(1, room / amplitude)) / len : 0;
-      xs.push(p[0] + dy * off); ys.push(p[1] - dx * off);
-    });
+    const rooms = amplitude > 0 ? wobbleRooms(legGaps(points, 2 * amplitude), k, amplitude) : null;
+    const { xs, ys } = wobbleAcross(points, along, length, knots, rooms, { amplitude, wavelength });
     const speedDefaulted = stored(intent, 'speed', '') === undefined;
     return { seconds, xs, ys, times, pushes: 1,
       basis: { length, speed, speedDefaulted, seconds, secondsGiven: given !== undefined, tremor: amplitude, wavelength, ramp, floor, points: points.length },
