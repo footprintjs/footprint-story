@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import fc from 'fast-check';
 import { isometric, isoStyle, paintPiece, restyle, buildIsoMap, ISO_LOOKS, CONTOUR, ISO_MAP_POLICIES, PAINT_ITEMS } from '../isometric.js';
-import { hatchTexture } from '../human.js';
+import { hatchTexture, HUMAN_STYLE_CHOICES } from '../human.js';
 import { lookStill, lookMap, LOOK_STILLS } from './isoLookStills.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 300;
@@ -21,23 +21,28 @@ const colours = { base: '#d9e4f3', ink: '#14181f' };
 const close = (a, b, what) => assert.ok(Math.abs(a - b) <= 1e-6, `${what}: ${a} is not ${b} to 1e-6`);
 /** The items with what a line or a shading sets taken out: the geometry, which no look moves. */
 const shapeOf = (items) => items.map(({ fill, stroke, ...rest }) => rest);
+/** The looks 0.34.0 added, both drawn with the contour line (0.35.0's, paper-grain and duotone: isometric-looks-grain-duotone.test.js). */
+const CONTOUR_LOOKS = ['outlined', 'line-art'];
+const choices = HUMAN_STYLE_CHOICES;
 
 test('the looks are rows of named choices: outlined is the contour line, line art is paper and a lighter contour', () => {
-  assert.deepEqual(ISO_LOOKS, { outlined: { line: 'contour' }, 'line-art': { shading: 'paper', line: { name: 'contour', width: 3, inner: 1.25 } } });
+  assert.deepEqual(ISO_LOOKS, { outlined: { line: 'contour' }, 'line-art': { shading: 'paper', line: { name: 'contour', width: 3, inner: 1.25 } }, 'paper-grain': { texture: 'human:grain' }, duotone: { palette: 'duotone' } });
   assert.ok(Object.isFrozen(ISO_LOOKS) && Object.isFrozen(ISO_LOOKS['line-art'].line));
   assert.deepEqual(CONTOUR, { width: 5, inner: 1.5, least: 1, most: 20, leastInner: 0.25 });
   // each look is a style isoStyle takes as it is: data, nothing it would refuse
-  for (const [name, row] of Object.entries(ISO_LOOKS)) assert.deepEqual({ ...isoStyle({ look: name }), look: undefined }, { ...isoStyle(row), look: undefined }, name);
+  for (const [name, row] of Object.entries(ISO_LOOKS)) assert.deepEqual({ ...isoStyle({ look: name }, { choices }), look: undefined }, { ...isoStyle(row, { choices }), look: undefined }, name);
 });
 
 test('a look named and its row written out are the same style: the same row, options, paint list and seeds', () => {
   for (const [name, row] of Object.entries(ISO_LOOKS)) {
-    const named = isoStyle({ look: name }), written = isoStyle(row);
+    const named = isoStyle({ look: name }, { choices }), written = isoStyle(row, { choices });
     assert.equal(named.look, name);
     assert.equal(written.look, undefined, 'a row that names no look keeps the record it always had');
     assert.deepEqual(named.row, written.row);
     assert.deepEqual(named.options, written.options);
     for (const piece of [block, can, floor]) assert.deepStrictEqual(paintPiece(named, piece, grid, colours), paintPiece(written, piece, grid, colours), `${name}: ${piece.kind}`);
+    // the hatch beside the look: a texture the paper grain fills itself, and a third ink beside the duotone (refused there)
+    if (!CONTOUR_LOOKS.includes(name)) continue;
     // a seeded choice beside the look (hand-drawn hatching): the same strokes, point for point, drawn twice and after another piece
     const hatched = isoStyle({ look: name, texture: 'human:hatch' }, { choices: [hatchTexture] });
     const first = paintPiece(hatched, block, grid, colours);
@@ -110,9 +115,9 @@ test('bad combinations are refused before anything is drawn, naming the entry an
   assert.throws(() => isoStyle({ look: 'outlined', line: 'ink' }), /^Error: isometric: the style's look "outlined" sets line, and the row writes it itself, so the look draws nothing — drop the look, or the line written beside it$/);
   assert.throws(() => isoStyle({ look: 'outlined', line: 'contour' }), /the look draws nothing/, 'even with the look\'s own entry');
   assert.throws(() => isoStyle({ look: 'line-art', shading: 'tones', line: 'ink' }), /the style's look "line-art" sets shading and line, and the row writes each itself, so the look draws nothing — drop the look, or the shading and line written beside it/);
-  assert.throws(() => isoStyle({ look: 'flat' }), /^Error: isometric: the style's look is one of "outlined", "line-art" \(a row of choices under a name\), or none — not "flat"$/);
-  assert.throws(() => isoStyle({ look: ['outlined'] }), /the style's look is one of "outlined", "line-art"/);
-  assert.throws(() => isoStyle({ look: 'outlined', outline: 'bold' }), /a style's columns are shape, shading, line, palette, texture, effects — not "outline" \(a row may also name a look: \{look: "outlined", "line-art"\}\)/);
+  assert.throws(() => isoStyle({ look: 'flat' }), /^Error: isometric: the style's look is one of "outlined", "line-art", "paper-grain", "duotone" \(a row of choices under a name\), or none — not "flat"$/);
+  assert.throws(() => isoStyle({ look: ['outlined'] }), /the style's look is one of "outlined", "line-art", "paper-grain", "duotone"/);
+  assert.throws(() => isoStyle({ look: 'outlined', outline: 'bold' }), /a style's columns are shape, shading, line, palette, texture, effects — not "outline" \(a row may also name a look: \{look: "outlined", "line-art", "paper-grain", "duotone"\}\)/);
   assert.throws(() => isoStyle({ look: Object.defineProperty({}, 'x', {}) }), /the style's look is one of/);
   assert.throws(() => isoStyle(Object.defineProperty({}, 'look', { get: () => 'outlined', enumerable: true })), /is read as a stored value, and this one is a getter/);
   assert.throws(() => isoStyle({ line: { name: 'contour', width: 0.5 } }), /the style's line "contour" takes a width from 1 to 20 px \(the contour as it shows\) — not 0.5/);
@@ -153,7 +158,7 @@ test('the record keeps the look beside the row; a record made again is the same 
 });
 
 test('what the tools\' painters need: only items they draw today; a contour fills nothing and lies under the faces that cover it', () => {
-  for (const look of Object.keys(ISO_LOOKS)) {
+  for (const look of CONTOUR_LOOKS) {
     for (const piece of [block, can, floor]) {
       const { items } = paintPiece(isoStyle({ look }), piece, grid);
       assert.ok(items.every((it) => PAINT_ITEMS.includes(it.item) && it.item !== 'stroke'), 'polygon, ellipse, path and lines only');
@@ -176,7 +181,7 @@ const anyPiece = fc.oneof(
   fc.record({ kind: fc.constant('floor'), at: fc.tuple(fc.integer({ min: -5, max: 10 }), fc.integer({ min: -5, max: 10 })), size: fc.tuple(fc.integer({ min: 1, max: 12 }), fc.integer({ min: 1, max: 12 })) }));
 
 test('for any piece on any grid, a look moves nothing: the faces are the usual ones, and each contour item is one of them', () => {
-  const usual = isoStyle(), styles = Object.keys(ISO_LOOKS).map((look) => isoStyle({ look }));
+  const usual = isoStyle(), styles = CONTOUR_LOOKS.map((look) => isoStyle({ look }));
   fc.assert(fc.property(anyGrid, anyPiece, fc.boolean(), (g, p, coloured) => {
     const piece = { name: 'p', ...p }, cs = coloured ? colours : undefined, was = paintPiece(usual, piece, g, cs);
     for (const style of styles) {

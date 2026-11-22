@@ -24,6 +24,8 @@ Design: `docs/design/2026-11-human-motion.md` · "Hand-drawn strokes".
 | `paint.js` | strokes and the isometric paint list: faces → shapes (`shapesOfPaint`), strokes → `stroke` items (`strokeItems`) |
 | `outline.js` | a stroke as a painter fills it: the ring round it with its caps (`strokeOutline`, `STROKE_CAPS`, `CAP_STEPS`), the stroke as drawn by a time (`strokeAt`) |
 | `styleChoices.js` | two isometric style choices on strokes, handed in, never built in: `sketchyLine` (`human:sketchy`), `hatchTexture` (`human:hatch`) |
+| `grain.js` | the texture `human:grain` (`grainTexture`, `GRAIN`): a paper's grain, fine faint marks clipped into each face with `hatchLines`, one `lines` item a face — the look "paper-grain" (0.35.0) |
+| `choices.js` | every style choice above in one list, `HUMAN_STYLE_CHOICES`, for a tool to hand in whole |
 
 The shared tremor cap is `../paths/wobble.js` (`wobbleRooms`, `wobbleAcross`), the same code the `power-law` pen uses.
 
@@ -166,6 +168,17 @@ edges drawn by hand; a floor keeps its tile lines as `ink` does. `human:hatch` h
 cross-hatches a right face and leaves the top clear (`ROLE_FILLS`), each kept out of the faces painted over it, its
 strokes timed after the line's. The two are named under `human:` and handed in: the isometric door never loads
 `src/human`, and a tool turns them on once its painter draws `stroke` items.
+
+**A paper's grain** (`grainTexture`, `human:grain`, 0.35.0 — the look `paper-grain`) is a texture of `lines`, not
+strokes: a printed fleck has no pace and no taper. In each face, three sets of lines at seeded angles, `spacing` (16 px)
+apart across, from `hatchLines` — so a mark is exactly inside its face and out of the faces painted over it, by the
+hatch's own clipper, never a second one — each line broken into seeded marks (1 to 3 px) and gaps (12 to 36 px); one
+`lines` item a face (role `grain`), the ink at 22%, 0.75 px (`GRAIN`, ours: the numbers and their WHY are in grain.js
+and the isometric README). No option is timing, so `unseeded` is empty. Refused: an option out of range; a face whose
+grain passes `MOST_GRAIN_MARKS` (4096, an item's most segments), naming a spacing estimated to fit (or that none up to 200 px does); and the grain, or the
+hatch, beside the palette `duotone` (the texture runs after the palette, in the map's ink: a third ink).
+`HUMAN_STYLE_CHOICES` is `[sketchyLine, hatchTexture, grainTexture]`: a tool that hands it in takes each new choice
+as it comes.
 
 ## A stroke as a painter fills it: the ring, its caps, and the stroke drawn so far
 

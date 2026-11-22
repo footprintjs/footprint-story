@@ -26,8 +26,9 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `lead.js` | a cable's lead into a port, drawn again over its block: its way rounded from that end, its pieces through the floor corner and their length (`cableLead`) — the share of the line a tool hands a packet over at |
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
 | `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
-| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`), and `paper` (shading) and `contour` (line) for the named looks |
-| `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`) |
+| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`), and `paper` (shading), `contour` (line) and `duotone` (palette) for the named looks |
+| `duotone.js` | the palette `duotone`: two inks on paper, every line the ink, every fill a tint of the accent; a name in the ink kept at 4.5 : 1 on every tint (`DUOTONE`) |
+| `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`, `paper-grain`, `duotone`) |
 | `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
 | `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
@@ -325,8 +326,8 @@ they run — each reads only what the one before it gave (the design: `docs/desi
 | `shape` | the piece and the grid | the faces, as items with a role (`top`, `left`, `right`, `side`, `ground`, `grid`) | `box` |
 | `shading` | the items, the base colour | a fill per face | `tones`: top 20% toward white, left 6% and right (a cylinder's side) 18% toward black; `paper`: every face and the ground the paper's colour (option `colour`, `#ffffff`) |
 | `line` | the items, the ink | strokes | `ink` (2.5 px, round joins; option `width`, 0.5 to 20), `none` (a floor keeps its tile lines), `contour` (a bold even contour round the piece and lighter inner lines; options `width`, 1 to 20, 5, and `inner`, 0.25 to the width, 1.5) |
-| `palette` | the items | the same, recoloured | `theme` |
-| `texture` | the items | marks over them | `none` |
+| `palette` | the items | the same, recoloured | `theme`; `duotone`: every line the ink, every fill a tint of the accent on the paper (options `ink`, `accent`, `paper`) |
+| `texture` | the items | marks over them | `none` (footprint-story/human hands in `human:hatch` and `human:grain`) |
 | `effects` | the items | items added to the whole, a list of choices | — |
 
 `isoStyle(row, {choices})` checks a row (a column left out is the usual one, USUAL_STYLE: today's look) and gives back
@@ -382,7 +383,7 @@ width fills the ring round it, its ends capped (`strokeOutline`, the human door)
 A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
 apart, never on the style), so a record read back can be shown but must be made into a style again to draw.
 
-### Named looks: outlined and line art
+### Named looks: outlined, line art, paper grain and duotone
 
 A **look** is a style row under a name (`looks.js` · `ISO_LOOKS`, data only — no code of its own). A tool names one as
 it names a choice, by its name in the row: `isoStyle({look: 'outlined'})`, a map spec's `style: {look: 'line-art'}`. A
@@ -394,6 +395,8 @@ seeds and paint list — and the record keeps the name beside it (`style.look`, 
 |---|---|---|
 | `outlined` | `{line: 'contour'}`: today's tones, a 5 px contour, 1.5 px inner lines | ![Two blocks, a cylinder and a slab on a floor of tiles, each with a bold dark outline round it and thin lines where its faces meet](look-outlined.svg) |
 | `line-art` | `{shading: 'paper', line: {name: 'contour', width: 3, inner: 1.25}}`: white faces, ink lines only | ![The same map drawn in ink on white: a 3 px outline round each piece, thinner fold lines, faint tile lines](look-line-art.svg) |
+| `paper-grain` (0.35.0) | `{texture: 'human:grain'}`: today's look printed on paper, a fine faint grain over every face | ![The same map in today's tones, each face flecked with short, faint, scattered marks like the tooth of a printed page](look-paper-grain.svg) |
+| `duotone` (0.35.0) | `{palette: 'duotone'}`: two inks — every line a deep navy, every fill a tint of a warm orange | ![The same map printed in two inks: navy lines, the faces and the floor in light to mid tints of orange, the tops lightest](look-duotone.svg) |
 
 **The contour** (`line: 'contour'`) is drawn with items every painter already draws: under the faces, each face again
 (role `contour`, no fill) with a wide stroke; over them, the faces with a thin one. The faces' fills trim the wide
@@ -436,6 +439,48 @@ an inner bolder than the contour; a paper colour that is no colour. A tool's own
 under the contour is refused on the piece (the wide stroke under it would show whole). The stills are written by
 `test/isoLookStills.js` from a real map's paint lists and pinned (`WRITE_EXAMPLE=1 node --test
 test/isometric-looks.test.js` draws them again).
+
+**Paper grain** (`texture: 'human:grain'`, footprint-story/human · `grainTexture`) lays fine, short, faint marks in
+each face — top, left, right, a cylinder's side — as one `lines` item a face (role `grain`), so both tools' painters
+draw it as they draw a floor's tile lines: no new kind of item, no `stroke` items (so nothing counted by either tool's
+stroke budget). In each face: three sets of lines at seeded angles, 16 px apart across, each broken into seeded marks
+1 to 3 px long with gaps of 12 to 36 px — clipped by the hatch's own clipper (`hatchLines`), so every mark lies inside
+its face and out of each face painted over it (a property over any piece on any grid). The ink at 22%, 0.75 px wide:
+a mark stands about 1.5 : 1 against its face. Seeded by the style, the piece's name and the column, with no timing (a
+grain is printed, not drawn). A floor has none (the ground is the page's). It is a `human:` choice because the clipper
+lives in src/human, which this door never loads: hand `grainTexture` (or the human door's `HUMAN_STYLE_CHOICES`, every
+choice it ships) in `choices`; the look named without it is refused, with that fix.
+
+**Duotone** (`palette: 'duotone'`, duotone.js) prints a map in two inks on paper: every stroke the `ink` (`#22304a`;
+its alpha kept, so a floor's tile lines are the ink at 16%), every fill the `paper` (`#ffffff`) mixed toward the
+`accent` (`#e07b39`) by how dark the fill it replaces is (1 less its WCAG relative luminance), at most 60% of the way.
+So the shading's order survives — a lit top stays lighter than a right face in shadow, and white is the paper (line art
+in duotone stays paper and ink). A fill with no colour (the page's base: both tools build so) is read as its recipe over
+`DUOTONE.neutral` (`#d9d9d9`), so a map with no colours is a duotone too, every piece alike; and every fill carries its
+colour (`{mix: [colour, 1], colour}`), as a paper fill does, so StoryDeck's role CSS draws it as said. A block's name
+stands on its face: a name in the ink keeps 4.5 : 1 (WCAG, small text; StoryReel's review measures words by it) on every
+tint from the paper to the deepest — 7.0 : 1 at worst for the usual inks, 9.4 : 1 in the tools' usual ink (`#14181f`) —
+and inks that cannot are refused when the style is made, naming the ratio, the tint and the fix. A tool draws names on a
+duotone map in its ink (`style.options.palette?.ink ?? DUOTONE.ink`) or a darker one.
+
+| Number | Value | Whose, and why |
+|---|---|---|
+| grain spacing / sets | 16 px / 3 | ours: a line about every 5 px across a face in three seeded directions — one or two read as hatching, three as fibre |
+| grain mark / gap | 1–3 px / 12–36 px | ours: about one mark in 140 px² of a face, a texture and not noise; a 64-block world at a film's tile (96 px) lays 13,118 marks, 0.33 MB as SVG path data (pinned, under StoryDeck's 2 MB note) |
+| grain width / alpha | 0.75 px / 22% | ours: under the thinnest line a map draws (1.25 px folds), and about 1.5 : 1 against the face (pinned under 1.6) |
+| duotone ink / accent / paper | `#22304a` / `#e07b39` / `#ffffff` | ours: a deep navy and a warm orange, far apart in hue, on white |
+| duotone deepest tint | 60% | ours: the accent whole stands 4.4 : 1 under the ink, under the 4.5 a name needs; at 60%, 7.0 |
+| duotone neutral | `#d9d9d9` | ours: about as light as the tools' usual bases, so an uncoloured map's tints fall where a coloured one's do |
+| name contrast | 4.5 : 1 | WCAG 2's least for small text |
+
+Refused, naming the entry and the fix: a grain beside a duotone, and a hatch beside a duotone (the texture runs after
+the palette, in the map's ink: a third ink — take the texture out, or keep it and the palette `theme`), with the words
+saying which entry came from the look; `{look: 'duotone', palette: …}` and `{look: 'paper-grain', texture: …}` (the
+look would draw nothing); a grain `spacing` (4 to 200 px), `width` (0.25 to 4 px) or `alpha` (0.02 to 1) out of range;
+a face too big for its grain (over 4096 marks, an item's most), naming a spacing estimated to fit (or that none up to 200 px does); a duotone ink, accent or
+paper that is no colour, or inks under 4.5 : 1. Known limits: the grain is in the map's ink at its alpha, so on a dark
+face it shows less; a dark base gives the deepest tint on every face, so its faces part only by their ink lines; and a
+tool that draws names in a pale ink on a dark page must give the duotone its own inks.
 
 ## A whole map, built as named steps
 

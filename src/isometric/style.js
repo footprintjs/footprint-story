@@ -123,7 +123,7 @@ export function isoStyle(row = undefined, settings = undefined) {
   const whence = (column) => (fromLook.has(column) ? ` (from the look "${lookName}": write ${column} beside it to change it)` : '');
   const find = (column, name) => {
     const c = all.find((x) => x.column === column && x.name === name);
-    if (!c) refuse(`the style's ${column} has no choice ${shown(name)} — the ${column} choices are ${all.filter((x) => x.column === column).map((x) => `"${x.name}"`).join(', ') || 'none yet'}${typeof name === 'string' && OWN.test(name) ? `; "${name}" is a tool's own choice (its name has a prefix), which is code no record holds: hand the choice itself in {choices} (${name.startsWith('human:') ? 'footprint-story/human has the "human:" ones' : 'the tool that names it has it'})` : ''}`);
+    if (!c) refuse(`the style's ${column} has no choice ${shown(name)} — the ${column} choices are ${all.filter((x) => x.column === column).map((x) => `"${x.name}"`).join(', ') || 'none yet'}${typeof name === 'string' && OWN.test(name) ? `; "${name}" is a tool's own choice (its name has a prefix), which is code no record holds: hand the choice itself in {choices} (${name.startsWith('human:') ? 'footprint-story/human has the "human:" ones' : 'the tool that names it has it'})` : ''}${whence(column)}`);
     return c;
   };
   const out = {}, options = {}, picked = {};

@@ -3,6 +3,8 @@
 // and stroke say (no CSS, no role classes: every colour is the list's own, the map built with colours). The test
 // (isometric-looks.test.js) pins each file to what this writes; WRITE_EXAMPLE=1 draws them again.
 import { buildIsoMap, ISO_MAP_POLICIES } from '../isometric.js';
+// the looks that name a "human:" choice (paper-grain) build with the human door's list; the others never read it
+import { HUMAN_STYLE_CHOICES } from '../human.js';
 
 const n = (v) => String(Math.round(v * 10) / 10);
 const INK = '#1f2430';
@@ -43,7 +45,7 @@ export function lookMap(look) {
     ],
     grid: { tile: 72, origin: [330, 36] },
     style: { look },
-  }, ISO_MAP_POLICIES.film);
+  }, ISO_MAP_POLICIES.film, { choices: HUMAN_STYLE_CHOICES });
 }
 
 /** A look's still: its map's pieces painted back to front on the page's paper. */
@@ -60,4 +62,6 @@ export function lookStill(look, paper) {
 export const LOOK_STILLS = Object.freeze([
   Object.freeze({ look: 'outlined', file: 'look-outlined.svg', paper: '#faf6ee' }),
   Object.freeze({ look: 'line-art', file: 'look-line-art.svg', paper: '#ffffff' }),
+  Object.freeze({ look: 'paper-grain', file: 'look-paper-grain.svg', paper: '#faf6ee' }),
+  Object.freeze({ look: 'duotone', file: 'look-duotone.svg', paper: '#ffffff' }),
 ]);

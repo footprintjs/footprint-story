@@ -26,10 +26,17 @@
  *                   width (the contour as it shows, 1 to 20 px; 5), inner (the inner lines, 0.25 px to the width; 1.5).
  *                   A floor keeps its tile lines (the ground the pieces stand on, not a piece); a face with no fill
  *                   (a tool's own shading) is refused: the wide stroke under it would show whole.
+ *
+ * And one for the named look "duotone" (0.35.0; duotone.js):
+ *
+ *   palette duotone two inks on paper: every line the ink, every fill a tint of the accent on the paper, as dark as the
+ *                   fill it replaces (options `ink`, `accent`, `paper`; DUOTONE). Refused when a name in the ink would
+ *                   stand under 4.5 : 1 on a tint it can give.
  */
 import { mixColour, readColour } from './paint.js';
 import { roundOutline } from './outline.js';
 import { refuse, shown } from './thing.js';
+import { duotone, checkDuotone } from './duotone.js';
 
 const xy = (p) => [p.x, p.y];
 const solid = new Set(['top', 'left', 'right', 'side']);
@@ -144,5 +151,6 @@ export const BUILT_IN_CHOICES = Object.freeze([
   { column: 'line', name: 'none', apply: noLine, options: [] },
   { column: 'line', name: 'contour', apply: contour, options: ['width', 'inner'], check: checkContour },
   { column: 'palette', name: 'theme', apply: same, options: [] },
+  { column: 'palette', name: 'duotone', apply: duotone, options: ['ink', 'accent', 'paper'], check: checkDuotone },
   { column: 'texture', name: 'none', apply: same, options: [] },
 ].map((c) => Object.freeze({ check: null, ...c, options: Object.freeze(c.options), unseeded: Object.freeze([]), clashes: Object.freeze((c.clashes ?? []).map((x) => Object.freeze(x))) })));

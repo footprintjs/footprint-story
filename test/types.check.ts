@@ -231,6 +231,11 @@ import type { IsoLookName } from 'footprint-story/isometric';
 const lineArt: IsoStyle = isoStyle({ look: 'line-art', texture: 'none' });
 const lookName: IsoLookName | undefined = lineArt.look;
 export const looks: unknown[] = [lookName, ISO_LOOKS.outlined.line, ISO_LOOKS['line-art'].shading, CONTOUR.width, isoStyle({ look: null }).row.line, isoStyle(ISO_LOOKS.outlined).row.line];
+// 0.35.0: paper-grain (the human door's grain handed in) and duotone; the duotone's numbers
+import { DUOTONE } from 'footprint-story/isometric';
+import { grainTexture, GRAIN, MOST_GRAIN_MARKS, HUMAN_STYLE_CHOICES } from 'footprint-story/human';
+const grainLook: IsoLookName = 'paper-grain';
+export const looks035: unknown[] = [isoStyle({ look: grainLook }, { choices: HUMAN_STYLE_CHOICES }).look, isoStyle({ look: 'duotone' }).row.palette, ISO_LOOKS.duotone.palette, DUOTONE.ink, DUOTONE.most, grainTexture.clashes[0]?.fix, GRAIN.mark[1], MOST_GRAIN_MARKS];
 // @ts-expect-error — a look that is not one
 isoStyle({ look: 'flat' });
 

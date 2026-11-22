@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.35.0 — named looks: paper grain and duotone
+
+- **Two more named looks** (`src/isometric/looks.js` · `ISO_LOOKS`), each a style row under a name, as 0.34.0's:
+  `{look: 'paper-grain'}` (`{texture: 'human:grain'}`: today's look printed on paper, a fine, faint, seeded grain over
+  every face) and `{look: 'duotone'}` (`{palette: 'duotone'}`: two inks on paper). Named or written out, the same row,
+  seeds and paint list; the record keeps `style.look`; `restyle` carries it.
+- **The texture `human:grain`** (`src/human/strokes/grain.js` · `grainTexture`, `GRAIN`, `MOST_GRAIN_MARKS`): in each
+  face, three sets of lines at seeded angles 16 px apart across, clipped by the hatch's own `hatchLines` (no second
+  clipper), each broken into seeded marks 1 to 3 px long with gaps of 12 to 36 px; one `lines` item a face (role
+  `grain`), the ink at 22%, 0.75 px — about 1.5 : 1 against its face (pinned under 1.6). No timing, so nothing is left
+  out of its seed. Options `spacing` (4 to 200 px), `width` (0.25 to 4), `alpha` (0.02 to 1). All numbers ours, with
+  their WHY in grain.js. It is a `human:` choice because the clipper lives in src/human, which the isometric door never
+  loads: hand it in `choices`. **`HUMAN_STYLE_CHOICES`** (the human door) lists every choice it ships, so a tool that
+  hands that list in takes the next one without a change.
+- **The palette `duotone`** (`src/isometric/duotone.js` · `DUOTONE`, exported): every stroke the `ink` (`#22304a`, its
+  alpha kept), every fill the `paper` (`#ffffff`) mixed toward the `accent` (`#e07b39`) by how dark the fill it replaces
+  is, at most 60% (`mixColour`) — the shading's order survives and white stays the paper. A fill with no colour is read
+  over `DUOTONE.neutral` (`#d9d9d9`), and every fill carries its colour, so StoryDeck's role CSS draws it as said. A
+  name in the ink keeps WCAG's 4.5 : 1 on every tint (7.0 : 1 at worst for the usual inks; 9.4 : 1 in the tools' usual
+  ink `#14181f`; a property over random pieces and bases), and inks that cannot are refused when the style is made.
+- **Refused, with the fix:** the grain or the hatch beside a duotone (the texture runs after the palette, in the map's
+  ink — a third ink), with the words naming the entry that came from the look; a look whose column is written beside it
+  (`{look: 'duotone', palette: …}`: it would draw nothing); `{look: 'paper-grain'}` with no `human:grain` handed in;
+  grain options out of range; a face too big for its grain (over 4096 marks), naming a spacing estimated to fit (or that none up to 200 px does); duotone
+  inks that are no colour or under 4.5 : 1. A refusal for a choice not handed in now says when the entry came from a
+  look (that text is new; every other refusal is as it was).
+- **The tools' budgets** (pinned on the record-size test's 64-block world): 358 items, 179 of them grain `lines`, 0
+  `stroke` items (StoryDeck's and StoryReel's 2000-stroke notes count `stroke` items), 13,118 marks, 0.33 MB written as
+  SVG path data — under StoryDeck's 2 MB. **The map flow's record stays small:** that world's commit log is 90,719
+  bytes with the grain (90,679 plain), pinned under the plain bound.
+- **Unchanged:** every existing style and both 0.34.0 looks draw byte for byte as before (3,000 random maps compared with
+  0.34.0, ten styles with and without colours, both policies); both tools' painters draw the new lists as they are.
+- **For the tools:** each needs the 0.34.0 reader change to accept `look`, and to hand `grainTexture` in (or replace its
+  own list, `[sketchyLine, hatchTexture]`, with `HUMAN_STYLE_CHOICES`). StoryDeck writes a map's `lines` again on every
+  click (only `stroke` runs are written once), so a 64-block grain map carries about 0.33 MB a click. On a duotone map,
+  draw names in the duotone's ink (`style.options.palette?.ink ?? DUOTONE.ink`) or a darker one.
+- README stills (`src/isometric/look-paper-grain.svg`, `look-duotone.svg`) written from a real map by
+  `test/isoLookStills.js` and pinned. Tests: `test/isometric-looks-grain-duotone.test.js` (each list, marks inside their
+  faces for any piece on any grid, seeds, geometry to 1e-6, budgets, contrast, refusals, the record); the map flow's drift
+  property runs both looks; `test/mapflow-record-size.test.js` pins the grain world's record. Types: `IsoLookName`,
+  `ISO_LOOKS`, `DUOTONE`, `grainTexture`, `GRAIN`, `MOST_GRAIN_MARKS`, `HUMAN_STYLE_CHOICES`.
+
 ## 0.34.0 — named looks: outlined and line art
 
 - **Two named looks** (`src/isometric/looks.js` · `ISO_LOOKS`): a look is a style row under a name, data only. A tool

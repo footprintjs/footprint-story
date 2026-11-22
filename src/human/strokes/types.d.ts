@@ -60,11 +60,23 @@ export function strokeOutline(points: readonly (readonly number[])[], options?: 
  */
 export function strokeAt(points: readonly (readonly [number, number, number, number])[], t: number): [number, number, number, number][];
 /** An isometric style choice, as src/isometric/style.js takes a tool's own (handed in under `choices`). */
-export interface StrokeStyleChoice { readonly column: 'line' | 'texture'; readonly name: string; readonly options: readonly string[]; readonly unseeded: readonly string[]; check(options: Readonly<Record<string, unknown>>): void; readonly clashes: readonly never[]; apply(items: readonly any[], context: any): any[] }
+export interface StrokeStyleChoice { readonly column: 'line' | 'texture'; readonly name: string; readonly options: readonly string[]; readonly unseeded: readonly string[]; check(options: Readonly<Record<string, unknown>>): void; readonly clashes: readonly { readonly column: 'shape' | 'shading' | 'line' | 'palette' | 'texture' | 'effects'; readonly name: string; readonly fix: string }[]; apply(items: readonly any[], context: any): any[] }
 /** The line 'human:sketchy': a piece's edges drawn by hand (silhouette, then inner edges). Hand it to isoStyle in choices. */
 export const sketchyLine: StrokeStyleChoice;
 /** The texture 'human:hatch': left faces and sides hatched, right faces cross-hatched, after the line's strokes. */
 export const hatchTexture: StrokeStyleChoice;
+/**
+ * The texture 'human:grain' (0.35.0, the look "paper-grain"): a paper's grain — fine, faint, seeded marks laid in each
+ * face with the hatch's clipper, one `lines` item a face (role `grain`), in the ink at GRAIN.alpha. Options: spacing,
+ * width, alpha. Refused beside the palette "duotone" (a third ink).
+ */
+export const grainTexture: StrokeStyleChoice;
+/** The grain's numbers (ours): spacing between one set's lines, the sets, a mark's and a gap's length, the width and alpha, and the options' ranges. */
+export const GRAIN: Readonly<{ spacing: number; sets: number; mark: readonly [number, number]; gap: readonly [number, number]; width: number; alpha: number; least: Readonly<{ spacing: number; width: number; alpha: number }>; most: Readonly<{ spacing: number; width: number; alpha: number }> }>;
+/** The most marks one face's grain holds (the paint list's MOST_PAINT_POINTS): past it, refused with the spacing that fits. */
+export const MOST_GRAIN_MARKS: number;
+/** Every isometric style choice this door ships, in one list, to hand in under `choices`: sketchyLine, hatchTexture, grainTexture. */
+export const HUMAN_STYLE_CHOICES: readonly StrokeStyleChoice[];
 export const ROLE_FILLS: Readonly<Record<string, FillKind>>;
 export const SKETCH: Readonly<{ speed: number; fillSpeed: number; width: number; fillTremor: number }>;
 export const WIDTH_SHARE: Readonly<{ outline: number; detail: number; fill: number }>;

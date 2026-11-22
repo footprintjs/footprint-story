@@ -79,4 +79,8 @@ function hatch(items, { piece, colours, options, random }) {
 
 /** `speed` says when, not what: left out of the seed (`unseeded`), so a slower draw keeps its wobble (the seed rule, UNSEEDED_KEYS). */
 export const sketchyLine = Object.freeze({ column: 'line', name: 'human:sketchy', options: Object.freeze(['width', 'tremor', 'overshoot', 'speed']), unseeded: Object.freeze(['speed']), check: checkSketchy, clashes: Object.freeze([]), apply: sketchy });
-export const hatchTexture = Object.freeze({ column: 'texture', name: 'human:hatch', options: Object.freeze(['spacing', 'angle', 'width', 'tremor']), unseeded: Object.freeze([]), check: checkHatch, clashes: Object.freeze([]), apply: hatch });
+/** Its strokes are in the map's ink and come after the palette (the texture column runs after it): beside a duotone they
+ *  would print a third ink, so the pairing is refused (0.35.0; a style with no duotone is as before). */
+export const hatchTexture = Object.freeze({ column: 'texture', name: 'human:hatch', options: Object.freeze(['spacing', 'angle', 'width', 'tremor']), unseeded: Object.freeze([]), check: checkHatch,
+  clashes: Object.freeze([Object.freeze({ column: 'palette', name: 'duotone', fix: 'the hatch is drawn after the palette, in the map\'s ink, so it would print a third ink beside the duotone\'s two — take the hatch out (texture "none"), or keep it and the palette "theme"' })]),
+  apply: hatch });

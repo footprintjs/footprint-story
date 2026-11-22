@@ -1,6 +1,6 @@
 # Styles for isometric maps — one design for a deck and a film
 
-Status: design, 2026-11-21. Step 1 built in footprint-story 0.23.0 (`isoStyle`, `paintPiece`). Steps 2–4 are now planned in `2026-11-map-flow.md`: the painters plug into the map flow. Step 4's first looks, outlined and line art, built in 0.34.0 as named looks (`ISO_LOOKS`: a row under a name, `{look: 'outlined'}`) over two new choices, line `contour` and shading `paper` (src/isometric/README.md).
+Status: design, 2026-11-21. Step 1 built in footprint-story 0.23.0 (`isoStyle`, `paintPiece`). Steps 2–4 are now planned in `2026-11-map-flow.md`: the painters plug into the map flow. Step 4's first looks, outlined and line art, built in 0.34.0 as named looks (`ISO_LOOKS`: a row under a name, `{look: 'outlined'}`) over two new choices, line `contour` and shading `paper` (src/isometric/README.md). Two more in 0.35.0: `paper-grain` (the texture `human:grain`, handed in from footprint-story/human) and `duotone` (the palette `duotone`).
 
 ## The idea
 
