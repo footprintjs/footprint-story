@@ -11,7 +11,7 @@ Design: `docs/design/2026-11-human-motion.md` · "Hand-drawn strokes".
 | file | holds |
 |---|---|
 | `shapes.js` | what a hand is asked to draw: shapes as data, read and checked (`readShapes`, `HATCH`, `FILL_KINDS`, `SKETCH_LAYERS`) |
-| `graph.js` | the lines as a graph: corners merged within `MERGE` (0.5 px), a shared line once; the fewest strokes (`leastStrokes`, Euler); Fleury's bridge test |
+| `graph.js` | the lines as a graph: corners merged within `MERGE` (0.5 px), transitively, after each path's own points closer than that are folded; a shared line once; the fewest strokes (`leastStrokes`, Euler); Fleury's bridge test |
 | `order.js` | the order: piece by piece, outline → detail → fills, each layer walked into strokes (`ORDER_RULE`, `walkLines`) |
 | `pen.js` | one stroke as the pen draws it: hooks at sharp corners, pace by the power law, width from speed, tapered ends, the capped tremor (`penStroke`, `withOvershoot`, `CORNER`, `PEN_WIDTH`) |
 | `fills.js` | hatch lines clipped exactly to a shape and out of its holes (`hatchLines`); hatch, cross-hatch and scribble as strokes (`fillStrokes`) |
@@ -95,7 +95,10 @@ distance across is `spacing` exactly (8 unless given, 3 to 200), as many as fit,
 pieces inside kept (even-odd; a crossing at a corner by the half-open rule). Every piece lies inside, its ends on an
 edge — a property test over random simple shapes. Then, by hand: `hatch` — each line a stroke, all drawn the same way
 (one flick of the wrist), line by line from the side nearer the pen; `cross-hatch` — a second set at +90° (`CROSS_TURN`);
-`scribble` — back and forth without a lift wherever the link to the next line stays inside, a lift where it would not.
+`scribble` — back and forth without a lift wherever the link to the next line stays inside (the link cut at every crossing
+and every corner it passes, each piece's middle inside or on an edge: a link along a comb's tips never crosses its gaps),
+a lift where it would not. A line that runs along an edge of the shape is cut at the corners on it and kept where the
+shape is beside it.
 A drawn fill, tremor and all, stays inside its shape: its tremor's room is capped by the distance to the edge.
 
 ## Boil
@@ -107,8 +110,10 @@ boilSketch(sketch, 7).held;   // 2: frames 6, 7 and 8 are one drawing; frame 9 t
 ```
 
 A fresh seeded tremor over each stroke's smooth line each held frame (`BOIL.every`, 3: "on threes", 8 a second at 24
-frames a second), within the rooms the plan kept: every boiled point is within its stroke's amplitude and room of its
-line, so within twice that of the same point on any other frame. Seeded by the plan's `boilSeed` and the held frame's
+frames a second), within the rooms the plan kept — each stroke keeps the room a tremor of up to 8 px would have
+(`ROOM_MOST`), whatever tremor it was drawn with, so `amplitude` is as loud as asked where there is room, and a sketch
+drawn with no tremor boils when asked to. Every boiled point is within the amplitude and its room of its line, so within
+twice that of the same point on any other frame. Seeded by the plan's `boilSeed` and the held frame's
 number: the same frame, the same drawing.
 
 ## The model and its critics
@@ -130,7 +135,7 @@ progress}`. Its random is seeded as every model's is (the piece's `name` and the
 |---|---|---|
 | `pen-lifts` | a sketch's line strokes over the fewest that draw each piece's outline and its detail, each line once (`PEN_LIFTS_MOST` 0) | any more: a line drawn twice, or shapes traced piece by piece where they meet |
 | `stroke-order` | detail or fill strokes that start before their piece's outline is finished (`STROKE_ORDER_MOST` 0) | any |
-| `hatch-gaps` | the widest band across a set of fill lines no drawn point passes through, over its spacing — an edge band counted twice, since the margin is at most half a spacing (`HATCH_GAP_MOST` 1.5) | over 1.5: a missed line |
+| `hatch-gaps` | the widest band across a set of fill lines no drawn point passes through, over its spacing — an edge band counted twice, since the margin is at most half a spacing; a band that would be faulted is measured again as its widest stretch where the shape is (a line across would cross at least `REGION_LEAST`, 1 px, of it, holes left out) (`HATCH_GAP_MOST` 1.5) | over 1.5: a missed line |
 
 They read the plan (a tool's own sketch model may give `strokes` with `layer`, `group`, `start`, `seconds`, `path`,
 `set`, `xs`, `ys`, and `sets`), and say null for what is not there. Each finding names `who` and the fix in the intent's
@@ -164,9 +169,10 @@ strokes timed after the line's. The two are named under `human:` and handed in: 
 ## Limits
 
 At most `MOST_SHAPES` (1024) shapes of `MOST_SHAPE_POINTS` (1024) points, `MOST_SKETCH_INPUT` (8192) points in all,
-16 holes a shape, `MOST_HATCH_LINES` (1024) lines a set; the drawn points stay under `MOST_SKETCH_POINTS` (16000) — the
-step grows for a long drawing, and one too large for that is refused. A paint list holds at most 512 items a piece, so a
-very large face hatched very close is refused by `checkPaint`, not cut.
+16 holes a shape, `MOST_HATCH_LINES` (1024) lines a set; the drawn points stay under `MOST_SKETCH_POINTS` (16000), and
+each stroke's under `MOST_STROKE_POINTS` (4096, one paint item's) — the step grows for a long drawing or a long stroke,
+and a stroke of more corners than that allows (1365) is refused. A piece's paint list holds at most `MOST_PIECE_ITEMS`
+(512) items: `human:hatch` refuses a face hatched too close for it, naming the spacing that fits.
 
 ## Sources
 

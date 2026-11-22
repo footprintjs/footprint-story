@@ -29,13 +29,22 @@
   hatch wider than 1.5 spacings with no line — each naming `who` and the fix in the intent's keys.
 - **The paint list has a `stroke` item** (`footprint-story/isometric`, `PAINT_ITEMS`): `{item: 'stroke', role, of,
   points: [[x, y, width, t], …], fill: null, stroke}`, checked by `checkPaint` (each width within the stroke's, times
-  rising). This package's own style choices never give one, so every map draws as before. A painter that knows the five
+  rising). This package's own style choices never give one, so every map draws as before. A painter that knows the four
   kinds must add it before it offers the choices below.
 - **Two style choices on strokes, handed in, never built in:** `sketchyLine` (`human:sketchy`: a piece's silhouette then
   its inner edges drawn by hand, the faces' ink line dropped) and `hatchTexture` (`human:hatch`: left faces and sides
   hatched, right faces cross-hatched, kept out of the faces painted over them, timed after the line), with
   `shapesOfPaint`, `strokeItems` and `strokeOutline` (the ring a painter fills). The isometric door still never loads
   `src/human`.
+- **Second-read fixes, before release:** a scribble's link is cut at every crossing and corner on it, so a link along
+  a comb's tips never crosses its gaps, and a hatch line along an edge is cut at its corners and kept where the shape is
+  beside it; a span a whole number of spacings keeps its half-spacing margins; `hatch-gaps` measures only where the
+  shape is, so a hole across a hatch is no gap; each stroke keeps the room an 8 px tremor would have (`ROOM_MOST`), so
+  `boilSketch`'s `amplitude` is never capped at the plan's tremor and a tremor-free sketch boils; a long stroke's step
+  grows to keep it under `MOST_STROKE_POINTS` (4096), so `human:sketchy` draws big pieces, and `human:hatch` refuses a
+  face too close-hatched for `MOST_PIECE_ITEMS` (512), naming the spacing that fits; corners merge transitively
+  (each path's own points closer than 0.5 px folded first); a turn of exactly 60° gets its hook. The strokes' types are
+  declared in `src/human/strokes/types.d.ts`, re-exported whole by `human.d.ts`.
 - **The `power-law` pen's tremor cap now lives in `src/human/paths/wobble.js`**, shared with the strokes; its plans are
   unchanged byte for byte.
 
