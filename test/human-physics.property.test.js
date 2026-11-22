@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import {
   planMove, sampleMove, checkMove, anticipate, followThrough, hold, overshoot, basePlan, flightAt, verletStep, makeWorld, pushOut,
-  settleSeconds, PHYSICS_STEP, CHAIN_LENGTH_TOLERANCE, CONTACT_MOST, MOST_CHAIN_GRAVITY, GRAVITY, MIN_THROW_SECONDS,
+  settleSeconds, PHYSICS_STEP, CHAIN_LENGTH_TOLERANCE, CONTACT_MOST, MOST_CHAIN_GRAVITY, GRAVITY, MIN_THROW_SECONDS, stretchOf,
 } from '../human.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 1000;
@@ -103,13 +103,17 @@ test('a chain keeps every link within CHAIN_LENGTH_TOLERANCE of its length, its 
   fc.assert(fc.property(chainIntent, fc.string({ maxLength: 8 }), (intent, name) => {
     const move = planMove({ ...intent, name: `c${name}` }), { plan } = move;
     assert.ok(plan.basis.stretch <= CHAIN_LENGTH_TOLERANCE, `basis.stretch ${plan.basis.stretch}`);
+    let framed = 0;
     for (const f of plan.frames) {
+      framed = Math.max(framed, stretchOf(f, plan.rest));
       assert.deepEqual([f[0], f[1]], [intent.from[0], intent.from[1]]);
       for (let i = 0; i + 2 < f.length; i += 2) {
         const err = Math.abs(Math.hypot(f[i + 2] - f[i], f[i + 3] - f[i + 1]) - plan.rest) / plan.rest;
         assert.ok(err <= CHAIN_LENGTH_TOLERANCE, `link ${i / 2}: ${err}`);
       }
     }
+    // basis.stretch is measured after every step: never under what any kept frame shows
+    assert.ok(plan.basis.stretch >= framed - 1e-12, `basis ${plan.basis.stretch} < frames ${framed}`);
     // the end is the last kept frame to the bit
     assert.deepEqual(sampleMove(move, plan.seconds).points.flat(), [...plan.frames.at(-1)]);
   }), { numRuns: HEAVY });

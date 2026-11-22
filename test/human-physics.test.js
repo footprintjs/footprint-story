@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  planMove, sampleMove, sampleTrack, HUMAN_MODELS, USUAL_MODELS, HUMAN_CRITICS, GRAVITY, MIN_APEX, MOST_CHAIN_SECONDS, SQUASH_SECONDS,
+  planMove, sampleMove, sampleTrack, HUMAN_MODELS, USUAL_MODELS, HUMAN_CRITICS, GRAVITY, MIN_APEX, MOST_CHAIN_SECONDS, SQUASH_SECONDS, stretchOf,
 } from '../human.js';
 import { settleTime } from '../src/motion/spring.js';
 
@@ -114,6 +114,8 @@ test('a hang: pinned at from, swings and settles below its pin; a moving pin tra
   const usual = planMove({ do: 'hang', from: [0, 0], to: [500, 0] });
   assert.deepEqual([usual.plan.basis.links, usual.plan.basis.linksGiven, usual.plan.basis.damping, usual.plan.basis.settled], [8, false, 0.9, true]);
   assert.ok(usual.plan.basis.stretch <= 0.05 && usual.plan.basis.substeps === 1);
+  assert.ok(usual.plan.basis.stretch >= Math.max(...usual.plan.frames.map((f) => stretchOf(f, usual.plan.rest))) - 1e-12, 'measured after every step');
+  assert.ok(usual.plan.basis.stretch > 0, 'a swinging chain stretches a little');
   const short = planMove({ do: 'hang', from: [0, 0], length: 13 });
   assert.deepEqual([short.plan.basis.links, short.plan.basis.linksGiven], [3, false]);
   const long = planMove({ do: 'hang', from: [0, 0], to: [1000, 0], model: { name: 'verlet', links: 20, damping: 0 } });
