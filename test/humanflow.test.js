@@ -115,6 +115,22 @@ test('one intent of fifty, asked by its own key: its duration and full basis, th
   assert.match(await whyFromRecord({ file, control: edges, key: `findings-${i}`, all: true }), new RegExp(`^findings-${i} = \\[\\]\nfindings \\(findings#6\\)`));
 });
 
+test('one entry\'s duration comes back whole even when its basis is long: a hanging chain and a pen line (WHY_LIMITS.asked)', async (t) => {
+  const file = path.join(temp(t), 'long.record.jsonl'), sink = fileSink(file), control = controlDepRecorder();
+  const intents = [{ do: 'hang', who: 'the lamp\'s cord', from: [400, 100], length: 180 }, { do: 'draw', who: 'the underline', path: [[100, 300], [260, 340], [420, 300], [600, 330]] }];
+  let run;
+  try { run = await runHumanFlow(intents, { sink, recorders: [control] }); } finally { await sink.close(); }
+  const edges = controlEdges(run.snapshot.commitLog, control);
+  for (const [i, model] of [[0, 'verlet'], [1, 'power-law']]) {
+    const value = JSON.stringify(run.result[`duration-${i}`]);
+    assert.equal(run.result[`model-${i}`].model, model);
+    assert.ok(value.length < WHY_LIMITS.asked && (model !== 'verlet' || value.length > WHY_LIMITS.value), `${model}'s duration is ${value.length} characters`);
+    const [first, second] = (await whyFromRecord({ file, control: edges, key: `duration-${i}` })).split('\n');
+    assert.equal(first, `duration-${i} = ${value}`);
+    assert.match(second, /^wrap \(wrap#3\)/);
+  }
+});
+
 test('the most intents a list holds keep a whole record: every step\'s keys read stay within the reader\'s bound', async (t) => {
   const file = path.join(temp(t), 'most.record.jsonl'), sink = fileSink(file);
   const intents = Array.from({ length: MOST_INTENTS }, (_, i) => ({ do: 'reach', who: `intents ${i}`, from: [0, 0], to: [100 + i, 0] }));

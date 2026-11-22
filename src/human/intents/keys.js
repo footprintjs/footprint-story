@@ -1,9 +1,9 @@
 /**
  * The intent decider's per-intent keys: each value a step decides for one intent is also written under a key of its
  * own, `<what>-<i>` (`model-3`, `duration-3`, `findings-3`; i = the intent's place in the list), beside the list keys.
- * WHY: an author or a model asks about ONE entry, and a record's answer shows a value cut at a couple of hundred
- * characters (footprint-story/record · WHY_LIMITS) — a list of fifty moves cut that short answers nothing. Asked for
- * `duration-3`, the record shows that one duration and its basis whole, walked back through the plan and the choice.
+ * WHY: an author or a model asks about ONE entry. A record's answer is asked of one key and shows its value up to a
+ * thousand characters (footprint-story/record · WHY_LIMITS.asked): a list of fifty moves would be cut, one entry is not.
+ * Asked for `duration-3`, the record shows that duration and its basis whole, walked back through the plan and the choice.
  * The name has no `.` or `[`: the record reader takes a key by its own name, never a part of one. A step names the
  * prefixes it writes (`each`); how many follows from the list (at most MOST_INTENTS, read.js).
  */

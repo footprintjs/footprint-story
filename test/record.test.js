@@ -53,6 +53,7 @@ test('why: the value, the stage that wrote it, the decision that let it run, and
   // the cut of a long answer says how to see the rest, when the caller says how
   const long = await whyFromRecord({ file, control, key: 'verdict', more: 'add --all' });
   assert.ok(long.split('\n').length <= WHY_LIMITS.lines + 2);
+  assert.deepEqual([WHY_LIMITS.value, WHY_LIMITS.asked], [200, 1000]);
   // what a run saves: an edge for each step a decision let run, and nothing for a recorder that cannot answer
   assert.deepEqual(control, { 'fix#5': { deciderId: 'verdict#4', label: 'there is something to fix' } });
   assert.deepEqual(controlEdges([{ runtimeStageId: 'a#0' }, null, { runtimeStageId: 5 }], { lookup: () => { throw new Error('no'); } }), {});

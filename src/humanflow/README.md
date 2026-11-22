@@ -39,7 +39,7 @@ why the ball's model was chosen: `model-1 = {"model":"ballistic","family":"throw
 none: its family's usual"}`, written by `choose`, which read the intents.
 
 **One entry, asked by its own key.** An author or a model asks about one move, in a few lines. A record's answer shows a
-value cut at 200 characters (`WHY_LIMITS.value`), so a list of fifty moves would answer nothing. Each value a step
+value cut at 1000 characters (`WHY_LIMITS.asked`), so a list of fifty moves would answer nothing. Each value a step
 decides for one intent is also written under a key of its own — `model-<i>` (choose), `duration-<i>` (wrap: the seconds
 and the model's basis, flat), `findings-<i>` (findings: each critic, its level and the fix) — beside the list keys
 (`intentKey('duration', 3)` → `'duration-3'`). A test asks for one intent of fifty, each with a long `who`, and gets its

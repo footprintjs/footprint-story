@@ -21,6 +21,9 @@
   `writeProvenance: 'reads-prefix'`. Its result equals `planIntents`' (a property test over random intent lists), so
   `whyFromRecord` answers from the record file why one move took its duration (`duration-<i>`: through the plan and
   the decision, Fitts's distance, target and bits in the answer) and why its model was chosen (`model-<i>`).
+- **`whyFromRecord` shows the value asked for up to 1000 characters** (`WHY_LIMITS.asked`; one line, as before); every
+  other name and value it shows stays at 200 (`WHY_LIMITS.value`). The asked value is the answer: one entry asked by its
+  own key comes back whole (a hanging chain's duration and its basis are about 300 characters).
 
 ## 0.27.0 — light physics and secondary motion on `footprint-story/human`; one seed rule
 
