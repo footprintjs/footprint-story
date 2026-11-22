@@ -29,6 +29,8 @@ import { planSketch, LIFT, SKETCH, WIDTH_SHARE } from './plan.js';
 import { shapesOfPaint, ringOf, strokeItems } from './paint.js';
 
 const SOLID = new Set(['top', 'left', 'right', 'side']);
+/** The most items one piece's paint list holds: the isometric MOST_PAINT_ITEMS (src/isometric/paint.js; a test pins the two equal). */
+export const MOST_PIECE_ITEMS = 512;
 /** A floor's tile lines, as the isometric `ink` and `none` lines keep them (src/isometric/styleChoices.js · gridStroke;
  *  a test pins the two equal). */
 const gridStroke = (colours) => ({ colour: colours.ink, alpha: 0.16, width: 1.5, join: 'miter', cap: 'butt' });
@@ -67,7 +69,11 @@ function hatch(items, { piece, colours, options, random }) {
   // after the line's strokes, if it drew any: a hand hatches once the outline is in
   const drawn = items.filter((it) => it.item === 'stroke').flatMap((it) => it.points.map((p) => p[3]));
   const at = drawn.length ? Math.max(...drawn) + LIFT.seconds : 0, width = options.width ?? SKETCH.width;
-  const plan = planSketch(shapes, { random, who: `the style's texture "human:hatch" on "${piece.name}"`, width, tremor: options.tremor });
+  const who = `the style's texture "human:hatch" on "${piece.name}"`, spacing = options.spacing ?? 8;
+  const plan = planSketch(shapes, { random, who, width, tremor: options.tremor });
+  // a piece's list holds at most MOST_PIECE_ITEMS: past it, refused with the spacing that fits (lines go as 1 / spacing)
+  const room = MOST_PIECE_ITEMS - items.length;
+  if (plan.strokes.length > room) refuse(`${who} draws ${plan.strokes.length} hatch lines, and its piece holds ${room} more items (${MOST_PIECE_ITEMS} in all) — give a wider spacing: texture: {name: 'human:hatch', spacing: ${Math.ceil((spacing * plan.strokes.length) / room) + 1}}`);
   return [...items, ...strokeItems(plan, { of: piece.name, role: 'hatch', colour: colours.ink, width: width * WIDTH_SHARE.fill, at })];
 }
 

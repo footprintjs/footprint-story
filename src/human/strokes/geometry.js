@@ -47,3 +47,35 @@ export function crossings(p, q, ring) {
   }
   return out.sort((u, v) => u - v);
 }
+
+/** The shares along p–q (0 to 1, ends left out) of a ring's corners that lie on it, within `tol` px. */
+export const cornersOn = (p, q, ring, tol = 1e-9) => ring.map((c) => onSegment(p, q, c, tol)).filter((t) => t !== null);
+
+/** How far along p–q (a share, 0 to 1) the point r lies, when it lies on the segment within `tol` px; else null. */
+function onSegment(p, q, r, tol) {
+  const dx = q[0] - p[0], dy = q[1] - p[1], l2 = dx * dx + dy * dy;
+  if (!(l2 > 0)) return null;
+  const t = ((r[0] - p[0]) * dx + (r[1] - p[1]) * dy) / l2;
+  return t > 0 && t < 1 && Math.hypot(p[0] + dx * t - r[0], p[1] + dy * t - r[1]) <= tol ? t : null;
+}
+
+/**
+ * Whether the segment p–q lies inside a ring (or on its edges) and outside its holes (or on their edges), all along:
+ * cut where it crosses an edge and at every corner it passes through, each piece's middle must be inside or on an
+ * edge. WHY the corners: a segment that runs along a ring's edges passes the gaps between them at corners, where no edge
+ * is crossed from one side to the other (a comb's teeth, met along their tips).
+ */
+export function segmentWithin(p, q, ring, holes = [], tol = 1e-9) {
+  const rings = [ring, ...holes], cuts = [0, 1];
+  for (const r of rings) {
+    cuts.push(...crossings(p, q, r), ...cornersOn(p, q, r, tol));
+  }
+  cuts.sort((u, v) => u - v);
+  const edge = (x, y, r) => toRing(x, y, r) <= tol;
+  for (let k = 1; k < cuts.length; k += 1) {
+    if (!(cuts[k] - cuts[k - 1] > 1e-12)) continue;
+    const t = (cuts[k] + cuts[k - 1]) / 2, x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t;
+    if (!(insideRing(x, y, ring) || edge(x, y, ring)) || holes.some((h) => insideRing(x, y, h) && !edge(x, y, h))) return false;
+  }
+  return true;
+}

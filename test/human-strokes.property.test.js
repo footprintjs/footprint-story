@@ -13,6 +13,7 @@ import { penLifts } from '../src/human/strokes/penLifts.js';
 import { strokeOrder } from '../src/human/strokes/strokeOrder.js';
 import { toRing } from '../src/human/strokes/geometry.js';
 import { within } from './strokeHelpers.js';
+import { segmentWithin } from '../src/human/strokes/geometry.js';
 
 const RUNS = Number(process.env.FC_RUNS) || 300;
 const runs = (share = 1) => ({ numRuns: Math.max(20, Math.round(RUNS * share)) });
@@ -124,4 +125,23 @@ test('any sketch: the same shapes and seed give the same plan, frozen plain data
       assert.ok(s.ws.every((w) => w > 0 && w <= a.width + 1e-12));
     }
   }), runs(0.3));
+});
+
+/** A comb: 2 to 6 teeth of any widths and gaps hanging from a bar — concave, its gaps open at the top. */
+const combs = fc.tuple(fc.array(fc.tuple(fc.integer({ min: 2, max: 30 }), fc.integer({ min: 2, max: 30 })), { minLength: 2, maxLength: 6 }), fc.integer({ min: 20, max: 200 }), fc.integer({ min: 4, max: 30 }))
+  .map(([teeth, height, bar]) => {
+    const top = [];
+    let x = 0;
+    teeth.forEach(([w, g], i) => { top.push([x, height], [x + w, height]); x += w; if (i < teeth.length - 1) { top.push([x, bar], [x + g, bar]); x += g; } });
+    return [[0, 0], ...top, [x, 0]];
+  });
+
+test('any comb: a scribble\'s every line and link, and every hatch piece, stays inside — checked along each line, 50 points a line', () => {
+  fc.assert(fc.property(combs, fc.integer({ min: -90, max: 90 }), fc.integer({ min: 3, max: 15 }), (ring, angle, spacing) => {
+    const plan = planSketch([{ points: ring, closed: true, edge: false, fill: { kind: 'scribble', angle, spacing } }], { seed: 'comb', tremor: 0 });
+    for (const s of plan.strokes) for (let i = 1; i < s.path.length; i += 1) {
+      for (let k = 0; k <= 50; k += 1) { const f = k / 50, a = s.path[i - 1], q = s.path[i]; assert.ok(within(a[0] + (q[0] - a[0]) * f, a[1] + (q[1] - a[1]) * f, ring, [], 1e-6), `${angle}°: ${a} → ${q}`); }
+      assert.ok(segmentWithin(s.path[i - 1], s.path[i], ring, [], 1e-6));
+    }
+  }), runs(0.1));
 });

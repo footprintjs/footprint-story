@@ -3,8 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planMove, sampleMove, checkMove, planIntents, intentKey, shapesOfPaint, strokeItems, strokeOutline, sketchyLine, hatchTexture, ROLE_FILLS,
-  PEN_LIFTS_MOST, STROKE_ORDER_MOST, HATCH_GAP_MOST, SKETCH_KEYS, USUAL_MODELS, HUMAN_DOS } from '../human.js';
-import { isometric, isoStyle, paintPiece, ISO_STYLE_CHOICES } from '../isometric.js';
+  PEN_LIFTS_MOST, STROKE_ORDER_MOST, HATCH_GAP_MOST, SKETCH_KEYS, USUAL_MODELS, HUMAN_DOS, MOST_STROKE_POINTS, MOST_PIECE_ITEMS } from '../human.js';
+import { isometric, isoStyle, paintPiece, ISO_STYLE_CHOICES, MOST_PAINT_POINTS, MOST_PAINT_ITEMS } from '../isometric.js';
 import { square, within } from './strokeHelpers.js';
 
 const box = [{ points: square(100, 100, 200), closed: true, fill: { kind: 'hatch', spacing: 10 } }, { points: [[100, 200], [300, 200]], layer: 'detail' }, { points: [[200, 100], [200, 300]], layer: 'detail' }];
@@ -207,4 +207,26 @@ test('the style choices take their options, checked once when the style is made'
   // a flat block's faces have no area: nothing to hatch, the faces as they were
   const flat = paintPiece(isoStyle({ texture: 'human:hatch' }, { choices: [hatchTexture] }), { name: 'f', kind: 'block', at: [1, 1], size: [2, 2, 0] }, grid);
   assert.ok(flat.items.every((i) => i.item !== 'stroke'));
+});
+
+test('hatch-gaps reads only where the shape is: a hole across a hatch from side to side is no gap', () => {
+  const sq = square(0, 0, 100);
+  for (const holes of [[[[-10, 40], [110, 40], [110, 60], [-10, 60]]], [[[30, 30], [70, 30], [70, 70], [30, 70]]]]) {
+    const c = checkMove(planMove({ do: 'sketch', shapes: [{ points: sq, closed: true, holes, fill: { kind: 'hatch', angle: 0, spacing: 8 } }] }));
+    assert.deepEqual(c.findings, []); assert.ok(c.measures['hatch-gaps'] <= 1 + 1e-9, `${c.measures['hatch-gaps']}`);
+  }
+  // the band a hole leaves, measured again where the shape is: an edge band of the bar below it stays an edge band
+  const bars = checkMove(planMove({ do: 'sketch', shapes: [{ points: sq, closed: true, holes: [[[-10, 20], [110, 20], [110, 90], [-10, 90]]], fill: { kind: 'hatch', angle: 0, spacing: 8 } }] }));
+  assert.deepEqual(bars.findings, []);
+});
+
+test('the style choices draw big pieces: each stroke within one item\'s points, and a hatch too close for the list refused with the spacing that fits', () => {
+  assert.equal(MOST_STROKE_POINTS, MOST_PAINT_POINTS); assert.equal(MOST_PIECE_ITEMS, MOST_PAINT_ITEMS);
+  const big = paintPiece(isoStyle({ line: 'human:sketchy' }, { choices: [sketchyLine] }), { name: 'big', kind: 'block', at: [0, 0], size: [30, 30, 10] }, grid);
+  const ink = big.items.filter((i) => i.item === 'stroke');
+  assert.equal(ink.length, 3); assert.ok(ink.every((i) => i.points.length <= MOST_PAINT_POINTS));
+  const piece20 = { name: 'big', kind: 'block', at: [0, 0], size: [20, 20, 10] };
+  assert.throws(() => paintPiece(isoStyle({ texture: 'human:hatch' }, { choices: [hatchTexture] }), piece20, grid),
+    /the style's texture "human:hatch" on "big" draws 568 hatch lines, and its piece holds 509 more items \(512 in all\) — give a wider spacing: texture: \{name: 'human:hatch', spacing: 10\}/);
+  assert.ok(paintPiece(isoStyle({ texture: { name: 'human:hatch', spacing: 10 } }, { choices: [hatchTexture] }), piece20, grid).items.length <= MOST_PAINT_ITEMS);
 });

@@ -3,15 +3,15 @@
 // exactly where the rule fixes them, to a tolerance where sin, cos and sqrt round in the last digits.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planSketch, sampleSketch, boilSketch, hatchLines, leastStrokes, withOvershoot, ORDER_RULE, CORNER, PEN_WIDTH, BOIL, SKETCH, LIFT, WIDTH_SHARE,
+import { planSketch, sampleSketch, boilSketch, hatchLines, leastStrokes, withOvershoot, MOST_STROKE_POINTS, ORDER_RULE, CORNER, PEN_WIDTH, BOIL, SKETCH, LIFT, WIDTH_SHARE,
   HATCH, CROSS_TURN, MOST_BOIL_FRAME } from '../human.js';
 import { walkLines } from '../src/human/strokes/order.js';
 import { readShapes } from '../src/human/strokes/shapes.js';
-import { graphOf } from '../src/human/strokes/graph.js';
+import { graphOf, mergeCorners } from '../src/human/strokes/graph.js';
 import { penStroke } from '../src/human/strokes/pen.js';
 import { toRing } from '../src/human/strokes/geometry.js';
 import { seeded } from '../src/seed/seeded.js';
-import { square, within } from './strokeHelpers.js';
+import { square, within, comb } from './strokeHelpers.js';
 
 const near = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol;
 const walk = (shapes, pen = null) => walkLines(readShapes(shapes, 't'), pen);
@@ -250,4 +250,65 @@ test('planSketch refuses what it cannot draw, naming the place and the fix', () 
   r(['square'], { seed: 's' }, /shapes\[0\] is a shape \{points/);
   r(Array.from({ length: 9 }, () => ({ points: Array.from({ length: 1000 }, (_, i) => [i, 0]) })), { seed: 's' }, /hold 9000 points — at most 8192: draw it in parts/);
   r([{ points: square(0, 0, 4000), closed: true, edge: false, fill: { kind: 'hatch', spacing: 3 } }], { seed: 's' }, /lines — at most 1024: give a wider spacing/);
+});
+
+// ---- the second read's cases ------------------------------------------------------------------------------------------
+
+/** Every point of every stroke's corners-to-corners line, 50 a line, inside the ring (or on an edge) and out of its holes. */
+const allWithin = (plan, ring, holes = []) => plan.strokes.every((s) => s.path.every((q, i) => i === 0 || Array.from({ length: 51 }, (_, k) => k / 50).every((f) => {
+  const a = s.path[i - 1]; return within(a[0] + (q[0] - a[0]) * f, a[1] + (q[1] - a[1]) * f, ring, holes);
+})));
+
+test('a scribble never links across the gaps of a comb: a link along the teeth\'s tips passes corners, not edges', () => {
+  const plan = planSketch([{ points: comb, closed: true, edge: false, fill: { kind: 'scribble', angle: 44, spacing: 8 } }], { seed: 'comb', tremor: 0 });
+  assert.ok(allWithin(plan, comb));
+  for (let angle = -90; angle < 90; angle += 7) for (const spacing of [3, 5, 8, 13]) {
+    assert.ok(allWithin(planSketch([{ points: comb, closed: true, edge: false, fill: { kind: 'scribble', angle, spacing } }], { seed: 'comb', tremor: 0 }), comb), `${angle}°, ${spacing} px`);
+  }
+  // a hatch line along a tooth's edge: kept where the comb is beside it, never run past the comb's end (151 was read once)
+  const h = hatchLines(comb, { angle: -90, spacing: 3 });
+  assert.ok(h.segments.every((x) => within(x.a[0], x.a[1], comb) && within(x.b[0], x.b[1], comb)));
+  assert.ok(near(h.offsets[0] - h.lo, 1.5), 'a span of a whole number of spacings, rounded up a hair, keeps its half-spacing margin');
+});
+
+test('corners merge transitively (0, 0.4 and 0.8 px along are one), but a line sampled finer than that is folded, never lost', () => {
+  assert.deepEqual(mergeCorners([[0, 0], [0.4, 0], [0.8, 0], [5, 0]]).ids, [0, 0, 0, 1]);
+  assert.equal(walk([{ points: [[0, 0], [10, 0]] }, { points: [[10.4, 0], [10.4, 10]] }, { points: [[10.8, 10], [0, 0]] }]).least, 1, 'three lines whose ends chain are one triangle');
+  const fine = Array.from({ length: 101 }, (_, i) => [i * 0.3, 0]);
+  const w = walk([{ points: fine }]);
+  assert.equal(w.strokes.length, 1); assert.ok(w.strokes[0].points.at(-1)[0] >= 29.5, 'the whole 30 px drawn');
+});
+
+test('a turn of exactly 60° gets its hook; a stroke past MOST_STROKE_POINTS is walked at a longer step; too many corners for one stroke are refused', () => {
+  const r = (60 * Math.PI) / 180;
+  assert.equal(withOvershoot([[0, 0], [100, 0], [100 + 100 * Math.cos(r), 100 * Math.sin(r)]]).length, 5);
+  const long = planSketch([{ points: [[0, 0], [20000, 0]] }], { seed: 'long' });
+  assert.ok(long.strokes[0].xs.length <= MOST_STROKE_POINTS && long.strokes[0].step > 2, `${long.strokes[0].xs.length}`);
+  const zig = (x0) => Array.from({ length: 1000 }, (_, i) => [x0 + i * 2, (i % 2) * 2]);
+  assert.throws(() => planSketch([{ points: zig(0) }, { points: [zig(0).at(-1), ...zig(1998).slice(1, 500)] }], { seed: 'z' }), /stroke 0 turns at 1499 corners — one stroke holds at most 1365: draw it in parts/);
+});
+
+test('boil: a sketch drawn with no tremor boils when asked to, and as loud as asked, within its rooms', () => {
+  const still = planSketch([{ points: [[0, 0], [400, 0]] }, { points: [[0, 100], [400, 100], [400, 200]] }], { seed: 'still', tremor: 0 });
+  const off = (b) => Math.max(...b.strokes.flatMap((s, k) => s.ys.map((y, i) => Math.hypot(s.xs[i] - still.strokes[k].sx[i], y - still.strokes[k].sy[i]))));
+  assert.equal(off(boilSketch(still, 3)), 0, 'no amplitude asked: the tremor it was drawn with, none');
+  const loud = boilSketch(still, 3, { amplitude: 4 });
+  assert.ok(off(loud) > 2 && off(loud) <= 4 + 1e-9, `${off(loud)}`);
+  loud.strokes.forEach((s, k) => s.xs.forEach((x, i) => assert.ok(Math.hypot(x - still.strokes[k].sx[i], s.ys[i] - still.strokes[k].sy[i]) <= still.strokes[k].rs[i] + 1e-9)));
+  const quiet = planSketch([{ points: [[0, 0], [400, 0]] }], { seed: 'q', tremor: 0.5 });
+  const louder = boilSketch(quiet, 0, { amplitude: 6 }).strokes[0];
+  assert.ok(Math.max(...louder.ys.map(Math.abs)) > 0.5, 'louder than the tremor it was drawn with: never capped at it');
+});
+
+test('a hatch line that runs along an edge of the shape is kept where the shape is beside it, cut at the corner, never run past it', () => {
+  // an L: the line at x = 5 runs inside below y = 50 and along the L's inner edge above it
+  const L = [[0, 0], [20, 0], [20, 100], [5, 100], [5, 50], [0, 50]], Z = L.map(([x, y]) => [y, x]);
+  for (const [ring, angle] of [[L, -90], [L, 90], [L, 270], [Z, 0], [Z, 180]]) {
+    const h = hatchLines(ring, { angle, spacing: 10 });
+    assert.equal(h.segments.length, 2, `${angle}°`);
+    for (const x of h.segments) {
+      assert.ok(within(x.a[0], x.a[1], ring, [], 1e-9) && within(x.b[0], x.b[1], ring, [], 1e-9), `${angle}°: ${x.a} → ${x.b}`);
+      assert.ok(near(Math.hypot(x.b[0] - x.a[0], x.b[1] - x.a[1]), 100, 1e-9), `${angle}°: the line from end to end, along the edge too`);
+    }
+  }
 });

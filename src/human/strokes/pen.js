@@ -29,6 +29,8 @@ export const CORNER = Object.freeze({ angle: 60, share: 0.15, most: 3 });
 export const PEN_WIDTH = Object.freeze({ thin: 0.35, taper: 8, taperShare: 0.25, tip: 0.3 });
 /** The step a stroke is walked at, in px, unless the sketch is long enough to need a longer one. */
 export const STROKE_STEP = 2;
+/** The widest tremor a stroke keeps room for, in px: the most the pen's tremor and a boil's amplitude may be. */
+export const ROOM_MOST = 8;
 
 const smooth = (u) => u * u * (3 - 2 * u);
 
@@ -42,7 +44,7 @@ export function withOvershoot(points, most = CORNER.most) {
     out.push(b);
     if (!(lu > 0 && lv > 0)) continue;
     const turned = Math.abs(Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy)) * (180 / Math.PI);
-    if (turned < CORNER.angle) continue;
+    if (turned < CORNER.angle - 1e-9) continue;   // a turn of exactly 60° is one, whatever atan2 rounds it to
     const by = Math.min(most, CORNER.share * Math.min(lu, lv));
     out.push([b[0] + (ux / lu) * by, b[1] + (uy / lu) * by], b);
   }
@@ -76,19 +78,18 @@ export function wobbled(points, along, rooms, random, { amplitude, wavelength })
 /**
  * A stroke drawn by hand: {xs, ys, ws, ts, sx, sy, rs, length, seconds, hooks}. `corners` are its corners in order;
  * `settings` {random, speed, width, amplitude, wavelength, overshoot, step, clip}: `clip` null, or {ring, holes} it
- * stays inside. `ts` are seconds from the stroke's start; `sx`, `sy` the line before the tremor; `rs` the room at each point.
+ * stays inside. `ts` are seconds from the stroke's start; `sx`, `sy` the line before the tremor; `rs` the room at each point for a
+ * tremor of up to ROOM_MOST px (what a boil reads).
  */
 export function penStroke(corners, { random, speed, width, amplitude = TREMOR.amplitude, wavelength = TREMOR.wavelength, overshoot = CORNER.most, step = STROKE_STEP, clip = null }) {
   const hooked = withOvershoot(corners, overshoot), { points, along } = walk(hooked, step), length = along[along.length - 1];
   const n = points.length, seconds = length / speed;
   const k = Math.max(1, Math.round(BEND_WIDTH / step)), bends = n > 2 ? curvaturesOver(points, k) : points.map(() => 0);
   const ts = n > 1 ? powerLawTimes(along, bends, seconds, { floor: POWER_LAW.floor, ramp: POWER_LAW.ramp }) : [0];
-  // the room: half the gap to another leg of the stroke, and the distance to the edge of the shape it is clipped to
-  let rooms = null;
-  if (amplitude > 0 && n > 1) {
-    const gaps = legGaps(points, 2 * amplitude).map((g, i) => (clip ? Math.min(g, 2 * Math.min(toRing(points[i][0], points[i][1], clip.ring), ...clip.holes.map((h) => toRing(points[i][0], points[i][1], h)))) : g));
-    rooms = wobbleRooms(gaps, k, amplitude);
-  }
+  // the room: half the gap to another leg of the stroke, and the distance to the edge of the shape it is clipped to —
+  // read as far as ROOM_MOST, so a boil of any amplitude it allows finds its room kept (`rs`), whatever this tremor was
+  const gaps = legGaps(points, 2 * ROOM_MOST).map((g, i) => (clip ? Math.min(g, 2 * Math.min(toRing(points[i][0], points[i][1], clip.ring), ...clip.holes.map((h) => toRing(points[i][0], points[i][1], h)))) : g));
+  const rooms = amplitude > 0 ? wobbleRooms(gaps, k, amplitude) : null;
   const { xs, ys } = wobbled(points, along, rooms, random, { amplitude, wavelength });
   // the speed at each point (from the times either side), and the width it lays down
   const speeds = points.map((_, i) => { const a = Math.max(0, i - 1), b = Math.min(n - 1, i + 1), dt = ts[b] - ts[a]; return dt > 0 ? (along[b] - along[a]) / dt : 0; });
@@ -97,5 +98,5 @@ export function penStroke(corners, { random, speed, width, amplitude = TREMOR.am
     const end = taper > 0 ? Math.min(1, Math.min(along[i], length - along[i]) / taper) : 1;
     return width * (1 - PEN_WIDTH.thin * (top > 0 ? speeds[i] / top : 0)) * (PEN_WIDTH.tip + (1 - PEN_WIDTH.tip) * smooth(end));
   });
-  return { xs, ys, ws, ts, sx: points.map((p) => p[0]), sy: points.map((p) => p[1]), rs: rooms ?? points.map(() => 0), length, seconds, hooks: (hooked.length - corners.length) / 2 };
+  return { xs, ys, ws, ts, sx: points.map((p) => p[0]), sy: points.map((p) => p[1]), rs: wobbleRooms(gaps, k, ROOM_MOST), length, seconds, hooks: (hooked.length - corners.length) / 2 };
 }

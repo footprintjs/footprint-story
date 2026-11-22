@@ -33,6 +33,9 @@ export const WIDTH_SHARE = Object.freeze({ outline: 1, detail: 0.7, fill: 0.4 })
 export const LIFT = Object.freeze({ seconds: 0.06, speed: 1500 });
 /** The most points one sketch's strokes hold: the step grows to keep under it. */
 export const MOST_SKETCH_POINTS = 16000;
+/** The most points one stroke holds: the step of a long stroke grows to keep under it. The isometric paint list's
+ *  MOST_PAINT_POINTS (src/isometric/paint.js; a test pins the two equal), so every stroke fits one `stroke` item. */
+export const MOST_STROKE_POINTS = 4096;
 
 /** Every stroke of the drawing, in order, before the pen draws them: [{layer, group, kind, shape, set, path, rule}], least, sets. */
 function strokesInOrder(shapes) {
@@ -101,9 +104,13 @@ export function planSketch(rawShapes, settings) {
       t += seconds;
     }
     const fill = p.layer === 'fill', amplitude = fill && p.kind !== 'scribble' ? tremor * SKETCH.fillTremor : tremor;
-    const drawn = penStroke(p.path, { random, speed: fill ? fillSpeed : speed, width: width * WIDTH_SHARE[p.layer], amplitude, wavelength, overshoot: fill ? 0 : overshoot, step, clip: fill ? { ring: p.clip.points, holes: p.clip.holes } : null });
+    // each edge walked in steps adds at most one point past its length's share, a hook two edges: 3 a corner at most
+    const room = MOST_STROKE_POINTS - 3 * p.path.length;
+    if (room < 1) refuse(`${who}'s stroke ${i} turns at ${p.path.length} corners — one stroke holds at most ${Math.floor((MOST_STROKE_POINTS - 1) / 3)}: draw it in parts`);
+    const own = Math.max(step, lengthOf(p.path) / room);
+    const drawn = penStroke(p.path, { random, speed: fill ? fillSpeed : speed, width: width * WIDTH_SHARE[p.layer], amplitude, wavelength, overshoot: fill ? 0 : overshoot, step: own, clip: fill ? { ring: p.clip.points, holes: p.clip.holes } : null });
     strokes.push({ layer: p.layer, group: p.group, kind: p.kind, shape: p.shape, set: p.set, path: p.path.map((q) => [q[0], q[1]]), start: t, seconds: drawn.seconds, length: drawn.length, amplitude,
-      xs: drawn.xs, ys: drawn.ys, ws: drawn.ws, ts: drawn.ts.map((u) => t + u), sx: drawn.sx, sy: drawn.sy, rs: drawn.rs, hooks: drawn.hooks });
+      xs: drawn.xs, ys: drawn.ys, ws: drawn.ws, ts: drawn.ts.map((u) => t + u), sx: drawn.sx, sy: drawn.sy, rs: drawn.rs, hooks: drawn.hooks, step: own });
     order.push({ stroke: i, layer: p.layer, group: p.group, rule: p.rule, at: [p.path[0][0], p.path[0][1]] });
     t += drawn.seconds;
   });
