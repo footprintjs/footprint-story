@@ -53,6 +53,7 @@ code it replaced said, wrote and kept. They are copies, never edited, never impo
 | `storyreel-0.44.0-motion-place.mjs` | footprint-storyreel `src/kits/isometric/motion-place.mjs` at `307d0f7` (0.44.0), the whole file | none (byte-identical) |
 | `storyreel-0.44.0-motion-cover.mjs` | footprint-storyreel `src/kits/isometric/motion-cover.mjs` at `307d0f7`, lines 28–51 (`NAME_WIDTH`, `nameBox`, `overlaps`, `area`) | `export` added to `nameBox` and `overlaps`; a comment line naming the source |
 | `storyreel-0.44.0-motion-side.mjs` | footprint-storyreel at `307d0f7`: `src/kits/isometric/motion-side.mjs` lines 34 (`worldPx`) and 121–124 (`sideFoot`), `src/kits/isometric/motion.mjs` lines 216–218 (`SAMPLE_RATE`, `SAMPLES_MOST`, `samplesOf`) | `export` added to `samplesOf`; a comment line naming the sources |
+| `storyreel-0.44.0-turn.mjs` | footprint-storyreel at `6c8eeb4` (0.44.0): `src/kits/isometric/turn.mjs` lines 32–54 (`UNTURNED`, `dot`, `cross`, `unit`, `apply`, `turnAxis`, `turning`), 69–83 (`towardViewer`, `centreOf`, `onFrame`), 121–141 (`ROUND`, `ballPicture`) and 159–172 (`ballPaint`); `src/kits/isometric/draw.mjs` line 34 (`ISO_LOOK`) | a comment line naming the sources; the import of `posed` left out (used only by `drawnOutline`, not copied) |
 
 Where the package differs from a control on purpose, the test that compares them names the difference and
 leaves it out of its generator — see the CHANGELOG's "Differences from the code it replaced". Keep these

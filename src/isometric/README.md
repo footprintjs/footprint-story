@@ -26,9 +26,10 @@ is numbers in, numbers out. Each tool keeps its own drawing.
 | `lead.js` | a cable's lead into a port, drawn again over its block: its way rounded from that end, its pieces through the floor corner and their length (`cableLead`) — the share of the line a tool hands a packet over at |
 | `straight.js` | a wire drawn straight between two pieces: its lane (`lanesOf`), its ends (`straightRun`), its bend (`bentWire`), its curve as a way (`curveWay`), its head (`arrowHead`, `headingOf`) |
 | `style.js` | a map's look: a row of named choices, one per column, and a piece's paint list in it (`isoStyle`, `paintPiece`) |
-| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`), and `paper` (shading), `contour` (line) and `duotone` (palette) for the named looks |
+| `styleChoices.js` | the choices this package ships: today's look (`box`, `tones`, `ink`, `none`, `theme`), and `paper` (shading), `contour` (line) and `duotone` (palette) for the named looks; a ball's faces and its seams' line (`SEAM`) |
 | `duotone.js` | the palette `duotone`: two inks on paper, every line the ink, every fill with a colour a tint of the accent (a fill the page colours is left to it); a name in the ink kept at 4.5 : 1 on every tint (`DUOTONE`) |
-| `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`, `paper-grain`, `duotone`) |
+| `looks.js` | the named looks: a style row under a name, data only (`ISO_LOOKS`: `outlined`, `line-art`, `paper-grain`, `duotone`, `sketchy`) |
+| `ball.js` | a ball on the grid (0.37.0): StoryReel's round kind as numbers — its outline, middle, two seams and box (`ballOf`); the `box` shape paints it |
 | `paint.js` | the paint list: its items (a hand-drawn `stroke` among them), checked as plain data (`PAINT_ITEMS`), and the colour mix (`mixColour`) |
 | `mapSpec.js` | a whole map's input checked: the spec (the map as data) and the policy (a tool's numbers: `ISO_MAP_POLICIES`, `ISO_MAP_LIMITS`) |
 | `mapSteps.js` | a whole map built as named, pure steps (`ISO_MAP_STEPS`, `buildIsoMap`): place, route, fitFloors, grid, shape, names, order, floorLabels, style |
@@ -323,7 +324,7 @@ they run — each reads only what the one before it gave (the design: `docs/desi
 
 | Column | Takes | Gives | This package's choices |
 |---|---|---|---|
-| `shape` | the piece and the grid | the faces, as items with a role (`top`, `left`, `right`, `side`, `ground`, `grid`) | `box` |
+| `shape` | the piece and the grid | the faces, as items with a role (`top`, `left`, `right`, `side`, `ground`, `grid`; a ball's `seam`) | `box` (a block, a cylinder, a floor, a ball) |
 | `shading` | the items, the base colour | a fill per face | `tones`: top 20% toward white, left 6% and right (a cylinder's side) 18% toward black; `paper`: every face and the ground the paper's colour (option `colour`, `#ffffff`) |
 | `line` | the items, the ink | strokes | `ink` (2.5 px, round joins; option `width`, 0.5 to 20), `none` (a floor keeps its tile lines), `contour` (a bold even contour round the piece and lighter inner lines; options `width`, 1 to 20, 5, and `inner`, 0.25 to the width, 1.5) |
 | `palette` | the items | the same, recoloured | `theme`; `duotone`: every line the ink, every fill with a colour a tint of the accent on the paper, a fill the page colours left to it (options `ink`, `accent`, `paper`) |
@@ -383,7 +384,7 @@ width fills the ring round it, its ends capped (`strokeOutline`, the human door)
 A copy of a style (`structuredClone`) is its record, not a style: only what `isoStyle` made paints (its choices are held
 apart, never on the style), so a record read back can be shown but must be made into a style again to draw.
 
-### Named looks: outlined, line art, paper grain and duotone
+### Named looks: outlined, line art, paper grain, duotone and sketchy
 
 A **look** is a style row under a name (`looks.js` · `ISO_LOOKS`, data only — no code of its own). A tool names one as
 it names a choice, by its name in the row: `isoStyle({look: 'outlined'})`, a map spec's `style: {look: 'line-art'}`. A
@@ -397,6 +398,7 @@ seeds and paint list — and the record keeps the name beside it (`style.look`, 
 | `line-art` | `{shading: 'paper', line: {name: 'contour', width: 3, inner: 1.25}}`: white faces, ink lines only | ![The same map drawn in ink on white: a 3 px outline round each piece, thinner fold lines, faint tile lines](look-line-art.svg) |
 | `paper-grain` (0.35.0) | `{texture: 'human:grain'}`: today's look printed on paper, a fine faint grain over every face | ![The same map in today's tones, each face flecked with short, faint, scattered marks like the tooth of a printed page](look-paper-grain.svg) |
 | `duotone` (0.35.0) | `{palette: 'duotone'}`: two inks — every line a deep navy, every fill a tint of a warm orange | ![The same map printed in two inks: navy lines, the faces and the floor in light to mid tints of orange, the tops lightest](look-duotone.svg) |
+| `sketchy` (0.37.0) | `{shading: 'paper', line: 'human:sketchy', texture: {name: 'human:hatch', spacing: 28}}`: drawn by hand on paper | ![The same map sketched in pencil: wobbly hand-drawn edges, white faces, the left sides hatched and the right sides cross-hatched, faint tile lines](look-sketchy.svg) |
 
 **The contour** (`line: 'contour'`) is drawn with items every painter already draws: under the faces, each face again
 (role `contour`, no fill) with a wide stroke; over them, the faces with a thin one. The faces' fills trim the wide
@@ -498,6 +500,67 @@ a duotone ink, accent or paper that is no colour, or inks under 4.5 : 1. No face
 or too small (a face with no room for a mark gets none, and the piece's other faces carry it). Known limits: the grain
 is in the map's ink at its alpha, so on a dark face it shows less; a dark base gives the deepest tint on every face, so
 its faces part only by their ink lines; a map built with no colours keeps its faces the page's under the duotone.
+
+**Sketchy** (0.37.0) is the hand-drawn look as one name: white faces (`shading: 'paper'`), every edge drawn as a hand
+draws it (`line: 'human:sketchy'` — the silhouette first, then the inner edges, tapered, hooked at sharp corners, the
+seeded tremor), the left sides hatched and the right sides, in shadow, cross-hatched, the lit top clear
+(`texture: 'human:hatch'`, 28 px apart). Both choices are `footprint-story/human`'s, handed in: `isoStyle({look:
+'sketchy'}, {choices: HUMAN_STYLE_CHOICES})`, and a map the same way (`buildIsoMap(spec, policy, {choices:
+HUMAN_STYLE_CHOICES})`). Named without them, the first missing one is refused with the fix — `… hand the choice itself
+in {choices} (footprint-story/human has the "human:" ones: hand in HUMAN_STYLE_CHOICES, every one of them) (from the
+look "sketchy": write line beside it to change it)`. The seeds are the style's and the piece's name, never `who`, and
+the pen's `speed` is timing, left out of the seed (0.33.0): `{look: 'sketchy', line: {name: 'human:sketchy', speed:
+900}}` draws the same lines sooner. A hatch spacing written beside the look draws it denser for a map of few pieces.
+A face too small for one hatch line at the spacing is left clear (a flat cylinder's side, all under its top) — 0.36.0
+refused such a piece as "nothing to draw".
+
+| Number | Value | Whose, and why |
+|---|---|---|
+| sketchy hatch spacing | 28 px | ours: a 64-block world fitted to 1920 × 1080 draws 1,246 strokes, about 1.84 MB as StoryDeck writes them — under the 2,000 strokes both tools note a map at (StoryReel's `STROKE_BUDGET.note`, StoryDeck's `STROKES_NOTE`) and StoryDeck's 2 MB; at the hatch's usual 8 it is 3,660 strokes, at 16 1,942 strokes but 2.66 MB (pinned) |
+| sketchy faces | the paper | ours: a pencil sketch has no colour; the hatch alone gives the light, the lit top clear |
+
+Refused, naming the entry and the fix: the human choices not handed in (above); `{look: 'sketchy', shading, line,
+texture}` all written (the look would draw nothing); `{look: 'sketchy', palette: 'duotone'}` (the hatch would print a
+third ink); `{look: 'sketchy', line: 'none'}` (paper with no line shows nothing). The record names it: `style.look:
+'sketchy'`, its row `{shading: 'paper', line: 'human:sketchy', texture: 'human:hatch'}`, `options.texture: {spacing:
+28}`. Its still is drawn by a painter that fills each stroke's ring (`strokeOutline`).
+
+### A ball
+
+A **ball** (`kind: 'ball'`, 0.37.0, ball.js) is a piece `paintPiece` paints in every style and look — StoryReel 0.44.0's
+round kind, the thing that rolls, which its kit used to draw itself (and refused beside a style). Its contract is
+StoryReel's: a ball of `size: [d, d, d]` (one number three times, refused otherwise) at `[col, row, lift?]` fills the
+box a block of that size and place would — its middle at `[col + d/2, row + d/2, lift + d/2]` in tiles, its radius `d/2`.
+
+```js
+paintPiece(isoStyle(), { name: 'ball', kind: 'ball', at: [1, 6], size: [1, 1, 1] }, grid, { base: '#f3e3c7', ink: '#14181f' });
+// { box, centre: its middle on the frame (where its name stands), outline: 72 points round it, items: [
+//   { item: 'polygon', role: 'top', points: the outline, fill: 20% toward white, stroke: the ink, 2.5 px },
+//   { item: 'path', role: 'seam', … }, { item: 'path', role: 'seam', … } ] }   — the ink at half, 2 px, round
+```
+
+The outline is the great circle square to the way the viewer looks, put on the frame by the grid's own numbers: a circle
+on the usual grid, an ellipse on a grid written with another tile or rise (still the ball's true silhouette). The seams
+are two great circles as built — the level one and the upright one along the rows — each the half the viewer sees: a
+still ball with none reads as a disc. The silhouette is a face as a cylinder's top is (`role: 'top'`): lit by `tones`,
+paper under `paper`, outlined by `ink` and `contour`, grained, tinted by `duotone`, sketched by `human:sketchy`, never
+hatched (a top is the lit face). The seams are drawn by each line as its folds — `ink` at four fifths of its width (2 px
+by 2.5), `contour` at its inner width, `none` keeps them (marks, not an outline), `human:sketchy` draws them by hand
+as inner lines (`SEAM`: the ink at 0.5, StoryReel's `mark` and `markLine`). A line of a tool's own that knows no seam
+leaves it unstroked.
+
+![A ball in each look, left to right: today's tones, outlined, line art, paper grain, duotone and sketchy — a disc with two curved seams](ball-looks.svg)
+
+**How StoryReel adopts it.** Its kit draws a ball as `paintPiece(restyle(map.style, {choices}), {name, kind: 'ball', at,
+size}, grid, colours)` in place of `ballPaint(ballPicture(…))`, and takes the box, centre and outline from it in place
+of `build.mjs`'s own. For an unturned ball under the usual style the picture is StoryReel's own, point for point (a test
+runs StoryReel's 0.44.0 code beside it for any ball on any grid: the same outline, middle, box, seams and fill) — with
+one difference: StoryReel drew the edge last, after the seams; the list draws it with the disc. Each seam ends on the
+outline, so where the orders differ a seam lies on the edge's ink, and ink at half over ink is the ink: no pixel moves
+but the antialiased fringe at a seam's end. A turned ball keeps its own turn: swap each seam item's points for
+`ballPicture(grid, centre, radius, turn).marks` (the level seam first), and put every point where its pose says, as
+today. The map is still built with the ball as the cylinder round it (`buildIsoMap` takes no ball yet); with this,
+StoryReel can drop its refusal of a ball in a styled world.
 
 ## A whole map, built as named steps
 

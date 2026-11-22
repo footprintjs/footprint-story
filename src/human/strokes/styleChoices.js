@@ -13,7 +13,8 @@
  *   line    human:sketchy  the faces keep their fills and lose their ink outline; their edges are drawn as a hand
  *                          would (strokes/plan.js): the silhouette first, then the inner edges, as few strokes as the
  *                          corners allow, hooked at sharp corners, tapered, with the seeded tremor. A floor keeps its
- *                          tile lines as the ink line keeps them. Options: width (0.5 to 20 px; 2.5), tremor (0 to 8;
+ *                          tile lines as the ink line keeps them; a ball's seams (role "seam", 0.37.0) are inner lines,
+ *                          drawn by hand after its silhouette. Options: width (0.5 to 20 px; 2.5), tremor (0 to 8;
  *                          0.8), overshoot (0 to 12 px; 3), speed (50 to 5000 px a second; 400).
  *   texture human:hatch    a left face and a cylinder's side hatched, a right face cross-hatched (the darker side), the
  *                          top left clear (the lit face) — ROLE_FILLS; each kept out of the faces painted over it.
@@ -25,8 +26,8 @@
  * same strokes, in a deck and in a film.
  */
 import { refuse, shown, finite } from '../read.js';
-import { planSketch, LIFT, SKETCH, WIDTH_SHARE } from './plan.js';
-import { shapesOfPaint, ringOf, strokeItems } from './paint.js';
+import { planSketch, hasStrokes, LIFT, SKETCH, WIDTH_SHARE } from './plan.js';
+import { shapesOfPaint, ringOf, ringsOf, strokeItems } from './paint.js';
 
 const SOLID = new Set(['top', 'left', 'right', 'side']);
 /** The most items one piece's paint list holds: the isometric MOST_PAINT_ITEMS (src/isometric/paint.js; a test pins the two equal). */
@@ -46,8 +47,10 @@ function checkSketchy(options) {
 }
 
 function sketchy(items, { piece, colours, options, random }) {
-  const kept = items.map((it) => (SOLID.has(it.role) ? { ...it, stroke: null } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it));
-  const shapes = shapesOfPaint(items, { group: piece.name });
+  // a ball's seams (0.37.0, role "seam") are drawn by hand with its other inner lines: the items go, their lines stay
+  const kept = items.filter((it) => it.role !== 'seam').map((it) => (SOLID.has(it.role) ? { ...it, stroke: null } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it));
+  const seams = items.filter((it) => it.role === 'seam').flatMap((it) => ringsOf(it).map((r) => ({ points: r.points, closed: r.closed, layer: 'detail', group: piece.name })));
+  const shapes = [...shapesOfPaint(items, { group: piece.name }), ...seams];
   if (!shapes.length) return kept;
   const width = options.width ?? SKETCH.width;
   const plan = planSketch(shapes, { random, who: `the style's line "human:sketchy" on "${piece.name}"`, width, tremor: options.tremor, overshoot: options.overshoot, speed: options.speed });
@@ -65,11 +68,13 @@ function hatch(items, { piece, colours, options, random }) {
     fill: { kind: ROLE_FILLS[f.it.role], angle: options.angle ?? -45, spacing: options.spacing ?? 8 },
     // kept out of every face painted after it: a later face covers what is under it
     holes: faces.filter((g) => g.index > f.index).slice(0, 16).map((g) => g.ring) }));
-  if (!shapes.length) return items;
+  const who = `the style's texture "human:hatch" on "${piece.name}"`, spacing = options.spacing ?? 8;
+  // faces too small for one line at the spacing are left clear, as the grain leaves them (0.37.0; it was refused as
+  // "nothing to draw" — a flat cylinder, its side all under its top): a hatch is a tone, not a demand
+  if (!shapes.length || !hasStrokes(shapes, who)) return items;
   // after the line's strokes, if it drew any: a hand hatches once the outline is in
   const drawn = items.filter((it) => it.item === 'stroke').flatMap((it) => it.points.map((p) => p[3]));
   const at = drawn.length ? Math.max(...drawn) + LIFT.seconds : 0, width = options.width ?? SKETCH.width;
-  const who = `the style's texture "human:hatch" on "${piece.name}"`, spacing = options.spacing ?? 8;
   const plan = planSketch(shapes, { random, who, width, tremor: options.tremor });
   // a piece's list holds at most MOST_PIECE_ITEMS: past it, refused with the spacing that fits (lines go as 1 / spacing)
   const room = MOST_PIECE_ITEMS - items.length;

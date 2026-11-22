@@ -26,7 +26,7 @@ const CONTOUR_LOOKS = ['outlined', 'line-art'];
 const choices = HUMAN_STYLE_CHOICES;
 
 test('the looks are rows of named choices: outlined is the contour line, line art is paper and a lighter contour', () => {
-  assert.deepEqual(ISO_LOOKS, { outlined: { line: 'contour' }, 'line-art': { shading: 'paper', line: { name: 'contour', width: 3, inner: 1.25 } }, 'paper-grain': { texture: 'human:grain' }, duotone: { palette: 'duotone' } });
+  assert.deepEqual(ISO_LOOKS, { outlined: { line: 'contour' }, 'line-art': { shading: 'paper', line: { name: 'contour', width: 3, inner: 1.25 } }, 'paper-grain': { texture: 'human:grain' }, duotone: { palette: 'duotone' }, sketchy: { shading: 'paper', line: 'human:sketchy', texture: { name: 'human:hatch', spacing: 28 } } });
   assert.ok(Object.isFrozen(ISO_LOOKS) && Object.isFrozen(ISO_LOOKS['line-art'].line));
   assert.deepEqual(CONTOUR, { width: 5, inner: 1.5, least: 1, most: 20, leastInner: 0.25 });
   // each look is a style isoStyle takes as it is: data, nothing it would refuse
@@ -115,9 +115,9 @@ test('bad combinations are refused before anything is drawn, naming the entry an
   assert.throws(() => isoStyle({ look: 'outlined', line: 'ink' }), /^Error: isometric: the style's look "outlined" sets line, and the row writes it itself, so the look draws nothing — drop the look, or the line written beside it$/);
   assert.throws(() => isoStyle({ look: 'outlined', line: 'contour' }), /the look draws nothing/, 'even with the look\'s own entry');
   assert.throws(() => isoStyle({ look: 'line-art', shading: 'tones', line: 'ink' }), /the style's look "line-art" sets shading and line, and the row writes each itself, so the look draws nothing — drop the look, or the shading and line written beside it/);
-  assert.throws(() => isoStyle({ look: 'flat' }), /^Error: isometric: the style's look is one of "outlined", "line-art", "paper-grain", "duotone" \(a row of choices under a name\), or none — not "flat"$/);
-  assert.throws(() => isoStyle({ look: ['outlined'] }), /the style's look is one of "outlined", "line-art", "paper-grain", "duotone"/);
-  assert.throws(() => isoStyle({ look: 'outlined', outline: 'bold' }), /a style's columns are shape, shading, line, palette, texture, effects — not "outline" \(a row may also name a look: \{look: "outlined", "line-art", "paper-grain", "duotone"\}\)/);
+  assert.throws(() => isoStyle({ look: 'flat' }), /^Error: isometric: the style's look is one of "outlined", "line-art", "paper-grain", "duotone", "sketchy" \(a row of choices under a name\), or none — not "flat"$/);
+  assert.throws(() => isoStyle({ look: ['outlined'] }), /the style's look is one of "outlined", "line-art", "paper-grain", "duotone", "sketchy"/);
+  assert.throws(() => isoStyle({ look: 'outlined', outline: 'bold' }), /a style's columns are shape, shading, line, palette, texture, effects — not "outline" \(a row may also name a look: \{look: "outlined", "line-art", "paper-grain", "duotone", "sketchy"\}\)/);
   assert.throws(() => isoStyle({ look: Object.defineProperty({}, 'x', {}) }), /the style's look is one of/);
   assert.throws(() => isoStyle(Object.defineProperty({}, 'look', { get: () => 'outlined', enumerable: true })), /is read as a stored value, and this one is a getter/);
   assert.throws(() => isoStyle({ line: { name: 'contour', width: 0.5 } }), /the style's line "contour" takes a width from 1 to 20 px \(the contour as it shows\) — not 0.5/);

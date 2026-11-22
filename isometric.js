@@ -51,7 +51,7 @@ export { cableLead } from './src/isometric/lead.js';
 export { lanesOf, straightRun, bentWire, curveWay, headingOf, arrowHead, MOST_WIRES } from './src/isometric/straight.js';
 export { isoStyle, paintPiece, restyle, ISO_STYLE_COLUMNS, ISO_STYLE_CHOICES, USUAL_STYLE, MOST_EFFECTS, MOST_OWN_CHOICES } from './src/isometric/style.js';
 export { ISO_LOOKS } from './src/isometric/looks.js';
-export { CONTOUR } from './src/isometric/styleChoices.js';
+export { CONTOUR, SEAM } from './src/isometric/styleChoices.js';
 export { DUOTONE } from './src/isometric/duotone.js';
 export { PAINT_ITEMS, MOST_PAINT_ITEMS, MOST_PAINT_POINTS, mixColour } from './src/isometric/paint.js';
 export { ISO_MAP_STEPS, buildIsoMap } from './src/isometric/mapSteps.js';
