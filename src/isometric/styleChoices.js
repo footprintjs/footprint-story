@@ -12,8 +12,22 @@
  *   line    none    no outline on the faces; a floor keeps its tile lines (they are its tiles, not an outline)
  *   palette theme   the colours as the caller gave them
  *   texture none    nothing over the faces
+ *
+ * And two for the named looks (looks.js · ISO_LOOKS, 0.34.0):
+ *
+ *   shading paper   every face, and a floor's ground, the paper's colour (option `colour`, "#ffffff"): line art, the
+ *                   page's paper showing through the shapes. The colour is given even when the base is the page's —
+ *                   it is the paper, whatever the base — so a painter that colours a face by its role (StoryDeck's
+ *                   CSS) still draws it white. Clashes with line "none": white on white with no line shows nothing.
+ *   line    contour a bold, even contour round the piece and lighter inner lines (the sticker look): under the faces,
+ *                   each face again with no fill and a wide stroke; over them, the faces with a thin one. The faces'
+ *                   fills trim the wide strokes to the outside, so what shows outside is an even band round the whole
+ *                   piece with round corners — however the faces meet, with no silhouette worked out. Options:
+ *                   width (the contour as it shows, 1 to 20 px; 5), inner (the inner lines, 0.25 px to the width; 1.5).
+ *                   A floor keeps its tile lines (the ground the pieces stand on, not a piece); a face with no fill
+ *                   (a tool's own shading) is refused: the wide stroke under it would show whole.
  */
-import { mixColour } from './paint.js';
+import { mixColour, readColour } from './paint.js';
 import { roundOutline } from './outline.js';
 import { refuse, shown } from './thing.js';
 
@@ -72,6 +86,48 @@ function ink(items, { colours, options }) {
     : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it));
 }
 
+/**
+ * The contour line's numbers. All ours (no source: chosen by eye on the README's stills, src/isometric/look-*.svg):
+ *   width 5   the contour as it shows: twice today's 2.5 px ink, so the piece's edge reads first at a glance
+ *   inner 1.5 the inner lines: under today's 2.5, so they say where the faces fold without competing with the edge
+ *             (5 : 1.5, a little over 3 : 1 — less and the edge stops reading as the outline; more and the folds vanish
+ *             at a small tile)
+ * WHY `width` is what shows, not the stroke drawn: the stroke under the faces shows only its outer half, and the thin
+ * line over the faces adds its own outer half, so it is drawn at 2 · width − inner (8.5 px for 5 and 1.5) and shows
+ * width − inner / 2 outside the faces plus inner / 2 inside them: `width` in all.
+ */
+export const CONTOUR = Object.freeze({ width: 5, inner: 1.5, least: 1, most: 20, leastInner: 0.25 });
+
+function checkContour(options) {
+  const { width, inner } = options;
+  if (width !== undefined && !(typeof width === 'number' && width >= CONTOUR.least && width <= CONTOUR.most)) refuse(`the style's line "contour" takes a width from ${CONTOUR.least} to ${CONTOUR.most} px (the contour as it shows) — not ${shown(width)}`);
+  const w = width ?? CONTOUR.width;
+  if (inner !== undefined && !(typeof inner === 'number' && inner >= CONTOUR.leastInner && inner <= w)) refuse(`the style's line "contour" takes an inner from ${CONTOUR.leastInner} px to its width, ${w} px (the inner lines are never bolder than the contour) — not ${shown(inner)}`);
+}
+
+function contour(items, { piece, colours, options }) {
+  const width = options.width ?? CONTOUR.width, inner = options.inner ?? CONTOUR.inner;
+  const line = (w) => ({ colour: colours.ink, alpha: 1, width: w, join: 'round', cap: 'round' });
+  const faces = items.filter((it) => solid.has(it.role));
+  // the wide stroke under a face shows only where no fill covers it: a face with no fill would show it whole
+  const bare = faces.find((it) => it.fill === null);
+  if (bare) refuse(`the style's line "contour" on "${piece.name}": its contour is a wide stroke under the faces, which their fills trim to the outside, and the ${bare.role} face has no fill — use a shading that fills every face ("tones", "paper"), or line "ink"`);
+  // under: each face again, no fill, the wide stroke (role "contour": a painter that colours by role colours none)
+  const under = faces.map((it) => ({ ...it, role: 'contour', fill: null, stroke: line(2 * width - inner) }));
+  return [...under, ...items.map((it) => (solid.has(it.role) ? { ...it, stroke: line(inner) } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it))];
+}
+
+/** The paper shading's colour, checked once: a colour as this package reads one. */
+function checkPaper(options) {
+  if (options.colour !== undefined) readColour(options.colour, `the style's shading "paper"'s colour`);
+}
+
+/** Every face and a floor's ground the paper's colour: given whatever the base, since it does not depend on it. */
+function paper(items, { options }) {
+  const colour = readColour(options.colour ?? '#ffffff', `the style's shading "paper"'s colour`);
+  return items.map((it) => (solid.has(it.role) || it.role === 'ground' ? { ...it, fill: { mix: [colour, 1], colour } } : it));
+}
+
 function noLine(items, { colours }) {
   return items.map((it) => (solid.has(it.role) ? { ...it, stroke: null } : it.role === 'grid' ? { ...it, stroke: gridStroke(colours) } : it));
 }
@@ -82,8 +138,11 @@ const same = (items) => items;
 export const BUILT_IN_CHOICES = Object.freeze([
   { column: 'shape', name: 'box', apply: boxShape, options: [] },
   { column: 'shading', name: 'tones', apply: tones, options: [] },
+  { column: 'shading', name: 'paper', apply: paper, options: ['colour'], check: checkPaper,
+    clashes: [{ column: 'line', name: 'none', fix: 'paper faces on a paper page show only by their lines: use line "contour" or "ink", or a shading that colours the faces ("tones")' }] },
   { column: 'line', name: 'ink', apply: ink, options: ['width'], check: checkInk },
   { column: 'line', name: 'none', apply: noLine, options: [] },
+  { column: 'line', name: 'contour', apply: contour, options: ['width', 'inner'], check: checkContour },
   { column: 'palette', name: 'theme', apply: same, options: [] },
   { column: 'texture', name: 'none', apply: same, options: [] },
-].map((c) => Object.freeze({ check: null, ...c, options: Object.freeze(c.options), unseeded: Object.freeze([]), clashes: Object.freeze([]) })));
+].map((c) => Object.freeze({ check: null, ...c, options: Object.freeze(c.options), unseeded: Object.freeze([]), clashes: Object.freeze((c.clashes ?? []).map((x) => Object.freeze(x))) })));

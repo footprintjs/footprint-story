@@ -334,5 +334,5 @@ export function readIsoMap(spec, policy, settings = undefined) {
   if (fitted && !blocks.length && !obstacles.length) refuse(`${who}: a fitted grid is fitted to what stands on the floor, and this map has nothing — add a block, or write the grid in numbers ({tile, origin})`);
   const rawStyle = stored(spec, 'style', `${who}'s style`) ?? null;
   const style = named(`${who}'s style`, () => isoStyle(rawStyle, tools));
-  return { who, blocks, floors, wires, obstacles, keep, written, usualGrid, area, style: { row: style.row, options: style.options }, policy: pol };
+  return { who, blocks, floors, wires, obstacles, keep, written, usualGrid, area, style: { row: style.row, options: style.options, ...(style.look ? { look: style.look } : {}) }, policy: pol };
 }

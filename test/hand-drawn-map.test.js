@@ -63,13 +63,13 @@ test('the hand-drawn map differs from the usual only where the style does: place
 });
 
 test('a style naming a tool\'s choice not handed in is refused, naming the entry and the fix', async () => {
-  const words = /isometric: slide 3's map's style: the style's line has no choice "human:sketchy" — the line choices are "ink", "none"; "human:sketchy" is a tool's own choice \(its name has a prefix\), which is code no record holds: hand the choice itself in \{choices\} \(footprint-story\/human has the "human:" ones\)$/;
+  const words = /isometric: slide 3's map's style: the style's line has no choice "human:sketchy" — the line choices are "ink", "none", "contour"; "human:sketchy" is a tool's own choice \(its name has a prefix\), which is code no record holds: hand the choice itself in \{choices\} \(footprint-story\/human has the "human:" ones\)$/;
   const spec = { ...SPEC, who: "slide 3's map" };
   assert.throws(() => buildIsoMap(spec, FILM), words);
   assert.throws(() => buildIsoMap(spec, FILM, { choices: [hatchTexture] }), words, 'the texture handed, the line not');
   await assert.rejects(runMapFlow(spec, DECK), words);
   // a choice of no tool's: the names there are, and the fix
-  assert.throws(() => buildIsoMap({ ...SPEC, style: { line: 'reel:chalk' } }, FILM, { choices: CHOICES }), /the style's line has no choice "reel:chalk" — the line choices are "ink", "none", "human:sketchy"; "reel:chalk" is a tool's own choice .* \(the tool that names it has it\)$/);
+  assert.throws(() => buildIsoMap({ ...SPEC, style: { line: 'reel:chalk' } }, FILM, { choices: CHOICES }), /the style's line has no choice "reel:chalk" — the line choices are "ink", "none", "contour", "human:sketchy"; "reel:chalk" is a tool's own choice .* \(the tool that names it has it\)$/);
   // a choice handed in that the style does not name is no fault: it is simply not used
   assert.deepEqual(buildIsoMap({ ...SPEC, style: null }, FILM, { choices: CHOICES }).style.row.line, 'ink');
 });
