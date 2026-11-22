@@ -141,8 +141,8 @@ export function checkSettles(feel: SpringFeel, who: string): number;
 
 // ── models ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type HumanFamily = 'reach' | 'pen' | 'letter' | 'settle' | 'fall' | 'throw' | 'hang';
-export type HumanDo = 'reach' | 'draw' | 'write' | 'settle' | 'fall' | 'throw' | 'hang';
+export type HumanFamily = 'reach' | 'pen' | 'letter' | 'settle' | 'fall' | 'throw' | 'hang' | 'sketch';
+export type HumanDo = 'reach' | 'draw' | 'write' | 'settle' | 'fall' | 'throw' | 'hang' | 'sketch';
 export const HUMAN_FAMILIES: readonly HumanFamily[];
 export const HUMAN_DOS: Readonly<Record<HumanDo, HumanFamily>>;
 export const HUMAN_MODELS: Readonly<Record<HumanFamily, readonly string[]>>;
@@ -331,3 +331,7 @@ export const HUMAN_STEPS: readonly HumanStep[];
 export const HUMAN_INPUT: readonly string[];
 /** An author's intents decided: per intent the model and why, the plan and its basis, the wrapped move, a track summary, the critics' measures and findings. Frozen plain data. */
 export function planIntents(intents: readonly HumanIntentEntry[], settings?: (HumanSettings & { readonly frame?: HumanPoint | null }) | null): HumanIntentsResult;
+
+// ── hand-drawn strokes: declared beside their code (src/human/strokes/types.d.ts), handed out by this door ─────────
+
+export * from './src/human/strokes/types.js';

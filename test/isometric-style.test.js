@@ -11,7 +11,7 @@ test('the columns, the usual style, and the choices this package ships', () => {
   assert.deepEqual(ISO_STYLE_COLUMNS, ['shape', 'shading', 'line', 'palette', 'texture', 'effects']);
   assert.deepEqual(USUAL_STYLE, { shape: 'box', shading: 'tones', line: 'ink', palette: 'theme', texture: 'none', effects: [] });
   assert.deepEqual(ISO_STYLE_CHOICES, { shape: ['box'], shading: ['tones'], line: ['ink', 'none'], palette: ['theme'], texture: ['none'], effects: [] });
-  assert.deepEqual(PAINT_ITEMS, ['polygon', 'ellipse', 'path', 'lines']);
+  assert.deepEqual(PAINT_ITEMS, ['polygon', 'ellipse', 'path', 'lines', 'stroke']);
   assert.equal(MOST_EFFECTS, 8); assert.equal(MOST_OWN_CHOICES, 64); assert.equal(MOST_PAINT_ITEMS, 512);
   assert.equal(mixColour('#d9e4f3', '#ffffff', 0.2), '#e1e9f5');
   for (const v of [ISO_STYLE_COLUMNS, USUAL_STYLE, USUAL_STYLE.effects, ISO_STYLE_CHOICES]) assert.ok(Object.isFrozen(v));
@@ -93,7 +93,7 @@ test('what a choice gives back is checked before the next column reads it: plain
   const one = (more) => (items) => [...items, { item: 'polygon', role: 'mark', of: 'server', points: [[0, 0], [1, 0], [0, 1]], fill: null, stroke: null, ...more }];
   assert.equal(paint(one({})).items.length, 4);
   assert.throws(() => paint(() => 'a picture'), /the style's texture "test:t" gives back a paint list, a list of items — not "a picture"/);
-  assert.throws(() => paint(one({ item: 'circle' })), /item 4 is a polygon, a ellipse, a path, a lines — not "circle"/);
+  assert.throws(() => paint(one({ item: 'circle' })), /item 4 is a polygon, a ellipse, a path, a lines, a stroke — not "circle"/);
   assert.throws(() => paint(one({ draw: () => 1 })), /item 4 holds plain data only/);
   assert.throws(() => paint((items) => [...items, Object.defineProperty({ ...items[0] }, 'role', { get: () => 'top', enumerable: true })]), /item 4: role is read as a stored value, and this one is a getter/);
   assert.throws(() => paint(one({ fill: { mix: null, colour: 'red' } })), /item 4's fill colour is null or "#rrggbb" — not "red"/);
