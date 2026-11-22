@@ -47,9 +47,13 @@ test('wrappers: a move in, a move out — the record nests, the reason says it, 
   assert.deepEqual(s(h, 0.5), s(move, 0.3));
   assert.deepEqual(s(h, 0.9), s(move, 0.4));
   assert.ok(s(o, d).x > 600);
-  // the usual by is BY_SHARE of the straight distance: 48 px at the swing's peak, along the end's heading
+  // the usual by is BY_SHARE of the straight distance (48 px), along the end's heading — but a throw arriving at 1084 px a
+  // second carries on further than that on its own speed: it follows through as far as that speed takes it, never braking
   const peak = Math.max(...Array.from({ length: 400 }, (_, i) => s(f, d + (f.plan.seconds - d) * (i / 400)).x));
-  assert.ok(Math.abs(peak - 600 - BY_SHARE * 600 * Math.cos(Math.PI / 4)) < 0.5, `${peak}`);
+  const carryPeak = Math.max(...Array.from({ length: 1000 }, (_, i) => { const u = i / 1000; return u - 3 * u ** 3 + 2 * u ** 4; }));
+  const speed = Math.hypot(...move.plan.velocity), carried = speed * (f.plan.seconds - d) * carryPeak;
+  assert.ok(carried > BY_SHARE * 600);
+  assert.ok(Math.abs(peak - 600 - carried * Math.cos(Math.PI / 4)) < 0.5, `${peak}`);
   // nested: the outermost last, basePlan finds the model's; a hold at 0 adds no push
   const n = overshoot(hold(anticipate(move), { at: 0, seconds: 0.1 }), { by: 3, feel: { k: 200, d: 20 } });
   assert.deepEqual(n.wrappers, ['anticipate', 'hold', 'overshoot']);
@@ -300,4 +304,18 @@ test('the parts underneath: launch, a fall\'s time, bounces, a world, collisions
   const run = simulate({ points: [0, 0] }, (s) => ({ points: verletStep(s.points, s.points, [0, 0], PHYSICS_STEP) }), { steps: 5 });
   assert.equal(run.steps, 8, 'rounded up to whole frames');
   assert.equal(run.frames.length, 3);
+});
+
+test('settleCarry: the spring carrying a start speed of 1 px a second — the derivative of its step over k, exactly 0 at the end', async () => {
+  const { settleCarry, settleSeconds } = await import('../src/human/physics/settle.js');
+  const { spring, FEELS } = await import('../src/motion/spring.js');
+  for (const feel of ['snappy', 'default', 'heavy', 'playful', { k: 100, d: 30 }]) {
+    const { k } = typeof feel === 'string' ? FEELS[feel] : feel, total = settleSeconds(feel);
+    assert.equal(settleCarry(0, feel), 0); assert.equal(settleCarry(total, feel), 0); assert.equal(settleCarry(-1, feel), 0);
+    assert.ok(Math.abs(settleCarry(1e-6, feel) / 1e-6 - 1) < 1e-3, 'it leaves at 1 px a second');
+    for (const t of [0.05, 0.2, total / 2]) {
+      const h = 1e-6, slope = (spring(t + h, feel) - spring(t - h, feel)) / (2 * h) / k;
+      assert.ok(Math.abs(settleCarry(t, feel) - slope) < 1e-3 + Math.abs(slope) * 1e-3, `${JSON.stringify(feel)} at ${t}`);
+    }
+  }
 });

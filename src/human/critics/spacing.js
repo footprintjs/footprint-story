@@ -4,6 +4,7 @@
  * falling thing's drawings wider and wider apart down the frame; drawings evenly apart read as a thing slid along a
  * line, not falling (the animators' "timing", Thomas & Johnston 1981). Under the limit, it reads as slid; over
  * SPACING_MOST, as thrown down.
+ * A sample marked `air: 0` is on the floor (a tumble once it lands), where the floor holds it up: only the flight is read.
  * WHY the vertical acceleration and not the variation of speed: a fast sideways throw keeps a near-even speed and still
  * falls exactly as it should; its vertical acceleration is its gravity whatever its speed across. WHY the median: a
  * landing is a spike of acceleration upward, and a bounce lands many times; the flights between are most of the track.
@@ -25,6 +26,7 @@ export const spacing = Object.freeze({
     for (let i = 1; i + 1 < s.length; i += 1) {
       const a = s[i - 1], b = s[i], c = s[i + 1];
       if (!(b.t > a.t && c.t > b.t)) continue;
+      if (a.air === 0 || b.air === 0 || c.air === 0) continue;   // on the floor (a tumble's landing): the floor holds it up
       accel.push((2 * ((c.y - b.y) / (c.t - b.t) - (b.y - a.y) / (b.t - a.t))) / (c.t - a.t));
     }
     if (accel.length < 3) return null;   // too short a track to read an acceleration

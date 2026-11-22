@@ -3,6 +3,8 @@
  * and the fix. WHY: "does this look human" is answered by a number and a sentence, never by looking at frames.
  *
  *   checkMove(move, {models, critics, rate})  → {measures: {critic: number | null}, bases: {critic: {…numbers} | null},
+ *                                                (the track sampled at `rate`, or, left out, at the rate the move's own
+ *                                                motion sets — models/resolve.js: no step over 30° or 16 px)
  *                                                findings: [{critic, level, message, fix, basis}]}
  *
  * A critic's measure gives a number, null (it cannot say), or {value, basis}: the number and the others it read on the
@@ -33,7 +35,8 @@ export function checkMove(move, settings = undefined) {
     if (value !== null && !finite(value)) refuse(`the critic "${name}" measures a finite number, {value, basis}, or null when it cannot say — not ${shown(value)}`);
     measures[name] = value;
     bases[name] = basis;
-    const f = value === null ? null : readFinding(critic.finding(value, track.who, basis), name);
+    // a built-in critic that cannot say may still say why in a note (spin: a track too fast to read)
+    const f = value === null ? (typeof critic.note === 'function' ? readFinding(critic.note(basis, track.who), name) : null) : readFinding(critic.finding(value, track.who, basis), name);
     if (f) findings.push(Object.freeze({ ...f, basis }));
   }
   return Object.freeze({ measures: Object.freeze(measures), bases: Object.freeze(bases), findings: Object.freeze(findings) });

@@ -9,5 +9,7 @@ import { stretch } from './stretch.js';
 import { penLifts } from '../strokes/penLifts.js';
 import { strokeOrder } from '../strokes/strokeOrder.js';
 import { hatchGaps } from '../strokes/hatchGaps.js';
+import { rollSlip } from './rollSlip.js';
+import { spin } from './spin.js';
 
-export const BUILT_IN_CRITICS = Object.freeze([jerk, penSpeed, arc, spacing, volume, contact, stretch, penLifts, strokeOrder, hatchGaps]);
+export const BUILT_IN_CRITICS = Object.freeze([jerk, penSpeed, arc, spacing, volume, contact, stretch, penLifts, strokeOrder, hatchGaps, rollSlip, spin]);

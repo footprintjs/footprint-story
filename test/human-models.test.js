@@ -94,8 +94,8 @@ test('a letter: sigma-lognormal, one stroke a point, landing on the last exactly
 
 test('the registry: this package\'s models by family, the usual one each, and the word each family\'s do says', () => {
   // 0.27.0: the physics fills settle, fall, throw and hang; ballistic and bounce serve a throw and a fall alike
-  assert.deepEqual(HUMAN_MODELS, { reach: ['min-jerk'], pen: ['power-law'], letter: ['sigma-lognormal'], settle: ['spring'], fall: ['ballistic', 'bounce'], throw: ['ballistic', 'bounce'], hang: ['verlet'], sketch: ['hand-sketch'] });
-  assert.deepEqual(USUAL_MODELS, { reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal', throw: 'ballistic', fall: 'ballistic', hang: 'verlet', settle: 'spring', sketch: 'hand-sketch' });
+  assert.deepEqual(HUMAN_MODELS, { reach: ['min-jerk'], pen: ['power-law'], letter: ['sigma-lognormal'], settle: ['spring'], fall: ['ballistic', 'bounce'], throw: ['ballistic', 'bounce'], hang: ['verlet'], sketch: ['hand-sketch'], roll: ['no-slip'], slide: ['coulomb'], tumble: ['free-spin'] });
+  assert.deepEqual(USUAL_MODELS, { reach: 'min-jerk', pen: 'power-law', letter: 'sigma-lognormal', throw: 'ballistic', fall: 'ballistic', hang: 'verlet', settle: 'spring', sketch: 'hand-sketch', roll: 'no-slip', slide: 'coulomb', tumble: 'free-spin' });
   assert.equal(HUMAN_DOS.draw, 'pen'); assert.equal(HUMAN_DOS.write, 'letter');
 });
 
@@ -128,7 +128,7 @@ test("a tool's own model that breaks the interface is refused, naming it and wha
   const good = { family: 'reach', name: 'reel:ok', plan: () => ({ seconds: 1 }), sample: () => ({ x: 0, y: 0 }) };
   const bad = (m, re) => assert.throws(() => planMove({ do: 'reach', from: [0, 0], to: [1, 1] }, { models: [m] }), re);
   bad({ ...good, name: 'ok' }, /models\[0\]'s name is the tool's prefix and a name, lower case \("reel:chalk-pen"\): a name with no prefix is this package's — not "ok"/);
-  bad({ ...good, family: 'swim' }, /models\[0\]'s family is one of reach, pen, letter, settle, fall, throw, hang, sketch, or a list of them \(each once\) — not "swim"/);
+  bad({ ...good, family: 'swim' }, /models\[0\]'s family is one of reach, pen, letter, settle, fall, throw, hang, sketch, roll, slide, tumble, or a list of them \(each once\) — not "swim"/);
   bad({ ...good, family: ['reach', 'reach'] }, /models\[0\]'s family is one of .*, or a list of them \(each once\)/);
   bad({ ...good, family: [] }, /models\[0\]'s family is one of .*, or a list of them/);
   bad({ ...good, plan: 1 }, /models\[0\] \(reel:ok\) gives plan\(intent, context\) and sample\(plan, t\) — not 1/);
@@ -158,7 +158,7 @@ test('refusals name the entry and say the fix in its own keys', () => {
   const r = (intent, re, settings) => assert.throws(() => planMove(intent, settings), re);
   r(null, /human: planMove takes an intent \{do, …\}/);
   r({ do: 'reach', from: [0, 0], to: [1, 1] }, /planMove's settings are \{models, critics, frame\}/, 5);
-  r({ do: 'jump', who: 'beats[1]' }, /human: beats\[1\]'s do is 'reach', 'draw', 'write', 'settle', 'fall', 'throw', 'hang', 'sketch' — not "jump"/);
+  r({ do: 'jump', who: 'beats[1]' }, /human: beats\[1\]'s do is 'reach', 'draw', 'write', 'settle', 'fall', 'throw', 'hang', 'sketch', 'roll', 'slide', 'tumble' — not "jump"/);
   r({ ...reach, from: [0] }, /blocks\[2\] \("hand"\)'s from is a point \[x, y\] on the frame/);
   r({ ...reach, speed: 3 }, /blocks\[2\] \("hand"\) \(an intent\) takes do, name, who, model, from, to, target, seconds — not "speed"/);
   r({ ...reach, target: 0 }, /blocks\[2\] \("hand"\)'s target is a number above 0/);

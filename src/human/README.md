@@ -20,10 +20,10 @@ paints the samples. Design: `docs/design/2026-11-human-motion.md`.
 | `paths/resample.js` | points again, evenly by distance (`resample`) |
 | `paths/gap.js` | the room beside a line: the gap to another stretch of it, a hairpin's other leg (`legGaps`) |
 | `paths/wobble.js` | the tremor laid across a line within its room (`wobbleRooms`, `wobbleAcross`): one cap for the pen and the strokes |
-| `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring — see [physics/README.md](physics/README.md) |
-| `models/` | the model interface and registry (`registry.js`), how a model is chosen as data (`rules.js` · `CHOOSE_RULES`), this package's seven models, the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
+| `physics/` | light physics on a fixed step: ballistic flight, bounces, hanging chains (Jakobsen 2001), a floor and boxes, settling on the motion spring; rolling, sliding and spinning in closed form — see [physics/README.md](physics/README.md) |
+| `models/` | the model interface and registry (`registry.js`), how a model is chosen as data (`rules.js` · `CHOOSE_RULES`), this package's eleven models (the `hand-sketch` model lives in `strokes/`), the wrappers (`wrap.js`), and `planMove` / `sampleMove` / `sampleTrack` (`move.js`) |
 | `intents/` | the intent decider: an author's list of intents in, every move decided by steps in one list (`HUMAN_STEPS`, `planIntents` in `steps.js`; the reader `read.js`; the bounded track summary `summary.js`; the per-intent keys `keys.js`) — see below |
-| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, and `checkMove` (`check.js`) |
+| `critics/` | the critic interface and registry, `jerk`, `pen-speed`, `arc`, `spacing`, `volume`, `contact`, `stretch`, `pen-lifts`, `stroke-order`, `hatch-gaps` (from `strokes/`), `roll-slip`, `spin`, and `checkMove` (`check.js`) |
 | `strokes/` | hand-drawn strokes: a drawing's order (outline, detail, fills; the fewest strokes), each stroke's pace, width, hooks and tremor, hatching and scribbles clipped exactly, a frame-to-frame boil, the `hand-sketch` model and its critics `pen-lifts`, `stroke-order`, `hatch-gaps`, and two isometric style choices on strokes — see [strokes/README.md](strokes/README.md) |
 | `read.js`, `plain.js`, `names.js` | reading what a caller hands in; plain frozen data checked; the strategies' names (seeded numbers: the shared leaf `src/seed/seeded.js`) |
 | `REFERENCES.md` | the papers, and what was taken from each |
@@ -69,6 +69,9 @@ family or a list of them (a ballistic flight is a throw and a fall alike: one st
 | `hang` | `hang` | `verlet`: a chain pinned at `from`, swinging until it has been still for half a swing | `from`, `to` or `length`, `path` (the pin's moves), `seconds`, `floor`, `boxes` | `gravity` (at most 1e5), `links` (8, or as many as fit), `damping` (0.9), `jitter` (0, seeded) |
 | `settle` | `settle` | `spring`: to rest on the motion spring, its seconds the feel's | `from`, `to` | `feel` (default), or `k` and `d` |
 | `sketch` | `sketch` | `hand-sketch`: shapes drawn as a hand draws them — outline, then detail, then fills, piece by piece from the top left, in the fewest strokes their corners allow; each stroke by the power law, thinner when fast, tapered, hooked at sharp corners, with the capped tremor; the pen lifting between ([strokes/README.md](strokes/README.md)) | `shapes`, `seconds`, `speed` (400 px a second) | `tremor` (0.8 px), `wavelength`, `width` (2.5 px), `overshoot` (3 px) |
+| `roll` | `roll` | `no-slip`: rolling without slipping, its turn distance / radius, slowed to rest by rolling resistance, sped or slowed by a slope, stopped dead by a box; side on or on a floor seen from above | `from`, `radius` (px, at least 1), `to` or `speed`, `slope` (degrees), `plane` (`'side'` or `'floor'`), `heading`, `shape` (`'ball'`, `'disc'`, `'ring'`), `angle`, `boxes` | `gravity`, `resistance` (0.05) |
+| `slide` | `slide` | `coulomb`: kinetic friction to rest (v² / (2 μ g) on the level), a static hold, a slope, a box; its angle kept | `from`, `to` or `speed`, `slope`, `plane`, `heading`, `radius` (0), `angle`, `boxes` | `gravity`, `kinetic` (0.2), `static` (0.25) |
+| `tumble` | `tumble` | `free-spin`: a ballistic flight spinning at one rate (no torque in flight), handed over at the landing by `LANDING_RULES` — a round thing rolls on, keeping its turning about the contact, a box slides on, landing on a face | `from`, `to` (where it lands), `radius`, `apex` or `seconds`, `spin` (rad/s), `angle`, `shape` (or `'box'`), `then` (`'roll'` or `'slide'`), `boxes` | `gravity`, `resistance`, `kinetic`, `static` |
 
 Every intent may also hold `name` (its piece: part of the seed), `who` (its words for where it was written, named in
 every refusal and finding) and `model`. Every family has a usual model.
@@ -105,7 +108,9 @@ samples are checked as plain data (`plain.js`); what its own code throws comes o
 
 A critic is `{name, measure(track) → number | {value, basis} | null, limit, finding(value, who, basis) → {level,
 message, fix} | null}`. `checkMove(move)` samples the move (120 a second), runs the critics its model names, and gives
-`{measures, bases, findings}`:
+`{measures, bases, findings}` — sampled at a rate the move's own motion sets, from 120 a second until no step turns more
+than 30° or travels more than 16 px (`models/resolve.js`; a `rate` given is used as given; `track.resolved` false when
+MOST_TRACK_SAMPLES binds first, and the spin critic then says so rather than judge an alias):
 
 | critic | measures | finds fault when |
 |---|---|---|
@@ -159,6 +164,12 @@ sampleMove(lively, lively.plan.seconds); // { x: 700, y: 600, angle }: the throw
 checkMove(planMove({ do: 'throw', who: 'b', from: [0, 500], to: [600, 500], boxes: [{ x: 250, y: 300, w: 100, h: 100 }] })).findings;
 // [{ critic: 'contact', level: 'warn', message: 'b: at 0.39 s it goes 49.7 px into a box — it passes through something solid', fix: "raise its path (apex: …", basis: { at, into } }]
 ```
+
+A roll, a slide and a tumble are planned the same way (`do: 'roll'`, `'slide'`, `'tumble'`): their samples carry `angle` and
+`spin` beside x and y, a tumble's also `air` and `rolls`, and `roll-slip` (the drawn turn against distance / radius) and
+`spin` (a drawn angle that jumps, or a spin that changes in flight) say in words when a drawn turn is wrong — reading
+turns with the geometry leaf (`src/geom/angles.js`), reused, never copied. A wrapper over a roll turns it as it moves it
+(the plan's `turnVector`), so a wrapped roll still rolls.
 
 The critics `spacing` (a fall or a throw that accelerates down at under half its gravity reads as slid, not falling),
 `volume` (a squash that changes the area reads as rubber), `contact` (a body that passes into the floor or a box) and

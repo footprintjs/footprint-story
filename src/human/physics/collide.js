@@ -75,3 +75,27 @@ export function depthIn(x, y, world, radius = 0) {
   }
   return deepest;
 }
+
+/**
+ * How far a body of `radius` at `from` goes along the unit direction `dir` before it touches a box (its square of
+ * half-side `radius` meets the box's inside, as depthIn reads it): {distance, box: its index, inside: null}; {distance:
+ * Infinity, box: null} when nothing is in the way; `inside` the index of a box it already starts in. Grazing a box's
+ * corner or running along its side is not touching (no inside is met). WHY one slab test per box (Kay & Kajiya 1986):
+ * a straight path meets an axis-aligned box over one stretch, so the first touch is found exactly, never by stepping.
+ */
+export function touchAlong(from, dir, world, radius = 0) {
+  let distance = Infinity, box = null;
+  for (let i = 0; i < world.boxes.length; i += 1) {
+    const b = world.boxes[i], lo = [b.x - radius, b.y - radius], hi = [b.x + b.w + radius, b.y + b.h + radius];
+    let enter = -Infinity, exit = Infinity;
+    for (let k = 0; k < 2; k += 1) {
+      if (dir[k] === 0) { if (!(from[k] > lo[k] && from[k] < hi[k])) exit = -Infinity; continue; }
+      const t1 = (lo[k] - from[k]) / dir[k], t2 = (hi[k] - from[k]) / dir[k];
+      enter = Math.max(enter, Math.min(t1, t2)); exit = Math.min(exit, Math.max(t1, t2));
+    }
+    if (!(enter < exit) || exit <= 0) continue;   // it misses the box, grazes it, or the box is behind
+    if (enter < 0) return { distance: 0, box: null, inside: i };
+    if (enter < distance) { distance = enter; box = i; }
+  }
+  return { distance, box, inside: null };
+}

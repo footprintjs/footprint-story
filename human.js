@@ -25,17 +25,24 @@ export { curvatures, curvaturesOver } from './src/human/paths/curvature.js';
 export { resample, MOST_RESAMPLED } from './src/human/paths/resample.js';
 export { legGaps } from './src/human/paths/gap.js';
 
-// physics — flight, bounces, chains, collisions on a fixed step (Jakobsen 2001), and settling on the motion spring
+// physics — flight, bounces, chains, collisions on a fixed step (Jakobsen 2001), settling on the motion spring, and
+// rolling, sliding and spinning in closed form
 export { launch, flightAt, headingAt, fallSeconds, APEX_SHARE, MIN_APEX } from './src/human/physics/flight.js';
 export { bounces, bounceAt, MIN_BOUNCE, MOST_BOUNCES } from './src/human/physics/bounce.js';
 export { runChain, relaxChain, pinAt, substepsFor, stretchOf, MIN_CHAIN_PASSES, CHAIN_REST_SPEED, CHAIN_LENGTH_TOLERANCE, MIN_CHAIN_LINK, MOST_STEP_SAG, MOST_SUBSTEPS, LAYOUT_ROUNDS } from './src/human/physics/chain.js';
 export { makeWorld, readWorld, pushOut, collide, depthIn, MOST_BOXES } from './src/human/physics/collide.js';
 export { verletStep, simulate, PHYSICS_STEP, STEPS_PER_FRAME, GRAVITY, MOST_PHYSICS_SECONDS } from './src/human/physics/step.js';
-export { settleLeft, settleSeconds, checkSettles, SETTLED_WITHIN } from './src/human/physics/settle.js';
+export { settleLeft, settleSeconds, settleCarry, checkSettles, SETTLED_WITHIN } from './src/human/physics/settle.js';
+export { glide, glideAt, restSpeed } from './src/human/physics/glide.js';
+export { touchAlong } from './src/human/physics/collide.js';
+export { ROLL_SHAPES, ROLLING_RESISTANCE, MOST_SLOPE, rollTurn, rollingPush, landRoll } from './src/human/physics/rolling.js';
+export { KINETIC_FRICTION, STATIC_FRICTION, slidingPush, slideDistance } from './src/human/physics/friction.js';
+export { spinAt, faceSpin } from './src/human/physics/spin.js';
 
 // models — an intent planned by a named model, and sampled
 export { HUMAN_FAMILIES, HUMAN_DOS, HUMAN_MODELS, USUAL_MODELS } from './src/human/models/registry.js';
 export { planMove, sampleMove, sampleTrack, MOST_TRACK_SAMPLES, MOST_SAMPLE_LIST, UNSEEDED_KEYS } from './src/human/models/move.js';
+export { BASE_RATE, MOST_STEP_TURN, MOST_STEP_TRAVEL, stepNeed } from './src/human/models/resolve.js';
 export { MIN_JERK_BEND, MOST_BEND } from './src/human/models/minJerk.js';
 export { PEN_SPEED, BEND_WIDTH } from './src/human/models/powerLawPen.js';
 export { MOST_STROKES } from './src/human/models/sigmaLetter.js';
@@ -43,6 +50,10 @@ export { THROW_KEYS, FALL_KEYS, MIN_THROW_SECONDS } from './src/human/models/bal
 export { SQUASH_SECONDS } from './src/human/models/bounce.js';
 export { MOST_CHAIN_LINKS, MOST_CHAIN_SECONDS, MOST_PATH_KEYS, MOST_CHAIN_GRAVITY, USUAL_LINKS, USUAL_DAMPING } from './src/human/models/verlet.js';
 export { OVERSHOOT_SEEN } from './src/human/models/spring.js';
+export { ROLL_KEYS, MIN_ROLL_RADIUS } from './src/human/models/roll.js';
+export { SLIDE_KEYS, MOST_FRICTION } from './src/human/models/slide.js';
+export { TUMBLE_KEYS, TUMBLE_SHAPES, LANDING_RULES } from './src/human/models/tumble.js';
+export { GROUND_PLANES, MOST_GROUND_SPEED, OFF_LINE, stoppingCoefficient } from './src/human/models/ground.js';
 
 // wrappers — a move reshaped by the animation principles, read by sampleMove like any other
 export { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES, ADDED_BELLS, wrappedPushes } from './src/human/models/wrap.js';
@@ -56,6 +67,8 @@ export { PEN_SPEED_MOST } from './src/human/critics/penSpeed.js';
 export { SPACING_LEAST, SPACING_MOST } from './src/human/critics/spacing.js';
 export { VOLUME_MOST } from './src/human/critics/volume.js';
 export { CONTACT_MOST } from './src/human/critics/contact.js';
+export { ROLL_SLIP_MOST } from './src/human/critics/rollSlip.js';
+export { SPIN_MOST, SPIN_FLOOR, MOST_RUN, MOST_RUN_SECONDS, RESTING } from './src/human/critics/spin.js';
 
 // the intent decider — an author's intents in, every move decided: steps in one list, run in order (footprint-story/humanflow runs the same list as a chart)
 export { HUMAN_STEPS, HUMAN_INPUT, planIntents } from './src/human/intents/steps.js';

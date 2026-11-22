@@ -2,23 +2,36 @@
  * Wrappers: the animation principles as a move → a move, over ANY model's move (a reach, a throw, a hanging chain, a
  * tool's own), read by sampleMove like any other.
  *
- *   anticipate(move, { share, by })        a small move opposite first: adds share × the move's seconds before it
- *   followThrough(move, { share, by })     carries on past the end and swings back: adds share × its seconds after
+ *   anticipate(move, { share, by })        a small move opposite first: adds share × the part it winds up for before it
+ *                                          (the move's seconds, or its model's `opening`: a tumble's flight)
+ *   followThrough(move, { share, by })     carries on past the end and swings back: adds share × its seconds after;
+ *                                          it leaves the end at the speed the move arrives with (further than `by`
+ *                                          when that speed alone carries it further), and ends still
  *   hold(move, { at, seconds })            stops at the move's time `at` for `seconds`: adds `seconds`
- *   overshoot(move, { by, share, feel })   arrives `by` px past the end, then settles back on a spring: adds settleTime(feel)
+ *   overshoot(move, { by, share, feel })   arrives `by` px past the end, then settles back on a spring that also carries
+ *                                          the speed the move arrives with: adds settleTime(feel)
  *
  * A wrapped move is the move with its plan wrapped, its `reason` carrying the wrapper's words and `wrappers` naming
  * each, innermost first. The wrapped plan is plain frozen data, the inner plan inside it unchanged:
  *
  *   { wrapper: 'anticipate' | 'follow-through' | 'hold' | 'overshoot', seconds, inner, why, basis, …its numbers }
  *
- *   anticipate      { share, by }           by: px, or null for BY_SHARE of the move's straight distance
+ *   anticipate      { share, by, lead }     by: px, or null for BY_SHARE of the move's straight distance; lead: its seconds
  *   follow-through  { share, by }
  *   hold            { at, seconds: the plan's }, basis.held: the hold's seconds
  *   overshoot       { share, by, feel, tail }   tail = settleTime(feel); `share` of the inner's end the rise is spread over
  *
  * Every wrapper keeps the inner's start (its sample at 0) and its end (at its seconds) exactly; every other field a
  * sample gives (angle, sx, …) is the inner's; a wrapper moves x and y, and each point of `points` alike.
+ * A ROLL STAYS A ROLL: when the model's plan names `turnVector` [Tx, Ty] (its wheel's turn per px of travel, a roll's:
+ * turn = T · travel), the turn follows the wrapped path wherever a sample rolls (not `air: 1`, not `rolls: 0`) — the
+ * angle gains T · the wrapper's offset, the spin T · the offset's speed. So a wrapped roll, and a tumble that lands
+ * into a roll after it lands, still turn distance / radius and roll-slip passes them; a slide's angle stays its own.
+ * A WRAPPER RESPECTS ITS PLAN'S WORLD (the floor and boxes its model's plan names, with its radius): each offset is
+ * cut back along itself to where the body first touches one (keptShare), so a wind-up, a follow-through or an
+ * overshoot never drives it into the floor or a box. A chain's points move with its middle.
+ * WHILE A WRAPPER HOLDS ITS MODEL STILL (an anticipation's wind-up, after the end, a hold) the model's own spin is
+ * stopped and a sample in flight is marked `air: 0`: held by the hand, it is not falling.
  * The pushes a wrapped move is made of (wrappedPushes, what sampleTrack hands the `jerk` critic) add the speed bells
  * each wrapper makes (ADDED_BELLS: anticipate 2 — the pull back, and its release into the move; follow-through 2 — out
  * past the end, and back; overshoot 1 — back from past the end; a hold 1 — the move cut in two), and none when it makes
@@ -32,9 +45,10 @@
  */
 import { refuse, shown, stored, isRecord, finite, readNumber, onlyKeys, MOST_SECONDS } from '../read.js';
 import { plainCopy } from '../plain.js';
-import { checkSettles, settleLeft, settleSeconds } from '../physics/settle.js';
+import { checkSettles, settleCarry, settleLeft, settleSeconds } from '../physics/settle.js';
 import { FEEL_NAMES } from '../../motion/spring.js';
 import { round } from './options.js';
+import { readWorld, touchAlong } from '../physics/collide.js';
 
 /** A wrapper's usual `by`: this share of the straight distance from the move's start to its end. */
 export const BY_SHARE = 0.08;
@@ -48,8 +62,39 @@ export const ADDED_BELLS = Object.freeze({ anticipate: 2, 'follow-through': 2, o
 
 const smooth = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 /** One swing out and back, 0 at both ends and 1 at its peak: sin(πu)·(1 − u), scaled by its own peak. */
-const swing = (u) => Math.sin(Math.PI * u) * (1 - u);
-const SWING_PEAK = (() => { let m = 0; for (let i = 1; i < 1000; i += 1) m = Math.max(m, swing(i / 1000)); return m; })();
+/** The peak of a shape on (0, 1), read at a thousand points. */
+const peakOf = (f) => { let m = 0; for (let i = 1; i < 1000; i += 1) m = Math.max(m, f(i / 1000)); return m; };
+/** One swing out and back from rest, 0 at both ends and still at both, with no push at its start: sin³(πu)·(1 − u). */
+const swing = (u) => Math.sin(Math.PI * u) ** 3 * (1 - u);
+const SWING_PEAK = peakOf(swing);
+/** A carry out and back that starts at speed 1 (per unit of u) with no push or brake (no acceleration) and ends still:
+ *  u − 3u³ + 2u⁴ = u·(1 − u)²·(1 + 2u). WHY no acceleration at the start: a carry that brakes at once loses a fifth of
+ *  its speed in its first frame, which reads as a jolt at the hand-over. */
+const carryOn = (u) => u - 3 * u ** 3 + 2 * u ** 4;
+const CARRY_PEAK = peakOf(carryOn);
+
+/**
+ * The speed the inner move arrives with, along `dir` (px a second, at least 0), read over its last instant. WHY: a
+ * wrapper that carries on past the end must start at that speed — a jump in speed there is a kink the eye sees (and
+ * the spin critic, on a roll).
+ */
+function arrivalSpeed(at, d, dir) {
+  if (!(d > 0)) return 0;
+  const e = Math.min(1e-3, d / 1000), a = at(d - e), b = at(d);
+  return Math.max(0, ((b.x - a.x) * dir[0] + (b.y - a.y) * dir[1]) / e);
+}
+
+/**
+ * A follow-through's offset at x (0 to 1 over its time `span`), in px: out and back, starting at the speed `speed` it
+ * arrives with, unpushed, and ending still. A share λ = speed·span·CARRY_PEAK / by of it is the carry (carryOn), the rest
+ * the swing from rest (swing), so it leaves at exactly `speed` and reaches about `by`; when the speed alone carries it further than
+ * `by` (λ > 1), it is all carry — a move that arrives fast follows through further than asked, never stops dead.
+ */
+function followOffset(x, by, speed, span) {
+  const u = Math.min(1, Math.max(0, x)), carried = speed * span * CARRY_PEAK, share = by > 0 ? carried / by : Infinity;
+  if (share >= 1) return speed * span * carryOn(u);
+  return by * ((1 - share) * (swing(u) / SWING_PEAK) + share * (carryOn(u) / CARRY_PEAK));
+}
 
 export const isWrapped = (plan) => isRecord(plan) && typeof plan.wrapper === 'string';
 
@@ -91,10 +136,30 @@ function wrapped(move, name, inner, seconds, numbers, why, basis) {
   return plainCopy(out, `${move.who ?? 'the move'}: ${name}`);
 }
 
+/**
+ * The seconds an anticipation winds up for: the move's seconds, unless its model names an `opening` — a tumble's
+ * flight, not the roll after it lands, so its wind-up is sized by the throw. That opening is carried through the
+ * wrappers inside: an anticipation's lead comes before it, a hold inside it lengthens it, a follow-through or an
+ * overshoot (after the end) leaves it.
+ */
+function openingOf(plan) {
+  const base = basePlan(plan);
+  if (!(finite(base.opening) && base.opening > 0 && base.opening <= base.seconds)) return plan.seconds;
+  const carry = (p) => {
+    if (!isWrapped(p)) return p.opening;
+    const o = carry(p.inner);
+    if (p.wrapper === 'anticipate') return p.lead + o;
+    if (p.wrapper === 'hold') return p.at < o ? o + p.held : o;
+    return o;
+  };
+  return carry(plan);
+}
+
 export function anticipate(move, options = undefined) {
   const { who, seconds: d } = readMove(move, 'anticipate'), o = readOptions(options, ['share', 'by'], who, 'anticipate');
   const share = readNumber(o, 'share', `${who}: anticipate`, { lo: 0, hi: 0.5, above: true, usual: 0.15 }), by = readBy(o, who, 'anticipate');
-  return wrapped(move, 'anticipate', move.plan, d + share * d, { share, by }, `a pull back of ${byWords(by)} over ${round(share * d)} s, released into the move`, { share, by, added: share * d });
+  const opening = openingOf(move.plan), lead = share * opening, of = opening < d ? ` (a share of its ${round(opening)} s opening)` : '';
+  return wrapped(move, 'anticipate', move.plan, d + lead, { share, by, lead }, `a pull back of ${byWords(by)} over ${round(lead)} s${of}, released into the move`, { share, by, added: lead, opening });
 }
 
 export function followThrough(move, options = undefined) {
@@ -127,12 +192,83 @@ function unit(a, b) {
   return d >= MIN_TRAVEL ? [dx / d, dy / d] : null;
 }
 
-/** The sample moved by (ox, oy): x, y and every point; every other field as it was. */
-function moved(s, ox, oy) {
-  if (ox === 0 && oy === 0) return s;
-  const out = { ...s, x: s.x + ox, y: s.y + oy };
-  if (Array.isArray(s.points)) out.points = s.points.map((p) => [p[0] + ox, p[1] + oy]);
+/** The turn per px of travel a rolling plan names (`turnVector`, under every wrapper), or null: a wrapper turns what it moves. */
+function turnOf(plan) {
+  const T = basePlan(plan).turnVector;
+  return Array.isArray(T) && T.length === 2 && finite(T[0]) && finite(T[1]) ? T : null;
+}
+
+/** The step a weight's speed is read over (s): its rate by a central difference. */
+const RATE_STEP = 1e-6;
+const rateOf = (weight, u) => (weight(u + RATE_STEP) - weight(u - RATE_STEP)) / (2 * RATE_STEP);
+
+/**
+ * A sample whose model is held still by a wrapper (before an anticipation's release, after the end, in a hold): its own
+ * spin stopped, and not in flight — a thing held by the hand is not falling, so spacing and spin read no flight there.
+ */
+function held(s) {
+  const out = { ...s };
+  if (finite(s.spin)) out.spin = 0;
+  if (s.air === 1) out.air = 0;
   return out;
+}
+
+/**
+ * When a plan's samples start to roll, in its own time: its model's `turnFrom` (a tumble's landing; 0 for a roll),
+ * carried through each wrapper's shift of time (an anticipation's lead; a hold before it).
+ */
+function rollStart(plan) {
+  if (!isWrapped(plan)) return finite(plan.turnFrom) ? plan.turnFrom : 0;
+  const r = rollStart(plan.inner);
+  if (plan.wrapper === 'anticipate') return r > 0 ? r + plan.lead : 0;
+  if (plan.wrapper === 'hold') return r < plan.at ? r : r + plan.held;
+  return r;
+}
+
+/** Whether a wrapper turns this sample as it moves it: its plan names a turn vector and the sample rolls (not in the air, not sliding). */
+const turns = (T, s) => T !== null && finite(s.angle) && s.air !== 1 && s.rolls !== 0;
+
+/**
+ * The sample moved by `dir` × `amount` × weight(u): x, y and every point; and, for a rolling sample (turn vector T), its
+ * angle turned by T · the offset gained since it began to roll (at the wrapped time `from`: so a tumble's angle runs on
+ * unbroken from its landing) and its spin by T · the offset's speed. `still`: its model is held at one of its ends
+ * (held). Every other field as it was.
+ */
+function moved(s0, dir, amount, weight, u, { T, still = false, from = 0, at = null, shift = 0, world = null, radius = 0 }) {
+  const s = still ? held(s0) : s0, w = weight(u), k = keptShare(s, dir, amount * w, world, radius), ox = dir[0] * amount * w * k, oy = dir[1] * amount * w * k;
+  const out = ox === 0 && oy === 0 ? { ...s } : { ...s, x: s.x + ox, y: s.y + oy };
+  if (Array.isArray(s.points) && (ox !== 0 || oy !== 0)) out.points = s.points.map((p) => [p[0] + ox, p[1] + oy]);
+  if (turns(T, s)) {
+    // the offset gained since it began to roll, each end cut as it was drawn, so the angle runs on unbroken
+    const w0 = weight(from), k0 = w0 === 0 || !at ? 1 : keptShare(at(Math.max(0, from - shift)), dir, amount * w0, world, radius);
+    const along = T[0] * dir[0] + T[1] * dir[1];
+    out.angle = s.angle + along * amount * (w * k - w0 * k0);
+    if (finite(s.spin)) out.spin = s.spin + along * amount * k * rateOf(weight, u);
+  }
+  return out;
+}
+
+/** The world a plan names (its model's, under every wrapper) and its body's radius: {world, radius}, or no world. */
+function worldOf(plan, who) {
+  const base = basePlan(plan);
+  if (!isRecord(base.world)) return { world: null, radius: 0 };
+  return { world: readWorld(base.world, `${who}: its plan's world`), radius: finite(base.radius) && base.radius > 0 ? base.radius : 0 };
+}
+
+/**
+ * How much of an offset `length` px along `dir` a sample keeps, 0 to 1: THE WORLD RULE — a wrapper's offset is cut back
+ * along itself to where the body (its middle, `radius` wide) first touches the floor or a box of its plan's world, never
+ * turned aside. A body already in something keeps the whole offset (the contact critic says so); a world-less plan too.
+ * WHY cut, not turned: a turned wind-up would pull a different way than the move it winds up for.
+ */
+function keptShare(s, dir, length, world, radius) {
+  if (!world || !(Math.abs(length) > 0)) return 1;
+  const way = length > 0 ? dir : [-dir[0], -dir[1]], size = Math.abs(length);
+  let room = Infinity;
+  const box = touchAlong([s.x, s.y], way, world, radius);
+  if (box.inside === null) room = box.distance;
+  if (world.floor !== null && way[1] > 0 && s.y + radius <= world.floor) room = Math.min(room, (world.floor - radius - s.y) / way[1]);
+  return Math.min(1, room / size);
 }
 
 /** The direction of travel at the start or the end of a plan sampled by `at` over `d` s (two samples), else its start
@@ -165,25 +301,39 @@ export function sampleWrapped(plan, t, sampleInner) {
   if (!isWrapped(plan)) return sampleInner(plan, t);
   const inner = plan.inner, d = inner.seconds, at = (u) => sampleWrapped(inner, u, sampleInner);
   const u = t > 0 ? Math.min(t, plan.seconds) : 0;
-  if (u <= 0) return at(0);
-  if (u >= plan.seconds) return at(d);
-  const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d);
+  // a wrapper that holds its model still from the start (a wind-up, a hold at 0) holds its first sample too
+  if (u <= 0) return plan.wrapper === 'anticipate' || (plan.wrapper === 'hold' && plan.at === 0) ? held(at(0)) : at(0);
+  // after a follow-through or an overshoot its model has been held at its end: the end sample is held too
+  if (u >= plan.seconds) return plan.wrapper === 'follow-through' || plan.wrapper === 'overshoot' ? held(at(d)) : at(d);
+  const way = (end) => wayOf(at, d, end), amount = () => amountOf(plan, at, d), T = turnOf(inner), { world, radius } = worldOf(inner, 'the move');
   switch (plan.wrapper) {
-    case 'hold': return u < plan.at ? at(u) : u < plan.at + plan.held ? at(plan.at) : at(u - plan.held);
+    case 'hold': {
+      if (u < plan.at) return at(u);
+      if (u >= plan.at + plan.held) return at(u - plan.held);
+      return held(at(plan.at));
+    }
     case 'anticipate': {
       // wind back opposite the first direction of travel, then release into the move over the same share of it
-      const lead = plan.share * d, dir = way(false), pull = u < lead ? smooth(u / lead) : 1 - smooth((u - lead) / lead), s = at(Math.max(0, u - lead));
-      return dir ? moved(s, -dir[0] * amount() * pull, -dir[1] * amount() * pull) : s;
+      const lead = plan.lead, dir = way(false), s = at(Math.max(0, u - lead));
+      const pull = (v) => (v < lead ? smooth(v / lead) : 1 - smooth((v - lead) / lead));
+      const r = rollStart(inner), from = r > 0 ? r + lead : 0;
+      return dir ? moved(s, [-dir[0], -dir[1]], amount(), pull, u, { T, still: u < lead, from, at, shift: lead, world, radius }) : s;
     }
     case 'follow-through': {
       if (u <= d) return at(u);
-      const dir = way(true), w = swing((u - d) / (plan.seconds - d)) / SWING_PEAK, s = at(d);
-      return dir ? moved(s, dir[0] * amount() * w, dir[1] * amount() * w) : s;
+      const dir = way(true), s = at(d);
+      if (!dir) return s;
+      const span = plan.seconds - d, speed = arrivalSpeed(at, d, dir), by = amount(), px = (v) => followOffset((v - d) / span, by, speed, span);
+      return moved(s, dir, 1, px, u, { T, still: true, from: rollStart(inner), at, world, radius });
     }
     case 'overshoot': {
       // past the end over the inner's last `share`, then back on the spring (physics/settle.js · settleLeft: exactly 0 at the end)
-      const dir = way(true), w = u <= d ? smooth((u - d * (1 - plan.share)) / (d * plan.share)) : settleLeft(u - d, plan.feel), s = at(Math.min(u, d));
-      return dir ? moved(s, dir[0] * amount() * w, dir[1] * amount() * w) : s;
+      // past it, the spring also carries the speed the move arrives with (settleCarry), so it never stops dead at the end
+      const dir = way(true), s = at(Math.min(u, d));
+      if (!dir) return s;
+      const by = amount(), speed = u > d ? arrivalSpeed(at, d, dir) : 0;
+      const px = (v) => (v <= d ? by * smooth((v - d * (1 - plan.share)) / (d * plan.share)) : by * settleLeft(v - d, plan.feel) + speed * settleCarry(v - d, plan.feel));
+      return moved(s, dir, 1, px, u, { T, still: u > d, from: rollStart(inner), at, world, radius });
     }
     default: return refuse(`a wrapped plan's wrapper is one of ${WRAPPER_NAMES.join(', ')} — not ${shown(plan.wrapper)}`);
   }

@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.31.0 — rolling, tumbling and sliding
+
+- **Three families on `footprint-story/human`: `do: 'roll'`, `'slide'` and `'tumble'`,** each with its usual model.
+  `no-slip` rolls a round thing without slipping: its `angle` is distance / radius, unwrapped; rolling resistance
+  (`ROLLING_RESISTANCE`, 0.05, ours) slows it to rest; a slope (up to 45°) speeds or slows it by g sin θ / (1 + k), k
+  from its `shape` (`ROLL_SHAPES`: ball 2/5, disc 1/2, ring 1); a box stops it dead; side on (`plane: 'side'`) or on a
+  floor seen from above (`plane: 'floor'`, with `heading`). `coulomb` slides a thing to rest under kinetic friction
+  (`KINETIC_FRICTION` 0.2, `STATIC_FRICTION` 0.25: wood on wood, Serway & Jewett), v² / (2 μ g) on the level, held by
+  static friction once stopped, its angle kept. For both, `to` with no `speed` picks the start speed that rests it
+  exactly there; a climb that stops rolls or slides back when the slope beats its hold. `free-spin` flies a ballistic
+  arc spinning at one rate (no torque in flight) and hands over at the landing by `LANDING_RULES` (data, decide()'s
+  shape): the `then` the intent names, else a round shape rolls on — its turning about the contact kept, v′ = (v + k r ω)
+  / (1 + k) — and a box slides on, its spin stopped, its usual spin the one that lands it on a face. Samples carry
+  `angle` and `spin` (a tumble's also `air` and `rolls`); plans carry `basis` and `why`. Refusals name the entry and the
+  fix: nothing moves it, it stops short of `to` (with the speed that reaches it), a box stands between, it would still be
+  moving after 30 s, `to` off its floor's line.
+- **Two critics: `roll-slip`** (the drawn angle's change against distance / radius, over the steps that roll: over 5%
+  astray it skids, slides without turning or turns the wrong way; the fix names the radius, or the radius it is drawn
+  at) **and `spin`** (a drawn angle that jumps between two samples, or a spin that changes by over 10% in flight). Both
+  read the drawn track. A fast spin, over half a turn between samples, is read as it turns: `roll-slip` nearest the turn
+  the drawn distance owes, `spin` nearest its samples' own `spin`; a hand-drawn track with no spin is read the short way
+  and `spin`'s basis says the fastest spin it can tell (`mostReadable`, π × the rate). Its jumps are one measure: for
+  every run lasting up to `MOST_RUN_SECONDS` (0.05 s at the track's own rate, at least `MOST_RUN` = 6 steps), the extra turn beyond what each side says (read outside the run, its speed
+  held, its line and its curve carried on), over the run's expected turn or `SPIN_FLOOR` (2π rad/s) × its time — flicks of any
+  length, bursts, humps, dips, stutters and a flick on the last sample are caught; a stop, a start or a landing is not
+  (a slow spin drifting 3 → 3.5 rad/s in flight passes); at the track's end a run easing monotonically to rest (by more
+  than `RESTING`, 1e-9, a step) is a stop, at its start a run only growing is a start. `spacing` now reads only a track's flight
+  when its samples mark `air: 0` on the floor.
+- **A checked move is sampled at a rate its own motion sets** (`sampleTrack` with no `rate`; `BASE_RATE`,
+  `MOST_STEP_TURN`, `MOST_STEP_TRAVEL`, `stepNeed`): from 120 a second, finer until no step turns more than 30° or
+  travels more than 16 px, at most `MOST_TRACK_SAMPLES`; the track carries `rate` and `resolved`, and `spin` says
+  `unresolved` (a note with the fix) rather than judge a track the cap left aliased. A `rate` given is used as given.
+- **A wrapped roll stays a roll:** the `no-slip` plan names `turnVector` (its turn per px of travel), and `anticipate`,
+  `followThrough`, `hold` and `overshoot` turn a plan that names one as they move it (a hold stops its spin), so a
+  wrapped roll still turns distance / radius; a tumble that lands into a roll turns with the wrapper after it lands
+  (`turnFrom`); a slide's angle stays its own. A model held still by a wrapper stops spinning and is not in flight
+  (`air: 0`). **Wrappers respect their plan's world:** every offset (wind-up, follow-through, overshoot) is cut back
+  along itself to where the body first touches the floor or a box its model's plan names, never turned aside. An
+  anticipation is sized by the part it winds up for (`plan.lead`): a tumble's flight (its plan's `opening`), not the
+  roll after it lands. A follow-through leaves the end at the speed the move arrives with, unpushed and unbraked
+  (swinging out from rest when it arrives at rest, carrying on further than `by` when its speed alone takes it there),
+  and ends still — a roll, a slide or a throw alike; an overshoot's
+  settle carries that speed too (`settleCarry`, the spring's impulse response): no jump in speed or spin at the
+  hand-over, on any roll.
+- **A roll or a slide to `to` that would take longer than 30 s says so** ("it would take 30.03 s to come to rest at to,
+  longer than the 30 s a physics plan may run — a nearer to, or a resistance that stops it in time …"; a speed given too
+  slow: the speed that arrives in time), never "short of to": a slope that nearly balances its resistance creeps.
+- **The 30 s refusal names the value that stops it** (`stoppingCoefficient`: above tan θ on a slope, at least (1 + k)·v /
+  (g · 30 s) on the level for a roll, v / (g · 30 s) for a slide), and following it plans. A box tumble given its own
+  spin keeps it and may land at a slant: `basis.slant` and the reason say so.
+- **The physics under them, on the door:** `glide`, `glideAt`, `restSpeed` (straight-line motion in closed form),
+  `touchAlong` (a line's first touch of a box, the slab test of Kay & Kajiya 1986), `rollTurn`, `rollingPush`,
+  `landRoll`, `slidingPush`, `slideDistance`, `spinAt`, `faceSpin`, and their constants (`MOST_SLOPE`, `ROLL_KEYS`,
+  `SLIDE_KEYS`, `TUMBLE_KEYS`, `TUMBLE_SHAPES`, `GROUND_PLANES`, `MIN_ROLL_RADIUS`, `MOST_GROUND_SPEED`, `OFF_LINE`,
+  `MOST_FRICTION`, `ROLL_SLIP_MOST`, `SPIN_MOST`, `SPIN_FLOOR`). The human and humanflow doors now reach the geometry
+  leaf (`src/geom/angles.js`) for the critics' turns, reused, never copied.
+
 ## 0.30.0 — hand-drawn strokes
 
 - **`do: 'sketch'` and the model `hand-sketch`** (new family `sketch`; `footprint-story/human`;

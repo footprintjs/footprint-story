@@ -306,7 +306,9 @@ checkMove(planMove({ do: 'draw', path: [[100, 100], [300, 180], [420, 90]] })).f
 
 `do: 'reach'` (minimum jerk), `'draw'` (a centripetal Catmull-Rom line traced by the two-thirds power law, with a
 seeded tremor), `'write'` (overlapping sigma-lognormal strokes), `'throw'` and `'fall'` (a ballistic flight, or a bounce
-to rest), `'hang'` (a Verlet chain that swings until it settles) and `'settle'` (the motion spring); `anticipate`,
+to rest), `'hang'` (a Verlet chain that swings until it settles), `'settle'` (the motion spring), `'roll'` (rolling
+without slipping, its turn distance / radius, to rest or a box), `'slide'` (kinetic friction to rest) and `'tumble'` (a
+spinning flight, handed over at the landing to a roll or a slide); `anticipate`,
 `followThrough`, `hold` and `overshoot` reshape any move, keeping its ends:
 
 ```js

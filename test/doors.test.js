@@ -42,9 +42,11 @@ const SPRING = 'src/motion/spring.js';
  *  start and stop by it, so it is one file both reach; the human door hands it out. */
 const MIN_JERK = 'src/timing/minJerk.js';
 /** The geometry leaf (angles, quaternions, slerp, squad, spherical places, look-at): its files import only each other.
- *  Exactly the doors that use it may reach it: the geometry door, which hands it out, and the shot door (camera moves). */
+ *  Exactly the doors that use it may reach it: the geometry door, which hands it out, the shot door (camera moves), and
+ *  the human door with the humanflow door that runs its steps (0.31.0: the roll-slip and spin critics read a drawn turn
+ *  the short way round, geom/angles.js · wrapAngle and shortestTurn — reused, never copied). */
 const GEOM = 'src/geom/';
-const GEOM_DOORS = ['geometry.js', 'shot.js'];
+const GEOM_DOORS = ['geometry.js', 'shot.js', 'human.js', 'humanflow.js'];
 
 test('the pure door, the motion door, the storyboard door, the shot door, the isometric door, the layout door and the geometry door reach no Node module and no package: they run in a browser', () => {
   for (const [file, specs] of [...reach('index.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js'), ...reach('geometry.js')]) {
@@ -129,7 +131,7 @@ test('the shared seed rule is one leaf: it imports nothing, both the isometric a
 test('the human door is pure — no Node module, no package — and loads only src/human; no other door reaches src/human, and every file there is behind it', () => {
   const human = reach('human.js'), others = [...reach('index.js'), ...reach('voice.js'), ...reach('motion.js'), ...reach('storyboard.js'), ...reach('shot.js'), ...reach('isometric.js'), ...reach('layout.js'), ...reach('record.js'), ...reach('mapflow.js'), ...reach('geometry.js')];
   for (const [file, specs] of human) {
-    assert.ok(relative(file) === 'human.js' || relative(file).startsWith('src/human/') || [SEED, SPRING, MIN_JERK].includes(relative(file)), `${relative(file)}: the human door reaches its own folder, the shared seed rule, the motion spring and the minimum-jerk law only (a page that moves a hand never loads the isometric maths)`);
+    assert.ok(relative(file) === 'human.js' || relative(file).startsWith('src/human/') || [SEED, SPRING, MIN_JERK].includes(relative(file)) || relative(file).startsWith(GEOM), `${relative(file)}: the human door reaches its own folder, the shared seed rule, the motion spring, the minimum-jerk law and the geometry leaf only (a page that moves a hand never loads the isometric maths)`);
     for (const s of specs) {
       assert.ok(!NODE.has(s) && !s.startsWith('node:'), `${relative(file)} imports ${s}: the human door must run in a browser`);
       assert.ok(s.startsWith('.'), `${relative(file)} imports the package ${s}: footprint-story/human has no dependencies`);
@@ -181,6 +183,6 @@ test('the humanflow door reaches footprintjs alone, its own folder, and what the
     const f = relative(file);
     assert.ok(f === 'humanflow.js' || f.startsWith('src/humanflow/') || steps.has(f), `${f}: the humanflow door reaches its own folder and the decider's steps`);
   }
-  assert.ok(steps.has('src/human/intents/read.js') && [...steps].every((f) => f.startsWith('src/human/') || f === SEED || f === SPRING || f === MIN_JERK), 'the steps reach the human folder only (and the shared seed rule and the motion spring)');
+  assert.ok(steps.has('src/human/intents/read.js') && [...steps].every((f) => f.startsWith('src/human/') || f === SEED || f === SPRING || f === MIN_JERK || f.startsWith(GEOM)), 'the steps reach the human folder only (and the shared seed rule, the motion spring, the minimum-jerk law and the geometry leaf)');
   for (const f of readdirSync(path.join(root, 'src', 'humanflow')).filter((x) => x.endsWith('.js'))) assert.ok(flow.has(path.join(root, 'src', 'humanflow', f)), `src/humanflow/${f} is behind no door`);
 });

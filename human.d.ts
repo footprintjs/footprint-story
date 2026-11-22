@@ -134,15 +134,48 @@ export type SpringFeel = 'snappy' | 'default' | 'heavy' | 'playful' | { readonly
 /** How much of the way back is still to go at t on a spring: 1 at 0, exactly 0 at settleSeconds. */
 export function settleLeft(t: number, feel?: SpringFeel): number;
 export function settleSeconds(feel?: SpringFeel): number;
+/** How far a settle carries a start speed of 1 px a second on the same spring: 0 at 0, moving at 1 there, exactly 0 again at settleSeconds. */
+export function settleCarry(t: number, feel?: SpringFeel): number;
 /** How near its end a spring must come to count as settled (0.005). */
 export const SETTLED_WITHIN: number;
 /** Refuses a spring that does not settle within the motion spring's scan (30 s); gives its settle seconds. */
 export function checkSettles(feel: SpringFeel, who: string): number;
+/** How far a body of `radius` goes along the unit direction before it touches a box (Infinity when nothing is in the way); `inside` the box it starts in. */
+export function touchAlong(from: HumanPoint, dir: HumanPoint, world: HumanWorld, radius?: number): { readonly distance: number; readonly box: number | null; readonly inside: number | null };
+/** One piece of a glide: from time `at`, for `seconds`, at place q (px along the line) and speed v under acceleration a. */
+export interface GlideSegment { readonly at: number; readonly seconds: number; readonly q: number; readonly v: number; readonly a: number }
+/** A straight-line motion on a floor in closed form: its pieces, where and how fast it ends, how far it went, and how it ended. */
+export interface Glide { readonly segments: readonly GlideSegment[]; readonly q: number; readonly v: number; readonly seconds: number; readonly travelled: number; readonly endedBy: 'rest' | 'end' | 'box' | 'time'; readonly hitSpeed: number }
+/** A roll or a slide along a line: start speed forward, the push along it, the slowing while it moves, the most push that leaves it at rest, the room each way, where it ends, the longest it runs. */
+export function glide(options: { readonly speed: number; readonly along: number; readonly resist: number; readonly hold: number; readonly ahead?: number; readonly behind?: number; readonly end?: number | null; readonly most: number }): Glide;
+export function glideAt(glide: Glide, t: number): { readonly q: number; readonly v: number };
+/** The start speed that comes to rest after `distance` px slowed at `slow` px/s²: √(2·slow·distance). */
+export function restSpeed(distance: number, slow: number): number;
+/** I / (m r²) for each round shape: ball 2/5, disc 1/2, ring 1. */
+export const ROLL_SHAPES: Readonly<{ ball: number; disc: number; ring: number }>;
+/** Rolling resistance when none is named (0.05, ours); the steepest floor a roll or a slide takes (45°). */
+export const ROLLING_RESISTANCE: number;
+export const MOST_SLOPE: number;
+/** The turn of a wheel that does not slip: distance / radius (radians). */
+export function rollTurn(distance: number, radius: number): number;
+export function rollingPush(options: { readonly along: number; readonly normal: number; readonly resistance: number; readonly inertia: number }): { readonly along: number; readonly resist: number; readonly hold: number };
+/** The speed a round thing rolls on with after landing at `speed` across with `spin`: (v + k r ω) / (1 + k). */
+export function landRoll(speed: number, spin: number, radius: number, inertia: number): number;
+/** Friction coefficients when none are named: wood on wood, kinetic 0.2, static 0.25. */
+export const KINETIC_FRICTION: number;
+export const STATIC_FRICTION: number;
+export function slidingPush(options: { readonly along: number; readonly normal: number; readonly kinetic: number; readonly still: number }): { readonly along: number; readonly resist: number; readonly hold: number };
+/** How far a slide on a level floor goes before it stops: v² / (2 μ g). */
+export function slideDistance(speed: number, kinetic: number, gravity: number): number;
+/** A spin kept in flight: angle + spin · t. */
+export function spinAt(angle: number, spin: number, t: number): number;
+/** The spin nearest `spin` that lands the thing on a face after `seconds` (a whole 1/faces of a turn; 4 unless given). */
+export function faceSpin(angle: number, spin: number, seconds: number, faces?: number): number;
 
 // ── models ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type HumanFamily = 'reach' | 'pen' | 'letter' | 'settle' | 'fall' | 'throw' | 'hang' | 'sketch';
-export type HumanDo = 'reach' | 'draw' | 'write' | 'settle' | 'fall' | 'throw' | 'hang' | 'sketch';
+export type HumanFamily = 'reach' | 'pen' | 'letter' | 'settle' | 'fall' | 'throw' | 'hang' | 'sketch' | 'roll' | 'slide' | 'tumble';
+export type HumanDo = 'reach' | 'draw' | 'write' | 'settle' | 'fall' | 'throw' | 'hang' | 'sketch' | 'roll' | 'slide' | 'tumble';
 export const HUMAN_FAMILIES: readonly HumanFamily[];
 export const HUMAN_DOS: Readonly<Record<HumanDo, HumanFamily>>;
 export const HUMAN_MODELS: Readonly<Record<HumanFamily, readonly string[]>>;
@@ -175,6 +208,25 @@ export const USUAL_LINKS: number;
 export const USUAL_DAMPING: number;
 /** The least overshoot a settle's reason mentions (half a percent of the way). */
 export const OVERSHOOT_SEEN: number;
+/** The intent keys of a roll and of a slide; the smallest radius a roll takes (1 px). */
+export const ROLL_KEYS: readonly string[];
+export const MIN_ROLL_RADIUS: number;
+export const SLIDE_KEYS: readonly string[];
+/** The most a friction coefficient may be (2). */
+export const MOST_FRICTION: number;
+/** The keys a tumble reads beside a throw's, and the shapes it may be (the round ones roll on, a box slides on). */
+export const TUMBLE_KEYS: readonly string[];
+export const TUMBLE_SHAPES: readonly ('ball' | 'disc' | 'ring' | 'box')[];
+/** What a tumble does once it lands, first match wins: the then it names, else a round thing rolls and a box slides. */
+export interface LandingRule { readonly when: Readonly<Record<string, Readonly<{ eq?: unknown; ne?: unknown }>>>; readonly then: 'roll' | 'slide'; readonly label: string }
+export const LANDING_RULES: readonly LandingRule[];
+/** The planes a roll or a slide runs in: side on (the usual), or a floor seen from above. */
+export const GROUND_PLANES: readonly ('side' | 'floor')[];
+/** The fastest start a roll or a slide takes (px a second); how far to may sit off the floor's line side on (px). */
+export const MOST_GROUND_SPEED: number;
+export const OFF_LINE: number;
+/** The least resistance (a roll, share 1 + k) or kinetic friction (a slide, share 1) that stops a thing starting at `speed` within `seconds` and holds it, a hair above, to two places. */
+export function stoppingCoefficient(options: { readonly along: number; readonly normal: number; readonly speed: number; readonly seconds: number; readonly share: number }): number;
 
 export type HumanOptions = Readonly<Record<string, number | string | boolean>>;
 /** What an author writes: what happens. Each family reads its own keys (see src/human/README.md). */
@@ -189,8 +241,8 @@ export interface HumanIntent {
 export interface HumanContext { readonly who: string; readonly name: string | null; readonly options: HumanOptions; random(): number; readonly frame: HumanPoint | null }
 /** A flat record of the numbers (and words, true/false) a plan or a critic chose by: data for a record, beside the words. */
 export type HumanBasis = Readonly<Record<string, number | string | boolean | null>>;
-/** A plan: plain data with how long the move takes; `why` in words, `basis` its numbers, `pushes` how many pushes it is made of. */
-export interface HumanPlan { readonly seconds: number; readonly why?: string; readonly basis?: HumanBasis; readonly pushes?: number; readonly [key: string]: unknown }
+/** A plan: plain data with how long the move takes; `why` in words, `basis` its numbers, `pushes` how many pushes it is made of; `turnVector` (a roll's) its wheel's turn per px of travel, so a wrapper turns it as it moves it. */
+export interface HumanPlan { readonly seconds: number; readonly why?: string; readonly basis?: HumanBasis; readonly pushes?: number; readonly turnVector?: readonly [number, number]; readonly [key: string]: unknown }
 /** What a sample may hold besides x and y: a number, or a list of at most MOST_SAMPLE_LIST numbers or points (a hanging chain). */
 export type HumanSampleValue = number | readonly number[] | readonly HumanPoint[];
 /** A sample: where the move is, and any other numbers or lists the model gives. */
@@ -209,6 +261,8 @@ export interface HumanModel {
 /** A sampled track, as the critics read it. */
 /** A sampled track, as the critics read it: each sample whole, and the plan (a wrapped one as it is). */
 export interface HumanTrack { readonly who: string; readonly family: HumanFamily; readonly model: string; readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[]; readonly plan: HumanPlan;
+  /** The rate it was sampled at (samples a second), and whether no step turns over MOST_STEP_TURN or travels over MOST_STEP_TRAVEL (false: MOST_TRACK_SAMPLES bound first). */
+  readonly rate: number; readonly resolved: boolean;
   /** A wrapped move's model's own plan, sampled alone: the jerk critic scores the model and the wrappers apart. */
   readonly base?: { readonly seconds: number; readonly pushes: number; readonly samples: readonly (HumanSample & { readonly t: number })[] } }
 /** A critic: a number measured on a track, and a finding in words past its limit (null within it). */
@@ -224,13 +278,20 @@ export interface HumanMove { readonly model: string; readonly family: HumanFamil
 export function planMove(intent: HumanIntent, settings?: (HumanSettings & { readonly frame?: HumanPoint }) | null): HumanMove;
 export function sampleMove(move: HumanMove, t: number, settings?: HumanSettings | null): HumanSample;
 export function sampleTrack(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): HumanTrack;
+/** The rate a checked track starts at (120 a second), the most one step may turn (30°, radians) and travel (16 px) before the rate rises. */
+export const BASE_RATE: number;
+export const MOST_STEP_TURN: number;
+export const MOST_STEP_TRAVEL: number;
+/** How many times finer samples must be for every step to turn and travel within the limits (1 or under: fine). */
+export function stepNeed(samples: readonly (HumanSample & { readonly t: number })[]): number;
 
 // ── wrappers ───────────────────────────────────────────────────────────────────────────────────────────────
 
 export type WrapperName = 'anticipate' | 'follow-through' | 'hold' | 'overshoot';
 /** A wrapped plan: the inner plan unchanged, the wrapper's name and numbers, its seconds the inner's plus what it adds. */
 export type WrappedPlan = HumanPlan & { readonly wrapper: WrapperName; readonly inner: HumanPlan } & (
-  | { readonly wrapper: 'anticipate' | 'follow-through'; readonly share: number; readonly by: number | null }
+  | { readonly wrapper: 'anticipate'; readonly share: number; readonly by: number | null; readonly lead: number }
+  | { readonly wrapper: 'follow-through'; readonly share: number; readonly by: number | null }
   | { readonly wrapper: 'hold'; readonly at: number; readonly held: number }
   | { readonly wrapper: 'overshoot'; readonly share: number; readonly by: number | null; readonly feel: SpringFeel; readonly tail: number });
 /** A pull back opposite the first direction of travel, released into the move: adds share × its seconds before it. */
@@ -266,6 +327,15 @@ export const SPACING_LEAST: number;
 export const SPACING_MOST: number;
 export const VOLUME_MOST: number;
 export const CONTACT_MOST: number;
+/** The most a drawn turn may stray from distance / radius (5%). */
+export const ROLL_SLIP_MOST: number;
+/** The most a spin may spread in flight or a step stand off its neighbours (10%), and the slowest spin a share is read against (2π rad/s: a turn a second). */
+export const SPIN_MOST: number;
+export const SPIN_FLOOR: number;
+/** The longest a run the spin critic reads as one burst may last (0.05 s at the track's own rate, at least MOST_RUN = 6 steps), and how much slower each step must be to count as easing to rest at a track's end (1e-9 of it). */
+export const MOST_RUN_SECONDS: number;
+export const MOST_RUN: number;
+export const RESTING: number;
 export interface HumanFinding { readonly critic: string; readonly level: 'warn' | 'note'; readonly message: string; readonly fix: string; readonly basis: HumanBasis | null }
 export function checkMove(move: HumanMove, settings?: (HumanSettings & { readonly rate?: number }) | null): { readonly measures: Readonly<Record<string, number | null>>; readonly bases: Readonly<Record<string, HumanBasis | null>>; readonly findings: readonly HumanFinding[] };
 
