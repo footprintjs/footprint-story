@@ -223,6 +223,8 @@ export const GROUND_PLANES: readonly ('side' | 'floor')[];
 /** The fastest start a roll or a slide takes (px a second); how far to may sit off the floor's line side on (px). */
 export const MOST_GROUND_SPEED: number;
 export const OFF_LINE: number;
+/** The least resistance (a roll, share 1 + k) or kinetic friction (a slide, share 1) that stops a thing starting at `speed` within `seconds` and holds it, a hair above, to two places. */
+export function stoppingCoefficient(options: { readonly along: number; readonly normal: number; readonly speed: number; readonly seconds: number; readonly share: number }): number;
 
 export type HumanOptions = Readonly<Record<string, number | string | boolean>>;
 /** What an author writes: what happens. Each family reads its own keys (see src/human/README.md). */

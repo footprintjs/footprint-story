@@ -184,7 +184,7 @@ test('refusals name the entry and the fix in its own keys', () => {
   r({ to: [0, 490] }, /to is where it starts/);
   r({ to: [300, 490], speed: 50 }, /from 50 px a second it stops 17\.9 px along, short of to \(300 px away\) — drop speed \(the law picks it\), or speed: 205/);
   r({ to: [300, 490], speed: -50 }, /speed -50 sends it left, and to is to its right — drop speed, or flip its sign/);
-  r({ speed: 50000 }, /would still be moving after 30 s — give to \(where it comes to rest\), put a box in its way, or more resistance \(model: \{name: 'no-slip', resistance: 0\.11\}\)/);
+  r({ speed: 50000 }, /would still be moving after 30 s — give to \(where it comes to rest\) or put a box in its way$/);
   r({ speed: 1e6 }, /speed is a number from -100000 to 100000/);
   r({ floor: 500, speed: 1 }, /takes do, name, who, model, from, to, speed, heading, slope, plane, radius, shape, angle, boxes — not "floor"/);
   r({ speed: 1, model: { name: 'no-slip', resistance: 2 } }, /resistance is a number from 0 to 1/);
@@ -192,7 +192,7 @@ test('refusals name the entry and the fix in its own keys', () => {
   // downhill with speed given and to: it reaches to still moving; down a slope with no stop in 30 s, refused
   const fast = planMove({ do: 'roll', from: [0, 0], speed: 200, to: [100, 0], radius: 10 });
   assert.match(fast.reason, /reaching to after [\d.]+ s, still at \d+ px a second/);
-  assert.throws(() => planMove({ do: 'slide', from: [0, 0], slope: 30, speed: 10 }), /more friction \(model: \{name: 'coulomb', kinetic: 0\.41\}\)/);
+  assert.throws(() => planMove({ do: 'slide', from: [0, 0], slope: 30, speed: 10 }), /or a friction that stops it in time \(model: \{name: 'coulomb', kinetic: 0\.58\}\)/);
 });
 
 test('the glide law in closed form: v² = v₀² + 2a·d, a stop at its exact distance, and the time it never ends', () => {
@@ -232,4 +232,29 @@ test('a roll is the same for the same intent, plain data, and every model\'s own
   unwrapAngles(angles).forEach((a, i) => near(a, angles[i]));
   near(m.plan.turnVector[0], 1 / 15); assert.equal(m.plan.turnVector[1], 0);
   assert.ok(MOST_PHYSICS_SECONDS >= m.plan.seconds);
+});
+
+test('a roll or a slide that would still move after 30 s is told the value that stops it, and following the hint plans', () => {
+  const hinted = (intent, key) => {
+    let said = '';
+    try { planMove(intent); } catch (e) { said = e.message; }
+    assert.match(said, /would still be moving after 30 s — give to \(where it comes to rest\) or put a box in its way, or a (resistance|friction) that stops it in time/);
+    const value = Number(said.match(new RegExp(`${key}: ([\\d.]+)`))[1]);
+    const both = /static: /.test(said) ? { static: value } : {};
+    return { value, said, move: planMove({ ...intent, model: { ...(intent.model ?? {}), name: intent.do === 'roll' ? 'no-slip' : 'coulomb', [key]: value, ...both } }) };
+  };
+  // on the level: at least (1 + k) v / (g · 30 s) for a roll, v / (g · 30 s) for a slide
+  const level = hinted({ do: 'roll', from: [0, 490], speed: 3000, radius: 10 }, 'resistance');
+  near(level.value, (Math.floor(((1.4 * 3000) / 30 / GRAVITY) * 100) + 1) / 100);
+  assert.equal(level.move.plan.basis.endedBy, 'rest'); assert.ok(level.move.plan.seconds < 30);
+  const slid = hinted({ do: 'slide', from: [0, 0], speed: 3000, model: { name: 'coulomb', kinetic: 0.001, static: 0.001 } }, 'kinetic');
+  near(slid.value, (Math.floor((3000 / 30 / GRAVITY) * 100) + 1) / 100);
+  assert.ok(slid.move.plan.seconds < 30); assert.match(slid.said, /kinetic: 0\.06, static: 0\.06\}/);
+  // down a slope: above tan θ, and enough more to stop it in time
+  const down = hinted({ do: 'roll', from: [0, 0], speed: 100, slope: 10, radius: 10 }, 'resistance');
+  assert.ok(down.value > Math.tan(10 * DEG)); assert.equal(down.move.plan.basis.endedBy, 'rest');
+  const steep = hinted({ do: 'slide', from: [0, 0], slope: 30, speed: 10 }, 'kinetic');
+  assert.ok(steep.value > Math.tan(30 * DEG)); assert.equal(steep.move.plan.basis.endedBy, 'rest');
+  // from rest down a slope nothing but a stop helps: no value is named
+  assert.throws(() => planMove({ do: 'roll', from: [0, 0], slope: 10, radius: 10 }), /would still be moving after 30 s — give to \(where it comes to rest\) or put a box in its way$/);
 });

@@ -79,6 +79,21 @@ test('spin catches a drawn angle that jumps between two samples, and passes a st
     assert.equal(c.bases.spin.kind, 'jump'); assert.ok(c.measures.spin > 1, `${name}: ${c.measures.spin}`);
     assert.match(c.findings.find((f) => f.critic === 'spin').message, /its drawn angle jumps at (0\.99|1\.00) s/);
   }
+  // flicks of any length, stutters and kept steps are caught, with or without the samples' own spin; a sudden stop is not
+  const D = Math.PI / 180;
+  const drawn = (name, angle, spun = true) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => { const k = Math.round(t * 120), o = { x: 200 * t, y: 0, angle: angle(t, k) }; if (spun) o.spin = 20; return o; } }; return checkMove(planMove({ do: 'roll', who, model: name }, { models: [m] }), { models: [m] }).measures.spin; };
+  for (const spun of [true, false]) {
+    for (const deg of [10, 30, 45, 90, 170]) assert.ok(drawn('reel:two', (t, k) => 20 * t + (k === 120 || k === 121 ? deg * D : 0), spun) > 1, `${deg}° held two samples`);
+    assert.ok(drawn('reel:three', (t, k) => 20 * t + (k >= 120 && k <= 122 ? 30 * D : 0), spun) > 1, '30° held three samples');
+    assert.ok(drawn('reel:one', (t, k) => 20 * t + (k === 120 ? 30 * D : 0), spun) > 1, 'a one-sample flick');
+    assert.ok(drawn('reel:kept', (t, k) => 20 * t + (k >= 120 ? 30 * D : 0), spun) > 1, 'a kept step');
+  }
+  for (const rate of [3, 20]) {
+    assert.ok(drawn('reel:s22', (t, k) => rate * t + (k % 4 < 2 ? 10 * D : 0), false) > 1, `a 2-on/2-off stutter at ${rate} rad/s`);
+    assert.ok(drawn('reel:s33', (t, k) => rate * t + (k % 6 < 3 ? 10 * D : 0), false) > 1, `a 3-on/3-off stutter at ${rate} rad/s`);
+  }
+  assert.ok(drawn('reel:halt', (t) => 20 * Math.min(t, 1), false) < 1e-9, 'a sudden stop on a sample');
+  assert.ok(drawn('reel:halted', (t) => 20 * Math.min(t, 1.0041), false) < 1e-9, 'a sudden stop between samples');
   // a spin sped up hard and stopped dead, or started at once from rest, changes its rate — it never flicks
   const spun = (name, angle) => { const m = { ...wheel, name, checks: ['spin'], sample: (p, t) => ({ x: 100 * t, y: 0, angle: angle(t) }) }; return checkMove(planMove({ do: 'roll', model: name }, { models: [m] }), { models: [m] }); };
   assert.ok(spun('reel:stopped', (t) => 200 * Math.min(t, 0.05) ** 2).measures.spin <= SPIN_MOST, 'sped up, then stopped dead');

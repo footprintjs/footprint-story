@@ -10,11 +10,13 @@
  *   flight  over the steps in the air (both samples air: 1): (fastest − slowest) / the middle spin. Nothing touches a
  *           thing in flight, so nothing can change its spin (no torque); a spin that speeds up or slows in the air reads
  *           as pushed by an invisible hand.
- *   jump    at any step: how far its turning speed stands off both neighbours, and off what each side's trend says it
- *           should be (each neighbour carried on by its own change), all the same way, over the neighbours' speed. A
- *           spin may change at a landing, slow on the floor, start at once from rest, or stop at a box or a hold — a
- *           step then sits between its neighbours, or on one side's trend — but a single step that turns much more or
- *           less than all of them say is a jump: the thing flicks.
+ *   jump    at any step that stands off both its neighbours the same way (a peak or a dip of turning speed): how far,
+ *           over the neighbours' speed. A flick of any length makes one — into it and out of it — as does a kept jump
+ *           or a stutter, while a spin that changes at a landing, slows on the floor or starts at once sits between its
+ *           neighbours. One peak is no flick: a spin sped up and then stopped dead (at a box, or a hold). So a peak
+ *           that lies on a side's own trend is let off — the trend read only from the three steps beyond it on that
+ *           side, and only when they run smooth (their change steady within SPIN_MOST): steps a flick has touched are
+ *           never smooth, so a flick's own return step cannot vouch for it.
  *
  *   value  the larger of the two (each over max(the spin it is read against, SPIN_FLOOR)); null when the track draws no
  *          angle or has under three steps
@@ -33,6 +35,13 @@ export const SPIN_MOST = 0.1;
 /** The slowest spin a share is read against (rad/s): one turn a second. Ours: at 1 rad/s a change of 0.1 rad/s is
  *  under a tenth of a degree between samples, nothing an eye sees — a settling wrapper's curve read as a flick. */
 export const SPIN_FLOOR = 2 * Math.PI;
+
+/** A side's trend carried on one step past its nearest rate `a` (then `b`, `c` further out), or null when the three do
+ *  not run smooth: their change not steady within SPIN_MOST of their speed. */
+function trendOf(a, b, c) {
+  const scale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c), SPIN_FLOOR);
+  return Math.abs(a - 2 * b + c) <= SPIN_MOST * scale ? 2 * a - b : null;
+}
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
@@ -59,12 +68,14 @@ export const spin = Object.freeze({
     let jump = 0, at = null;
     const w = rates.map((r) => r.w), n = w.length;
     for (let i = 1; i + 1 < n; i += 1) {
-      // each side's trend carried on to this step (a lone neighbour at an end: its own speed)
-      const left = i >= 2 ? 2 * w[i - 1] - w[i - 2] : w[i - 1], right = i + 2 < n ? 2 * w[i + 1] - w[i + 2] : w[i + 1];
-      const offs = [w[i] - w[i - 1], w[i] - w[i + 1], w[i] - left, w[i] - right];
-      // between its neighbours (a change of spin, its rate kinked or not), or on one side's trend (a stop): not a flick
-      if (!(offs.every((d) => d > 0) || offs.every((d) => d < 0))) continue;
-      const off = Math.min(...offs.map(Math.abs)) / Math.max(Math.abs(w[i - 1]), Math.abs(w[i + 1]), SPIN_FLOOR);
+      const d1 = w[i] - w[i - 1], d2 = w[i] - w[i + 1];
+      if (!(d1 * d2 > 0)) continue;   // between its neighbours, or level with one: a change of spin, not a flick
+      let off = Math.min(Math.abs(d1), Math.abs(d2));
+      // let off a peak that a smooth side's own trend reaches (a stop after a speed-up): read beyond the step, never through it
+      const left = i >= 3 ? trendOf(w[i - 1], w[i - 2], w[i - 3]) : null, right = i + 3 < n ? trendOf(w[i + 1], w[i + 2], w[i + 3]) : null;
+      if (left !== null) off = Math.min(off, Math.abs(w[i] - left));
+      if (right !== null) off = Math.min(off, Math.abs(w[i] - right));
+      off /= Math.max(Math.abs(w[i - 1]), Math.abs(w[i + 1]), SPIN_FLOOR);
       if (off > jump) { jump = off; at = rates[i].t; }
     }
     const byFlight = flight !== null && flight >= jump;

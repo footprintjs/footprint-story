@@ -87,7 +87,7 @@ test('a tumble keeps its spin in flight, hands over at the landing by the rule, 
       assert.ok(close(s.angle, p.angle + b.spin * t, 1e-9, Math.abs(b.spin * p.landAt)), 'the spin is kept in flight');
       assert.equal(s.spin, b.spin);
       const landed = sampleMove(move, p.landAt);
-      assert.deepEqual([landed.x, landed.y], [x + across, drop]);
+      assert.ok(landed.x === x + across && landed.y === drop, 'lands on to exactly (−0 and 0 alike)');
       assert.equal(b.landing, sh === 'box' ? 'slide' : 'roll');
       const v = b.landSpeed * Math.sign(across), k = ROLL_SHAPES[sh];
       assert.ok(close(b.groundSpeed, sh === 'box' ? v : (v + k * radius * b.spin) / (1 + k), 1e-9, Math.abs(v) + Math.abs(radius * b.spin)));

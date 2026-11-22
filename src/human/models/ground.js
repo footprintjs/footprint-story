@@ -4,8 +4,10 @@
  *
  *   readGround(intent, who, { gravity, radius })  → the line: {plane, from, u, turnSign, slope, heading, to, end, speed,
  *                                                  along, normal, world, ahead, behind}
- *   planGround(line, push, who, more)              → {glide, speed, defaulted}: refused, naming the entry and the fix,
+ *   planGround(line, push, who, hint)              → {glide, speed, defaulted}: refused, naming the entry and the fix,
  *                                                  when nothing moves it, it stops short of `to`, or it never stops
+ *                                                  (`hint(speed)` says what would stop it)
+ *   stoppingCoefficient({along, normal, speed, seconds, share}) → the least resistance or friction that stops it in time
  *   groundAt(plan, t)                              → {x, y, q, v}
  *
  * Two planes. `plane: 'side'` (the usual) is the frame seen side on, y down: the floor is the line through `from` at
@@ -91,8 +93,19 @@ export function readGround(intent, who, { gravity, radius }) {
   return Object.freeze({ plane, from, u: way.u, turnSign: way.turnSign, slope, heading: way.heading, to, end: way.end, speed: way.speed, along: way.along, normal: way.normal, world, ahead, behind });
 }
 
+/**
+ * The least coefficient (a roll's resistance, a slide's kinetic friction) that stops a thing starting at `speed` along
+ * its line within `seconds` and then holds it: it must outweigh the slope's push, μ·normal ≥ |along| (on a slope, above
+ * tan θ), and slow it by speed / seconds, (μ·normal − along) / share ≥ speed / seconds — `share` 1 + k for a roll (the
+ * push shared with its turn), 1 for a slide. Given a hair above, to two places, so the plan it names stops in time.
+ */
+export function stoppingCoefficient({ along, normal, speed, seconds, share }) {
+  const need = Math.max(Math.abs(along), along + (share * speed) / seconds) / normal;
+  return (Math.floor(need * 100) + 1) / 100;
+}
+
 /** The glide along the line under `push` ({along, resist, hold}), its start speed picked when `to` asks for it. */
-export function planGround(line, push, who, more) {
+export function planGround(line, push, who, hint) {
   const forward = push.along - push.resist, { end, ahead } = line;
   if (end !== null && ahead.box !== null && ahead.distance < end) refuse(`${who}: its boxes[${ahead.box}] stands between from and to — it would stop there, ${round(ahead.distance, 1)} px along: move to before it, or the box`);
   let speed = line.speed, defaulted = false;
@@ -108,7 +121,7 @@ export function planGround(line, push, who, more) {
     const furthest = forward < 0 ? ((speed ?? 0) ** 2) / (-2 * forward) : null;
     refuse(`${who}: from ${round(speed ?? 0, 1)} px a second it stops ${furthest === null ? 'before' : `${round(furthest, 1)} px along,`} short of to (${round(end, 1)} px away) — drop speed (the law picks it)${forward < 0 ? `, or speed: ${Math.ceil(restSpeed(end, -forward))}` : ''}`);
   }
-  if (g.endedBy === 'time') refuse(`${who}: it would still be moving after ${MOST_PHYSICS_SECONDS} s — ${more}`);
+  if (g.endedBy === 'time') refuse(`${who}: it would still be moving after ${MOST_PHYSICS_SECONDS} s — ${hint(speed ?? 0)}`);
   return { glide: g, speed: speed ?? 0, defaulted };
 }
 

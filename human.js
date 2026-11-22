@@ -52,7 +52,7 @@ export { OVERSHOOT_SEEN } from './src/human/models/spring.js';
 export { ROLL_KEYS, MIN_ROLL_RADIUS } from './src/human/models/roll.js';
 export { SLIDE_KEYS, MOST_FRICTION } from './src/human/models/slide.js';
 export { TUMBLE_KEYS, TUMBLE_SHAPES, LANDING_RULES } from './src/human/models/tumble.js';
-export { GROUND_PLANES, MOST_GROUND_SPEED, OFF_LINE } from './src/human/models/ground.js';
+export { GROUND_PLANES, MOST_GROUND_SPEED, OFF_LINE, stoppingCoefficient } from './src/human/models/ground.js';
 
 // wrappers — a move reshaped by the animation principles, read by sampleMove like any other
 export { anticipate, followThrough, hold, overshoot, basePlan, isWrapped, BY_SHARE, MIN_TRAVEL, MOST_WRAPPERS, WRAPPER_NAMES, ADDED_BELLS, wrappedPushes } from './src/human/models/wrap.js';

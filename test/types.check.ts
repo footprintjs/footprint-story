@@ -363,5 +363,7 @@ const touch = touchAlong([0, 0], [1, 0], makeWorld({ boxes: [{ x: 10, y: -5, w: 
 export const rolling: unknown[] = [rolled, slid, tumbled, piece?.a, landingRule?.then, rollFamily, touch.box, glideAt(glided, 1).q, restSpeed(1, 2), MOST_SLOPE, rollTurn(1, 2), landRoll(1, 2, 3, 0.4),
   KINETIC_FRICTION + STATIC_FRICTION, slidingPush({ along: 0, normal: 1, kinetic: 0.2, still: 0.3 }).hold, slideDistance(1, 0.2, 1960), spinAt(0, 1, 2), faceSpin(0, 1, 2, 4), ROLL_KEYS, MIN_ROLL_RADIUS,
   SLIDE_KEYS, MOST_FRICTION, TUMBLE_KEYS, TUMBLE_SHAPES, GROUND_PLANES, MOST_GROUND_SPEED + OFF_LINE, ROLL_SLIP_MOST + SPIN_MOST + SPIN_FLOOR, sampleMove(rolled, 1).angle];
+import { stoppingCoefficient } from 'footprint-story/human';
+export const stopping: number = stoppingCoefficient({ along: 0, normal: 1960, speed: 100, seconds: 30, share: 1.4 });
 // @ts-expect-error a roll's do is 'roll', never 'rolling'
 planMove({ do: 'rolling' });

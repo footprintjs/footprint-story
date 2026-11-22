@@ -20,9 +20,11 @@
  * Every wrapper keeps the inner's start (its sample at 0) and its end (at its seconds) exactly; every other field a
  * sample gives (angle, sx, …) is the inner's; a wrapper moves x and y, and each point of `points` alike.
  * A ROLL STAYS A ROLL: when the model's plan names `turnVector` [Tx, Ty] (its wheel's turn per px of travel, a roll's:
- * turn = T · travel), the turn follows the wrapped path — the angle gains T · the wrapper's offset, the spin T · the
- * offset's speed, and a hold stops its spin. So a wrapped roll still turns distance / radius and roll-slip passes it;
- * a slide's or a tumble's angle stays its own (they name no turnVector).
+ * turn = T · travel), the turn follows the wrapped path wherever a sample rolls (not `air: 1`, not `rolls: 0`) — the
+ * angle gains T · the wrapper's offset, the spin T · the offset's speed. So a wrapped roll, and a tumble that lands
+ * into a roll after it lands, still turn distance / radius and roll-slip passes them; a slide's angle stays its own.
+ * WHILE A WRAPPER HOLDS ITS MODEL STILL (an anticipation's wind-up, after the end, a hold) the model's own spin is
+ * stopped and a sample in flight is marked `air: 0`: held by the hand, it is not falling.
  * The pushes a wrapped move is made of (wrappedPushes, what sampleTrack hands the `jerk` critic) add the speed bells
  * each wrapper makes (ADDED_BELLS: anticipate 2 — the pull back, and its release into the move; follow-through 2 — out
  * past the end, and back; overshoot 1 — back from past the end; a hold 1 — the move cut in two), and none when it makes
@@ -142,17 +144,45 @@ const RATE_STEP = 1e-6;
 const rateOf = (weight, u) => (weight(u + RATE_STEP) - weight(u - RATE_STEP)) / (2 * RATE_STEP);
 
 /**
- * The sample moved by `dir` × `amount` × weight(u): x, y and every point; and, for a rolling plan (turn vector T), its
- * angle turned by T · the offset and its spin by T · the offset's speed — only the offset's when the inner is held at
- * one of its ends (`still`: before an anticipation's release, after the end). Every other field as it was.
+ * A sample whose model is held still by a wrapper (before an anticipation's release, after the end, in a hold): its own
+ * spin stopped, and not in flight — a thing held by the hand is not falling, so spacing and spin read no flight there.
  */
-function moved(s, dir, amount, weight, u, T, still) {
-  const w = weight(u), ox = dir[0] * amount * w, oy = dir[1] * amount * w;
+function held(s) {
+  const out = { ...s };
+  if (finite(s.spin)) out.spin = 0;
+  if (s.air === 1) out.air = 0;
+  return out;
+}
+
+/**
+ * When a plan's samples start to roll, in its own time: its model's `turnFrom` (a tumble's landing; 0 for a roll),
+ * carried through each wrapper's shift of time (an anticipation's lead; a hold before it).
+ */
+function rollStart(plan) {
+  if (!isWrapped(plan)) return finite(plan.turnFrom) ? plan.turnFrom : 0;
+  const r = rollStart(plan.inner);
+  if (plan.wrapper === 'anticipate') return r > 0 ? r + plan.share * plan.inner.seconds : 0;
+  if (plan.wrapper === 'hold') return r < plan.at ? r : r + plan.held;
+  return r;
+}
+
+/** Whether a wrapper turns this sample as it moves it: its plan names a turn vector and the sample rolls (not in the air, not sliding). */
+const turns = (T, s) => T !== null && finite(s.angle) && s.air !== 1 && s.rolls !== 0;
+
+/**
+ * The sample moved by `dir` × `amount` × weight(u): x, y and every point; and, for a rolling sample (turn vector T), its
+ * angle turned by T · the offset gained since it began to roll (at the wrapped time `from`: so a tumble's angle runs on
+ * unbroken from its landing) and its spin by T · the offset's speed. `still`: its model is held at one of its ends
+ * (held). Every other field as it was.
+ */
+function moved(s0, dir, amount, weight, u, T, still, from = 0) {
+  const s = still ? held(s0) : s0, w = weight(u), ox = dir[0] * amount * w, oy = dir[1] * amount * w;
   const out = ox === 0 && oy === 0 ? { ...s } : { ...s, x: s.x + ox, y: s.y + oy };
   if (Array.isArray(s.points) && (ox !== 0 || oy !== 0)) out.points = s.points.map((p) => [p[0] + ox, p[1] + oy]);
-  if (T && finite(s.angle)) {
-    out.angle = s.angle + T[0] * ox + T[1] * oy;
-    if (finite(s.spin)) { const r = amount * rateOf(weight, u); out.spin = (still ? 0 : s.spin) + (T[0] * dir[0] + T[1] * dir[1]) * r; }
+  if (turns(T, s)) {
+    const w0 = weight(from), gained = amount * (w - w0);
+    out.angle = s.angle + (T[0] * dir[0] + T[1] * dir[1]) * gained;
+    if (finite(s.spin)) out.spin = s.spin + (T[0] * dir[0] + T[1] * dir[1]) * amount * rateOf(weight, u);
   }
   return out;
 }
@@ -194,25 +224,24 @@ export function sampleWrapped(plan, t, sampleInner) {
     case 'hold': {
       if (u < plan.at) return at(u);
       if (u >= plan.at + plan.held) return at(u - plan.held);
-      const s = at(plan.at);
-      // still: a rolling thing held does not spin
-      return T && finite(s.spin) ? { ...s, spin: 0 } : s;
+      return held(at(plan.at));
     }
     case 'anticipate': {
       // wind back opposite the first direction of travel, then release into the move over the same share of it
       const lead = plan.share * d, dir = way(false), s = at(Math.max(0, u - lead));
       const pull = (v) => (v < lead ? smooth(v / lead) : 1 - smooth((v - lead) / lead));
-      return dir ? moved(s, [-dir[0], -dir[1]], amount(), pull, u, T, u < lead) : s;
+      const r = rollStart(inner), from = r > 0 ? r + lead : 0;
+      return dir ? moved(s, [-dir[0], -dir[1]], amount(), pull, u, T, u < lead, from) : s;
     }
     case 'follow-through': {
       if (u <= d) return at(u);
       const dir = way(true), s = at(d), w = (v) => swing(Math.max(0, (v - d) / (plan.seconds - d))) / SWING_PEAK;
-      return dir ? moved(s, dir, amount(), w, u, T, true) : s;
+      return dir ? moved(s, dir, amount(), w, u, T, true, rollStart(inner)) : s;
     }
     case 'overshoot': {
       // past the end over the inner's last `share`, then back on the spring (physics/settle.js · settleLeft: exactly 0 at the end)
       const dir = way(true), s = at(Math.min(u, d)), w = (v) => (v <= d ? smooth((v - d * (1 - plan.share)) / (d * plan.share)) : settleLeft(v - d, plan.feel));
-      return dir ? moved(s, dir, amount(), w, u, T, u > d) : s;
+      return dir ? moved(s, dir, amount(), w, u, T, u > d, rollStart(inner)) : s;
     }
     default: return refuse(`a wrapped plan's wrapper is one of ${WRAPPER_NAMES.join(', ')} — not ${shown(plan.wrapper)}`);
   }

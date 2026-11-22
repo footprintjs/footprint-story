@@ -96,13 +96,16 @@ die.reason;                   // "… spinning at 23.4 rad/s (the usual: the spi
   at the box's side (no bounce: that is the bounce model's work), `basis.box` naming it. Side on (`plane: 'side'`, the
   usual) the floor is the line through `from` at `slope` degrees and `speed`'s sign is the way; on a floor seen from
   above (`plane: 'floor'`, the isometric door's own floor in px — the tool projects), it is level and goes toward `to`
-  or along `heading`. What never stops within 30 s, stops short of `to`, or is not moved at all is refused in words.
+  or along `heading`. What never stops within 30 s, stops short of `to`, or is not moved at all is refused in words;
+the 30 s refusal names the resistance or friction that does stop it (above tan θ on a slope, at least (1 + k)·v / (g ·
+30 s) on the level for a roll, v / (g · 30 s) for a slide; `stoppingCoefficient`), and following it plans.
 - **A tumble** (`free-spin`) flies the ballistic arc to `to` (the floor `radius` below it), its spin kept: nothing
   touches it, so no torque. **The hand-over rule** is data, `LANDING_RULES` (first match, decide()'s shape): the
   `then` the intent names, else a round shape rolls on and a box slides on. At the landing its fall stops and its
   speed across goes on — a roll keeps its turning about the contact point, v′ = (v + k r ω) / (1 + k) (a ball landing
   with no spin rolls on at 5/7 of its speed; the usual spin, v / r, lands it already rolling), a slide keeps v and the
-  floor stops its spin (the usual spin is the nearest to v / r that lands it on a face). The skid that takes a landing
+  floor stops its spin (the usual spin is the nearest to v / r that lands it on a face; a spin the intent gives is kept, so
+it may land at a slant, which `basis.slant` and the reason say). The skid that takes a landing
   ball to rolling is not drawn: it is over at the landing (ours). Samples say `air: 1` in flight and `rolls: 1` while it
   rolls, so the critics read each part apart.
 
@@ -139,12 +142,18 @@ over half a turn between samples, is read as it turns: `roll-slip` takes the dra
 distance owes, and `spin` the one nearest its samples' own `spin` × the step. A hand-drawn track with no `spin` is read
 the short way (`shortestTurn`), and `spin`'s basis says the fastest spin that can tell (`mostReadable`, half a turn a
 sample: π × the rate); `checkMove(move, {rate})` samples more densely to read faster. A flick is a step off both its
-neighbours and off both sides' trends, measured against at least a turn a second (`SPIN_FLOOR`), so a spin that starts
-at once, stops dead or changes at a landing is never one.
+neighbours the same way — a flick of any length, a kept jump and a stutter all make one — measured against at least a
+turn a second (`SPIN_FLOOR`). The one peak that is not a flick, a spin sped up and then stopped dead, is let off only
+when it lies on the trend of three smooth steps beyond it on one side, so a flick's own steps never vouch for it. With
+that floor a slow spin may drift a little in flight unflagged: 3 → 3.5 rad/s is 8% of a turn a second.
 
 A wrapped roll stays a roll: the `no-slip` plan names `turnVector` (its turn per px of travel), and every wrapper turns
-it by that over the way it moves it, its spin by that over the offset's speed, a hold stopping it. So `overshoot(roll)`
-still turns distance / radius and `roll-slip` passes it; a slide's or a tumble's angle stays its own.
+it by that over the way it moves it, its spin by that over the offset's speed. So `overshoot(roll)` still turns
+distance / radius and `roll-slip` passes it. A tumble that lands into a roll names one too, from its landing
+(`turnFrom`): its rolling samples turn with the wrapper, its flight and a slide keep their own angle. While a wrapper
+holds a model still (a wind-up, after the end, a hold) its own spin stops and a sample in flight is marked `air: 0`.
+The default anticipation over a long tumble still pulls back through its landing (its lead is 15% of the whole move,
+the roll included), and `contact` says when that drawn track goes into the floor: give a smaller `share` or `by`.
 
 ## The laws it keeps
 

@@ -3,7 +3,7 @@
 // contact point, a box slides on and lands on a face. Geometry to a tolerance.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planMove, sampleMove, sampleTrack, checkMove, LANDING_RULES, TUMBLE_KEYS, TUMBLE_SHAPES, landRoll, spinAt, faceSpin, launch, GRAVITY, ROLL_SHAPES, CHOOSE_RULES } from '../human.js';
+import { planMove, sampleMove, sampleTrack, checkMove, anticipate, followThrough, hold, overshoot, LANDING_RULES, TUMBLE_KEYS, TUMBLE_SHAPES, landRoll, spinAt, faceSpin, launch, GRAVITY, ROLL_SHAPES, CHOOSE_RULES } from '../human.js';
 import { firstRule } from '../src/human/models/rules.js';
 
 const who = 'shots[1] ("die")';
@@ -107,8 +107,17 @@ test('refusals name the entry and the fix in its own keys', () => {
   r({ boxes: [{ x: 290, y: 450, w: 30, h: 60 }] }, /lands inside its boxes\[0\] — move to out of it, or the box/);
   r({ spin: 'fast' }, /spin is a number/);
   r({ velocity: [1, 1] }, /takes do, name, who, model, from, to, apex, seconds, floor, boxes, radius, spin, angle, shape, then — not "velocity"/);
-  r({ model: { name: 'free-spin', resistance: 0, kinetic: 0 } }, /after it lands it would still be rolling at 30 s — a slower throw, a box in its way, or more resistance/);
-  r({ shape: 'box', model: { name: 'free-spin', kinetic: 0, static: 0 } }, /still be sliding at 30 s — .*more friction/);
+  r({ model: { name: 'free-spin', resistance: 0, kinetic: 0 } }, /after it lands it would still be rolling at 30 s — a slower throw or a box in its way, or a resistance that stops it in time \(model: \{name: 'free-spin', resistance: 0\.\d\d\}\)/);
+  r({ shape: 'box', model: { name: 'free-spin', kinetic: 0, static: 0 } }, /still be sliding at 30 s — a slower throw or a box in its way, or a friction that stops it in time \(model: \{name: 'free-spin', kinetic: 0\.\d\d\}\)/);
+  // following the hint plans: the value it names stops it in time
+  for (const [extra, key] of [[{}, 'resistance'], [{ shape: 'box' }, 'kinetic']]) {
+    const intent = { do: 'tumble', from: [0, 300], to: [300, 500], radius: 10, ...extra, model: { name: 'free-spin', resistance: 0, kinetic: 0, static: 0 } };
+    let said = '';
+    try { planMove(intent); } catch (e) { said = e.message; }
+    const value = Number(said.match(new RegExp(`${key}: ([\\d.]+)`))[1]);
+    const followed = planMove({ ...intent, model: { ...intent.model, [key]: value, ...(key === 'kinetic' ? { static: value } : {}) } });
+    assert.ok(followed.plan.seconds <= 30 && followed.plan.basis.endedBy === 'rest', key);
+  }
   r({ model: { name: 'free-spin', kinetic: 0.5, static: 0.1 } }, /static friction \(0\.1\) is under its kinetic/);
   assert.equal(planMove({ do: 'tumble', from: [0, 300], to: [300, 500], radius: 10, floor: 510 }).plan.world.floor, 510);
   assert.throws(() => planMove({ do: 'tumble', from: [0, 300], to: 'there', radius: 10 }), /to is a point/);
@@ -126,4 +135,34 @@ test('the same for the same intent; the critics read the flight and the floor ap
   assert.ok(c.measures['roll-slip'] < 1e-9);
   const track = sampleTrack(m);
   assert.ok(track.samples.some((s) => s.air === 1) && track.samples.some((s) => s.air === 0));
+});
+
+test('a box given its own spin lands at a slant, and says so; with the usual spin it lands flat', () => {
+  const flat = planMove({ do: 'tumble', from: [100, 300], to: [500, 500], radius: 20, shape: 'box' });
+  assert.ok(flat.plan.basis.slant < 1e-9); assert.doesNotMatch(flat.reason, /slant/);
+  const given = planMove({ do: 'tumble', from: [100, 300], to: [500, 500], radius: 20, shape: 'box', spin: 10 });
+  const expect = ((x) => (Math.abs(x - Math.round(x / QUARTER) * QUARTER) * 180) / Math.PI)(given.plan.basis.landAngle);
+  near(given.plan.basis.slant, expect); assert.ok(expect > 0.5);
+  assert.match(given.reason, /its spin stopped by the floor, at a slant [\d.]+° off a face \(the spin given; leave spin out to land flat\)/);
+  assert.equal(planMove({ do: 'tumble', from: [100, 300], to: [500, 500], radius: 20 }).plan.basis.slant, null);
+});
+
+test('wrappers on a tumble: held still it is not in flight, and once it rolls it turns as it is moved', () => {
+  for (const shape of ['ball', 'box']) {
+    const tumble = planMove({ do: 'tumble', who, from: [100, 300], to: [500, 500], radius: 20, shape });
+    for (const [name, move] of [['followThrough', followThrough(tumble, { by: 25 })], ['anticipate', anticipate(tumble, { by: 15, share: 0.05 })], ['overshoot', overshoot(tumble, { by: 20 })], ['hold', hold(tumble, { at: 0.3, seconds: 0.2 })]]) {
+      const c = checkMove(move);
+      assert.deepEqual(c.findings, [], `${shape} · ${name}: ${JSON.stringify(c.findings.map((f) => f.message))}`);
+    }
+    // the wind-up holds it at its start: not in flight, not spinning
+    const wound = sampleMove(anticipate(tumble, { share: 0.2 }), 0.3);
+    assert.deepEqual([wound.air, wound.spin], [0, 0]);
+  }
+  // a ball's follow-through after it rolled to rest turns it with the push: distance / radius
+  const ball = planMove({ do: 'tumble', from: [100, 300], to: [500, 500], radius: 20 }), ft = followThrough(ball, { by: 25 });
+  const rest = sampleMove(ball, ball.plan.seconds), out = sampleMove(ft, ball.plan.seconds + (ft.plan.seconds - ball.plan.seconds) / 3);
+  near(out.angle - rest.angle, (out.x - rest.x) / 20);
+  assert.ok(Math.abs(out.x - rest.x) > 1);
+  // the default anticipation over a long roll still pulls back through its landing: the drawn track goes into the floor, said
+  assert.deepEqual(checkMove(anticipate(ball)).findings.map((f) => f.critic), ['contact']);
 });

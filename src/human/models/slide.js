@@ -16,7 +16,8 @@ import { readNumber, refuse } from '../read.js';
 import { KINETIC_FRICTION, STATIC_FRICTION, slidingPush } from '../physics/friction.js';
 import { readGravity } from './ballistic.js';
 import { intentKeys, optionNumber, round } from './options.js';
-import { readGround, planGround, groundAt, stoppedBy, floorWords, endWords } from './ground.js';
+import { readGround, planGround, groundAt, stoppedBy, floorWords, endWords, stoppingCoefficient } from './ground.js';
+import { MOST_PHYSICS_SECONDS } from '../physics/step.js';
 
 export const SLIDE_KEYS = Object.freeze(['from', 'to', 'speed', 'heading', 'slope', 'plane', 'radius', 'angle', 'boxes']);
 /** The most a friction coefficient may be: 2 (rubber on dry concrete is about 1). */
@@ -35,7 +36,12 @@ function plan(intent, { who, options }) {
   const gravity = readGravity(options, 'coulomb'), { kinetic, still } = readFriction(options, 'coulomb');
   const radius = readNumber(intent, 'radius', who, { lo: 0, usual: 0 }), angle = readNumber(intent, 'angle', who, { usual: 0 });
   const line = readGround(intent, who, { gravity, radius });
-  const { glide, speed, defaulted } = planGround(line, slidingPush({ along: line.along, normal: line.normal, kinetic, still }), who, `give to (where it comes to rest), put a box in its way, or more friction (model: {name: 'coulomb', kinetic: ${round(Math.min(MOST_FRICTION, kinetic * 2 + 0.01), 2)}})`);
+  // static friction left out follows the kinetic (at least it); one named under the value is raised with it
+  const hint = (v) => {
+    const need = v > 0 ? stoppingCoefficient({ along: line.along, normal: line.normal, speed: v, seconds: MOST_PHYSICS_SECONDS, share: 1 }) : Infinity;
+    return `give to (where it comes to rest) or put a box in its way${need <= MOST_FRICTION ? `, or a friction that stops it in time (model: {name: 'coulomb', kinetic: ${need}${options.static !== undefined && still < need ? `, static: ${need}` : ''}})` : ''}`;
+  };
+  const { glide, speed, defaulted } = planGround(line, slidingPush({ along: line.along, normal: line.normal, kinetic, still }), who, hint);
   const back = glide.travelled - Math.abs(glide.q) > 1e-6;
   const how = !defaulted ? `from ${round(speed, 0)} px a second` : speed ? `from ${round(speed, 0)} px a second (the speed that brings it to rest at to under kinetic friction ${kinetic})` : 'from rest (the slope starts it)';
   return {

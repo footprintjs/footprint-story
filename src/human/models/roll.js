@@ -20,7 +20,8 @@ import { readNumber } from '../read.js';
 import { ROLL_SHAPES, ROLLING_RESISTANCE, rollTurn, rollingPush } from '../physics/rolling.js';
 import { readGravity } from './ballistic.js';
 import { intentKeys, optionNumber, round } from './options.js';
-import { readGround, planGround, groundAt, stoppedBy, floorWords, endWords, readWord } from './ground.js';
+import { readGround, planGround, groundAt, stoppedBy, floorWords, endWords, readWord, stoppingCoefficient } from './ground.js';
+import { MOST_PHYSICS_SECONDS } from '../physics/step.js';
 
 export const ROLL_KEYS = Object.freeze(['from', 'to', 'speed', 'heading', 'slope', 'plane', 'radius', 'shape', 'angle', 'boxes']);
 /** The smallest radius a roll takes (px): under a pixel a turn cannot be seen. */
@@ -40,7 +41,11 @@ function plan(intent, { who, options }) {
   const angle = readNumber(intent, 'angle', who, { usual: 0 });
   const line = readGround(intent, who, { gravity, radius });
   const push = rollingPush({ along: line.along, normal: line.normal, resistance, inertia });
-  const { glide, speed, defaulted } = planGround(line, push, who, `give to (where it comes to rest), put a box in its way, or more resistance (model: {name: 'no-slip', resistance: ${round(Math.min(1, resistance * 2 + 0.01), 2)}})`);
+  const hint = (v) => {
+    const need = v > 0 ? stoppingCoefficient({ along: line.along, normal: line.normal, speed: v, seconds: MOST_PHYSICS_SECONDS, share: 1 + inertia }) : Infinity;
+    return `give to (where it comes to rest) or put a box in its way${need <= 1 ? `, or a resistance that stops it in time (model: {name: 'no-slip', resistance: ${need}})` : ''}`;
+  };
+  const { glide, speed, defaulted } = planGround(line, push, who, hint);
   const turn = line.turnSign * rollTurn(glide.q, radius), rolledBack = glide.travelled - Math.abs(glide.q) > 1e-6;
   const how = !defaulted ? `from ${round(speed, 0)} px a second` : speed ? `from ${round(speed, 0)} px a second (the speed that brings it to rest at to under rolling resistance ${resistance})` : 'from rest (the slope starts it)';
   return {
