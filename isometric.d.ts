@@ -321,7 +321,7 @@ export type PaintItem =
 export const PAINT_ITEMS: readonly ['polygon', 'ellipse', 'path', 'lines', 'stroke'];
 export const MOST_PAINT_ITEMS: number;
 export const MOST_PAINT_POINTS: number;
-/** `hex` mixed `share` of the way toward `toward`, each channel rounded (`#rrggbb` in and out): CSS `color-mix` in srgb. */
+/** `hex` mixed `share` of the way toward `toward`, each channel rounded: CSS `color-mix` in srgb. Each colour in is `#rgb` or `#rrggbb`, any case (anything else is refused); the colour out is lower-case `#rrggbb`. */
 export function mixColour(hex: string, toward: string, share: number): string;
 
 /** The columns of a style, in the order they run. */

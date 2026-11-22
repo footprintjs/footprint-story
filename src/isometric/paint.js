@@ -45,13 +45,16 @@ const HEX = /^#[0-9a-f]{6}$/;
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const JOINS = ['round', 'miter', 'bevel'], CAPS = ['butt', 'round', 'square'];
 
-const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** A colour's three channels, 0 to 255, read by readColour (the one reader): `#rgb` or `#rrggbb`, else a refusal. */
+const channels = (v, what) => { const hex = readColour(v, what); return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)); };
 /**
  * `hex` mixed `share` of the way toward `toward`, each channel rounded: StoryReel's `mix` and StoryDeck's CSS
- * `color-mix(in srgb, tone (1 - share), toward share)` (a browser may round a channel the other way at a half).
+ * `color-mix(in srgb, tone (1 - share), toward share)` (a browser may round a channel the other way at a half). Both
+ * colours are read as this package reads a colour (readColour: `#rgb` or `#rrggbb`, any case). WHY the one reader: a
+ * second parser that read only `#rrggbb` gave '#5606NaN' for '#abc', which a style takes; anything else is refused.
  */
 export function mixColour(hex, toward, share) {
-  const a = channels(hex), b = channels(toward);
+  const a = channels(hex, 'the colour mixed'), b = channels(toward, 'the colour it is mixed toward');
   return `#${a.map((v, i) => Math.round(v + (b[i] - v) * share).toString(16).padStart(2, '0')).join('')}`;
 }
 
