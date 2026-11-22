@@ -15,9 +15,9 @@ import { BUILT_IN_MODELS, USUAL_MODELS } from './builtIn.js';
 import { criticsWith, holdsStill } from '../critics/registry.js';
 import { CHOOSE_RULES, firstRule } from './rules.js';
 
-/** The families of move there are (this round fills reach, pen and letter), and the word an intent's `do` says for each. */
-export const HUMAN_FAMILIES = Object.freeze(['reach', 'pen', 'letter', 'settle', 'fall', 'throw', 'hang']);
-export const HUMAN_DOS = Object.freeze({ reach: 'reach', draw: 'pen', write: 'letter', settle: 'settle', fall: 'fall', throw: 'throw', hang: 'hang' });
+/** The families of move there are, and the word an intent's `do` says for each. */
+export const HUMAN_FAMILIES = Object.freeze(['reach', 'pen', 'letter', 'settle', 'fall', 'throw', 'hang', 'roll', 'slide', 'tumble']);
+export const HUMAN_DOS = Object.freeze({ reach: 'reach', draw: 'pen', write: 'letter', settle: 'settle', fall: 'fall', throw: 'throw', hang: 'hang', roll: 'roll', slide: 'slide', tumble: 'tumble' });
 /** The names of this package's models, by family; and the one each family uses when an intent names none. */
 /** The families a model serves: its `family`, one or a list. */
 export const familiesOf = (m) => (Array.isArray(m.family) ? m.family : [m.family]);

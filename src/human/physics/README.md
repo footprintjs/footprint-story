@@ -6,8 +6,9 @@ physics decides the rest: how long it takes, how it is spaced, where it lands, h
 the same plan in a deck and in a film. Nothing here draws (design: `docs/design/2026-11-human-motion.md`, Round 1 · B).
 
 This folder holds the maths, as `laws/` does for a reach and a pen; the models that plan from it are in `../models/`
-(`ballistic.js`, `bounce.js`, `verlet.js`, `spring.js`), the wrappers in `../models/wrap.js`, the critics in `../critics/`
-(`spacing.js`, `volume.js`, `contact.js`, `stretch.js`). All of it is on the door `footprint-story/human`.
+(`ballistic.js`, `bounce.js`, `verlet.js`, `spring.js`, `roll.js`, `slide.js`, `tumble.js` and `ground.js`, what a roll
+and a slide share), the wrappers in `../models/wrap.js`, the critics in `../critics/` (`spacing.js`, `volume.js`,
+`contact.js`, `stretch.js`, `rollSlip.js`, `spin.js`). All of it is on the door `footprint-story/human`.
 
 | file | holds |
 |---|---|
@@ -15,8 +16,12 @@ This folder holds the maths, as `laws/` does for a reach and a pen; the models t
 | `flight.js` | ballistic flight in closed form: a launch to a target with an apex or a time (`launch`), where it is (`flightAt`, `headingAt`), a fall's time (`fallSeconds`) |
 | `bounce.js` | a bounce on a floor with restitution, in closed form, resting on the floor exactly (`bounces`, `bounceAt`) |
 | `chain.js` | ropes and chains: Verlet points, links held to their length, a pinned end that may move (`runChain`, `relaxChain`, `pinAt`) |
-| `collide.js` | a floor line and axis-aligned boxes: reading them (`readWorld`, `makeWorld`), pushing a point out (`pushOut`, `collide`), how deep a body is (`depthIn`) |
+| `collide.js` | a floor line and axis-aligned boxes: reading them (`readWorld`, `makeWorld`), pushing a point out (`pushOut`, `collide`), how deep a body is (`depthIn`), how far a body goes along a line before it touches a box (`touchAlong`, the slab test) |
 | `settle.js` | settling back on the package's own spring (`src/motion/spring.js`), exactly at rest at the end (`settleLeft`, `settleSeconds`) |
+| `glide.js` | a thing moving along a straight line on a floor, in closed form: pieces of constant acceleration, a stop at its exact distance (`glide`, `glideAt`, `restSpeed`) — what a roll and a slide both run on |
+| `rolling.js` | rolling without slipping: the turn is distance / radius (`rollTurn`), a slope's push and rolling resistance shared with the turn (`rollingPush`), the speed it rolls on with after a spinning landing (`landRoll`), the shapes (`ROLL_SHAPES`) |
+| `friction.js` | Coulomb friction: kinetic slowing and a static hold (`slidingPush`), a level slide's distance v² / (2 μ g) (`slideDistance`) |
+| `spin.js` | a spin kept in flight (`spinAt`), and the spin nearest a given one that lands a thing on a face (`faceSpin`) |
 
 ## The models
 
@@ -28,6 +33,9 @@ This folder holds the maths, as `laws/` does for a reach and a pen; the models t
 | `fall` | `bounce` | then bounces to rest; `squash` flattens it at each landing, its area kept |
 | `hang` | `verlet` (the usual) | a chain pinned at `from`, swinging until it settles; the pin may move along a `path` |
 | `settle` | `spring` (the usual) | to rest on the motion spring, its seconds the feel's |
+| `roll` | `no-slip` (the usual) | a round thing rolling without slipping, side on or on a floor seen from above; `angle` its turn, distance / radius |
+| `slide` | `coulomb` (the usual) | a thing sliding to rest under kinetic friction; its `angle` kept |
+| `tumble` | `free-spin` (the usual) | a ballistic flight spinning at one rate, handed over at the landing to a roll or a slide |
 
 ```js
 import { planMove, sampleMove } from 'footprint-story/human';
@@ -45,6 +53,58 @@ The usual apex is a quarter of the distance across: for two ends at one height t
 reaches furthest for a given speed. A hanging chain's time is how long it swings: it ends once every point has stayed
 slower than 4 px/s for half a swing (π√(L/g)), at most 10 s. A chain's `jitter` is seeded by planMove from the entry
 (its name and its shape, never `who`), so the same entry wobbles the same way.
+
+## Rolling, sliding and tumbling
+
+**Why:** a ball rolled across a slide, a crate pushed along a floor, a die tossed onto a table. Each is easy to get
+almost right by hand and hard to get right: a wheel that turns too fast for its size skids, a slide that slows at the
+wrong rate floats, a die that spins faster in the air was pushed by nothing. Here the turn, the slowing and the spin
+come from the laws, so the author writes only where it goes.
+
+```js
+import { planMove, sampleMove, checkMove } from 'footprint-story/human';
+
+const ball = planMove({ do: 'roll', who: 'blocks[3] ("ball")', from: [100, 480], to: [660, 480], radius: 20 });
+ball.reason;                  // "… a ball of radius 20 px rolling 560 px on a level floor from 280 px a second (the speed that
+                              //  brings it to rest at to under rolling resistance 0.05), to rest at to after 4 s, turning 4.46 turns: distance / radius"
+sampleMove(ball, 2);          // { x: 520, y: 480, angle: 21, spin: 7 }: 420 px along, 420 / 20 radians turned
+sampleMove(ball, 4);          // { x: 660, y: 480, angle: 28, spin: 0 }: on `to` exactly, at rest
+
+planMove({ do: 'slide', who: 'crate', from: [100, 480], speed: 560 }).plan.basis.distance;   // 400: v² / (2 μ g), μ 0.2
+planMove({ do: 'roll', from: [0, 0], to: [394, 69.5], radius: 10, slope: 10 }).reason;
+// "… rolling 400.1 px on a floor sloping 10° down the way it starts from rest (the slope starts it), reaching to after 2.14 s, still at 373 px a second, …"
+sampleMove(planMove({ do: 'roll', plane: 'floor', from: [0, 0], to: [300, 400], radius: 10 }), 1);
+// { x: 137.7, y: 183.7, angle: 22.96, spin: 19.46, heading: 0.927 }: on a floor seen from above, its turn about the line across its heading
+
+const die = planMove({ do: 'tumble', who: 'die', from: [100, 300], to: [500, 500], radius: 20, shape: 'box', boxes: [{ x: 700, y: 400, w: 50, h: 120 }] });
+die.plan.basis.landingRule;   // 'a box slides on'; its landAngle is 13 quarter turns: it lands on a face
+die.reason;                   // "… spinning at 23.4 rad/s (the usual: the spin nearest v / r that lands it on a face), 3.25 turns in the air with
+                              //  no torque on it; it lands at 0.87 s and slides on at 458 px a second, its spin stopped by the floor (a box slides
+                              //  on), then goes 180 px until its boxes[0] stops it dead, 1.37 s in all"
+```
+
+- **A roll** (`no-slip`) turns by distance / radius, so `angle` is the ground covered over the radius, unwrapped (it
+  never jumps back at ±π); side on, + is clockwise on the frame (y down), so a roll to the right turns +. Down a slope
+  the push is g sin θ / (1 + k) and rolling resistance slows it by C_rr g cos θ / (1 + k), k = I / (m r²) of its
+  `shape` (a ball 2/5, a disc 1/2, a ring 1): a ball gets 5/7 of what a sliding block would. On a level floor it stops
+  after v²(1 + k) / (2 C_rr g).
+- **A slide** (`coulomb`) is slowed by μ_k g cos θ whatever its speed and, once stopped, held while the slope's push is
+  within μ_s g cos θ (static is never under kinetic). On a level floor it stops after v² / (2 μ_k g).
+- **Both** run along a straight line on the glide law (`glide.js`): `to` with no `speed` picks the start speed that
+  brings it to rest exactly there (√(2·a·d)), or starts it from rest when the slope runs it down; a climb that stops
+  rolls or slides back when the slope beats its hold (`basis.rolledBack`, `slidBack`); a box in the way stops it dead
+  at the box's side (no bounce: that is the bounce model's work), `basis.box` naming it. Side on (`plane: 'side'`, the
+  usual) the floor is the line through `from` at `slope` degrees and `speed`'s sign is the way; on a floor seen from
+  above (`plane: 'floor'`, the isometric door's own floor in px — the tool projects), it is level and goes toward `to`
+  or along `heading`. What never stops within 30 s, stops short of `to`, or is not moved at all is refused in words.
+- **A tumble** (`free-spin`) flies the ballistic arc to `to` (the floor `radius` below it), its spin kept: nothing
+  touches it, so no torque. **The hand-over rule** is data, `LANDING_RULES` (first match, decide()'s shape): the
+  `then` the intent names, else a round shape rolls on and a box slides on. At the landing its fall stops and its
+  speed across goes on — a roll keeps its turning about the contact point, v′ = (v + k r ω) / (1 + k) (a ball landing
+  with no spin rolls on at 5/7 of its speed; the usual spin, v / r, lands it already rolling), a slide keeps v and the
+  floor stops its spin (the usual spin is the nearest to v / r that lands it on a face). The skid that takes a landing
+  ball to rolling is not drawn: it is over at the landing (ours). Samples say `air: 1` in flight and `rolls: 1` while it
+  rolls, so the critics read each part apart.
 
 ## Wrappers
 
@@ -68,6 +128,16 @@ second difference, so a fast sideways throw that falls as it should is never tak
 change of area: rubber), `contact` (over 0.5 px into the floor or a box: it passes through; the fix in the family's own
 keys), `stretch` (a drawn chain's link over 5% past its length: elastic). `checkMove(move)` runs the ones the model names.
 
+A roll, a slide and a tumble are checked by `roll-slip` (the drawn angle's change against distance / radius, step by
+step, over the steps that roll: Σ|drawn − owed| / Σ|owed| over 5% finds a wheel skidding, sliding without turning or
+turning the wrong way; the basis's `rate` says which, and the fix names the radius, or the radius it is drawn at) and
+`spin` (a drawn angle that jumps between two samples, one step standing over 10% off both neighbours the same way; and in
+flight, a spin that changes by over 10%, where nothing can change it), with `contact` and, for a tumble's flight,
+`spacing`. Each turn between two samples is read the short way round (`src/geom/angles.js` · `wrapAngle`,
+`shortestTurn`), so an angle drawn wrapped into (−π, π] is no fault; a turn of over half a turn between samples looks
+the same on the frame either way, and is read the short way too. A wrapper moves a roll without turning it, and
+`roll-slip` says so.
+
 ## The laws it keeps
 
 - A fixed step, never a clock: 1/240 s, frames kept at 60 a second. The same input gives the same frames anywhere.
@@ -86,6 +156,11 @@ keys), `stretch` (a drawn chain's link over 5% past its length: elastic). `check
   above the floor: then one push suffices.
 - A wrapper reads a direction only from at least a hundredth of a pixel of travel (`MIN_TRAVEL`): a settled chain's
   millionth-of-a-pixel drift is noise, not a direction.
+- A roll's turn is distance / radius at every sample, to rounding (a property over generated rolls), and a roll, a
+  slide or a tumble ends on `to` exactly: a stop is written at its distance, never summed up to it.
+- Every piece of a glide is constant acceleration, so v² = v₀² + 2a·d holds piece by piece; a start speed picked for
+  `to` lands within rounding of its stop, and that stop is taken as the end (speed exactly 0).
+- No roll goes into a box it was given (the slab test finds the first touch exactly, a property checks every sample).
 
 ## Sources
 
@@ -96,5 +171,14 @@ keys), `stretch` (a drawn chain's link over 5% past its length: elastic). `check
   furthest for a given speed (the range R = v² sin 2θ / g).
 - The pendulum's period T = 2π√(L/g) (the same texts, chapter 15), for when a chain has settled (`chain.js`); a damped
   spring's overshoot e^(−πζ/√(1 − ζ²)) (`../models/spring.js`).
+- Rolling without slipping, a = g sin θ / (1 + I/mr²) down a ramp, the rotational inertias (2/5, 1/2, 1) and angular
+  momentum kept about the contact point through a landing: Halliday, Resnick & Walker, chapters 10 and 11
+  (`rolling.js`, `spin.js`). Rolling resistance as the normal force a little ahead of the contact: Hibbeler,
+  *Engineering Mechanics: Statics*; a tyre's C_rr of 0.01 to 0.015: Gillespie, *Fundamentals of Vehicle Dynamics* (1992).
+  The usual 0.05 is ours, larger than life so a roll stops within a frame.
+- Coulomb friction and wood on wood's coefficients (kinetic 0.2, static 0.25 to 0.5): Serway & Jewett, *Physics for
+  Scientists and Engineers*, chapter 5 (`friction.js`).
+- The slab test for a line's first touch of a box: Kay & Kajiya, "Ray Tracing Complex Scenes", SIGGRAPH 1986
+  (`collide.js` · `touchAlong`).
 - Anticipation, follow-through, holds, overshoot and squash that keeps volume: Frank Thomas & Ollie Johnston, *The
   Illusion of Life* (1981), the principles of animation (`../models/wrap.js`, `../critics/`).

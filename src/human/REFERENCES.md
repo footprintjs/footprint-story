@@ -20,6 +20,10 @@
 | Verlet integration, constraints by relaxation, collisions by projection | `physics/step.js`, `physics/chain.js`, `physics/collide.js`, `models/verlet.js` | T. Jakobsen, "Advanced Character Physics", Game Developers Conference, 2001 | position Verlet (x' = 2x − x₋ + a·dt², no velocity kept), each link set back to its length in turn, a point inside an obstacle moved to its nearest side |
 | Projectile motion, restitution | `physics/flight.js`, `physics/bounce.js`, `models/ballistic.js`, `models/bounce.js` | D. Halliday, R. Resnick, J. Walker, *Fundamentals of Physics*, Wiley, chapters 4 and 9 | the parabola x₀ + vt + ½gt²; the 45° launch reaches furthest for a speed (R = v² sin 2θ / g); a landing gives back its restitution of the speed, at most all of it |
 | The pendulum's period, a damped spring's overshoot | `physics/chain.js`, `models/spring.js` | the same text, chapter 15 | T = 2π√(L/g), so half a swing is π√(L/g); the overshoot e^(−πζ/√(1 − ζ²)) of a spring with damping ratio ζ under 1 |
+| Rolling without slipping, rolling down a slope, rotational inertia, a spin kept in flight | `physics/rolling.js`, `physics/spin.js`, `models/roll.js`, `models/tumble.js` | D. Halliday, R. Resnick, J. Walker, *Fundamentals of Physics*, Wiley, chapters 10 and 11 | the turn is distance / radius (v = ωr); a = g sin θ / (1 + I/mr²); I/mr² = 2/5 (solid ball), 1/2 (disc), 1 (hoop); no torque, no change of spin; angular momentum about the contact point kept through a landing: v′ = (v + k r ω) / (1 + k) |
+| Rolling resistance | `physics/rolling.js` | R. C. Hibbeler, *Engineering Mechanics: Statics*, "rolling resistance"; T. D. Gillespie, *Fundamentals of Vehicle Dynamics*, SAE, 1992 | the resistance as the normal force sitting a little ahead of the contact (a torque C_rr · N · r); a car tyre on concrete about 0.01 to 0.015 |
+| Sliding friction | `physics/friction.js`, `models/slide.js` | R. A. Serway, J. W. Jewett, *Physics for Scientists and Engineers*, chapter 5, the table of coefficients of friction | Coulomb's law: kinetic friction μ_k N whatever the speed, static at most μ_s N; wood on wood μ_k 0.2, μ_s 0.25 to 0.5; a slide stops after v² / (2 μ g) |
+| A straight path's first touch of a box | `physics/collide.js` · `touchAlong` | T. L. Kay, J. T. Kajiya, "Ray Tracing Complex Scenes", SIGGRAPH 1986 | the slab test: a line meets an axis-aligned box over one stretch, entered at the largest of the per-axis entries |
 | Anticipation, follow-through, holds, overshoot, squash and stretch, timing | `models/wrap.js`, `critics/spacing.js`, `critics/volume.js` | F. Thomas, O. Johnston, *The Illusion of Life: Disney Animation*, Abbeville Press, 1981 | a move opposite before the move; parts carrying on past the stop; a squash that keeps the volume; a fall's drawings spaced wider as it speeds up |
 
 **Ours:** every default not in a row above — Fitts's a (0.1 s), b (0.2 s a bit) and the usual target (40 px); the power law's floor
@@ -33,4 +37,9 @@ s either side of a landing), a chain's damping (0.9 lost a second), its stronges
 tolerance (5%), its most links (64) and seconds (10), a wrapper's usual `by` (8% of the move's distance), its least
 travel (0.01 px), the critics' limits (half the gravity, 10% of area, 0.5 px into something solid, 5% stretch), a throw's least time (one frame, 1/60 s), and a settle's
 least overshoot said (half a percent).
+Rolling, tumbling and sliding (0.30.0): rolling resistance 0.05 (larger than life, so a roll stops within a frame), the
+steepest floor (45°), the least roll radius (1 px), the fastest start (1e5 px/s), `to`'s leeway off its floor (0.5 px),
+the most friction (2), a box stopping a roll dead (no bounce), the skid at a landing not drawn, a tumble's usual spin
+(v / r, or the nearest to it that lands a box on a face), and the critics' limits (5% astray from distance / radius,
+10% of spin, read against at least 1 rad/s).
 Each is a named constant beside its reason, and a test pins it.

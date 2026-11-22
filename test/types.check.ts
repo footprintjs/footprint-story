@@ -329,3 +329,21 @@ runHumanFlow(entries, { recorders: [], frame: null }).then(({ result, snapshot }
 planIntents([{ do: 'reach', from: [0, 0], to: [1, 1], wrap: [{ wrapper: 'squash' }] }]);
 // @ts-expect-error the decider's chart takes no frame: it is the run's input
 humanFlow({ frame: [1, 1] });
+// 0.30.0: rolling, tumbling and sliding — the roll, slide and tumble families, the glide law, the hand-over rule, the critics
+import { glide, glideAt, restSpeed, touchAlong, ROLL_SHAPES, ROLLING_RESISTANCE, MOST_SLOPE, rollTurn, rollingPush, landRoll, KINETIC_FRICTION, STATIC_FRICTION, slidingPush,
+  slideDistance, spinAt, faceSpin, ROLL_KEYS, MIN_ROLL_RADIUS, SLIDE_KEYS, MOST_FRICTION, TUMBLE_KEYS, TUMBLE_SHAPES, LANDING_RULES, GROUND_PLANES, MOST_GROUND_SPEED, OFF_LINE,
+  ROLL_SLIP_MOST, SPIN_MOST, SPIN_FLOOR } from 'footprint-story/human';
+import type { Glide, GlideSegment, LandingRule } from 'footprint-story/human';
+const rolled: HumanMove = planMove({ do: 'roll', who: 'ball', from: [0, 490], to: [600, 490], radius: 20, shape: 'disc' });
+const slid: HumanMove = planMove({ do: 'slide', from: [0, 0], speed: 500, plane: 'floor', heading: 30 });
+const tumbled: HumanMove = planMove({ do: 'tumble', from: [0, 300], to: [400, 500], radius: 10, shape: 'box' });
+const glided: Glide = glide({ speed: 280, ...rollingPush({ along: 0, normal: 1960, resistance: ROLLING_RESISTANCE, inertia: ROLL_SHAPES.ball }), most: 30 });
+const piece: GlideSegment | undefined = glided.segments[0];
+const landingRule: LandingRule | undefined = LANDING_RULES[0];
+const rollFamily: HumanFamily = HUMAN_DOS.roll;
+const touch = touchAlong([0, 0], [1, 0], makeWorld({ boxes: [{ x: 10, y: -5, w: 5, h: 10 }] }), 2);
+export const rolling: unknown[] = [rolled, slid, tumbled, piece?.a, landingRule?.then, rollFamily, touch.box, glideAt(glided, 1).q, restSpeed(1, 2), MOST_SLOPE, rollTurn(1, 2), landRoll(1, 2, 3, 0.4),
+  KINETIC_FRICTION + STATIC_FRICTION, slidingPush({ along: 0, normal: 1, kinetic: 0.2, still: 0.3 }).hold, slideDistance(1, 0.2, 1960), spinAt(0, 1, 2), faceSpin(0, 1, 2, 4), ROLL_KEYS, MIN_ROLL_RADIUS,
+  SLIDE_KEYS, MOST_FRICTION, TUMBLE_KEYS, TUMBLE_SHAPES, GROUND_PLANES, MOST_GROUND_SPEED + OFF_LINE, ROLL_SLIP_MOST + SPIN_MOST + SPIN_FLOOR, sampleMove(rolled, 1).angle];
+// @ts-expect-error a roll's do is 'roll', never 'rolling'
+planMove({ do: 'rolling' });

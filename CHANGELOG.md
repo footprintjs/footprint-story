@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased — rolling, tumbling and sliding
+
+- **Three families on `footprint-story/human`: `do: 'roll'`, `'slide'` and `'tumble'`,** each with its usual model.
+  `no-slip` rolls a round thing without slipping: its `angle` is distance / radius, unwrapped; rolling resistance
+  (`ROLLING_RESISTANCE`, 0.05, ours) slows it to rest; a slope (up to 45°) speeds or slows it by g sin θ / (1 + k), k
+  from its `shape` (`ROLL_SHAPES`: ball 2/5, disc 1/2, ring 1); a box stops it dead; side on (`plane: 'side'`) or on a
+  floor seen from above (`plane: 'floor'`, with `heading`). `coulomb` slides a thing to rest under kinetic friction
+  (`KINETIC_FRICTION` 0.2, `STATIC_FRICTION` 0.25: wood on wood, Serway & Jewett), v² / (2 μ g) on the level, held by
+  static friction once stopped, its angle kept. For both, `to` with no `speed` picks the start speed that rests it
+  exactly there; a climb that stops rolls or slides back when the slope beats its hold. `free-spin` flies a ballistic
+  arc spinning at one rate (no torque in flight) and hands over at the landing by `LANDING_RULES` (data, decide()'s
+  shape): the `then` the intent names, else a round shape rolls on — its turning about the contact kept, v′ = (v + k r ω)
+  / (1 + k) — and a box slides on, its spin stopped, its usual spin the one that lands it on a face. Samples carry
+  `angle` and `spin` (a tumble's also `air` and `rolls`); plans carry `basis` and `why`. Refusals name the entry and the
+  fix: nothing moves it, it stops short of `to` (with the speed that reaches it), a box stands between, it would still be
+  moving after 30 s, `to` off its floor's line.
+- **Two critics: `roll-slip`** (the drawn angle's change against distance / radius, over the steps that roll: over 5%
+  astray it skids, slides without turning or turns the wrong way; the fix names the radius, or the radius it is drawn
+  at) **and `spin`** (a drawn angle that jumps between two samples, or a spin that changes by over 10% in flight). Both
+  read the drawn track, turns taken the short way round. `spacing` now reads only a track's flight when its samples
+  mark `air: 0` on the floor.
+- **The physics under them, on the door:** `glide`, `glideAt`, `restSpeed` (straight-line motion in closed form),
+  `touchAlong` (a line's first touch of a box, the slab test of Kay & Kajiya 1986), `rollTurn`, `rollingPush`,
+  `landRoll`, `slidingPush`, `slideDistance`, `spinAt`, `faceSpin`, and their constants (`MOST_SLOPE`, `ROLL_KEYS`,
+  `SLIDE_KEYS`, `TUMBLE_KEYS`, `TUMBLE_SHAPES`, `GROUND_PLANES`, `MIN_ROLL_RADIUS`, `MOST_GROUND_SPEED`, `OFF_LINE`,
+  `MOST_FRICTION`, `ROLL_SLIP_MOST`, `SPIN_MOST`, `SPIN_FLOOR`). The human and humanflow doors now reach the geometry
+  leaf (`src/geom/angles.js`) for the critics' turns, reused, never copied.
+
 ## 0.29.0 — angles, rotations and camera moves
 
 - **A new door, `footprint-story/geometry`** (pure, no dependencies, loads only `src/geom/`), for the geometry leaf: `angleAt` (the angle at b in a–b–c, 2D or 3D, by
