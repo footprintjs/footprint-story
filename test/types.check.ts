@@ -428,3 +428,20 @@ const namedBare: ReadableInk = readableInk('#d9e4f3', ['#14181f']);
 // @ts-expect-error the inks are a list of colours
 readableInk('#d9e4f3', '#14181f');
 export const inks: [string, number, boolean, number, number, number, boolean] = [nameOnFace.ink, nameOnFace.ratio, nameOnFace.reads, luminance('#fff'), contrastRatio('#777', '#fff'), deltaE76('#000', '#fff'), namedBare.reads];
+
+// bodies, round 1A: a rig, a pose, where it puts each part, the clamp, the mirror, two-bone IK
+import { readRig, humanRig, restPose, placeParts, centreOf, windowAngle, clampPose, mirrorPose, twoBone, MOST_PARTS, MOST_CHAIN, MOST_LENGTH, REACH_TOLERANCE } from 'footprint-story/body';
+import type { Rig, RigInput, Pose, PlacedPart, TwoBoneResult, ClampResult } from 'footprint-story/body';
+const bodyAna: Rig = humanRig({ name: 'ana', height: 350, build: 1.2, facing: -1 });
+const bodyWritten: RigInput = { name: 'arm', parts: [{ name: 'base', parent: null, length: 0, mass: 1 }, { name: 'upper', parent: 'base', length: 60, mass: 1, limit: [-1, 1] }, { name: 'lower', parent: 'upper', length: 50, mass: 1 }], chains: [{ name: 'reach', parts: ['upper', 'lower'], solver: 'two-bone', bend: 'back' }] };
+const bodyArm: Rig = readRig(bodyWritten);
+const bodyStanding: Pose = restPose(bodyAna, { root: [400, 500] });
+const bodyPlaced: readonly PlacedPart[] = placeParts(bodyAna, bodyStanding);
+const bodyReached: TwoBoneResult = twoBone(bodyAna, bodyStanding, 'arm-n', [470, 420]);
+const bodyHeld: ClampResult = clampPose(bodyArm, mirrorPose(bodyArm, restPose(bodyArm)));
+export const bodyNumbers: number[] = [centreOf(bodyAna, bodyPlaced)[0], windowAngle(-3, [0.5, 4.4]), bodyReached.miss, bodyHeld.clamped.length, MOST_PARTS + MOST_CHAIN + MOST_LENGTH + REACH_TOLERANCE, bodyReached.moved[0]?.by ?? 0];
+export const bodyFlags: boolean[] = [bodyReached.stretched, bodyReached.folded];
+// @ts-expect-error a two-bone chain names its bend
+export const noBend: RigInput = { name: 'x', parts: [{ name: 'a', parent: null, length: 0, mass: 1 }], chains: [{ name: 'k', parts: ['a', 'b'], solver: 'two-bone' }] };
+// @ts-expect-error a target is a point [x, y]
+twoBone(bodyAna, bodyStanding, 'arm-n', [1, 2, 3]);

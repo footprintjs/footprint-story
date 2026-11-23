@@ -26,7 +26,7 @@ them on a canvas, StoryDeck plays them in a page.
 npm install footprint-story
 ```
 
-Twelve doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
+Thirteen doors, nothing else. A door loads only when you import it, so a page that only captions never loads motion:
 
 | door | what | runs |
 |---|---|---|
@@ -42,6 +42,7 @@ Twelve doors, nothing else. A door loads only when you import it, so a page that
 | `footprint-story/human` | how people move and draw: minimum jerk, Fitts's law, the two-thirds power law, sigma-lognormal strokes, a seeded tremor; the paths they run on; light physics (a throw, a fall, a bounce, a hanging chain, a spring settle); named models that plan a move from an intent, wrappers that reshape it, critics that say what still looks wrong, and hand-drawn strokes (a drawing's order, each stroke's pace and width, hatching, a boil) | anywhere — browser or Node; no dependencies |
 | `footprint-story/geometry` | angles between points and the twist about a line, angles that wrap round, quaternions, slerp and squad (Shoemake), spherical places and great circles, a camera's look and its lean | anywhere — browser or Node; no dependencies |
 | `footprint-story/humanflow` | the intent decider built as a footprintjs chart, one stage per step, so a run's record says why each move got its model and its duration | wherever `footprintjs` runs; needs `footprintjs`, the caller's |
+| `footprint-story/body` | a body as data: a rig of parts (the usual person from a height), a pose and where it puts each part, the centre of mass, joint limits and the facing mirror, two-bone IK in closed form | anywhere — browser or Node; no dependencies |
 | `footprint-story` (also) | `oneLine`, `errorText`: a row of a tool's reply stays one line whatever a project's files hold | anywhere |
 | `footprint-story` (also) | `differsProblem`, `differsLines`, `timeWords` …: the rules for a part that differs from the real thing | anywhere |
 
@@ -653,8 +654,9 @@ record can name the rule used. More in [src/layout/README.md](src/layout/README.
 | `/human` `planIntents`, `HUMAN_STEPS`, `HUMAN_INPUT`, `CHOOSE_RULES`, `MOST_INTENTS`, `SUMMARY_POINTS`, `PER_INTENT`, `intentKey` | the intent decider: a list of intents, every move decided by steps in one list — the model by rules as data, the plan and its basis, wrappers, a bounded track summary, the critics' findings; each intent's values also under keys of its own (`duration-3`) |
 | `/mapflow` `mapFlow`, `runMapFlow` | the map's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/mapflow/README.md](src/mapflow/README.md) |
 | `/humanflow` `humanFlow`, `runHumanFlow` | the intent decider's steps as a footprintjs chart, and a run of it with the reads kept (needs footprintjs, the caller's): [src/humanflow/README.md](src/humanflow/README.md) |
+| `/body` `readRig`, `humanRig`, `restPose`, `placeParts`, `centreOf`, `windowAngle`, `clampPose`, `mirrorPose`, `twoBone`, `MOST_PARTS`, `MOST_CHAIN`, `MOST_LENGTH`, `REACH_TOLERANCE` | a body as data: a rig read and refused in words, the usual person (Winter's tables), forward kinematics, the centre of mass, the window rule and the one clamp, the facing mirror, two-bone IK by Kahan's angles: [src/body/README.md](src/body/README.md) |
 
-Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`, `humanflow.d.ts`, `geometry.d.ts`). Each `src/` folder has a README saying why it exists.
+Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboard.d.ts`, `shot.d.ts`, `isometric.d.ts`, `layout.d.ts`, `record.d.ts`, `mapflow.d.ts`, `human.d.ts`, `humanflow.d.ts`, `geometry.d.ts`, `body.d.ts`). Each `src/` folder has a README saying why it exists.
 
 ## What is guaranteed
 
@@ -668,7 +670,7 @@ Types ship with every door (`index.d.ts`, `voice.d.ts`, `motion.d.ts`, `storyboa
 - **What moved from a tool frames, breaks and judges as the tool did**: the differs rules (StoryDeck 0.28.0 and
   StoryReel 0.33.0), a whole map's build (StoryReel 0.38.0), `frameZoom` (StoryDeck 0.28.0's cameras, to the last bit) and `wrapWords` / `narrowestWidth`
   (StoryReel 0.33.0's line breaking) are compared against copies of that code in `test/control/`.
-- **The main, motion, storyboard, shot, isometric, layout, human and geometry doors run in a browser**: nothing they reach imports a Node module, and the main
+- **The main, motion, storyboard, shot, isometric, layout, human, geometry and body doors run in a browser**: nothing they reach imports a Node module, and the main
   door never loads motion (an architecture test).
 
 The differences from the code it replaced are few and named in the [CHANGELOG](CHANGELOG.md).

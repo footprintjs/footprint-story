@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — bodies, round 1A
+
+- **A new door, `footprint-story/body`: a body as data** (`docs/design/2026-11-bodies.md`, round 1A). Pure, no
+  dependencies, runs in a browser; it reaches only `src/body/` and the shared leaves, never `src/human/`
+  (test/doors.test.js pins it). Nothing else changed.
+  - `readRig(rig)`: a rig — a tree of parts, each owning the joint at its start, parents before children — checked and
+    frozen, mass shares scaled to sum to 1. Every refusal of the design's §10 is an `Error` starting `body:` naming the
+    rig, the part and the fix: 1 to 64 parts, unique names (the human door's name rule), one root, lengths (root ≥ 0,
+    others above 0, at most 10,000 px), widths, a limit within ±2π narrower than a turn with the rest inside, mass
+    shares summing above 0, two-bone chains of exactly 2 and FABRIK chains of 2 to 16 each the child of the one before,
+    unknown keys, a getter (never run).
+  - `humanRig({name, height, build?, facing?})`: the usual person, 17 parts, from Drillis & Contini's lengths and
+    Dempster's masses as Winter tabulates them (the hip 185.5 px up at 350 px); chains `arm-n`, `arm-f`, `leg-n`,
+    `leg-f` (two-bone) and `spine` (FABRIK, round 1B).
+  - `restPose`, `placeParts` (forward kinematics; world angles are sums, never wrapped), `centreOf` (each share at its
+    part's middle — the same centre as the ragdoll's half at each end).
+  - `windowAngle` (the window rule: the reading nearest the window's middle; one inside comes back bit for bit),
+    `clampPose` (the one clamp: what it clamped, by how much, how far each chain's point moved), `mirrorPose` (the
+    facing mirror: θ → π − θ; twice gives the pose back).
+  - `twoBone(rig, pose, chain, target)`: closed form, each triangle angle by Kahan's needle-triangle form (never acos),
+    the elbow's bend taken as one angle; a target in reach met within `REACH_TOLERANCE` × (l1 + l2) = 1e-9; the bend
+    side fixed by the chain (knees front, elbows back, mirrored facing −1); `miss`, `stretched`, `folded` reported;
+    pure from the pose handed in. Tested against the law of cosines and, near full reach, an exact-rational oracle.
+
 ## 0.38.1 — spin at a track's end
 
 - **`spin` no longer lets a sample's own reported rate explain a flick at a track's end.** Where a run touches an end
