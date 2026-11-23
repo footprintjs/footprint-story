@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — bodies, round 1B
+
+- **FABRIK, the solver for a chain of 2 to 16 parts** (`src/body/fabrik.js`, its types beside it; on the body door once
+  round 1A's door lands): `fabrik({points, target, lengths?, limits?, parentAngle?, passes?})` gives frozen
+  `{points, angles, reached, miss, passes, bound}`. Forward and backward passes (Aristidou & Lasenby 2011), each limited
+  child turned back into its window about its joint in both sweeps (Aristidou, Chrysanthou & Lasenby 2016), at most 16
+  passes in one fixed order, stopping under 0.1 px. After every pass the root holds, every length is exact (to 1e-9 of
+  itself) and every limited angle is in its window, read by the bodies design's window rule through
+  `geom/angles.js · wrapAngle` (reused). Each solve starts from the given start pose. Out of reach with no limits, the
+  chain lies straight toward the target. Two named rules with an epsilon, never a test for zero: a direction under 1e-9
+  of the chain's length keeps its start-pose way; joints and target in one line (where FABRIK never leaves the line)
+  bend the start 0.1 rad a joint first. Refusals per §10 of the design, every field read as a stored value.
+- **Measured, and the design's claim corrected:** without limits, 16 passes reach under 0.1 px on 96.3% of 50,000
+  random reachable chains (98.6% under 1 px), not on all of them as §3 of the design expected; a textbook FABRIK gives
+  the same points to 1e-11 px, so it is the method's slow settling near full reach, near a fold or from a tangled start.
+  The miss is always reported. Pinned on a fixed seeded sweep, with property tests for the lengths, the windows, the
+  truthful miss, the same answer twice, the straight unreachable chain and a miss that never grows from pass to pass.
+
 ## 0.38.1 — spin at a track's end
 
 - **`spin` no longer lets a sample's own reported rate explain a flick at a track's end.** Where a run touches an end
